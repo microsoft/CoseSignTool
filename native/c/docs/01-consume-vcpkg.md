@@ -28,9 +28,35 @@ target_link_libraries(your_target PRIVATE cosesign1_validation_native::cose_sign
 
 ## Feature → header mapping
 
-- `certificates` → `<cose/cose_certificates.h>` and `COSE_HAS_CERTIFICATES_PACK`
-- `mst` → `<cose/cose_mst.h>` and `COSE_HAS_MST_PACK`
-- `akv` → `<cose/cose_azure_key_vault.h>` and `COSE_HAS_AKV_PACK`
-- `trust` → `<cose/cose_trust.h>` and `COSE_HAS_TRUST_PACK`
+- `certificates` → `<cose/sign1/extension_packs/certificates.h>` and `COSE_HAS_CERTIFICATES_PACK`
+- `mst` → `<cose/sign1/extension_packs/mst.h>` and `COSE_HAS_MST_PACK`
+- `akv` → `<cose/sign1/extension_packs/azure_key_vault.h>` and `COSE_HAS_AKV_PACK`
+- `trust` → `<cose/sign1/trust.h>` and `COSE_HAS_TRUST_PACK`
+- `signing` → `<cose/sign1/signing.h>` and `COSE_HAS_SIGNING`
+- `primitives` → `<cose/sign1.h>` and `COSE_HAS_PRIMITIVES`
+- `factories` → `<cose/sign1/signing.h>` and `COSE_HAS_FACTORIES`
+- `crypto` → `<cose/crypto/cose_crypto.h>` and `COSE_HAS_CRYPTO_OPENSSL`
+- `cbor-everparse` → `COSE_CBOR_EVERPARSE` (CBOR provider selection)
 
 When consuming via vcpkg/CMake, the `COSE_HAS_*` macros are set for you based on enabled features.
+
+## Provider Configuration
+
+### Crypto Provider
+The `crypto` feature enables OpenSSL-based cryptography support:
+- Provides ECDSA signing and verification
+- Supports ML-DSA (post-quantum) when available
+- Required for signing operations via factories
+- Sets `COSE_HAS_CRYPTO_OPENSSL` preprocessor define
+
+### CBOR Provider
+The `cbor-everparse` feature selects the EverParse CBOR parser (formally verified):
+- Sets `COSE_CBOR_EVERPARSE` preprocessor define
+- Default and recommended CBOR provider
+
+### Factory Feature
+The `factories` feature enables COSE Sign1 message construction:
+- Requires `signing` and `crypto` features
+- Provides high-level signing APIs
+- Sets `COSE_HAS_FACTORIES` preprocessor define
+- Example: `cose_sign1_factory_from_crypto_signer()`

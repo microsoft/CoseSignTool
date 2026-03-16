@@ -4,14 +4,17 @@ This folder documents the Rust workspace under `native/rust/`.
 
 ## What you get
 
-- A staged COSE_Sign1 validation pipeline (resolution → trust → signature → post-signature)
+- A staged COSE_Sign1 validation pipeline (resolution > trust > signature > post-signature)
 - A V2-style trust engine (facts + rule graph + audit + stable subject IDs)
-- Optional trust “packs” that can contribute signing key resolvers, facts, and default trust plans (X.509 x5chain parsing, Transparent MST receipts, Azure Key Vault KID checks)
-- Detached payload support (bytes or provider) + streaming-friendly signature verification for large payloads
+- Pluggable CBOR via `cbor_primitives` traits -- compile-time provider selection for FFI
+- Optional trust packs (X.509 x5chain, Transparent MST receipts, Azure Key Vault KID)
+- Detached payload support (bytes or provider) + streaming-friendly signature verification
+- C and C++ FFI projections with per-pack modularity
 
 ## Table of contents
 
 - [Getting Started](getting-started.md)
+- [CBOR Provider Selection](cbor-providers.md)
 - [Validator Architecture](validator-architecture.md)
 - [Extension Points](extension-points.md)
 - [Detached Payloads + Streaming](detached-payloads.md)
@@ -22,3 +25,9 @@ This folder documents the Rust workspace under `native/rust/`.
 - [Azure Key Vault Pack](azure-key-vault-pack.md)
 - [Demo Executable](demo-exe.md)
 - [Troubleshooting](troubleshooting.md)
+
+## See also
+
+- [Native FFI Architecture](../../ARCHITECTURE.md) -- Mermaid diagrams, crate dependency graph, C/C++ layer details
+- [C Projection](../../c/README.md)
+- [C++ Projection](../../c_pp/README.md)

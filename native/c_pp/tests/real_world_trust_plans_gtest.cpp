@@ -3,15 +3,7 @@
 
 #include <gtest/gtest.h>
 
-#include <cose/trust.hpp>
-
-#ifdef COSE_HAS_CERTIFICATES_PACK
-#include <cose/certificates.hpp>
-#endif
-
-#ifdef COSE_HAS_MST_PACK
-#include <cose/mst.hpp>
-#endif
+#include <cose/cose.hpp>
 
 #include <cstdint>
 #include <fstream>
@@ -89,8 +81,7 @@ TEST(RealWorldTrustPlans, CompileSucceedsWhenRequiredPackPresent) {
     GTEST_SKIP() << "COSE_HAS_CERTIFICATES_PACK not enabled";
 #else
     cose::ValidatorBuilder builder;
-
-    ASSERT_EQ(cose_validator_builder_with_certificates_pack(builder.native_handle()), COSE_OK);
+    cose::WithCertificates(builder);
 
     cose::TrustPolicyBuilder policy(builder);
     cose::RequireX509ChainTrusted(policy);
@@ -112,7 +103,7 @@ TEST(RealWorldTrustPlans, RealV1PolicyCanGateOnCertificateFacts) {
     GTEST_SKIP() << "COSE_HAS_CERTIFICATES_PACK not enabled";
 #else
     cose::ValidatorBuilder builder;
-    ASSERT_EQ(cose_validator_builder_with_certificates_pack(builder.native_handle()), COSE_OK);
+    cose::WithCertificates(builder);
 
     cose::TrustPolicyBuilder policy(builder);
     cose::RequireSigningCertificatePresent(policy);
@@ -141,30 +132,20 @@ TEST(RealWorldTrustPlans, RealScittPolicyCanRequireCwtClaimsAndMstReceiptTrusted
     const auto jwks_json = read_file_bytes(COSE_MST_JWKS_PATH);
     const std::string jwks_str(reinterpret_cast<const char*>(jwks_json.data()), jwks_json.size());
 
-    {
-        cose_mst_trust_options_t opts;
-        opts.allow_network = false;
-        opts.offline_jwks_json = jwks_str.c_str();
-        opts.jwks_api_version = nullptr;
-
-        ASSERT_EQ(cose_validator_builder_with_mst_pack_ex(builder.native_handle(), &opts), COSE_OK);
-    }
+    cose::MstOptions mst_opts;
+    mst_opts.allow_network = false;
+    mst_opts.offline_jwks_json = jwks_str;
+    cose::WithMst(builder, mst_opts);
 
 #ifdef COSE_HAS_CERTIFICATES_PACK
-    {
-        cose_certificate_trust_options_t cert_opts;
-        cert_opts.trust_embedded_chain_as_trusted = true;
-        cert_opts.identity_pinning_enabled = false;
-        cert_opts.allowed_thumbprints = nullptr;
-        cert_opts.pqc_algorithm_oids = nullptr;
-
-        ASSERT_EQ(cose_validator_builder_with_certificates_pack_ex(builder.native_handle(), &cert_opts), COSE_OK);
-    }
+    cose::CertificateOptions cert_opts;
+    cert_opts.trust_embedded_chain_as_trusted = true;
+    cose::WithCertificates(builder, cert_opts);
 #endif
 
     cose::TrustPolicyBuilder policy(builder);
-    policy.RequireCwtClaimsPresent();
-    policy.And();
+    policy.RequireCwtClaimsPresent()
+          .And();
     cose::RequireMstReceiptTrustedFromIssuerContains(policy, "confidential-ledger.azure.com");
 
     (void)policy.Compile();
@@ -192,14 +173,10 @@ TEST(RealWorldTrustPlans, RealV1PolicyCanValidateWithMstOnlyBypassingPrimarySign
     const auto jwks_json = read_file_bytes(COSE_MST_JWKS_PATH);
     const std::string jwks_str(reinterpret_cast<const char*>(jwks_json.data()), jwks_json.size());
 
-    {
-        cose_mst_trust_options_t opts;
-        opts.allow_network = false;
-        opts.offline_jwks_json = jwks_str.c_str();
-        opts.jwks_api_version = nullptr;
-
-        ASSERT_EQ(cose_validator_builder_with_mst_pack_ex(builder.native_handle(), &opts), COSE_OK);
-    }
+    cose::MstOptions mst_opts;
+    mst_opts.allow_network = false;
+    mst_opts.offline_jwks_json = jwks_str;
+    cose::WithMst(builder, mst_opts);
 
     // Use the MST pack default trust plan.
     cose::TrustPlanBuilder plan_builder(builder);

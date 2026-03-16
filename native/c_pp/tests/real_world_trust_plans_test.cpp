@@ -1,14 +1,14 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-#include <cose/trust.hpp>
+#include <cose/sign1/trust.hpp>
 
 #ifdef COSE_HAS_CERTIFICATES_PACK
-#include <cose/certificates.hpp>
+#include <cose/sign1/extension_packs/certificates.hpp>
 #endif
 
 #ifdef COSE_HAS_MST_PACK
-#include <cose/mst.hpp>
+#include <cose/sign1/extension_packs/mst.hpp>
 #endif
 
 #include <cstdint>
@@ -85,7 +85,7 @@ static void test_compile_succeeds_when_required_pack_present() {
 #else
     cose::ValidatorBuilder builder;
     // Add cert pack to builder using the pack's C API.
-    if (cose_validator_builder_with_certificates_pack(builder.native_handle()) != COSE_OK) {
+    if (cose_sign1_validator_builder_with_certificates_pack(builder.native_handle()) != COSE_OK) {
         throw cose::cose_error(COSE_ERR);
     }
 
@@ -106,7 +106,7 @@ static void test_real_v1_policy_can_gate_on_certificate_facts() {
     return;
 #else
     cose::ValidatorBuilder builder;
-    if (cose_validator_builder_with_certificates_pack(builder.native_handle()) != COSE_OK) {
+    if (cose_sign1_validator_builder_with_certificates_pack(builder.native_handle()) != COSE_OK) {
         throw cose::cose_error(COSE_ERR);
     }
 
@@ -145,7 +145,7 @@ static void test_real_scitt_policy_can_require_cwt_claims_and_mst_receipt_truste
         opts.offline_jwks_json = mst.offline_jwks_json.c_str();
         opts.jwks_api_version = nullptr;
 
-        if (cose_validator_builder_with_mst_pack_ex(builder.native_handle(), &opts) != COSE_OK) {
+        if (cose_sign1_validator_builder_with_mst_pack_ex(builder.native_handle(), &opts) != COSE_OK) {
             throw cose::cose_error(COSE_ERR);
         }
     }
@@ -158,7 +158,7 @@ static void test_real_scitt_policy_can_require_cwt_claims_and_mst_receipt_truste
         cert_opts.allowed_thumbprints = nullptr;
         cert_opts.pqc_algorithm_oids = nullptr;
 
-        if (cose_validator_builder_with_certificates_pack_ex(builder.native_handle(), &cert_opts) != COSE_OK) {
+        if (cose_sign1_validator_builder_with_certificates_pack_ex(builder.native_handle(), &cert_opts) != COSE_OK) {
             throw cose::cose_error(COSE_ERR);
         }
     }
@@ -190,7 +190,7 @@ static void test_real_v1_policy_can_validate_with_mst_only_by_bypassing_primary_
         opts.offline_jwks_json = jwks_str.c_str();
         opts.jwks_api_version = nullptr;
 
-        if (cose_validator_builder_with_mst_pack_ex(builder.native_handle(), &opts) != COSE_OK) {
+        if (cose_sign1_validator_builder_with_mst_pack_ex(builder.native_handle(), &opts) != COSE_OK) {
             throw cose::cose_error(COSE_ERR);
         }
     }

@@ -1,0 +1,24 @@
+[package]
+name = "did_x509_ffi"
+edition.workspace = true
+license.workspace = true
+version = "0.1.0"
+description = "C/C++ FFI for DID:x509 parsing, building, validation and resolution"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+test = false
+
+[dependencies]
+did_x509 = { path = ".." }
+libc = "0.2"
+serde_json.workspace = true
+
+[dev-dependencies]
+hex = "0.4"
+openssl = { workspace = true }
+sha2.workspace = true
+rcgen = "0.14"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }

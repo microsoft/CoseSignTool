@@ -15,7 +15,16 @@
         "COSE_HAS_CERTIFICATES_PACK",
         "COSE_HAS_MST_PACK",
         "COSE_HAS_AKV_PACK",
-        "COSE_HAS_TRUST_PACK"
+        "COSE_HAS_TRUST_PACK",
+        "COSE_HAS_PRIMITIVES",
+        "COSE_HAS_SIGNING",
+        "COSE_HAS_CWT_HEADERS",
+        "COSE_HAS_DID_X509",
+        "COSE_HAS_CERTIFICATES_LOCAL",
+        "COSE_HAS_CRYPTO_OPENSSL",
+        "COSE_HAS_FACTORIES",
+        "COSE_CRYPTO_OPENSSL",
+        "COSE_CBOR_EVERPARSE"
       ]
     }
   ]

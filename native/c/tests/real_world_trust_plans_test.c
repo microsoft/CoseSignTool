@@ -1,15 +1,15 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-#include <cose/cose_sign1.h>
-#include <cose/cose_trust.h>
+#include <cose/sign1/validation.h>
+#include <cose/sign1/trust.h>
 
 #ifdef COSE_HAS_CERTIFICATES_PACK
-#include <cose/cose_certificates.h>
+#include <cose/sign1/extension_packs/certificates.h>
 #endif
 
 #ifdef COSE_HAS_MST_PACK
-#include <cose/cose_mst.h>
+#include <cose/sign1/extension_packs/mst.h>
 #endif
 
 #include <stdbool.h>
@@ -124,28 +124,28 @@ static void test_compile_fails_when_required_pack_missing(void) {
     printf("SKIP: %s (COSE_HAS_CERTIFICATES_PACK not enabled)\n", __func__);
     return;
 #else
-    cose_validator_builder_t* builder = NULL;
-    cose_trust_policy_builder_t* policy = NULL;
-    cose_compiled_trust_plan_t* plan = NULL;
+    cose_sign1_validator_builder_t* builder = NULL;
+    cose_sign1_trust_policy_builder_t* policy = NULL;
+    cose_sign1_compiled_trust_plan_t* plan = NULL;
 
-    assert_status_ok(cose_validator_builder_new(&builder), "cose_validator_builder_new");
+    assert_status_ok(cose_sign1_validator_builder_new(&builder), "cose_sign1_validator_builder_new");
     assert_status_ok(
-        cose_trust_policy_builder_new_from_validator_builder(builder, &policy),
-        "cose_trust_policy_builder_new_from_validator_builder"
+        cose_sign1_trust_policy_builder_new_from_validator_builder(builder, &policy),
+        "cose_sign1_trust_policy_builder_new_from_validator_builder"
     );
 
     // Certificates pack is linked, but NOT configured on the builder.
     // The require-call succeeds, but compiling should fail because no pack will produce the fact.
     assert_status_ok(
-        cose_certificates_trust_policy_builder_require_x509_chain_trusted(policy),
-        "cose_certificates_trust_policy_builder_require_x509_chain_trusted"
+        cose_sign1_certificates_trust_policy_builder_require_x509_chain_trusted(policy),
+        "cose_sign1_certificates_trust_policy_builder_require_x509_chain_trusted"
     );
 
-    cose_status_t st = cose_trust_policy_builder_compile(policy, &plan);
-    assert_status_not_ok(st, "cose_trust_policy_builder_compile");
+    cose_status_t st = cose_sign1_trust_policy_builder_compile(policy, &plan);
+    assert_status_not_ok(st, "cose_sign1_trust_policy_builder_compile");
 
-    cose_trust_policy_builder_free(policy);
-    cose_validator_builder_free(builder);
+    cose_sign1_trust_policy_builder_free(policy);
+    cose_sign1_validator_builder_free(builder);
 #endif
 }
 
@@ -154,46 +154,46 @@ static void test_compile_succeeds_when_required_pack_present(void) {
     printf("SKIP: %s (COSE_HAS_CERTIFICATES_PACK not enabled)\n", __func__);
     return;
 #else
-    cose_validator_builder_t* builder = NULL;
-    cose_trust_policy_builder_t* policy = NULL;
-    cose_compiled_trust_plan_t* plan = NULL;
-    cose_validator_t* validator = NULL;
+    cose_sign1_validator_builder_t* builder = NULL;
+    cose_sign1_trust_policy_builder_t* policy = NULL;
+    cose_sign1_compiled_trust_plan_t* plan = NULL;
+    cose_sign1_validator_t* validator = NULL;
 
-    assert_status_ok(cose_validator_builder_new(&builder), "cose_validator_builder_new");
+    assert_status_ok(cose_sign1_validator_builder_new(&builder), "cose_sign1_validator_builder_new");
     assert_status_ok(
-        cose_validator_builder_with_certificates_pack(builder),
-        "cose_validator_builder_with_certificates_pack"
+        cose_sign1_validator_builder_with_certificates_pack(builder),
+        "cose_sign1_validator_builder_with_certificates_pack"
     );
 
     assert_status_ok(
-        cose_trust_policy_builder_new_from_validator_builder(builder, &policy),
-        "cose_trust_policy_builder_new_from_validator_builder"
+        cose_sign1_trust_policy_builder_new_from_validator_builder(builder, &policy),
+        "cose_sign1_trust_policy_builder_new_from_validator_builder"
     );
 
     assert_status_ok(
-        cose_certificates_trust_policy_builder_require_x509_chain_trusted(policy),
-        "cose_certificates_trust_policy_builder_require_x509_chain_trusted"
+        cose_sign1_certificates_trust_policy_builder_require_x509_chain_trusted(policy),
+        "cose_sign1_certificates_trust_policy_builder_require_x509_chain_trusted"
     );
 
     assert_status_ok(
-        cose_trust_policy_builder_compile(policy, &plan),
-        "cose_trust_policy_builder_compile"
+        cose_sign1_trust_policy_builder_compile(policy, &plan),
+        "cose_sign1_trust_policy_builder_compile"
     );
 
     assert_status_ok(
-        cose_validator_builder_with_compiled_trust_plan(builder, plan),
-        "cose_validator_builder_with_compiled_trust_plan"
+        cose_sign1_validator_builder_with_compiled_trust_plan(builder, plan),
+        "cose_sign1_validator_builder_with_compiled_trust_plan"
     );
 
     assert_status_ok(
-        cose_validator_builder_build(builder, &validator),
-        "cose_validator_builder_build"
+        cose_sign1_validator_builder_build(builder, &validator),
+        "cose_sign1_validator_builder_build"
     );
 
-    cose_validator_free(validator);
-    cose_compiled_trust_plan_free(plan);
-    cose_trust_policy_builder_free(policy);
-    cose_validator_builder_free(builder);
+    cose_sign1_validator_free(validator);
+    cose_sign1_compiled_trust_plan_free(plan);
+    cose_sign1_trust_policy_builder_free(policy);
+    cose_sign1_validator_builder_free(builder);
 #endif
 }
 
@@ -202,40 +202,40 @@ static void test_real_v1_policy_can_gate_on_certificate_facts(void) {
     printf("SKIP: %s (COSE_HAS_CERTIFICATES_PACK not enabled)\n", __func__);
     return;
 #else
-    cose_validator_builder_t* builder = NULL;
-    cose_trust_policy_builder_t* policy = NULL;
-    cose_compiled_trust_plan_t* plan = NULL;
+    cose_sign1_validator_builder_t* builder = NULL;
+    cose_sign1_trust_policy_builder_t* policy = NULL;
+    cose_sign1_compiled_trust_plan_t* plan = NULL;
 
-    assert_status_ok(cose_validator_builder_new(&builder), "cose_validator_builder_new");
+    assert_status_ok(cose_sign1_validator_builder_new(&builder), "cose_sign1_validator_builder_new");
     assert_status_ok(
-        cose_validator_builder_with_certificates_pack(builder),
-        "cose_validator_builder_with_certificates_pack"
+        cose_sign1_validator_builder_with_certificates_pack(builder),
+        "cose_sign1_validator_builder_with_certificates_pack"
     );
 
     assert_status_ok(
-        cose_trust_policy_builder_new_from_validator_builder(builder, &policy),
-        "cose_trust_policy_builder_new_from_validator_builder"
+        cose_sign1_trust_policy_builder_new_from_validator_builder(builder, &policy),
+        "cose_sign1_trust_policy_builder_new_from_validator_builder"
     );
 
     // Roughly matches: require_signing_certificate_present AND require_not_pqc_algorithm_or_missing
     assert_status_ok(
-        cose_certificates_trust_policy_builder_require_signing_certificate_present(policy),
-        "cose_certificates_trust_policy_builder_require_signing_certificate_present"
+        cose_sign1_certificates_trust_policy_builder_require_signing_certificate_present(policy),
+        "cose_sign1_certificates_trust_policy_builder_require_signing_certificate_present"
     );
-    assert_status_ok(cose_trust_policy_builder_and(policy), "cose_trust_policy_builder_and");
+    assert_status_ok(cose_sign1_trust_policy_builder_and(policy), "cose_sign1_trust_policy_builder_and");
     assert_status_ok(
-        cose_certificates_trust_policy_builder_require_not_pqc_algorithm_or_missing(policy),
-        "cose_certificates_trust_policy_builder_require_not_pqc_algorithm_or_missing"
+        cose_sign1_certificates_trust_policy_builder_require_not_pqc_algorithm_or_missing(policy),
+        "cose_sign1_certificates_trust_policy_builder_require_not_pqc_algorithm_or_missing"
     );
 
     assert_status_ok(
-        cose_trust_policy_builder_compile(policy, &plan),
-        "cose_trust_policy_builder_compile"
+        cose_sign1_trust_policy_builder_compile(policy, &plan),
+        "cose_sign1_trust_policy_builder_compile"
     );
 
-    cose_compiled_trust_plan_free(plan);
-    cose_trust_policy_builder_free(policy);
-    cose_validator_builder_free(builder);
+    cose_sign1_compiled_trust_plan_free(plan);
+    cose_sign1_trust_policy_builder_free(policy);
+    cose_sign1_validator_builder_free(builder);
 #endif
 }
 
@@ -247,14 +247,14 @@ static void test_real_scitt_policy_can_require_cwt_claims_and_mst_receipt_truste
     // Build/compile a policy that mirrors the Rust real-world policy shape (using only projected helpers).
     // Note: end-to-end validation of the SCITT vectors requires counter-signature-driven primary-signature bypass,
     // which is driven by the MST pack default trust plan; see the separate validation test below.
-    cose_validator_builder_t* builder = NULL;
-    cose_trust_policy_builder_t* policy = NULL;
-    cose_compiled_trust_plan_t* plan = NULL;
+    cose_sign1_validator_builder_t* builder = NULL;
+    cose_sign1_trust_policy_builder_t* policy = NULL;
+    cose_sign1_compiled_trust_plan_t* plan = NULL;
 
     uint8_t* jwks_bytes = NULL;
     size_t jwks_len = 0;
 
-    assert_status_ok(cose_validator_builder_new(&builder), "cose_validator_builder_new");
+    assert_status_ok(cose_sign1_validator_builder_new(&builder), "cose_sign1_validator_builder_new");
 
     // MST offline JWKS (deterministic)
     if (COSE_MST_JWKS_PATH[0] == 0) {
@@ -278,8 +278,8 @@ static void test_real_scitt_policy_can_require_cwt_claims_and_mst_receipt_truste
     mst_opts.jwks_api_version = NULL;
 
     assert_status_ok(
-        cose_validator_builder_with_mst_pack_ex(builder, &mst_opts),
-        "cose_validator_builder_with_mst_pack_ex"
+        cose_sign1_validator_builder_with_mst_pack_ex(builder, &mst_opts),
+        "cose_sign1_validator_builder_with_mst_pack_ex"
     );
 
 #ifdef COSE_HAS_CERTIFICATES_PACK
@@ -291,38 +291,38 @@ static void test_real_scitt_policy_can_require_cwt_claims_and_mst_receipt_truste
     cert_opts.pqc_algorithm_oids = NULL;
 
     assert_status_ok(
-        cose_validator_builder_with_certificates_pack_ex(builder, &cert_opts),
-        "cose_validator_builder_with_certificates_pack_ex"
+        cose_sign1_validator_builder_with_certificates_pack_ex(builder, &cert_opts),
+        "cose_sign1_validator_builder_with_certificates_pack_ex"
     );
 #endif
 
     assert_status_ok(
-        cose_trust_policy_builder_new_from_validator_builder(builder, &policy),
-        "cose_trust_policy_builder_new_from_validator_builder"
+        cose_sign1_trust_policy_builder_new_from_validator_builder(builder, &policy),
+        "cose_sign1_trust_policy_builder_new_from_validator_builder"
     );
 
     assert_status_ok(
-        cose_trust_policy_builder_require_cwt_claims_present(policy),
-        "cose_trust_policy_builder_require_cwt_claims_present"
+        cose_sign1_trust_policy_builder_require_cwt_claims_present(policy),
+        "cose_sign1_trust_policy_builder_require_cwt_claims_present"
     );
 
-    assert_status_ok(cose_trust_policy_builder_and(policy), "cose_trust_policy_builder_and");
+    assert_status_ok(cose_sign1_trust_policy_builder_and(policy), "cose_sign1_trust_policy_builder_and");
     assert_status_ok(
-        cose_mst_trust_policy_builder_require_receipt_trusted_from_issuer_contains(
+        cose_sign1_mst_trust_policy_builder_require_receipt_trusted_from_issuer_contains(
             policy,
             "confidential-ledger.azure.com"
         ),
-        "cose_mst_trust_policy_builder_require_receipt_trusted_from_issuer_contains"
+        "cose_sign1_mst_trust_policy_builder_require_receipt_trusted_from_issuer_contains"
     );
 
     assert_status_ok(
-        cose_trust_policy_builder_compile(policy, &plan),
-        "cose_trust_policy_builder_compile"
+        cose_sign1_trust_policy_builder_compile(policy, &plan),
+        "cose_sign1_trust_policy_builder_compile"
     );
 
-    cose_compiled_trust_plan_free(plan);
-    cose_trust_policy_builder_free(policy);
-    cose_validator_builder_free(builder);
+    cose_sign1_compiled_trust_plan_free(plan);
+    cose_sign1_trust_policy_builder_free(policy);
+    cose_sign1_validator_builder_free(builder);
 
     free(jwks_json);
     free(jwks_bytes);
@@ -334,11 +334,11 @@ static void test_real_v1_policy_can_validate_with_mst_only_by_bypassing_primary_
     printf("SKIP: %s (COSE_HAS_MST_PACK not enabled)\n", __func__);
     return;
 #else
-    cose_validator_builder_t* builder = NULL;
-    cose_trust_plan_builder_t* plan_builder = NULL;
-    cose_compiled_trust_plan_t* plan = NULL;
-    cose_validator_t* validator = NULL;
-    cose_validation_result_t* result = NULL;
+    cose_sign1_validator_builder_t* builder = NULL;
+    cose_sign1_trust_plan_builder_t* plan_builder = NULL;
+    cose_sign1_compiled_trust_plan_t* plan = NULL;
+    cose_sign1_validator_t* validator = NULL;
+    cose_sign1_validation_result_t* result = NULL;
 
     uint8_t* cose_bytes = NULL;
     size_t cose_len = 0;
@@ -346,7 +346,7 @@ static void test_real_v1_policy_can_validate_with_mst_only_by_bypassing_primary_
     uint8_t* jwks_bytes = NULL;
     size_t jwks_len = 0;
 
-    assert_status_ok(cose_validator_builder_new(&builder), "cose_validator_builder_new");
+    assert_status_ok(cose_sign1_validator_builder_new(&builder), "cose_sign1_validator_builder_new");
 
     if (!read_file_bytes(COSE_MST_JWKS_PATH, &jwks_bytes, &jwks_len)) {
         fail("failed to read MST JWKS json");
@@ -365,32 +365,32 @@ static void test_real_v1_policy_can_validate_with_mst_only_by_bypassing_primary_
     mst_opts.jwks_api_version = NULL;
 
     assert_status_ok(
-        cose_validator_builder_with_mst_pack_ex(builder, &mst_opts),
-        "cose_validator_builder_with_mst_pack_ex"
+        cose_sign1_validator_builder_with_mst_pack_ex(builder, &mst_opts),
+        "cose_sign1_validator_builder_with_mst_pack_ex"
     );
 
     // Use the MST pack default trust plan; this is the native analogue to Rust's TrustPlanBuilder MST-only policy,
     // and is expected to enable bypassing unsupported primary signature algorithms when countersignature evidence exists.
     assert_status_ok(
-        cose_trust_plan_builder_new_from_validator_builder(builder, &plan_builder),
-        "cose_trust_plan_builder_new_from_validator_builder"
+        cose_sign1_trust_plan_builder_new_from_validator_builder(builder, &plan_builder),
+        "cose_sign1_trust_plan_builder_new_from_validator_builder"
     );
     assert_status_ok(
-        cose_trust_plan_builder_add_all_pack_default_plans(plan_builder),
-        "cose_trust_plan_builder_add_all_pack_default_plans"
+        cose_sign1_trust_plan_builder_add_all_pack_default_plans(plan_builder),
+        "cose_sign1_trust_plan_builder_add_all_pack_default_plans"
     );
     assert_status_ok(
-        cose_trust_plan_builder_compile_and(plan_builder, &plan),
-        "cose_trust_plan_builder_compile_and"
+        cose_sign1_trust_plan_builder_compile_and(plan_builder, &plan),
+        "cose_sign1_trust_plan_builder_compile_and"
     );
 
     assert_status_ok(
-        cose_validator_builder_with_compiled_trust_plan(builder, plan),
-        "cose_validator_builder_with_compiled_trust_plan"
+        cose_sign1_validator_builder_with_compiled_trust_plan(builder, plan),
+        "cose_sign1_validator_builder_with_compiled_trust_plan"
     );
     assert_status_ok(
-        cose_validator_builder_build(builder, &validator),
-        "cose_validator_builder_build"
+        cose_sign1_validator_builder_build(builder, &validator),
+        "cose_sign1_validator_builder_build"
     );
 
     // Validate both v1 SCITT vectors.
@@ -406,30 +406,30 @@ static void test_real_v1_policy_can_validate_with_mst_only_by_bypassing_primary_
         }
 
         assert_status_ok(
-            cose_validator_validate_bytes(validator, cose_bytes, cose_len, NULL, 0, &result),
-            "cose_validator_validate_bytes"
+            cose_sign1_validator_validate_bytes(validator, cose_bytes, cose_len, NULL, 0, &result),
+            "cose_sign1_validator_validate_bytes"
         );
 
         bool ok = false;
-        assert_status_ok(cose_validation_result_is_success(result, &ok), "cose_validation_result_is_success");
+        assert_status_ok(cose_sign1_validation_result_is_success(result, &ok), "cose_sign1_validation_result_is_success");
         if (!ok) {
-            char* msg = cose_validation_result_failure_message_utf8(result);
+            char* msg = cose_sign1_validation_result_failure_message_utf8(result);
             fprintf(stderr, "expected success but validation failed for %s: %s\n", files[i], msg ? msg : "(no message)");
             if (msg) cose_string_free(msg);
             exit(1);
         }
 
-        cose_validation_result_free(result);
+        cose_sign1_validation_result_free(result);
         result = NULL;
         free(cose_bytes);
         cose_bytes = NULL;
         free(path);
     }
 
-    cose_validator_free(validator);
-    cose_compiled_trust_plan_free(plan);
-    cose_trust_plan_builder_free(plan_builder);
-    cose_validator_builder_free(builder);
+    cose_sign1_validator_free(validator);
+    cose_sign1_compiled_trust_plan_free(plan);
+    cose_sign1_trust_plan_builder_free(plan_builder);
+    cose_sign1_validator_builder_free(builder);
 
     free(jwks_json);
     free(jwks_bytes);

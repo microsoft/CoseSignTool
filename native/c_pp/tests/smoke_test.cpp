@@ -8,7 +8,7 @@
 int main() {
     try {
         std::cout << "COSE C++ API Smoke Test\n";
-        std::cout << "ABI Version: " << cose_ffi_abi_version() << "\n";
+        std::cout << "ABI Version: " << cose_sign1_validation_abi_version() << "\n";
         
         // Test 1: Basic builder
         {
@@ -110,7 +110,7 @@ int main() {
 
 #ifdef COSE_HAS_CERTIFICATES_PACK
         {
-            cose_status_t status = cose_validator_builder_with_certificates_pack(builder.native_handle());
+            cose_status_t status = cose_sign1_validator_builder_with_certificates_pack(builder.native_handle());
             if (status != COSE_OK) {
                 throw cose::cose_error(status);
             }
@@ -119,7 +119,7 @@ int main() {
 
 #ifdef COSE_HAS_MST_PACK
         {
-            cose_status_t status = cose_validator_builder_with_mst_pack(builder.native_handle());
+            cose_status_t status = cose_sign1_validator_builder_with_mst_pack(builder.native_handle());
             if (status != COSE_OK) {
                 throw cose::cose_error(status);
             }
@@ -128,7 +128,7 @@ int main() {
 
 #ifdef COSE_HAS_AKV_PACK
         {
-            cose_status_t status = cose_validator_builder_with_akv_pack(builder.native_handle());
+            cose_status_t status = cose_sign1_validator_builder_with_akv_pack(builder.native_handle());
             if (status != COSE_OK) {
                 throw cose::cose_error(status);
             }

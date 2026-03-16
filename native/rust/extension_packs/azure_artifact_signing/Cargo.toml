@@ -1,0 +1,39 @@
+[package]
+name = "cose_sign1_azure_artifact_signing"
+version = "0.1.0"
+edition = { workspace = true }
+license = { workspace = true }
+
+[lib]
+test = false
+
+[dependencies]
+azure_artifact_signing_client = { path = "client" }
+cose_sign1_primitives = { path = "../../primitives/cose/sign1" }
+cose_sign1_signing = { path = "../../signing/core" }
+cose_sign1_headers = { path = "../../signing/headers" }
+cose_sign1_certificates = { path = "../certificates" }
+cose_sign1_validation = { path = "../../validation/core" }
+cose_sign1_validation_primitives = { path = "../../validation/primitives" }
+cbor_primitives = { path = "../../primitives/cbor" }
+cbor_primitives_everparse = { path = "../../primitives/cbor/everparse" }
+crypto_primitives = { path = "../../primitives/crypto" }
+did_x509 = { path = "../../did/x509" }
+azure_core = { workspace = true }
+azure_identity = { workspace = true }
+tokio = { workspace = true, features = ["rt"] }
+once_cell = { workspace = true }
+base64 = { workspace = true }
+sha2 = { workspace = true }
+
+[dev-dependencies]
+cose_sign1_validation_primitives = { path = "../../validation/primitives" }
+azure_artifact_signing_client = { path = "client", features = ["test-utils"] }
+rcgen = "0.14"
+openssl = { workspace = true }
+bytes = "1"
+serde_json = { workspace = true }
+base64 = { workspace = true }
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly)'] }
+

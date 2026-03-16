@@ -1,0 +1,26 @@
+[package]
+name = "cose_sign1_factories"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+description = "Factory patterns for creating COSE_Sign1 messages with signing services"
+
+[lib]
+test = false
+
+[dependencies]
+cose_sign1_signing = { path = "../core" }
+cose_sign1_primitives = { path = "../../primitives/cose/sign1" }
+cbor_primitives = { path = "../../primitives/cbor" }
+sha2.workspace = true
+tracing = { workspace = true }
+
+[dev-dependencies]
+cbor_primitives_everparse = { path = "../../primitives/cbor/everparse" }
+cose_sign1_validation = { path = "../../validation/core" }
+cose_sign1_certificates = { path = "../../extension_packs/certificates" }
+cose_sign1_validation_primitives = { path = "../../validation/primitives" }
+cose_sign1_crypto_openssl = { path = "../../primitives/crypto/openssl" }
+rcgen = "0.14"
+ring.workspace = true
+openssl = { workspace = true }

@@ -1,0 +1,27 @@
+[package]
+name = "cose_sign1_validation_primitives_ffi"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["staticlib", "cdylib", "rlib"]
+test = false
+
+[dependencies]
+cose_sign1_validation_ffi = { path = "../../core/ffi" }
+cose_sign1_validation = { path = "../../core" }
+cose_sign1_validation_primitives = { path = ".." }
+cbor_primitives_everparse = { path = "../../../primitives/cbor/everparse" }
+
+[dependencies.anyhow]
+workspace = true
+
+[dependencies.libc]
+version = "0.2"
+
+[dev-dependencies]
+cbor_primitives = { path = "../../../primitives/cbor" }
+cose_sign1_validation_test_utils = { path = "../../test_utils" }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }

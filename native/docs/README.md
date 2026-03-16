@@ -29,8 +29,8 @@ If you want to consume this from a native app/library, start with:
 
 Then jump to the projection that matches your integration:
 
-- [C projection guide](04-c-projection.md)
-- [C++ projection guide](05-cpp-projection.md)
+- [C projection guide](../c/README.md)
+- [C++ projection guide](../c_pp/README.md)
 
 Those guides include the expected include/link model and small end-to-end examples.
 

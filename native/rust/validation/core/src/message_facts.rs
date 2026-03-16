@@ -1,0 +1,540 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+use cbor_primitives::RawCbor;
+use cose_sign1_primitives::{CoseHeaderMap, CoseSign1Message};
+use cose_sign1_validation_primitives::fact_properties::{FactProperties, FactValue};
+use std::borrow::Cow;
+use std::collections::BTreeMap;
+use std::sync::Arc;
+
+/// Parsed, owned view of a COSE_Sign1 message.
+///
+/// Wraps a [`CoseSign1Message`] from `cose_sign1_primitives` and provides
+/// read-only access to its components.
+#[derive(Clone, Debug)]
+pub struct CoseSign1MessagePartsFact {
+    message: Arc<CoseSign1Message>,
+}
+
+impl CoseSign1MessagePartsFact {
+    /// Creates a new fact wrapping the given message.
+    pub fn new(message: Arc<CoseSign1Message>) -> Self {
+        Self { message }
+    }
+
+    /// Returns the raw protected header bytes.
+    pub fn protected_header_bytes(&self) -> &[u8] {
+        self.message.protected.as_bytes()
+    }
+
+    /// Returns the parsed protected headers.
+    pub fn protected_headers(&self) -> &CoseHeaderMap {
+        self.message.protected.headers()
+    }
+
+    /// Returns the unprotected headers.
+    pub fn unprotected(&self) -> &CoseHeaderMap {
+        &self.message.unprotected
+    }
+
+    /// Returns the payload bytes, if embedded.
+    pub fn payload(&self) -> Option<&[u8]> {
+        self.message.payload.as_deref()
+    }
+
+    /// Returns the signature bytes.
+    pub fn signature(&self) -> &[u8] {
+        &self.message.signature
+    }
+
+    /// Returns a reference to the underlying message.
+    pub fn message(&self) -> &CoseSign1Message {
+        &self.message
+    }
+
+    /// Returns the underlying message Arc.
+    pub fn message_arc(&self) -> Arc<CoseSign1Message> {
+        Arc::clone(&self.message)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CoseSign1MessageBytesFact {
+    pub bytes: Arc<[u8]>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DetachedPayloadPresentFact {
+    pub present: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ContentTypeFact {
+    pub content_type: String,
+}
+
+/// Indicates whether the COSE header parameter for CWT Claims (label 15) is present.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CwtClaimsPresentFact {
+    pub present: bool,
+}
+
+/// Parsed view of a CWT Claims map from the COSE header parameter (label 15).
+///
+/// This exposes common standard claims as optional fields, and also preserves any scalar
+/// (string/int/bool) claim values in `scalar_claims` keyed by claim label.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CwtClaimsFact {
+    pub scalar_claims: BTreeMap<i64, CwtClaimScalar>,
+
+    /// Raw CBOR bytes for each numeric claim label.
+    pub raw_claims: BTreeMap<i64, Arc<[u8]>>,
+
+    /// Raw CBOR bytes for each text claim key.
+    pub raw_claims_text: BTreeMap<String, Arc<[u8]>>,
+
+    pub iss: Option<String>,
+    pub sub: Option<String>,
+    pub aud: Option<String>,
+    pub exp: Option<i64>,
+    pub nbf: Option<i64>,
+    pub iat: Option<i64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CwtClaimScalar {
+    Str(String),
+    I64(i64),
+    Bool(bool),
+}
+
+impl CwtClaimsFact {
+    /// Return a borrow-based view of the raw CBOR bytes for a numeric claim label.
+    ///
+    /// This allows predicates to decode (or inspect) claim values without this crate
+    /// interpreting the claim schema.
+    pub fn claim_value_i64(&self, label: i64) -> Option<RawCbor<'_>> {
+        self.raw_claims
+            .get(&label)
+            .map(|b| RawCbor::new(b.as_ref()))
+    }
+
+    /// Return a borrow-based view of the raw CBOR bytes for a text claim key.
+    ///
+    /// This mirrors `claim_value_i64`, but for non-standard claims that use string keys.
+    pub fn claim_value_text(&self, key: &str) -> Option<RawCbor<'_>> {
+        self.raw_claims_text
+            .get(key)
+            .map(|b| RawCbor::new(b.as_ref()))
+    }
+}
+
+/// Field-name constants for declarative trust policies.
+pub mod fields {
+    pub mod detached_payload_present {
+        pub const PRESENT: &str = "present";
+    }
+
+    pub mod content_type {
+        pub const CONTENT_TYPE: &str = "content_type";
+    }
+
+    pub mod cwt_claims_present {
+        pub const PRESENT: &str = "present";
+    }
+
+    pub mod cwt_claims {
+        pub const ISS: &str = "iss";
+        pub const SUB: &str = "sub";
+        pub const AUD: &str = "aud";
+        pub const EXP: &str = "exp";
+        pub const NBF: &str = "nbf";
+        pub const IAT: &str = "iat";
+
+        /// Scalar claim values can also be addressed by numeric label.
+        ///
+        /// Format: `claim_<label>` (e.g. `claim_42`).
+        pub const CLAIM_PREFIX: &str = "claim_";
+    }
+}
+
+/// Typed fields for fluent trust-policy authoring.
+pub mod typed_fields {
+    use super::{ContentTypeFact, CwtClaimsFact, CwtClaimsPresentFact, DetachedPayloadPresentFact};
+    use cose_sign1_validation_primitives::field::Field;
+
+    pub mod detached_payload_present {
+        use super::*;
+        pub const PRESENT: Field<DetachedPayloadPresentFact, bool> =
+            Field::new(crate::message_facts::fields::detached_payload_present::PRESENT);
+    }
+
+    pub mod content_type {
+        use super::*;
+        pub const CONTENT_TYPE: Field<ContentTypeFact, String> =
+            Field::new(crate::message_facts::fields::content_type::CONTENT_TYPE);
+    }
+
+    pub mod cwt_claims_present {
+        use super::*;
+        pub const PRESENT: Field<CwtClaimsPresentFact, bool> =
+            Field::new(crate::message_facts::fields::cwt_claims_present::PRESENT);
+    }
+
+    pub mod cwt_claims {
+        use super::*;
+
+        pub const ISS: Field<CwtClaimsFact, String> =
+            Field::new(crate::message_facts::fields::cwt_claims::ISS);
+        pub const SUB: Field<CwtClaimsFact, String> =
+            Field::new(crate::message_facts::fields::cwt_claims::SUB);
+        pub const AUD: Field<CwtClaimsFact, String> =
+            Field::new(crate::message_facts::fields::cwt_claims::AUD);
+        #[allow(dead_code)]
+        pub const EXP: Field<CwtClaimsFact, i64> =
+            Field::new(crate::message_facts::fields::cwt_claims::EXP);
+        #[allow(dead_code)]
+        pub const NBF: Field<CwtClaimsFact, i64> =
+            Field::new(crate::message_facts::fields::cwt_claims::NBF);
+        #[allow(dead_code)]
+        pub const IAT: Field<CwtClaimsFact, i64> =
+            Field::new(crate::message_facts::fields::cwt_claims::IAT);
+    }
+}
+
+/// Fluent helper methods for common message-fact filters.
+///
+/// Usage:
+/// `use cose_sign1_validation::fluent::*;`
+pub mod fluent_ext {
+    use super::{
+        typed_fields as msg_typed, ContentTypeFact, CwtClaimsFact,
+        CwtClaimsPresentFact, DetachedPayloadPresentFact,
+    };
+    use cbor_primitives::RawCbor;
+    use cose_sign1_validation_primitives::facts::FactKey;
+    use cose_sign1_validation_primitives::fluent::{MessageScope, ScopeRules, Where};
+    use cose_sign1_validation_primitives::rules::require_any;
+
+    pub trait DetachedPayloadPresentWhereExt {
+        /// Require the message to have a detached payload.
+        fn require_detached_payload_present(self) -> Self;
+
+        /// Require the message to have an embedded payload.
+        fn require_detached_payload_absent(self) -> Self;
+    }
+
+    impl DetachedPayloadPresentWhereExt for Where<DetachedPayloadPresentFact> {
+        /// Require the message to have a detached payload.
+        fn require_detached_payload_present(self) -> Self {
+            self.r#true(msg_typed::detached_payload_present::PRESENT)
+        }
+
+        /// Require the message to have an embedded payload.
+        fn require_detached_payload_absent(self) -> Self {
+            self.r#false(msg_typed::detached_payload_present::PRESENT)
+        }
+    }
+
+    pub trait ContentTypeWhereExt {
+        /// Require the content type to equal the provided value.
+        fn content_type_eq(self, content_type: impl Into<String>) -> Self;
+
+        /// Require that the content type is present and non-empty.
+        fn content_type_non_empty(self) -> Self;
+    }
+
+    impl ContentTypeWhereExt for Where<ContentTypeFact> {
+        /// Require the content type to equal the provided value.
+        fn content_type_eq(self, content_type: impl Into<String>) -> Self {
+            self.str_eq(msg_typed::content_type::CONTENT_TYPE, content_type)
+        }
+
+        /// Require that the content type is present and non-empty.
+        fn content_type_non_empty(self) -> Self {
+            self.str_non_empty(msg_typed::content_type::CONTENT_TYPE)
+        }
+    }
+
+    pub trait CwtClaimsPresentWhereExt {
+        /// Require that the CWT Claims header parameter (label 15) is present.
+        fn require_cwt_claims_present(self) -> Self;
+
+        /// Require that the CWT Claims header parameter (label 15) is absent.
+        fn require_cwt_claims_absent(self) -> Self;
+    }
+
+    impl CwtClaimsPresentWhereExt for Where<CwtClaimsPresentFact> {
+        /// Require that the CWT Claims header parameter (label 15) is present.
+        fn require_cwt_claims_present(self) -> Self {
+            self.r#true(msg_typed::cwt_claims_present::PRESENT)
+        }
+
+        /// Require that the CWT Claims header parameter (label 15) is absent.
+        fn require_cwt_claims_absent(self) -> Self {
+            self.r#false(msg_typed::cwt_claims_present::PRESENT)
+        }
+    }
+
+    pub trait CwtClaimsWhereExt {
+        /// Require `iss` (issuer) to equal the provided value.
+        fn iss_eq(self, iss: impl Into<String>) -> Self;
+
+        /// Require `sub` (subject) to equal the provided value.
+        fn sub_eq(self, sub: impl Into<String>) -> Self;
+
+        /// Require `aud` (audience) to equal the provided value.
+        fn aud_eq(self, aud: impl Into<String>) -> Self;
+    }
+
+    impl CwtClaimsWhereExt for Where<CwtClaimsFact> {
+        /// Require `iss` (issuer) to equal the provided value.
+        fn iss_eq(self, iss: impl Into<String>) -> Self {
+            self.str_eq(msg_typed::cwt_claims::ISS, iss)
+        }
+
+        /// Require `sub` (subject) to equal the provided value.
+        fn sub_eq(self, sub: impl Into<String>) -> Self {
+            self.str_eq(msg_typed::cwt_claims::SUB, sub)
+        }
+
+        /// Require `aud` (audience) to equal the provided value.
+        fn aud_eq(self, aud: impl Into<String>) -> Self {
+            self.str_eq(msg_typed::cwt_claims::AUD, aud)
+        }
+    }
+
+    /// Fluent helper methods for message-scope rules.
+    ///
+    /// These are intentionally "one click down" from `TrustPlanBuilder::for_message(...)` so
+    /// policy authoring doesn't need to reference fact types or typed-field constants.
+    pub trait MessageScopeRulesExt {
+        /// Require that a `ContentTypeFact` is present and non-empty.
+        fn require_content_type_non_empty(self) -> Self;
+
+        /// Require that a `ContentTypeFact` equals the provided value.
+        fn require_content_type_eq(self, content_type: impl Into<String>) -> Self;
+
+        /// Require that a `DetachedPayloadPresentFact` is `true`.
+        fn require_detached_payload_present(self) -> Self;
+
+        /// Require that a `DetachedPayloadPresentFact` is `false`.
+        fn require_detached_payload_absent(self) -> Self;
+
+        /// Require that `CwtClaimsPresentFact` is `true`.
+        fn require_cwt_claims_present(self) -> Self;
+
+        /// Require that `CwtClaimsPresentFact` is `false`.
+        fn require_cwt_claims_absent(self) -> Self;
+
+        /// Require that a CWT claim exists and satisfies a custom predicate.
+        ///
+        /// Supports both numeric claim labels (e.g. `6` for `iat`) and text claim keys
+        /// (e.g. `"iat"`), so callers don't need to choose between separate helpers.
+        fn require_cwt_claim<K, P>(self, key: K, predicate: P) -> Self
+        where
+            K: Into<CwtClaimKey>,
+            P: for<'a> Fn(RawCbor<'a>) -> bool + Send + Sync + 'static;
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    pub enum CwtClaimKey {
+        Label(i64),
+        Text(String),
+    }
+
+    impl From<i64> for CwtClaimKey {
+        /// Convert a numeric claim label into a `CwtClaimKey`.
+        fn from(value: i64) -> Self {
+            Self::Label(value)
+        }
+    }
+
+    impl From<String> for CwtClaimKey {
+        /// Convert an owned text claim key into a `CwtClaimKey`.
+        fn from(value: String) -> Self {
+            Self::Text(value)
+        }
+    }
+
+    impl From<&str> for CwtClaimKey {
+        /// Convert a borrowed text claim key into a `CwtClaimKey`.
+        fn from(value: &str) -> Self {
+            Self::Text(value.to_string())
+        }
+    }
+
+    impl MessageScopeRulesExt for ScopeRules<MessageScope> {
+        /// Require that a `ContentTypeFact` is present and non-empty.
+        fn require_content_type_non_empty(self) -> Self {
+            self.require::<ContentTypeFact>(|w| w.content_type_non_empty())
+        }
+
+        /// Require that a `ContentTypeFact` equals the provided value.
+        fn require_content_type_eq(self, content_type: impl Into<String>) -> Self {
+            self.require::<ContentTypeFact>(|w| w.content_type_eq(content_type))
+        }
+
+        /// Require that a `DetachedPayloadPresentFact` is `true`.
+        fn require_detached_payload_present(self) -> Self {
+            self.require::<DetachedPayloadPresentFact>(|w| w.require_detached_payload_present())
+        }
+
+        /// Require that a `DetachedPayloadPresentFact` is `false`.
+        fn require_detached_payload_absent(self) -> Self {
+            self.require::<DetachedPayloadPresentFact>(|w| w.require_detached_payload_absent())
+        }
+
+        /// Require that `CwtClaimsPresentFact` is `true`.
+        fn require_cwt_claims_present(self) -> Self {
+            self.require::<CwtClaimsPresentFact>(|w| w.require_cwt_claims_present())
+        }
+
+        /// Require that `CwtClaimsPresentFact` is `false`.
+        fn require_cwt_claims_absent(self) -> Self {
+            self.require::<CwtClaimsPresentFact>(|w| w.require_cwt_claims_absent())
+        }
+
+        /// Require that a CWT claim exists and satisfies `predicate`.
+        ///
+        /// This is implemented as a rule over `CwtClaimsFact` and supports both numeric
+        /// and text claim keys via `CwtClaimKey`.
+        fn require_cwt_claim<K, P>(self, key: K, predicate: P) -> Self
+        where
+            K: Into<CwtClaimKey>,
+            P: for<'a> Fn(RawCbor<'a>) -> bool + Send + Sync + 'static,
+        {
+            let key = key.into();
+            let rule = require_any::<CwtClaimsFact, _, _>(
+                "cwt_claim",
+                |s| s.clone(),
+                move |fact: &CwtClaimsFact| {
+                    let Some(reader) = (match &key {
+                        CwtClaimKey::Label(label) => fact.claim_value_i64(*label),
+                        CwtClaimKey::Text(text) => fact.claim_value_text(text.as_str()),
+                    }) else {
+                        return false;
+                    };
+
+                    predicate(reader)
+                },
+                "CwtClaimNotSatisfied",
+            );
+
+            self.require_rule(rule, [FactKey::of::<CwtClaimsFact>()])
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CounterSignatureSubjectFact {
+    pub subject: cose_sign1_validation_primitives::subject::TrustSubject,
+    pub is_protected_header: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PrimarySigningKeySubjectFact {
+    pub subject: cose_sign1_validation_primitives::subject::TrustSubject,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CounterSignatureSigningKeySubjectFact {
+    pub subject: cose_sign1_validation_primitives::subject::TrustSubject,
+    pub is_protected_header: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UnknownCounterSignatureBytesFact {
+    pub counter_signature_id: cose_sign1_validation_primitives::ids::SubjectId,
+    pub raw_counter_signature_bytes: Arc<[u8]>,
+}
+
+/// Indicates that a counter-signature verifier has cryptographically verified the integrity of the
+/// outer COSE_Sign1 envelope (i.e., the bytes that the verifier considers to be covered).
+///
+/// This fact is intended to allow the validator to bypass primary signature verification when
+/// configured trust sources (e.g., MST receipts) already attest to envelope integrity.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CounterSignatureEnvelopeIntegrityFact {
+    pub sig_structure_intact: bool,
+    pub details: Option<String>,
+}
+
+impl FactProperties for DetachedPayloadPresentFact {
+    /// Return the property value for declarative trust policies.
+    fn get_property<'a>(&'a self, name: &str) -> Option<FactValue<'a>> {
+        match name {
+            "present" => Some(FactValue::Bool(self.present)),
+            _ => None,
+        }
+    }
+}
+
+impl FactProperties for ContentTypeFact {
+    /// Return the property value for declarative trust policies.
+    fn get_property<'a>(&'a self, name: &str) -> Option<FactValue<'a>> {
+        match name {
+            "content_type" => Some(FactValue::Str(Cow::Borrowed(self.content_type.as_str()))),
+            _ => None,
+        }
+    }
+}
+
+impl FactProperties for CwtClaimsPresentFact {
+    /// Return the property value for declarative trust policies.
+    fn get_property<'a>(&'a self, name: &str) -> Option<FactValue<'a>> {
+        match name {
+            "present" => Some(FactValue::Bool(self.present)),
+            _ => None,
+        }
+    }
+}
+
+impl FactProperties for CwtClaimsFact {
+    /// Return the property value for declarative trust policies.
+    ///
+    /// Supports both standard claim names (e.g. `iss`) and numeric-label access via
+    /// the `claim_<label>` prefix.
+    fn get_property<'a>(&'a self, name: &str) -> Option<FactValue<'a>> {
+        match name {
+            fields::cwt_claims::ISS => self
+                .iss
+                .as_deref()
+                .map(|v| FactValue::Str(Cow::Borrowed(v))),
+            fields::cwt_claims::SUB => self
+                .sub
+                .as_deref()
+                .map(|v| FactValue::Str(Cow::Borrowed(v))),
+            fields::cwt_claims::AUD => self
+                .aud
+                .as_deref()
+                .map(|v| FactValue::Str(Cow::Borrowed(v))),
+            fields::cwt_claims::EXP => self.exp.map(FactValue::I64),
+            fields::cwt_claims::NBF => self.nbf.map(FactValue::I64),
+            fields::cwt_claims::IAT => self.iat.map(FactValue::I64),
+            _ => {
+                if let Some(rest) = name.strip_prefix(fields::cwt_claims::CLAIM_PREFIX) {
+                    if let Ok(label) = rest.parse::<i64>() {
+                        return self.scalar_claims.get(&label).map(|v| match v {
+                            CwtClaimScalar::Str(s) => FactValue::Str(Cow::Borrowed(s.as_str())),
+                            CwtClaimScalar::I64(n) => FactValue::I64(*n),
+                            CwtClaimScalar::Bool(b) => FactValue::Bool(*b),
+                        });
+                    }
+                }
+                None
+            }
+        }
+    }
+}
+
+impl FactProperties for CounterSignatureEnvelopeIntegrityFact {
+    /// Return the property value for declarative trust policies.
+    fn get_property<'a>(&'a self, name: &str) -> Option<FactValue<'a>> {
+        match name {
+            "sig_structure_intact" => Some(FactValue::Bool(self.sig_structure_intact)),
+            _ => None,
+        }
+    }
+}

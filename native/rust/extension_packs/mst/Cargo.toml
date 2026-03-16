@@ -1,0 +1,41 @@
+[package]
+name = "cose_sign1_transparent_mst"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+
+[lib]
+test = false
+
+[features]
+test-utils = []
+
+[dependencies]
+sha2.workspace = true
+once_cell.workspace = true
+url.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+azure_core.workspace = true
+tokio.workspace = true
+
+code_transparency_client = { path = "client" }
+cose_sign1_primitives = { path = "../../primitives/cose/sign1" }
+cose_sign1_signing = { path = "../../signing/core" }
+crypto_primitives = { path = "../../primitives/crypto" }
+cose_sign1_crypto_openssl = { path = "../../primitives/crypto/openssl" }
+cose_sign1_validation = { path = "../../validation/core" }
+cose_sign1_validation_primitives = { path = "../../validation/primitives" }
+cbor_primitives = { path = "../../primitives/cbor" }
+
+[dev-dependencies]
+cbor_primitives = { path = "../../primitives/cbor" }
+cbor_primitives_everparse = { path = "../../primitives/cbor/everparse" }
+code_transparency_client = { path = "client", features = ["test-utils"] }
+cose_sign1_transparent_mst = { path = ".", features = ["test-utils"] }
+cose_sign1_crypto_openssl = { path = "../../primitives/crypto/openssl" }
+openssl = { workspace = true }
+base64 = { workspace = true }
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly)'] }
+

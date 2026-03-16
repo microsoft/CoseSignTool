@@ -1,0 +1,24 @@
+[package]
+name = "cose_sign1_validation_primitives"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+
+[lib]
+test = false
+
+[features]
+default = []
+regex = ["dep:regex"]
+
+[dependencies]
+sha2.workspace = true
+cbor_primitives = { path = "../../primitives/cbor" }
+cose_sign1_primitives = { path = "../../primitives/cose/sign1" }
+regex = { workspace = true, optional = true }
+
+[dev-dependencies]
+anyhow.workspace = true
+cbor_primitives = { path = "../../primitives/cbor" }
+cbor_primitives_everparse = { path = "../../primitives/cbor/everparse" }
+once_cell.workspace = true

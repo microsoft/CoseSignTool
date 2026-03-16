@@ -410,3 +410,11 @@ FodyWeavers.xsd
 lcov.info
 tarpaulin-report.html
 
+
+# Copilot Orchestrator temporary files
+.orchestrator
+.orchestrator/
+.worktrees
+.worktrees/
+.github/instructions/orchestrator-*.instructions.md
+.copilot-cli/

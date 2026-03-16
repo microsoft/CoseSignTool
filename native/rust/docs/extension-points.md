@@ -53,7 +53,7 @@ Notes:
 
 ## Trust packs (fact producers)
 
-Implement `cose_sign1_validation_trust::facts::TrustFactProducer`:
+Implement `cose_sign1_validation_primitives::facts::TrustFactProducer`:
 
 - You receive `TrustFactContext` containing:
   - current `TrustSubject`

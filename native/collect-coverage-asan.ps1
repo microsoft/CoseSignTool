@@ -131,13 +131,13 @@ try {
     if ($BuildRust) {
         Push-Location (Join-Path $PSScriptRoot 'rust')
         try {
-            cargo build --release -p cose_sign1_validation_ffi -p cose_sign1_validation_ffi_certificates -p cose_sign1_validation_ffi_mst -p cose_sign1_validation_ffi_akv -p cose_sign1_validation_ffi_trust
+            cargo build --release -p cose_sign1_validation_ffi -p cose_sign1_certificates_ffi -p cose_sign1_transparent_mst_ffi -p cose_sign1_azure_key_vault_ffi -p cose_sign1_validation_primitives_ffi
 
             # Explicitly compile the PQClean-backed PQC implementation under ASAN, even though it's
             # feature-gated and not built by default.
             # This keeps the default coverage gates unchanged while still ensuring PQClean C is
             # ASAN-instrumented in the ASAN pipeline.
-            cargo build --release -p cose_sign1_validation_certificates --features pqc-mldsa
+            cargo build --release -p cose_sign1_certificates --features pqc-mldsa
         } finally {
             Pop-Location
         }

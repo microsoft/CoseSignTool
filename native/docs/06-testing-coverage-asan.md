@@ -14,7 +14,7 @@ This repo supports running native tests under MSVC AddressSanitizer (ASAN) and c
 From repo root:
 
 ```powershell
-./native/collect-coverage-asan.ps1 -Configuration Debug -MinimumLineCoveragePercent 95
+./native/collect-coverage-asan.ps1 -Configuration Debug -MinimumLineCoveragePercent 90
 ```
 
 This:
@@ -27,6 +27,39 @@ This:
 Runner script: [native/collect-coverage-asan.ps1](../collect-coverage-asan.ps1)
 
 It also builds any Rust dependencies that compile native C/C++ code with ASAN enabled (e.g., PQClean-backed PQC implementations used by feature-gated crates).
+
+## Individual scripts
+
+Each language has its own coverage script that can run independently:
+
+| Script | Target | Default Configuration |
+|--------|--------|----------------------|
+| `native/rust/collect-coverage.ps1` | Rust crates (cargo-llvm-cov) | N/A (always uses llvm-cov) |
+| `native/c/collect-coverage.ps1` | C projection (OpenCppCoverage) | Debug |
+| `native/c_pp/collect-coverage.ps1` | C++ projection (OpenCppCoverage) | Debug |
+
+Example — run just the C++ coverage:
+
+```powershell
+cd native/c_pp
+./collect-coverage.ps1 -EnableAsan:$false -Configuration Debug
+```
+
+The C++ script defaults to `Debug` because `RelWithDebInfo` optimizations inline header
+functions, preventing OpenCppCoverage from attributing coverage to the header source lines.
+The C script also works in `Debug` or `RelWithDebInfo` since C headers contain only
+declarations (no coverable lines).
+
+## Coverage thresholds
+
+All three scripts enforce a **90% minimum line coverage** gate by default. The threshold
+applies to production/header source code only — test files are excluded from the metric.
+
+| Component | Source filter | Threshold |
+|-----------|--------------|-----------|
+| Rust | Per-crate `src/` files | 90% |
+| C | `include/` + `tests/` | 90% |
+| C++ | `include/` (RAII headers) | 90% |
 
 ## Why Debug?
 

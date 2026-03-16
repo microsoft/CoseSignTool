@@ -18,18 +18,62 @@ Feature | Purpose | C compile define
 ---|---|---
 `cpp` | Install C++ projection headers + CMake target | (n/a)
 `certificates` | Enable X.509 pack | `COSE_HAS_CERTIFICATES_PACK`
+`certificates-local` | Enable local certificate generation | `COSE_HAS_CERTIFICATES_LOCAL`
 `mst` | Enable MST pack | `COSE_HAS_MST_PACK`
 `akv` | Enable AKV pack | `COSE_HAS_AKV_PACK`
 `trust` | Enable trust-policy/trust-plan pack | `COSE_HAS_TRUST_PACK`
+`signing` | Enable signing APIs | `COSE_HAS_SIGNING`
+`primitives` | Enable primitives (message parsing/inspection) | `COSE_HAS_PRIMITIVES`
+`factories` | Enable signing factories (message construction) | `COSE_HAS_FACTORIES`
+`crypto` | Enable OpenSSL crypto provider (ECDSA, ML-DSA) | `COSE_HAS_CRYPTO_OPENSSL`
+`cbor-everparse` | Enable EverParse CBOR provider | `COSE_CBOR_EVERPARSE`
+`headers` | Enable CWT headers support | `COSE_HAS_CWT_HEADERS`
+`did-x509` | Enable DID:x509 support | `COSE_HAS_DID_X509`
 
-Defaults: `cpp, certificates`.
+Defaults: `cpp`, `certificates`, `signing`, `primitives`, `mst`, `certificates-local`, `crypto`, `factories`.
+
+## Provider Selection
+
+### Crypto Provider
+The `crypto` feature enables the OpenSSL crypto provider:
+- **Use case:** Signing COSE Sign1 messages, generating certificates
+- **Algorithms:** ECDSA P-256/P-384/P-521, ML-DSA-65/87/44 (PQC)
+- **Requires:** OpenSSL 3.0+ (with experimental PQC support for ML-DSA)
+- **Sets:** `COSE_HAS_CRYPTO_OPENSSL` preprocessor define
+
+Without `crypto`, the library is validation-only (no signing capabilities).
+
+### CBOR Provider
+The `cbor-everparse` feature enables the EverParse CBOR parser:
+- **Use case:** Formally verified CBOR parsing for security-critical applications
+- **Default:** Enabled by default
+- **Sets:** `COSE_CBOR_EVERPARSE` preprocessor define
+
+EverParse is currently the only supported CBOR provider.
+
+### Factory Feature
+The `factories` feature enables high-level signing APIs:
+- **Dependencies:** Requires `signing` and `crypto` features
+- **Use case:** Simplified COSE Sign1 message construction with fluent API
+- **APIs:** `cose_sign1_factory_from_crypto_signer()` (C), `cose::SignatureFactory` (C++)
+- **Sets:** `COSE_HAS_FACTORIES` preprocessor define
+
+Factories wrap lower-level signing APIs with:
+- Direct signing (embedded payload)
+- Indirect signing (detached payload)
+- File-based streaming for large payloads
+- Callback-based streaming
 
 ## Install with overlay ports
 
-Assuming you have a vcpkg checkout at `C:\vcpkg` and this repo at `C:\src\repos\CoseSignTool`:
+Assuming `VCPKG_ROOT` is set (or vcpkg is on `PATH`) and this repo is checked out locally:
 
 ```powershell
-C:\vcpkg\vcpkg install cosesign1-validation-native[cpp,certificates,mst,akv,trust] --overlay-ports=C:\src\repos\CoseSignTool\native\vcpkg_ports
+# Discover vcpkg root — set VCPKG_ROOT if not already configured
+$vcpkg = $env:VCPKG_ROOT ?? (Split-Path (Get-Command vcpkg).Source)
+
+& "$vcpkg\vcpkg" install cosesign1-validation-native[cpp,certificates,mst,akv,trust] `
+    --overlay-ports="$PSScriptRoot\..\native\vcpkg_ports"
 ```
 
 Notes:
@@ -42,7 +86,7 @@ Notes:
 Configure your project with the vcpkg toolchain file:
 
 ```powershell
-cmake -S . -B out -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake
+cmake -S . -B out -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
 ```
 
 In your `CMakeLists.txt`:
@@ -71,7 +115,7 @@ The port’s config file also links required platform libs (e.g., Windows system
 - If a vcpkg install seems stale, use:
 
 ```powershell
-C:\vcpkg\vcpkg remove cosesign1-validation-native
+& "$env:VCPKG_ROOT\vcpkg" remove cosesign1-validation-native
 ```
 
 or bump the port version for internal testing.

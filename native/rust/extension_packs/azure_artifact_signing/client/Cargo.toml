@@ -1,0 +1,30 @@
+[package]
+name = "azure_artifact_signing_client"
+version = "0.1.0"
+edition = { workspace = true }
+license = { workspace = true }
+
+[lib]
+test = false
+
+[features]
+test-utils = []
+
+[dependencies]
+azure_core = { workspace = true, features = ["reqwest", "reqwest_native_tls"] }
+azure_identity = { workspace = true }
+tokio = { workspace = true, features = ["rt", "time"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+base64 = { workspace = true }
+url = { workspace = true }
+async-trait = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt", "macros"] }
+async-trait = { workspace = true }
+time = { version = "0.3", features = ["std"] }
+azure_artifact_signing_client = { path = ".", features = ["test-utils"] }
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly)'] }
+

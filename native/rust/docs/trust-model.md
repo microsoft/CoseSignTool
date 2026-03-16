@@ -22,7 +22,7 @@ For validator integrations, prefer the fluent trust-plan builder:
 
 This keeps policy authoring aligned with pack wiring and the validator result model.
 
-At the lower level, the trust engine also exposes `TrustPolicyBuilder` (in `cose_sign1_validation_trust`) which can be useful for standalone trust-plan evaluation.
+At the lower level, the trust engine also exposes `TrustPolicyBuilder` (in `cose_sign1_validation_primitives`) which can be useful for standalone trust-plan evaluation.
 
 Both approaches compile to a `CompiledTrustPlan` with the same semantics:
 
@@ -41,4 +41,4 @@ You can request an audit trail during evaluation. The validator can include audi
 
 A runnable trust engine example is in:
 
-- [cose_sign1_validation_trust/examples/trust_plan_minimal.rs](../cose_sign1_validation_trust/examples/trust_plan_minimal.rs)
+- [cose_sign1_validation_primitives/examples/trust_plan_minimal.rs](../cose_sign1_validation_primitives/examples/trust_plan_minimal.rs)

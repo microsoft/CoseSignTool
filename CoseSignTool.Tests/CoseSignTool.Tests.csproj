@@ -35,6 +35,7 @@
     <ItemGroup>
         <ProjectReference Include="..\CoseSign1.Tests.Common\CoseSign1.Tests.Common.csproj" />
         <ProjectReference Include="..\CoseSignTool\CoseSignTool.csproj" />
+        <ProjectReference Include="..\CoseSignTool.Abstractions\CoseSignTool.Abstractions.csproj" />
     </ItemGroup>
 
     <!-- File Includes -->
@@ -50,6 +51,16 @@
         </ItemGroup>
         <Copy SourceFiles="@(TestFiles)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" />
         <Message Importance="High" Text="+++++++++++++++++++++++ Copied @(TestFiles) to $(TargetDir). ++++++++++++++++++++++++++++++++++++" />
+    </Target>
+
+    <!-- Copy plugins to test output for integration testing -->
+    <Target Name="CopyPluginsForTesting" AfterTargets="Build" DependsOnTargets="CopyCustomContent">
+        <ItemGroup>
+            <PluginFiles Include="..\CoseSignTool.IndirectSignature.Plugin\bin\$(Configuration)\net8.0\**\*.*" />
+        </ItemGroup>
+        <MakeDir Directories="$(TargetDir)plugins\CoseSignTool.IndirectSignature.Plugin" />
+        <Copy SourceFiles="@(PluginFiles)" DestinationFolder="$(TargetDir)plugins\CoseSignTool.IndirectSignature.Plugin\%(RecursiveDir)" SkipUnchangedFiles="true" />
+        <Message Importance="High" Text="+++++++++++++++++++++++ Copied plugins to $(TargetDir)plugins for integration testing. ++++++++++++++++++++++++++++++++++++" />
     </Target>                        
 
 </Project>

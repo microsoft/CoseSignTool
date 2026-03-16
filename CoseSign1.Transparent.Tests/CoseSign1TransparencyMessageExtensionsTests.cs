@@ -18,8 +18,8 @@ using CoseSign1.Certificates.Local;
 using CoseSign1.Interfaces;
 using CoseSign1.Tests.Common;
 using CoseSign1.Transparent.Extensions;
-using CoseSign1.Transparent.Interfaces;
 using Moq;
+using Moq.Protected;
 using NUnit.Framework;
 
 /// <summary>
@@ -58,12 +58,12 @@ public class CoseSign1TransparencyMessageExtensionsTests
     public void MakeTransparentAsync_ThrowsArgumentNullException(bool messageIsNull, bool serviceIsNull)
     {
         // Arrange
-        CoseSign1Message message = messageIsNull ? null : CreateMockCoseSign1Message();
-        ITransparencyService transparencyService = serviceIsNull ? null : Mock.Of<ITransparencyService>();
+        CoseSign1Message? message = messageIsNull ? null : CreateMockCoseSign1Message();
+        TransparencyService? transparencyService = serviceIsNull ? null : Mock.Of<TransparencyService>();
 
         // Act & Assert
         Assert.That(
-            () => message.MakeTransparentAsync(transparencyService),
+            () => message!.MakeTransparentAsync(transparencyService!),
             Throws.TypeOf<ArgumentNullException>());
     }
 
@@ -75,12 +75,14 @@ public class CoseSign1TransparencyMessageExtensionsTests
     {
         // Arrange
         CoseSign1Message message = CreateMockCoseSign1Message();
-        MockCoseHeaderValue(message, new List<byte[]> { new byte[] { 1, 2, 3 } });
-        Mock<ITransparencyService> mockService = new Mock<ITransparencyService>();
+        byte[] originalReceipt = new byte[] { 1, 2, 3 };
+        MockCoseHeaderValue(message, new List<byte[]> { originalReceipt });
         CoseSign1Message expectedMessage = CreateMockCoseSign1Message();
-        MockCoseHeaderValue(expectedMessage, new List<byte[]> { new byte[] { 1, 2, 3 } });
-        mockService
-            .Setup(service => service.MakeTransparentAsync(message, It.IsAny<CancellationToken>()))
+        byte[] newReceipt = new byte[] { 9, 9, 9 };
+        MockCoseHeaderValue(expectedMessage, new List<byte[]> { newReceipt });
+        Mock<TransparencyService> mockService = new Mock<TransparencyService>() { CallBase = true };
+        mockService.Protected()
+            .Setup<Task<CoseSign1Message>>("MakeTransparentCoreAsync", ItExpr.IsAny<CoseSign1Message>(), ItExpr.IsAny<CancellationToken>())
             .ReturnsAsync(expectedMessage);
 
         // Act
@@ -88,6 +90,12 @@ public class CoseSign1TransparencyMessageExtensionsTests
 
         // Assert
         Assert.That(result, Is.EqualTo(expectedMessage));
+
+        Assert.That(result.TryGetReceipts(out List<byte[]>? receipts), Is.True);
+        Assert.That(receipts, Is.Not.Null);
+        Assert.That(receipts!.Count, Is.EqualTo(2));
+        Assert.That(receipts[0], Is.EquivalentTo(newReceipt));
+        Assert.That(receipts[1], Is.EquivalentTo(originalReceipt));
     }
 
     /// <summary>
@@ -135,12 +143,12 @@ public class CoseSign1TransparencyMessageExtensionsTests
     public void VerifyTransparencyAsync_ThrowsArgumentNullException(bool messageIsNull, bool serviceIsNull)
     {
         // Arrange
-        CoseSign1Message message = messageIsNull ? null : CreateMockCoseSign1Message();
-        ITransparencyService transparencyService = serviceIsNull ? null : Mock.Of<ITransparencyService>();
+        CoseSign1Message? message = messageIsNull ? null : CreateMockCoseSign1Message();
+        TransparencyService? transparencyService = serviceIsNull ? null : Mock.Of<TransparencyService>();
 
         // Act & Assert
         Assert.That(
-            () => message.VerifyTransparencyAsync(transparencyService),
+            () => message!.VerifyTransparencyAsync(transparencyService!),
             Throws.TypeOf<ArgumentNullException>());
     }
 
@@ -153,9 +161,9 @@ public class CoseSign1TransparencyMessageExtensionsTests
         // Arrange
         CoseSign1Message message = CreateMockCoseSign1Message();
         MockCoseHeaderValue(message, new List<byte[]> { new byte[] { 1, 2, 3 } });
-        Mock<ITransparencyService> mockService = new Mock<ITransparencyService>();
-        mockService
-            .Setup(service => service.VerifyTransparencyAsync(message, It.IsAny<CancellationToken>()))
+        Mock<TransparencyService> mockService = new Mock<TransparencyService>() { CallBase = true };
+        mockService.Protected()
+            .Setup<Task<bool>>("VerifyTransparencyCoreAsync", ItExpr.IsAny<CoseSign1Message>(), ItExpr.IsAny<CancellationToken>())
             .ReturnsAsync(true);
 
         // Act
@@ -310,6 +318,27 @@ public class CoseSign1TransparencyMessageExtensionsTests
         Assert.That(message.TryGetReceipts(out List<byte[]>? result), Is.True);
         Assert.That(result[0], Is.EquivalentTo(firstReceipt));
         Assert.That(result[1], Is.EquivalentTo(secondReceipt));
+    }
+
+    /// <summary>
+    /// Tests that duplicate receipts are not stored more than once.
+    /// </summary>
+    [Test]
+    public void AddReceipts_DeduplicatesReceipts_ByContent()
+    {
+        // Arrange
+        CoseSign1Message message = CreateMockCoseSign1Message();
+        byte[] receipt = new byte[] { 1, 2, 3 };
+        message.AddReceipts(new List<byte[]> { receipt });
+
+        // Act - Add a different array instance with same content
+        message.AddReceipts(new List<byte[]> { new byte[] { 1, 2, 3 } });
+
+        // Assert
+        Assert.That(message.TryGetReceipts(out List<byte[]>? result), Is.True);
+        Assert.That(result, Is.Not.Null);
+        Assert.That(result!.Count, Is.EqualTo(1));
+        Assert.That(result[0], Is.EquivalentTo(receipt));
     }
 
     /// <summary>

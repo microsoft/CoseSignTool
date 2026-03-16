@@ -7,7 +7,7 @@ The best way to 'shoot' trouble is to avoid it in the first place. The error mes
 * When signing with installed certificates you will get quicker lookups if you load the certificate from a custom store instead of from My/CurrentUser.
 * When signing with a loose certificate file, you should delete the file as soon as you are done signing with it to protect your private keys.
 * **PFX Certificate Chain Files**: When using a PFX file that contains multiple certificates (such as a complete certificate chain with root, intermediate, and leaf certificates), CoseSignTool will automatically extract and use all certificates for proper chain building. This ensures that the complete certificate chain is embedded in the COSE signature for proper validation.
-  * If you need to sign with a specific certificate from a multi-certificate PFX file, use the **/Thumbprint** option to specify which certificate to use for signing.
+  * If you need to sign with a specific certificate from a multi-certificate PFX file, use the **--Thumbprint** or **--th** option to specify which certificate to use for signing.
   * The remaining certificates in the PFX will be used as additional roots for chain validation, ensuring proper trust chain establishment.
 
 ## Detached vs embedded signatures
@@ -15,7 +15,7 @@ The best way to 'shoot' trouble is to avoid it in the first place. The error mes
 * The advantage of embedded signatures is that you can share them without sending the original payload, so long as the recipient has CoseSignTool or other means available to extract the content.
 
 ## Payload and signature handling
-* Use a standard naming convention for signature files, such as payload_filename*.cose* for detached and payload_filename*.csm* for embedded signatures. This will help ensure that you always validate your signatures against the correct payload.
+* Use a standard naming convention for signature files, such as *payload_filename.cose*. This will help ensure that you always validate your signatures against the correct payload.
 * Do not supply payload when validating an embed-signed file. This is why a naming convention that differentiates between the two signature types is your friend.
 * When signing it is generally more secure to keep everything in memory and not write anything to disk until the signing operation is complete. This prevents the payload from getting tampered with before it is signed. Therefore, you should use streams or byte arrays where possible. However, when working with large payloads you may run into difficulties:
     * Arrays and most stream types cannot hold more than 2gb of data. This may include the stream used used to pipe data to applications in your operating system or command shell.

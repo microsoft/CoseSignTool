@@ -35,6 +35,9 @@ public class IndirectVerifyCommand : IndirectSignatureCommandBase
                                    GetExamples();
 
     /// <inheritdoc/>
+    public override IReadOnlyCollection<string> BooleanOptions => ValidationBooleanOptions;
+
+    /// <inheritdoc/>
     public override async Task<PluginExitCode> ExecuteAsync(IConfiguration configuration, CancellationToken cancellationToken = default)
     {
         try
@@ -48,8 +51,8 @@ public class IndirectVerifyCommand : IndirectSignatureCommandBase
             // Get optional parameters
             string? outputPath = GetOptionalValue(configuration, "output");
             string? rootCertsPath = GetOptionalValue(configuration, "roots");
-            bool allowUntrusted = !string.IsNullOrEmpty(GetOptionalValue(configuration, "allow-untrusted"));
-            bool allowOutdated = !string.IsNullOrEmpty(GetOptionalValue(configuration, "allow-outdated"));
+            bool allowUntrusted = GetBooleanFlag(configuration, "allow-untrusted");
+            bool allowOutdated = GetBooleanFlag(configuration, "allow-outdated");
             string? commonName = GetOptionalValue(configuration, "common-name");
             string? revocationModeString = GetOptionalValue(configuration, "revocation-mode");
             

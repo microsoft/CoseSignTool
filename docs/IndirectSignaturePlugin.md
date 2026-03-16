@@ -67,6 +67,7 @@ For comprehensive SCITT documentation, see [SCITTCompliance.md](./SCITTComplianc
 - `--content-type`: The content type of the payload (default: application/octet-stream)
 - `--hash-algorithm`: The hash algorithm to use (SHA256, SHA384, SHA512, default: SHA256)
 - `--signature-version`: The indirect signature version (CoseHashEnvelope, default: CoseHashEnvelope)
+- `--payload-location`: A URI indicating where the payload can be retrieved from (optional, CoseHashEnvelope format only). This is useful when the payload is stored at a known location and you want to include that reference in the signature per [RFC 9054](https://datatracker.ietf.org/doc/rfc9054/).
 
 **Universal Logging Options** (available for all plugin commands):
 - `--verbose`, `-v`: Enable verbose logging output (detailed diagnostic information)
@@ -101,6 +102,10 @@ CoseSignTool indirect-sign --payload myfile.txt --signature myfile.cose --pfx my
   --cwt-audience "production-systems" \
   --cwt-claims "exp:2025-06-30T23:59:59Z" \
   --cwt-claims "100:build-metadata"
+
+# Include payload location reference in signature (for remote payload retrieval)
+CoseSignTool indirect-sign --payload myfile.txt --signature myfile.cose --pfx mycert.pfx \
+  --payload-location "https://artifacts.example.com/releases/v1.0/myfile.txt"
 
 # Disable SCITT compliance
 CoseSignTool indirect-sign --payload myfile.txt --signature myfile.cose --pfx mycert.pfx --enable-scitt false

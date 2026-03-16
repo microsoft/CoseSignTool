@@ -7,6 +7,8 @@ on:
     branches: [ "main" ]
   pull_request:
     branches: [ "*" ]
+  schedule:
+    - cron: '28 20 * * 1'
 
 jobs:
   analyze:
@@ -24,9 +26,6 @@ jobs:
         os: [ubuntu-latest]
 
     steps:
-
-    - name: Do nothing
-      run: echo "Skipping CodeQL for now"
 
     - name: Checkout repository
       uses: actions/checkout@v3

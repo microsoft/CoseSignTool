@@ -191,6 +191,184 @@ public class PluginCommandBaseTests
         await Assert.ThrowsExceptionAsync<InvalidOperationException>(
             () => command.ExecuteAsync(configuration));
     }
+
+    /// <summary>
+    /// Tests that TestPluginCommand BooleanOptions returns empty collection by default.
+    /// </summary>
+    [TestMethod]
+    public void TestPluginCommand_BooleanOptions_ReturnsEmptyByDefault()
+    {
+        // Arrange & Act
+        TestPluginCommand command = new TestPluginCommand();
+
+        // Assert
+        Assert.IsNotNull(command.BooleanOptions);
+        Assert.AreEqual(0, command.BooleanOptions.Count);
+    }
+
+    /// <summary>
+    /// Tests GetBooleanFlag returns false when key is not present.
+    /// </summary>
+    [TestMethod]
+    public void GetBooleanFlag_KeyNotPresent_ReturnsFalse()
+    {
+        // Arrange
+        Dictionary<string, string?> configData = new Dictionary<string, string?>();
+        IConfigurationRoot configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(configData)
+            .Build();
+
+        // Act
+        bool result = TestablePluginCommand.TestGetBooleanFlag(configuration, "nonexistent");
+
+        // Assert
+        Assert.IsFalse(result);
+    }
+
+    /// <summary>
+    /// Tests GetBooleanFlag returns true when key is present with empty value.
+    /// </summary>
+    [TestMethod]
+    public void GetBooleanFlag_KeyPresentWithEmptyValue_ReturnsTrue()
+    {
+        // Arrange
+        Dictionary<string, string?> configData = new Dictionary<string, string?>
+        {
+            { "my-flag", "" }
+        };
+        IConfigurationRoot configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(configData)
+            .Build();
+
+        // Act
+        bool result = TestablePluginCommand.TestGetBooleanFlag(configuration, "my-flag");
+
+        // Assert
+        Assert.IsTrue(result);
+    }
+
+    /// <summary>
+    /// Tests GetBooleanFlag returns true when key has value "true".
+    /// </summary>
+    [TestMethod]
+    public void GetBooleanFlag_KeyPresentWithTrueValue_ReturnsTrue()
+    {
+        // Arrange
+        Dictionary<string, string?> configData = new Dictionary<string, string?>
+        {
+            { "my-flag", "true" }
+        };
+        IConfigurationRoot configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(configData)
+            .Build();
+
+        // Act
+        bool result = TestablePluginCommand.TestGetBooleanFlag(configuration, "my-flag");
+
+        // Assert
+        Assert.IsTrue(result);
+    }
+
+    /// <summary>
+    /// Tests GetBooleanFlag returns true when key has any non-false value.
+    /// </summary>
+    [TestMethod]
+    public void GetBooleanFlag_KeyPresentWithAnyNonFalseValue_ReturnsTrue()
+    {
+        // Arrange
+        Dictionary<string, string?> configData = new Dictionary<string, string?>
+        {
+            { "my-flag", "anything" }
+        };
+        IConfigurationRoot configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(configData)
+            .Build();
+
+        // Act
+        bool result = TestablePluginCommand.TestGetBooleanFlag(configuration, "my-flag");
+
+        // Assert
+        Assert.IsTrue(result);
+    }
+
+    /// <summary>
+    /// Tests GetBooleanFlag returns false when key has value "false".
+    /// </summary>
+    [TestMethod]
+    public void GetBooleanFlag_KeyPresentWithFalseValue_ReturnsFalse()
+    {
+        // Arrange
+        Dictionary<string, string?> configData = new Dictionary<string, string?>
+        {
+            { "my-flag", "false" }
+        };
+        IConfigurationRoot configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(configData)
+            .Build();
+
+        // Act
+        bool result = TestablePluginCommand.TestGetBooleanFlag(configuration, "my-flag");
+
+        // Assert
+        Assert.IsFalse(result);
+    }
+
+    /// <summary>
+    /// Tests GetBooleanFlag returns false when key has value "FALSE" (case insensitive).
+    /// </summary>
+    [TestMethod]
+    public void GetBooleanFlag_KeyPresentWithFalseValueUpperCase_ReturnsFalse()
+    {
+        // Arrange
+        Dictionary<string, string?> configData = new Dictionary<string, string?>
+        {
+            { "my-flag", "FALSE" }
+        };
+        IConfigurationRoot configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(configData)
+            .Build();
+
+        // Act
+        bool result = TestablePluginCommand.TestGetBooleanFlag(configuration, "my-flag");
+
+        // Assert
+        Assert.IsFalse(result);
+    }
+}
+
+/// <summary>
+/// Testable version of PluginCommandBase that exposes protected methods for testing.
+/// </summary>
+public class TestablePluginCommand : PluginCommandBase
+{
+    /// <inheritdoc/>
+    public override string Name => "testable";
+
+    /// <inheritdoc/>
+    public override string Description => "Testable command";
+
+    /// <inheritdoc/>
+    public override string Usage => "testable [options]";
+
+    /// <inheritdoc/>
+    public override IDictionary<string, string> Options => new Dictionary<string, string>();
+
+    /// <inheritdoc/>
+    public override Task<PluginExitCode> ExecuteAsync(IConfiguration configuration, CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(PluginExitCode.Success);
+    }
+
+    /// <summary>
+    /// Exposes the protected GetBooleanFlag method for testing.
+    /// </summary>
+    /// <param name="configuration">The configuration to check.</param>
+    /// <param name="key">The key to look for.</param>
+    /// <returns>True if the flag is set, false otherwise.</returns>
+    public static bool TestGetBooleanFlag(IConfiguration configuration, string key)
+    {
+        return GetBooleanFlag(configuration, key);
+    }
 }
 
 /// <summary>

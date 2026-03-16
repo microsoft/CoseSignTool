@@ -415,7 +415,7 @@ public class SignCommandTests
         // Create a PFX file containing a full certificate chain with only leaf having private key
         X509Certificate2Collection pfxChain = TestCertificateUtils.CreateTestChainForPfx(nameof(LoadCertFromPfxWithInvalidThumbprintThrowsException));
         string pfxFileWithChain = Path.GetTempFileName() + "_chain.pfx";
-        
+
         try
         {
             // Export the full certificate chain to a PFX file
@@ -472,7 +472,7 @@ public class SignCommandTests
             X509Certificate2 leafCert = pfxChain.Cast<X509Certificate2>().First(c => c.HasPrivateKey);
 
             // Sign using the PFX with a specific thumbprint
-            string[] args = ["sign", "/p", payloadFile, "/pfx", pfxFileWithChain, "/pw", CertPassword, "/th", leafCert.Thumbprint, "/ep"];
+            string[] args = ["sign", "--p", payloadFile, "--pfx", pfxFileWithChain, "--pw", CertPassword, "--th", leafCert.Thumbprint, "--ep"];
             Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider provider = CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
             badArg.Should().BeNull("badArg should be null.");
 
@@ -1566,5 +1566,568 @@ public class SignCommandTests
     }
 
     #endregion
-}
 
+    #region PEM Certificate Tests
+
+    /// <summary>
+    /// Tests that signing works with a PEM certificate file that contains both certificate and private key.
+    /// </summary>
+    [TestMethod]
+    public void SignWithPemCertificateAndInlineKey_ShouldSucceed()
+    {
+        // Arrange
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
+        string signatureFile = Path.GetTempFileName() + ".cose";
+        string pemFile = Path.GetTempFileName() + ".pem";
+        
+        try
+        {
+            // Create PEM file with certificate and RSA private key
+            CreatePemFileWithKey(SelfSignedCert, pemFile);
+
+            // Act
+            string[] args = ["sign", "--p", payloadFile, "--pem", pemFile, "--sf", signatureFile];
+            
+            Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider provider = 
+                CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
+            badArg.Should().BeNull("badArg should be null.");
+
+            SignCommand cmd = new SignCommand();
+            cmd.ApplyOptions(provider);
+            ExitCode result = cmd.Run();
+
+            // Assert
+            result.Should().Be(ExitCode.Success, "Sign operation should succeed with PEM certificate");
+            File.Exists(signatureFile).Should().BeTrue("Signature file should be created");
+            
+            // Verify signature is valid
+            byte[] signatureBytes = File.ReadAllBytes(signatureFile);
+            signatureBytes.Length.Should().BeGreaterThan(0, "Signature should not be empty");
+        }
+        finally
+        {
+            CleanupFile(payloadFile);
+            CleanupFile(signatureFile);
+            CleanupFile(pemFile);
+        }
+    }
+
+    /// <summary>
+    /// Tests that signing works with separate PEM certificate and key files.
+    /// </summary>
+    [TestMethod]
+    public void SignWithSeparatePemCertAndKeyFiles_ShouldSucceed()
+    {
+        // Arrange
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
+        string signatureFile = Path.GetTempFileName() + ".cose";
+        string certPemFile = Path.GetTempFileName() + ".crt";
+        string keyPemFile = Path.GetTempFileName() + ".key";
+        
+        try
+        {
+            // Create separate PEM certificate and key files
+            CreateSeparatePemFiles(SelfSignedCert, certPemFile, keyPemFile);
+
+            // Act
+            string[] args = ["sign", "--p", payloadFile, "--pem", certPemFile, "--key", keyPemFile, "--sf", signatureFile];
+            
+            Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider provider = 
+                CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
+            badArg.Should().BeNull("badArg should be null.");
+
+            SignCommand cmd = new SignCommand();
+            cmd.ApplyOptions(provider);
+            ExitCode result = cmd.Run();
+
+            // Assert
+            result.Should().Be(ExitCode.Success, "Sign operation should succeed with separate PEM cert and key files");
+            File.Exists(signatureFile).Should().BeTrue("Signature file should be created");
+        }
+        finally
+        {
+            CleanupFile(payloadFile);
+            CleanupFile(signatureFile);
+            CleanupFile(certPemFile);
+            CleanupFile(keyPemFile);
+        }
+    }
+
+    /// <summary>
+    /// Tests that signing works with a PEM certificate chain (multiple certificates in one file).
+    /// </summary>
+    [TestMethod]
+    public void SignWithPemCertificateChain_ShouldExtractAllCertificates()
+    {
+        // Arrange
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
+        string signatureFile = Path.GetTempFileName() + ".cose";
+        string pemChainFile = Path.GetTempFileName() + "_chain.pem";
+        string keyFile = Path.GetTempFileName() + ".key";
+        
+        try
+        {
+            // Create PEM file with certificate chain (leaf, intermediate, root) and separate key file
+            CreatePemChainFiles(CertChain1, pemChainFile, keyFile);
+
+            // Act
+            string[] args = ["sign", "--p", payloadFile, "--pem", pemChainFile, "--key", keyFile, "--sf", signatureFile];
+            
+            Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider provider = 
+                CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
+            badArg.Should().BeNull("badArg should be null.");
+
+            SignCommand cmd = new SignCommand();
+            cmd.ApplyOptions(provider);
+            
+            // Verify LoadCert extracts the chain correctly
+            (X509Certificate2 cert, List<X509Certificate2>? additionalRoots) = cmd.LoadCert();
+            
+            cert.Should().NotBeNull("Signing certificate should be found");
+            cert.HasPrivateKey.Should().BeTrue("Signing certificate should have private key");
+            additionalRoots.Should().NotBeNull("Additional certificates should be extracted from PEM chain");
+            additionalRoots!.Count.Should().BeGreaterThan(0, "Should have additional certificates from the chain");
+
+            // Run the actual sign operation
+            ExitCode result = cmd.Run();
+            result.Should().Be(ExitCode.Success, "Sign operation should succeed with PEM certificate chain");
+        }
+        finally
+        {
+            CleanupFile(payloadFile);
+            CleanupFile(signatureFile);
+            CleanupFile(pemChainFile);
+            CleanupFile(keyFile);
+        }
+    }
+
+    /// <summary>
+    /// Tests that signing fails gracefully when PEM certificate is specified without a key.
+    /// </summary>
+    [TestMethod]
+    public void SignWithPemCertificateWithoutKey_ShouldFail()
+    {
+        // Arrange
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
+        string certOnlyPemFile = Path.GetTempFileName() + ".crt";
+        
+        try
+        {
+            // Create PEM file with certificate only (no private key)
+            string certPem = ExportCertificateToPem(SelfSignedCert);
+            File.WriteAllText(certOnlyPemFile, certPem);
+
+            // Act
+            string[] args = ["sign", "--p", payloadFile, "--pem", certOnlyPemFile];
+            
+            Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider provider = 
+                CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
+            badArg.Should().BeNull("badArg should be null.");
+
+            SignCommand cmd = new SignCommand();
+            cmd.ApplyOptions(provider);
+            ExitCode result = cmd.Run();
+
+            // Assert
+            result.Should().Be(ExitCode.CertificateLoadFailure, "Sign should fail without private key");
+        }
+        finally
+        {
+            CleanupFile(payloadFile);
+            CleanupFile(certOnlyPemFile);
+        }
+    }
+
+    /// <summary>
+    /// Tests that PEM options are correctly applied from command line.
+    /// </summary>
+    [TestMethod]
+    public void ApplyOptions_WithPemOptions_ShouldSetProperties()
+    {
+        // Arrange
+        string[] args = ["sign", "--p", "payload.txt", "--pem", "/path/to/cert.pem", "--key", "/path/to/key.pem"];
+        
+        // Act
+        Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider provider = 
+            CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
+        badArg.Should().BeNull("badArg should be null.");
+
+        SignCommand cmd = new SignCommand();
+        cmd.ApplyOptions(provider);
+
+        // Assert
+        cmd.PemCertificate.Should().Be("/path/to/cert.pem", "PemCertificate should be set");
+        cmd.PemKey.Should().Be("/path/to/key.pem", "PemKey should be set");
+    }
+
+    /// <summary>
+    /// Tests signing with an ECDSA PEM certificate.
+    /// </summary>
+    [TestMethod]
+    public void SignWithEcdsaPemCertificate_ShouldSucceed()
+    {
+        // Arrange
+        using X509Certificate2 ecdsaCert = TestCertificateUtils.CreateCertificate(
+            nameof(SignWithEcdsaPemCertificate_ShouldSucceed), 
+            useEcc: true);
+        
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
+        string signatureFile = Path.GetTempFileName() + ".cose";
+        string pemFile = Path.GetTempFileName() + ".pem";
+        
+        try
+        {
+            // Create PEM file with ECDSA certificate and key
+            CreatePemFileWithKey(ecdsaCert, pemFile);
+
+            // Act
+            string[] args = ["sign", "--p", payloadFile, "--pem", pemFile, "--sf", signatureFile];
+            
+            Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider provider = 
+                CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
+            badArg.Should().BeNull("badArg should be null.");
+
+            SignCommand cmd = new SignCommand();
+            cmd.ApplyOptions(provider);
+            ExitCode result = cmd.Run();
+
+            // Assert
+            result.Should().Be(ExitCode.Success, "Sign operation should succeed with ECDSA PEM certificate");
+            File.Exists(signatureFile).Should().BeTrue("Signature file should be created");
+        }
+        finally
+        {
+            CleanupFile(payloadFile);
+            CleanupFile(signatureFile);
+            CleanupFile(pemFile);
+        }
+    }
+
+    /// <summary>
+    /// Tests signing with an encrypted PEM private key.
+    /// </summary>
+    [TestMethod]
+    public void SignWithEncryptedPemPrivateKey_ShouldSucceed()
+    {
+        // Arrange
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
+        string signatureFile = Path.GetTempFileName() + ".cose";
+        string certPemFile = Path.GetTempFileName() + ".crt";
+        string encryptedKeyFile = Path.GetTempFileName() + ".key";
+        string keyPassword = "test-password-123";
+        string envVarName = "TEST_PEM_PASSWORD_" + Guid.NewGuid().ToString("N")[..8];
+        
+        try
+        {
+            // Create PEM certificate file
+            File.WriteAllText(certPemFile, ExportCertificateToPem(SelfSignedCert));
+            
+            // Create encrypted PEM private key file
+            CreateEncryptedPemKeyFile(SelfSignedCert, encryptedKeyFile, keyPassword);
+
+            // Set password via environment variable (secure method)
+            Environment.SetEnvironmentVariable(envVarName, keyPassword);
+
+            // Act - Use --pwenv to specify the environment variable
+            string[] args = ["sign", "--p", payloadFile, "--pem", certPemFile, "--key", encryptedKeyFile, 
+                            "--pwenv", envVarName, "--sf", signatureFile];
+            
+            Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider provider = 
+                CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
+            badArg.Should().BeNull("badArg should be null.");
+
+            SignCommand cmd = new SignCommand();
+            cmd.ApplyOptions(provider);
+            ExitCode result = cmd.Run();
+
+            // Assert
+            result.Should().Be(ExitCode.Success, "Sign operation should succeed with encrypted PEM private key");
+            File.Exists(signatureFile).Should().BeTrue("Signature file should be created");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(envVarName, null);
+            CleanupFile(payloadFile);
+            CleanupFile(signatureFile);
+            CleanupFile(certPemFile);
+            CleanupFile(encryptedKeyFile);
+        }
+    }
+
+    /// <summary>
+    /// Tests that signing works with password from default COSESIGNTOOL_PASSWORD environment variable.
+    /// </summary>
+    [TestMethod]
+    public void SignWithEncryptedPemPrivateKey_DefaultEnvVar_ShouldSucceed()
+    {
+        // Arrange
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
+        string signatureFile = Path.GetTempFileName() + ".cose";
+        string certPemFile = Path.GetTempFileName() + ".crt";
+        string encryptedKeyFile = Path.GetTempFileName() + ".key";
+        string keyPassword = "test-password-default";
+        string? originalEnvValue = Environment.GetEnvironmentVariable(SignCommand.DefaultPasswordEnvVar);
+        
+        try
+        {
+            // Create PEM certificate file
+            File.WriteAllText(certPemFile, ExportCertificateToPem(SelfSignedCert));
+            
+            // Create encrypted PEM private key file
+            CreateEncryptedPemKeyFile(SelfSignedCert, encryptedKeyFile, keyPassword);
+
+            // Set password via default environment variable
+            Environment.SetEnvironmentVariable(SignCommand.DefaultPasswordEnvVar, keyPassword);
+
+            // Act - Don't specify --pwenv, should use default COSESIGNTOOL_PASSWORD
+            string[] args = ["sign", "--p", payloadFile, "--pem", certPemFile, "--key", encryptedKeyFile, 
+                            "--sf", signatureFile];
+            
+            Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider provider = 
+                CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
+            badArg.Should().BeNull("badArg should be null.");
+
+            SignCommand cmd = new SignCommand();
+            cmd.ApplyOptions(provider);
+            ExitCode result = cmd.Run();
+
+            // Assert
+            result.Should().Be(ExitCode.Success, "Sign operation should succeed with password from default env var");
+            File.Exists(signatureFile).Should().BeTrue("Signature file should be created");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(SignCommand.DefaultPasswordEnvVar, originalEnvValue);
+            CleanupFile(payloadFile);
+            CleanupFile(signatureFile);
+            CleanupFile(certPemFile);
+            CleanupFile(encryptedKeyFile);
+        }
+    }
+
+    /// <summary>
+    /// Tests that signing fails with encrypted PEM key when no password is provided.
+    /// </summary>
+    [TestMethod]
+    public void SignWithEncryptedPemKeyWithoutPassword_ShouldFail()
+    {
+        // Arrange
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
+        string certPemFile = Path.GetTempFileName() + ".crt";
+        string encryptedKeyFile = Path.GetTempFileName() + ".key";
+        string keyPassword = "test-password-456";
+        string? originalEnvValue = Environment.GetEnvironmentVariable(SignCommand.DefaultPasswordEnvVar);
+        
+        try
+        {
+            // Create PEM certificate file
+            File.WriteAllText(certPemFile, ExportCertificateToPem(SelfSignedCert));
+            
+            // Create encrypted PEM private key file
+            CreateEncryptedPemKeyFile(SelfSignedCert, encryptedKeyFile, keyPassword);
+
+            // Clear the default password env var to ensure no password is available
+            Environment.SetEnvironmentVariable(SignCommand.DefaultPasswordEnvVar, null);
+
+            // Act - Note: No password env var set
+            string[] args = ["sign", "--p", payloadFile, "--pem", certPemFile, "--key", encryptedKeyFile];
+            
+            Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider provider = 
+                CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
+            badArg.Should().BeNull("badArg should be null.");
+
+            SignCommand cmd = new SignCommand();
+            cmd.ApplyOptions(provider);
+            ExitCode result = cmd.Run();
+
+            // Assert
+            result.Should().Be(ExitCode.CertificateLoadFailure, 
+                "Sign should fail when encrypted key is provided without password");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(SignCommand.DefaultPasswordEnvVar, originalEnvValue);
+            CleanupFile(payloadFile);
+            CleanupFile(certPemFile);
+            CleanupFile(encryptedKeyFile);
+        }
+    }
+
+    /// <summary>
+    /// Tests that signing fails with encrypted PEM key when wrong password is provided via environment variable.
+    /// </summary>
+    [TestMethod]
+    public void SignWithEncryptedPemKeyWithWrongPassword_ShouldFail()
+    {
+        // Arrange
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
+        string certPemFile = Path.GetTempFileName() + ".crt";
+        string encryptedKeyFile = Path.GetTempFileName() + ".key";
+        string keyPassword = "correct-password";
+        string wrongPassword = "wrong-password";
+        string envVarName = "TEST_WRONG_PASSWORD_" + Guid.NewGuid().ToString("N")[..8];
+        
+        try
+        {
+            // Create PEM certificate file
+            File.WriteAllText(certPemFile, ExportCertificateToPem(SelfSignedCert));
+            
+            // Create encrypted PEM private key file
+            CreateEncryptedPemKeyFile(SelfSignedCert, encryptedKeyFile, keyPassword);
+
+            // Set wrong password via environment variable
+            Environment.SetEnvironmentVariable(envVarName, wrongPassword);
+
+            // Act - Provide wrong password via env var
+            string[] args = ["sign", "--p", payloadFile, "--pem", certPemFile, "--key", encryptedKeyFile, 
+                            "--pwenv", envVarName];
+            
+            Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider provider = 
+                CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
+            badArg.Should().BeNull("badArg should be null.");
+
+            SignCommand cmd = new SignCommand();
+            cmd.ApplyOptions(provider);
+            ExitCode result = cmd.Run();
+
+            // Assert
+            result.Should().Be(ExitCode.CertificateLoadFailure, 
+                "Sign should fail when wrong password is provided for encrypted key");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(envVarName, null);
+            CleanupFile(payloadFile);
+            CleanupFile(certPemFile);
+            CleanupFile(encryptedKeyFile);
+        }
+    }
+
+    /// <summary>
+    /// Tests that PasswordEnvVar and PasswordPrompt options are correctly applied.
+    /// </summary>
+    [TestMethod]
+    public void ApplyOptions_WithPasswordEnvVarOption_ShouldSetProperties()
+    {
+        // Arrange
+        string[] args = ["sign", "--p", "payload.txt", "--pem", "/path/to/cert.pem", "--key", "/path/to/key.pem", 
+                        "--pwenv", "MY_CUSTOM_PASSWORD_VAR"];
+        
+        // Act
+        Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider provider = 
+            CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
+        badArg.Should().BeNull("badArg should be null.");
+
+        SignCommand cmd = new SignCommand();
+        cmd.ApplyOptions(provider);
+
+        // Assert
+        cmd.PemCertificate.Should().Be("/path/to/cert.pem", "PemCertificate should be set");
+        cmd.PemKey.Should().Be("/path/to/key.pem", "PemKey should be set");
+        cmd.PasswordEnvVar.Should().Be("MY_CUSTOM_PASSWORD_VAR", "PasswordEnvVar should be set");
+    }
+
+    #region PEM Helper Methods
+
+    private static void CreatePemFileWithKey(X509Certificate2 cert, string pemFile)
+    {
+        StringBuilder sb = new StringBuilder();
+        
+        // Export certificate
+        sb.AppendLine(ExportCertificateToPem(cert));
+        
+        // Export private key
+        sb.AppendLine(ExportPrivateKeyToPem(cert));
+        
+        File.WriteAllText(pemFile, sb.ToString());
+    }
+
+    private static void CreateSeparatePemFiles(X509Certificate2 cert, string certFile, string keyFile)
+    {
+        // Export certificate
+        File.WriteAllText(certFile, ExportCertificateToPem(cert));
+        
+        // Export private key
+        File.WriteAllText(keyFile, ExportPrivateKeyToPem(cert));
+    }
+
+    private static void CreatePemChainFiles(X509Certificate2Collection chain, string chainFile, string keyFile)
+    {
+        StringBuilder sb = new StringBuilder();
+        
+        // Get the leaf certificate (the one with private key)
+        X509Certificate2 leafCert = chain.Cast<X509Certificate2>().First(c => c.HasPrivateKey);
+        
+        // Export leaf certificate first
+        sb.AppendLine(ExportCertificateToPem(leafCert));
+        
+        // Export the rest of the chain (intermediates and root)
+        foreach (X509Certificate2 cert in chain.Cast<X509Certificate2>().Where(c => !c.Equals(leafCert)))
+        {
+            sb.AppendLine(ExportCertificateToPem(cert));
+        }
+        
+        File.WriteAllText(chainFile, sb.ToString());
+        
+        // Export private key separately
+        File.WriteAllText(keyFile, ExportPrivateKeyToPem(leafCert));
+    }
+
+    private static string ExportCertificateToPem(X509Certificate2 cert)
+    {
+        return cert.ExportCertificatePem();
+    }
+
+    private static string ExportPrivateKeyToPem(X509Certificate2 cert)
+    {
+        if (cert.GetRSAPrivateKey() is RSA rsa)
+        {
+            return rsa.ExportRSAPrivateKeyPem();
+        }
+        else if (cert.GetECDsaPrivateKey() is ECDsa ecdsa)
+        {
+            return ecdsa.ExportECPrivateKeyPem();
+        }
+        
+        throw new InvalidOperationException("Certificate does not have an RSA or ECDSA private key");
+    }
+
+    private static void CreateEncryptedPemKeyFile(X509Certificate2 cert, string keyFile, string password)
+    {
+        PbeParameters pbeParameters = new PbeParameters(
+            PbeEncryptionAlgorithm.Aes256Cbc, 
+            HashAlgorithmName.SHA256, 
+            iterationCount: 100_000);
+
+        if (cert.GetRSAPrivateKey() is RSA rsa)
+        {
+            string encryptedPem = rsa.ExportEncryptedPkcs8PrivateKeyPem(password, pbeParameters);
+            File.WriteAllText(keyFile, encryptedPem);
+        }
+        else if (cert.GetECDsaPrivateKey() is ECDsa ecdsa)
+        {
+            string encryptedPem = ecdsa.ExportEncryptedPkcs8PrivateKeyPem(password, pbeParameters);
+            File.WriteAllText(keyFile, encryptedPem);
+        }
+        else
+        {
+            throw new InvalidOperationException("Certificate does not have an RSA or ECDSA private key");
+        }
+    }
+
+    private static void CleanupFile(string filePath)
+    {
+        if (File.Exists(filePath))
+        {
+            try
+            {
+                File.Delete(filePath);
+            }
+            catch (IOException) { /* ignore cleanup errors */ }
+        }
+    }
+
+    #endregion
+
+    #endregion
+}

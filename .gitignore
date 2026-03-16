@@ -410,7 +410,6 @@ FodyWeavers.xsd
 lcov.info
 tarpaulin-report.html
 
-
 # Copilot Orchestrator temporary files
 .orchestrator
 .orchestrator/

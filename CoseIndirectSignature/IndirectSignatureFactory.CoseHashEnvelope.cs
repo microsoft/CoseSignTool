@@ -19,6 +19,7 @@ public sealed partial class IndirectSignatureFactory
     /// <param name="bytePayload">If streamPayload is null then this must be specified and must not be null and will use the Byte API's on the CoseSign1MesssageFactory</param>
     /// <param name="payloadHashed">True if the payload represents the raw hash</param>
     /// <param name="headerExtender">Optional header extender to add custom headers to the COSE message.</param>
+    /// <param name="payloadLocation">Optional URI indicating where the payload can be retrieved from.</param>
     /// <returns>Either a CoseSign1Message or a ReadOnlyMemory{byte} representing the CoseSign1Message object.</returns>
     /// <exception cref="ArgumentNullException">The contentType parameter was empty or null</exception>
     /// <exception cref="ArgumentNullException">Either streamPayload or bytePayload must be specified, but not both at the same time, or both cannot be null</exception>
@@ -30,7 +31,8 @@ public sealed partial class IndirectSignatureFactory
         Stream? streamPayload = null,
         ReadOnlyMemory<byte>? bytePayload = null,
         bool payloadHashed = false,
-        ICoseHeaderExtender? headerExtender = null)
+        ICoseHeaderExtender? headerExtender = null,
+        string? payloadLocation = null)
     {
         ReadOnlyMemory<byte> hash;
         HashAlgorithmName algoName = InternalHashAlgorithmName;
@@ -57,8 +59,8 @@ public sealed partial class IndirectSignatureFactory
         }
 
         ICoseHeaderExtender effectiveHeaderExtender = headerExtender == null ?
-            new CoseHashEnvelopeHeaderExtender(algoName, contentType, null) :
-            new CoseSign1.Headers.ChainedCoseHeaderExtender(new[] { headerExtender, new CoseHashEnvelopeHeaderExtender(algoName, contentType, null) });
+            new CoseHashEnvelopeHeaderExtender(algoName, contentType, payloadLocation) :
+            new CoseSign1.Headers.ChainedCoseHeaderExtender(new[] { headerExtender, new CoseHashEnvelopeHeaderExtender(algoName, contentType, payloadLocation) });
 
         return returnBytes
                ? InternalMessageFactory.CreateCoseSign1MessageBytes(
@@ -84,7 +86,8 @@ public sealed partial class IndirectSignatureFactory
         ReadOnlyMemory<byte>? bytePayload = null,
         bool payloadHashed = false,
         ICoseHeaderExtender? headerExtender = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        string? payloadLocation = null)
     {
         // Check for cancellation before starting expensive hash computation
         cancellationToken.ThrowIfCancellationRequested();
@@ -117,8 +120,8 @@ public sealed partial class IndirectSignatureFactory
         }
 
         ICoseHeaderExtender effectiveHeaderExtender = headerExtender == null ?
-            new CoseHashEnvelopeHeaderExtender(algoName, contentType, null) :
-            new CoseSign1.Headers.ChainedCoseHeaderExtender(new[] { headerExtender, new CoseHashEnvelopeHeaderExtender(algoName, contentType, null) });
+            new CoseHashEnvelopeHeaderExtender(algoName, contentType, payloadLocation) :
+            new CoseSign1.Headers.ChainedCoseHeaderExtender(new[] { headerExtender, new CoseHashEnvelopeHeaderExtender(algoName, contentType, payloadLocation) });
 
         return returnBytes
                ? await InternalMessageFactory.CreateCoseSign1MessageBytesAsync(

@@ -277,6 +277,29 @@ public class MstTransparencyServiceTests
     }
 
     /// <summary>
+    /// Tests that MakeTransparentAsync wraps RequestFailedException in MstServiceException.
+    /// </summary>
+    [Test]
+    public void MakeTransparentAsync_ThrowsMstServiceException_WhenRequestFails()
+    {
+        // Arrange
+        Mock<CodeTransparencyClient> mockClient = new Mock<CodeTransparencyClient>();
+        mockClient
+            .Setup(client => client.CreateEntryAsync(It.IsAny<WaitUntil>(), It.IsAny<BinaryData>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new RequestFailedException(502, "Bad Gateway"));
+
+        MstTransparencyService service = new MstTransparencyService(mockClient.Object);
+        CoseSign1Message message = CreateMockCoseSign1Message();
+
+        // Act & Assert
+        Assert.That(
+            async () => await service.MakeTransparentAsync(message),
+            Throws.TypeOf<MstServiceException>()
+                .With.Message.Contains("502")
+                .And.InnerException.TypeOf<RequestFailedException>());
+    }
+
+    /// <summary>
     /// Helper method to create a mock failed operation.
     /// </summary>
     /// <returns>A mock failed operation.</returns>

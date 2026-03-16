@@ -32,6 +32,13 @@ public abstract class PluginCommandBase : IPluginCommand
     public abstract IDictionary<string, string> Options { get; }
 
     /// <inheritdoc/>
+    /// <remarks>
+    /// Override this property in derived classes to specify which options are boolean flags.
+    /// Boolean flags can be specified without an explicit value (e.g., --verbose instead of --verbose true).
+    /// </remarks>
+    public virtual IReadOnlyCollection<string> BooleanOptions => Array.Empty<string>();
+
+    /// <inheritdoc/>
     public abstract Task<PluginExitCode> ExecuteAsync(IConfiguration configuration, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -57,5 +64,42 @@ public abstract class PluginCommandBase : IPluginCommand
     protected static string? GetOptionalValue(IConfiguration configuration, string key, string? defaultValue = null)
     {
         return configuration[key] ?? defaultValue;
+    }
+
+    /// <summary>
+    /// Gets a boolean flag from configuration. Handles CLI switches that may not have explicit values.
+    /// Returns true if the flag is present (with any non-"false" value or no value), false otherwise.
+    /// </summary>
+    /// <param name="configuration">The configuration to read from.</param>
+    /// <param name="key">The configuration key.</param>
+    /// <returns>True if the flag is set, false otherwise.</returns>
+    /// <remarks>
+    /// This method handles the common CLI pattern where a flag can be specified in multiple ways:
+    /// --flag (no value, implies true)
+    /// --flag true (explicit true)
+    /// --flag false (explicit false)
+    /// The flag is considered true if:
+    /// - The key exists in configuration AND
+    /// - The value is not explicitly "false" (case-insensitive)
+    /// </remarks>
+    protected static bool GetBooleanFlag(IConfiguration configuration, string key)
+    {
+        // Check if the key exists in the configuration
+        string? value = configuration[key];
+        
+        // If the key doesn't exist, return false
+        if (value == null)
+        {
+            return false;
+        }
+        
+        // If the value is explicitly "false", return false
+        if (string.Equals(value, "false", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+        
+        // Otherwise, the flag was specified (with any value or no value), so return true
+        return true;
     }
 }

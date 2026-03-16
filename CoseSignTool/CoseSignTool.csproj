@@ -7,6 +7,29 @@
         <Platforms>AnyCPU</Platforms>
     </PropertyGroup>
 
+    <!--Plugin deployment: enabled by default, use -p:NoPlugins=true to disable-->
+    <PropertyGroup>
+        <DeployPlugins Condition="'$(NoPlugins)' != 'true'">true</DeployPlugins>
+        <DeployPlugins Condition="'$(NoPlugins)' == 'true'">false</DeployPlugins>
+    </PropertyGroup>
+
+    <!--Consolidated plugin discovery - reused by all plugin targets-->
+    <ItemGroup Condition="'$(DeployPlugins)' == 'true'">
+        <PluginProjects Include="$(MSBuildProjectDirectory)\..\**\*.Plugin.csproj" />
+        <PluginNames Include="@(PluginProjects->'%(Filename)')" />
+    </ItemGroup>
+
+    <!--Single-file publishing configuration for self-contained deployments
+        Plugins are embedded in the single-file and extracted on first run.
+        AppContext.BaseDirectory points to the extraction location where plugins are available.-->
+    <PropertyGroup Condition="'$(PublishSingleFile)' == 'true'">
+        <SelfContained>true</SelfContained>
+        <PublishSingleFile>true</PublishSingleFile>
+        <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+        <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
+        <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    </PropertyGroup>
+
     <!--Code style and static analysis-->
     <PropertyGroup>
         <Nullable>enable</Nullable>
@@ -73,7 +96,9 @@
         <PropertyGroup>
             <PluginsDir>$(OutputPath)plugins</PluginsDir>
             <PluginSubDir>$(PluginsDir)\$(PluginName)</PluginSubDir>
-            <PluginSourceDir>$(MSBuildProjectDirectory)\..\$(PluginName)\bin\$(Configuration)\net8.0</PluginSourceDir>
+            <!-- Handle both RID-specific and non-RID builds -->
+            <PluginSourceDir Condition="'$(RuntimeIdentifier)' != ''">$(MSBuildProjectDirectory)\..\$(PluginName)\bin\$(Configuration)\net8.0\$(RuntimeIdentifier)</PluginSourceDir>
+            <PluginSourceDir Condition="'$(RuntimeIdentifier)' == ''">$(MSBuildProjectDirectory)\..\$(PluginName)\bin\$(Configuration)\net8.0</PluginSourceDir>
         </PropertyGroup>
         
         <MakeDir Directories="$(PluginSubDir)" />
@@ -105,62 +130,49 @@
         <Warning Text="Plugin directory not found at: $(PluginSourceDir)" Condition="!Exists('$(PluginSourceDir)')" />
     </Target>
 
-    <!--Automatic plugin discovery and deployment-->
+    <!--Automatic plugin discovery and deployment - runs by default unless NoPlugins=true-->
     <Target Name="DeployAllPlugins" AfterTargets="Build" Condition="'$(DeployPlugins)' == 'true'">
-        <!-- Discover all plugin projects by looking for *.Plugin.csproj files -->
-        <ItemGroup>
-            <PluginProjects Include="$(MSBuildProjectDirectory)\..\**\*.Plugin.csproj" />
-        </ItemGroup>
-        
-        <!-- Extract plugin names from project paths -->
-        <ItemGroup>
-            <PluginNames Include="@(PluginProjects->'%(Filename)')" />
-        </ItemGroup>
-        
-        <!-- Deploy each discovered plugin -->
+        <!-- Deploy each discovered plugin using consolidated PluginNames ItemGroup -->
         <MSBuild Projects="$(MSBuildProjectFile)" 
-                 Properties="PluginName=%(PluginNames.Identity);Configuration=$(Configuration)" 
+                 Properties="PluginName=%(PluginNames.Identity);Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier)" 
                  Targets="DeployPlugin" 
                  Condition="'@(PluginNames)' != ''" />
         
-        <Message Text="Auto-discovered and deployed @(PluginNames->Count()) plugin(s): @(PluginNames, ', ')" Importance="high" Condition="'@(PluginNames)' != ''" />
+        <Message Text="Deployed @(PluginNames->Count()) plugin(s): @(PluginNames, ', ')" Importance="high" Condition="'@(PluginNames)' != ''" />
         <Warning Text="No plugin projects found (looking for *.Plugin.csproj)" Condition="'@(PluginNames)' == ''" />
     </Target>
 
-    <!--Deploy plugins for publish operations-->
-    <Target Name="DeployAllPluginsForPublish" AfterTargets="Publish" Condition="'$(DeployPlugins)' == 'true'">
-        <!-- Discover all plugin projects by looking for *.Plugin.csproj files -->
+    <!--Include deployed plugins as Content for single-file bundling-->
+    <Target Name="IncludePluginsInPublish" AfterTargets="DeployAllPlugins" BeforeTargets="_ComputeFilesToBundle" Condition="'$(DeployPlugins)' == 'true' AND '$(PublishSingleFile)' == 'true'">
+        <PropertyGroup>
+            <PluginsSourcePath>$(OutputPath)plugins</PluginsSourcePath>
+        </PropertyGroup>
+        
+        <!-- Discover all deployed plugin files -->
         <ItemGroup>
-            <PluginProjectsForPublish Include="$(MSBuildProjectDirectory)\..\**\*.Plugin.csproj" />
+            <PluginFilesToBundle Include="$(PluginsSourcePath)\**\*.*" Condition="Exists('$(PluginsSourcePath)')" />
         </ItemGroup>
         
-        <!-- Extract plugin names from project paths -->
+        <!-- Add plugin files to the single-file bundle -->
         <ItemGroup>
-            <PluginNamesForPublish Include="@(PluginProjectsForPublish->'%(Filename)')" />
+            <FilesToBundle Include="@(PluginFilesToBundle)">
+                <RelativePath>plugins\%(RecursiveDir)%(Filename)%(Extension)</RelativePath>
+            </FilesToBundle>
         </ItemGroup>
         
-        <!-- Deploy each discovered plugin to the publish directory -->
-        <MSBuild Projects="$(MSBuildProjectFile)" 
-                 Properties="PluginName=%(PluginNamesForPublish.Identity);Configuration=$(Configuration);OutputPath=$(PublishDir)" 
-                 Targets="DeployPlugin" 
-                 Condition="'@(PluginNamesForPublish)' != ''" />
-        
-        <Message Text="Auto-discovered and deployed @(PluginNamesForPublish->Count()) plugin(s) for publish: @(PluginNamesForPublish, ', ')" Importance="high" Condition="'@(PluginNamesForPublish)' != ''" />
+        <Message Text="Including @(PluginFilesToBundle->Count()) plugin files in single-file bundle" Importance="high" Condition="'@(PluginFilesToBundle)' != ''" />
     </Target>
 
-    <!--Target to build and deploy all plugins for local development-->
-    <Target Name="BuildAndDeployPlugins">
-        <!-- Discover and build all plugin projects -->
-        <ItemGroup>
-            <PluginProjects Include="$(MSBuildProjectDirectory)\..\**\*.Plugin.csproj" />
-        </ItemGroup>
-        
-        <!-- Build each plugin project -->
-        <MSBuild Projects="@(PluginProjects)" Properties="Configuration=$(Configuration)" Condition="'@(PluginProjects)' != ''" />
-        
-        <!-- Deploy all plugins -->
-        <MSBuild Projects="$(MSBuildProjectFile)" Properties="DeployPlugins=true;Configuration=$(Configuration)" Targets="DeployAllPlugins" />
-        
-        <Message Text="Built and deployed @(PluginProjects->Count()) plugin project(s)" Importance="high" Condition="'@(PluginProjects)' != ''" />
+    <!--Clean up the plugins folder from publish output since plugins are bundled in the single-file exe-->
+    <Target Name="CleanupPluginsFolderForSingleFile" AfterTargets="Publish" Condition="'$(PublishSingleFile)' == 'true' AND '$(DeployPlugins)' == 'true'">
+        <RemoveDir Directories="$(PublishDir)plugins" Condition="Exists('$(PublishDir)plugins')" />
+        <Message Text="Removed plugins folder from publish output (plugins are bundled in single-file exe)" Importance="high" />
+    </Target>
+
+    <!--Build all plugins before main build so they're ready for deployment-->
+    <Target Name="BuildPlugins" BeforeTargets="Build" Condition="'$(DeployPlugins)' == 'true'">
+        <!-- Build each plugin project using consolidated PluginProjects ItemGroup -->
+        <Message Text="Building @(PluginProjects->Count()) plugin project(s)..." Importance="high" Condition="'@(PluginProjects)' != ''" />
+        <MSBuild Projects="@(PluginProjects)" Properties="Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier)" Condition="'@(PluginProjects)' != ''" />
     </Target>
 </Project>

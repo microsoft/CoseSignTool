@@ -38,6 +38,9 @@ public class IndirectSignCommand : IndirectSignatureCommandBase
             options["cwt-subject"] = "The CWT subject (sub) claim. Defaults to 'UnknownIntent'";
             options["cwt-audience"] = "The CWT audience (aud) claim (optional)";
             
+            // Add payload location option for CoseHashEnvelope format
+            options["payload-location"] = "A URI indicating where the payload can be retrieved from (optional, CoseHashEnvelope format only)";
+            
             return options;
         }
     }
@@ -48,6 +51,21 @@ public class IndirectSignCommand : IndirectSignatureCommandBase
                                    GetAdditionalOptionalArguments() + 
                                    GetCertificateProviderInfo() +
                                    GetExamples();
+
+    /// <inheritdoc/>
+    public override IReadOnlyCollection<string> BooleanOptions => SigningBooleanOptions;
+
+    /// <summary>
+    /// Gets additional optional arguments specific to the indirect-sign command.
+    /// </summary>
+    protected override string GetAdditionalOptionalArguments()
+    {
+        return @"
+Payload location (optional):
+  --payload-location  A URI indicating where the payload can be retrieved from.
+                      This is added to the COSE envelope per RFC 9054.
+";
+    }
 
     /// <inheritdoc/>
     public override async Task<PluginExitCode> ExecuteAsync(IConfiguration configuration, CancellationToken cancellationToken = default)
@@ -150,6 +168,13 @@ public class IndirectSignCommand : IndirectSignatureCommandBase
                 Logger.LogVerbose($"Custom CWT claims count: {cwtClaims.Count}");
             }
 
+            // Parse payload location for CoseHashEnvelope format
+            string? payloadLocation = GetOptionalValue(configuration, "payload-location");
+            if (!string.IsNullOrEmpty(payloadLocation))
+            {
+                Logger.LogVerbose($"Payload location: {payloadLocation}");
+            }
+
             // Create the indirect signature
             using CancellationTokenSource combinedCts = CreateTimeoutCancellationToken(timeoutSeconds, cancellationToken);
             Logger.LogVerbose($"Creating indirect signature with hash algorithm: {hashAlgorithm.Name}, version: {signatureVersion}");
@@ -167,6 +192,7 @@ public class IndirectSignCommand : IndirectSignatureCommandBase
                 cwtSubject,
                 cwtAudience,
                 cwtClaims,
+                payloadLocation,
                 Logger,
                 combinedCts.Token);
 
@@ -210,6 +236,7 @@ public class IndirectSignCommand : IndirectSignatureCommandBase
     /// <param name="cwtSubject">Optional CWT subject claim.</param>
     /// <param name="cwtAudience">Optional CWT audience claim.</param>
     /// <param name="cwtClaims">Optional custom CWT claims as label:value pairs.</param>
+    /// <param name="payloadLocation">Optional URI indicating where the payload can be retrieved from.</param>
     /// <param name="logger">Logger for diagnostic output.</param>
     /// <param name="cancellationToken">Cancellation token with timeout.</param>
     /// <returns>Tuple containing the exit code and optional result object for JSON output.</returns>
@@ -227,6 +254,7 @@ public class IndirectSignCommand : IndirectSignatureCommandBase
         string? cwtSubject,
         string? cwtAudience,
         List<string>? cwtClaims,
+        string? payloadLocation,
         IPluginLogger logger,
         CancellationToken cancellationToken)
     {
@@ -318,7 +346,8 @@ public class IndirectSignCommand : IndirectSignatureCommandBase
                 contentType: contentType,
                 signatureVersion: signatureVersion,
                 coseHeaderExtender: headerExtender,
-                cancellationToken: cancellationToken);
+                cancellationToken: cancellationToken,
+                payloadLocation: payloadLocation);
 
             // Encode and write signature to file
             byte[] signatureBytes = indirectSignature.Encode();

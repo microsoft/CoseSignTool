@@ -67,6 +67,19 @@ public class StreamExtensionsTests
     }
 
     [Test]
+    public void IsNullOrEmpty_NonSeekablePipedStream_ShouldReturnFalse()
+    {
+        // Simulate piped stdin on Linux/macOS where Length throws NotSupportedException
+        // This should return false (not empty) since we assume readable streams have content
+        Mock<Stream> mockStream = new(MockBehavior.Strict);
+        mockStream.Setup(s => s.CanSeek).Returns(false);
+        mockStream.Setup(s => s.CanRead).Returns(true);
+        mockStream.Setup(s => s.Length).Throws(new NotSupportedException("Stream does not support seeking."));
+
+        mockStream.Object.IsNullOrEmpty().Should().Be(false);
+    }
+
+    [Test]
     public void IsNullOrEmpty_WithTimeout()
     {        
         byte[] buffer = Encoding.ASCII.GetBytes("Hello test");

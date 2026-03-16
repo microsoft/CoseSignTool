@@ -4,16 +4,17 @@
 namespace CoseSign1.Transparent.Extensions;
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Formats.Cbor;
 using System.Security.Cryptography.Cose;
 using System.Threading;
 using System.Threading.Tasks;
-using CoseSign1.Transparent.Interfaces;
+using CoseSign1.Transparent;
 
 /// <summary>
 /// Provides extension methods for enhancing the functionality of <see cref="CoseSign1Message"/> 
-/// with transparency features using an <see cref="ITransparencyService"/>.
+/// with transparency features using a <see cref="TransparencyService"/>.
 /// </summary>
 public static class CoseSign1TransparencyMessageExtensions
 {
@@ -30,10 +31,10 @@ public static class CoseSign1TransparencyMessageExtensions
 
     /// <summary>
     /// Asynchronously transforms a <see cref="CoseSign1Message"/> into a transparent message 
-    /// by leveraging the provided <see cref="ITransparencyService"/>.
+    /// by leveraging the provided <see cref="TransparencyService"/>.
     /// </summary>
     /// <param name="message">The original <see cref="CoseSign1Message"/> to be made transparent.</param>
-    /// <param name="transparencyService">The <see cref="ITransparencyService"/> used to apply transparency.</param>
+    /// <param name="transparencyService">The <see cref="TransparencyService"/> used to apply transparency.</param>
     /// <param name="cancellationToken">
     /// A <see cref="CancellationToken"/> to observe while waiting for the task to complete.
     /// </param>
@@ -44,7 +45,7 @@ public static class CoseSign1TransparencyMessageExtensions
     /// <exception cref="ArgumentNullException">
     /// Thrown if <paramref name="message"/> or <paramref name="transparencyService"/> is null.
     /// </exception>
-    public static Task<CoseSign1Message> MakeTransparentAsync(this CoseSign1Message message, ITransparencyService transparencyService, CancellationToken cancellationToken = default)
+    public static Task<CoseSign1Message> MakeTransparentAsync(this CoseSign1Message message, TransparencyService transparencyService, CancellationToken cancellationToken = default)
     {
         if (message == null)
         {
@@ -79,10 +80,10 @@ public static class CoseSign1TransparencyMessageExtensions
 
     /// <summary>
     /// Asynchronously verifies the transparency of a given <see cref="CoseSign1Message"/> 
-    /// using the provided <see cref="ITransparencyService"/>.
+    /// using the provided <see cref="TransparencyService"/>.
     /// </summary>
     /// <param name="message">The <see cref="CoseSign1Message"/> to verify for transparency.</param>
-    /// <param name="transparencyService">The <see cref="ITransparencyService"/> used to perform the verification.</param>
+    /// <param name="transparencyService">The <see cref="TransparencyService"/> used to perform the verification.</param>
     /// <param name="cancellationToken">
     /// A <see cref="CancellationToken"/> to observe while waiting for the task to complete.
     /// </param>
@@ -93,7 +94,7 @@ public static class CoseSign1TransparencyMessageExtensions
     /// <exception cref="ArgumentNullException">
     /// Thrown if <paramref name="message"/> or <paramref name="transparencyService"/> is null.
     /// </exception>
-    public static Task<bool> VerifyTransparencyAsync(this CoseSign1Message message, ITransparencyService transparencyService, CancellationToken cancellationToken = default)
+    public static Task<bool> VerifyTransparencyAsync(this CoseSign1Message message, TransparencyService transparencyService, CancellationToken cancellationToken = default)
     {
         if (message == null)
         {
@@ -183,21 +184,51 @@ public static class CoseSign1TransparencyMessageExtensions
 
         _ = message.TryGetReceipts(out List<byte[]>? existingReceiptsList);
 
-        // Write the receipts to a CBOR-encoded array
-        CborWriter cborWriter = new();
-        cborWriter.WriteStartArray(receipts.Count + (existingReceiptsList?.Count ?? 0));
+        // Merge and de-duplicate receipts (by byte content), preserving stable order:
+        // existing receipts first, then newly provided receipts.
+        List<byte[]> mergedReceipts = new();
+        HashSet<byte[]> seen = new(ByteArrayComparer.Instance);
 
-        // Add existing receipts to the array if they exist
         if (existingReceiptsList != null)
         {
             foreach (byte[] receipt in existingReceiptsList)
             {
-                cborWriter.WriteByteString(receipt);
+                if (receipt == null || receipt.Length == 0)
+                {
+                    continue;
+                }
+
+                if (seen.Add(receipt))
+                {
+                    mergedReceipts.Add(receipt);
+                }
             }
         }
 
-        // Add the new receipts to the array
         foreach (byte[] receipt in receipts)
+        {
+            if (receipt == null || receipt.Length == 0)
+            {
+                continue;
+            }
+
+            if (seen.Add(receipt))
+            {
+                mergedReceipts.Add(receipt);
+            }
+        }
+
+        if (mergedReceipts.Count == 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(receipts), "Receipts cannot be empty.");
+        }
+
+        // Write the receipts to a CBOR-encoded array
+        CborWriter cborWriter = new();
+        cborWriter.WriteStartArray(mergedReceipts.Count);
+
+        // Add merged receipts to the array
+        foreach (byte[] receipt in mergedReceipts)
         {
             cborWriter.WriteByteString(receipt);
         }
@@ -213,6 +244,17 @@ public static class CoseSign1TransparencyMessageExtensions
 
         // Add the new receipts to the unprotected headers
         message.UnprotectedHeaders.Add(TransparencyHeaderLabel, CoseHeaderValue.FromEncodedValue(cborWriter.Encode()));
+    }
+
+    private sealed class ByteArrayComparer : IEqualityComparer<byte[]>
+    {
+        public static readonly ByteArrayComparer Instance = new();
+
+        public bool Equals(byte[]? x, byte[]? y)
+            => StructuralComparisons.StructuralEqualityComparer.Equals(x, y);
+
+        public int GetHashCode(byte[] obj)
+            => StructuralComparisons.StructuralEqualityComparer.GetHashCode(obj);
     }
 
     /// <summary>

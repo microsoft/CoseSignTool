@@ -13,6 +13,11 @@ using System.Security.Cryptography.Cose;
 public abstract class MstCommandBase : PluginCommandBase
 {
     /// <summary>
+    /// The default polling interval (in milliseconds) used when checking MST entry availability.
+    /// </summary>
+    protected const int DefaultPollingIntervalMs = 250;
+
+    /// <summary>
     /// Common command options shared across all MST commands.
     /// </summary>
     protected static readonly Dictionary<string, string> CommonOptions = new()

@@ -14,7 +14,7 @@ This repo supports running native tests under MSVC AddressSanitizer (ASAN) and c
 From repo root:
 
 ```powershell
-./native/collect-coverage-asan.ps1 -Configuration Debug -MinimumLineCoveragePercent 95
+./native/collect-coverage-asan.ps1 -Configuration Debug -MinimumLineCoveragePercent 90
 ```
 
 This:
@@ -52,14 +52,14 @@ declarations (no coverable lines).
 
 ## Coverage thresholds
 
-All three scripts enforce a **95% minimum line coverage** gate by default. The threshold
+All three scripts enforce a **90% minimum line coverage** gate by default. The threshold
 applies to production/header source code only — test files are excluded from the metric.
 
 | Component | Source filter | Threshold |
 |-----------|--------------|-----------|
-| Rust | Per-crate `src/` files | 95% |
-| C | `include/` + `tests/` | 95% |
-| C++ | `include/` (RAII headers) | 95% |
+| Rust | Per-crate `src/` files | 90% |
+| C | `include/` + `tests/` | 90% |
+| C++ | `include/` (RAII headers) | 90% |
 
 ## Why Debug?
 

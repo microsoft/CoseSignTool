@@ -11,8 +11,8 @@ on:
     - cron: '28 20 * * 1'
 
 jobs:
-  analyze:
-    name: Analyze
+  analyze-csharp:
+    name: Analyze (csharp, ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     permissions:
       actions: read
@@ -22,7 +22,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [ 'csharp' ]
         os: [ubuntu-latest]
 
     steps:
@@ -35,20 +34,66 @@ jobs:
       with:
         dotnet-version: 9.0.x
 
-    # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
       uses: github/codeql-action/init@v3
       with:
         languages: 'csharp'
-        queries: security-extended,security-and-quality 
-        # See https://codeql.github.com/codeql-query-help/csharp/ for a list of available C# queries.
+        queries: security-extended,security-and-quality
 
-    # Use the Dotnet Build command to load dependencies and build the code.        
     - name: Build debug
       run: dotnet build --verbosity normal CoseSignTool.sln
 
-    # Do the analysis
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v3
       with:
         category: "/language:csharp"
+
+  analyze-rust:
+    name: Analyze (rust, ubuntu-latest)
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    steps:
+
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v3
+      with:
+        languages: 'rust'
+        build-mode: none
+        queries: security-extended,security-and-quality
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
+      with:
+        category: "/language:rust"
+
+  analyze-cpp:
+    name: Analyze (c-cpp, ubuntu-latest)
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    steps:
+
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v3
+      with:
+        languages: 'c-cpp'
+        build-mode: none
+        queries: security-extended,security-and-quality
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
+      with:
+        category: "/language:c-cpp"

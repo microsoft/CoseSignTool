@@ -36,8 +36,7 @@ members = [
   "extension_packs/azure_artifact_signing",
   "extension_packs/azure_artifact_signing/ffi",
   "extension_packs/azure_artifact_signing/client",
-  "partner/cose_openssl",
-  "partner/cose_openssl/ffi",
+  "cose_openssl",
 ]
 
 [workspace.package]

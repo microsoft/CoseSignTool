@@ -487,7 +487,7 @@ function Export-PerCrateLcov {
 # - test-only helper crate
 # Note: cargo-llvm-cov expects a Rust-style regex over file paths. Use `\\` to match a single
 # Windows path separator in the regex, and keep the PowerShell string itself single-quoted.
-$ignoreFilenameRegex = '(^|\\|/)(tests|examples)(\\|/)|(^|\\|/)target(\\|/)|(^|\\|/)validation(\\|/)(demo|test_utils)(\\|/)|(^|\\|/)partner(\\|/)cose_openssl(\\|/)'
+$ignoreFilenameRegex = '(^|\\|/)(tests|examples)(\\|/)|(^|\\|/)target(\\|/)|(^|\\|/)validation(\\|/)(demo|test_utils)(\\|/)|(^|\\|/)cose_openssl(\\|/)'
 
 # Ensure OpenSSL DLLs are on PATH for tests that link against OpenSSL.
 # Without this, tests fail with STATUS_DLL_NOT_FOUND (0xc0000135).

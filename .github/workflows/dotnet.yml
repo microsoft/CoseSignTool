@@ -77,8 +77,9 @@ jobs:
     - name: List working directory
       run: ${{ matrix.dir_command }}
 
-  native-coverage-windows:
-    name: native-coverage-windows
+  # ── Native Rust: build, test, coverage ──────────────────────────────
+  native-rust:
+    name: native-rust
     if: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
     runs-on: windows-latest
     env:
@@ -88,16 +89,11 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    # ── OpenSSL via vcpkg ──────────────────────────────────────────────
     - name: Install OpenSSL via vcpkg
       shell: pwsh
       run: |
         & "$env:VCPKG_ROOT\vcpkg" install openssl:x64-windows
-        # Ensure OpenSSL DLLs are on PATH for test execution
-        $env:PATH = "$env:VCPKG_ROOT\installed\x64-windows\bin;$env:PATH"
-        [Environment]::SetEnvironmentVariable('PATH', $env:PATH, 'Process')
 
-    # ── Rust toolchains ────────────────────────────────────────────────
     - name: Setup Rust (stable)
       uses: dtolnay/rust-toolchain@stable
 
@@ -110,20 +106,18 @@ jobs:
       shell: pwsh
       run: cargo install cargo-llvm-cov --locked
 
-    # ── Rust: build + test ─────────────────────────────────────────────
-    - name: Build Rust workspace (exclude partner crate)
+    - name: Build Rust workspace
       shell: pwsh
       run: |
         $env:PATH = "$env:VCPKG_ROOT\installed\x64-windows\bin;$env:PATH"
         cargo build --manifest-path native/rust/Cargo.toml --workspace --exclude cose-openssl
 
-    - name: Test Rust workspace (exclude partner crate)
+    - name: Test Rust workspace
       shell: pwsh
       run: |
         $env:PATH = "$env:VCPKG_ROOT\installed\x64-windows\bin;$env:PATH"
         cargo test --manifest-path native/rust/Cargo.toml --workspace --exclude cose-openssl
 
-    # ── Rust: coverage (90% gate) ─────────────────────────────────────
     - name: Rust coverage (90% line gate)
       shell: pwsh
       run: |
@@ -132,14 +126,32 @@ jobs:
         pwsh -NoProfile -File collect-coverage.ps1 -NoHtml
         Pop-Location
 
-    # ── Build Rust FFI static libraries for C/C++ tests ───────────────
+  # ── Native C/C++: build, test, coverage (ASAN) ────────────────────
+  native-c-cpp:
+    name: native-c-cpp
+    if: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
+    runs-on: windows-latest
+    env:
+      VCPKG_ROOT: C:\vcpkg
+      OPENSSL_DIR: C:\vcpkg\installed\x64-windows
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install OpenSSL via vcpkg
+      shell: pwsh
+      run: |
+        & "$env:VCPKG_ROOT\vcpkg" install openssl:x64-windows
+
+    - name: Setup Rust (stable)
+      uses: dtolnay/rust-toolchain@stable
+
     - name: Build Rust FFI libraries (release)
       shell: pwsh
       run: |
         $env:PATH = "$env:VCPKG_ROOT\installed\x64-windows\bin;$env:PATH"
         cargo build --manifest-path native/rust/Cargo.toml --release --workspace --exclude cose-openssl
 
-    # ── C/C++ coverage ─────────────────────────────────────────────────
     - name: Install OpenCppCoverage
       shell: pwsh
       run: |

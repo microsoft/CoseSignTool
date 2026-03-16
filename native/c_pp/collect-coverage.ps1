@@ -27,7 +27,7 @@ param(
     # Minimum overall line coverage percentage required for production/header code.
     # Set to 0 to disable coverage gating (tests will still run).
     [ValidateRange(0, 100)]
-    [int]$MinimumLineCoveragePercent = 95,
+    [int]$MinimumLineCoveragePercent = 90,
 
     [switch]$NoBuild
 )

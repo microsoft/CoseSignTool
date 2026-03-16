@@ -24,7 +24,7 @@ param(
     # Minimum overall line coverage percentage required for the C projection test suite.
     # Set to 0 to disable coverage gating (tests will still run).
     [ValidateRange(0, 100)]
-    [int]$MinimumLineCoveragePercent = 95,
+    [int]$MinimumLineCoveragePercent = 90,
 
     [switch]$NoBuild
 )

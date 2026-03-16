@@ -151,7 +151,7 @@ Utility class for generating **DID:x509 identifiers** from X.509 certificates fo
 - **Subject Policy Format**: Uses key:value pairs separated by colons
 - **Proper Percent-Encoding**: Only ALPHA, DIGIT, '-', '.', '_' allowed unencoded (tilde NOT allowed)
 - **Multiple Hash Algorithms**: Supports SHA-256, SHA-384, and SHA-512
-- **Extensible**: Can be inherited to implement custom DID generation behaviors (e.g., Azure Trusted Signing's EKU-based format)
+- **Extensible**: Can be inherited to implement custom DID generation behaviors (e.g., Azure Artifact Signing's EKU-based format)
 
 #### DID:x509 Format:
 ```
@@ -169,7 +169,7 @@ Example:
 did:x509:0:sha256:WE4P5dd8DnLHSkyHaIjhp4udlkF9LqoKwCvu9gl38jk::subject:C:US:O:GitHub:CN:User
 ```
 
-> **Note**: Azure Trusted Signing uses an enhanced format that includes EKU information for non-standard certificates. See [AzureTrustedSigningDidX509Generator](https://github.com/microsoft/CoseSignTool/blob/main/CoseSign1.Certificates.AzureTrustedSigning/AzureTrustedSigningDidX509Generator.cs) and [CoseSign1.Certificates.AzureTrustedSigning.md](CoseSign1.Certificates.AzureTrustedSigning.md#scitt-compliance-and-didx5090-support) for details.
+> **Note**: Azure Artifact Signing uses an enhanced format that includes EKU information for non-standard certificates. See [AzureArtifactSigningDidX509Generator](https://github.com/microsoft/CoseSignTool/blob/main/CoseSign1.Certificates.AzureArtifactSigning/AzureArtifactSigningDidX509Generator.cs) and [CoseSign1.Certificates.AzureArtifactSigning.md](CoseSign1.Certificates.AzureArtifactSigning.md#scitt-compliance-and-didx5090-support) for details.
 
 #### Usage:
 

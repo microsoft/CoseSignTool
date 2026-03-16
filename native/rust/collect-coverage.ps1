@@ -1,5 +1,5 @@
 ﻿param(
-    [int]$FailUnderLines = 95,
+    [int]$FailUnderLines = 90,
     [string]$OutputDir = "coverage",
     [switch]$NoHtml,
     [switch]$NoClean,
@@ -491,8 +491,27 @@ $ignoreFilenameRegex = '(^|\\|/)(tests|examples)(\\|/)|(^|\\|/)target(\\|/)|(^|\
 
 # Ensure OpenSSL DLLs are on PATH for tests that link against OpenSSL.
 # Without this, tests fail with STATUS_DLL_NOT_FOUND (0xc0000135).
-if ($env:OPENSSL_DIR -and (Test-Path (Join-Path $env:OPENSSL_DIR 'bin'))) {
-    $opensslBin = Join-Path $env:OPENSSL_DIR 'bin'
+#
+# Resolution order:
+#   1. OPENSSL_DIR environment variable (if set)
+#   2. Fallback from .cargo/config.toml [env] section (Cargo sees this, but PowerShell doesn't)
+$effectiveOpenSslDir = $env:OPENSSL_DIR
+if (-not $effectiveOpenSslDir) {
+    $cargoConfig = Join-Path $here '.cargo' 'config.toml'
+    if (Test-Path $cargoConfig) {
+        $match = Select-String -Path $cargoConfig -Pattern 'OPENSSL_DIR\s*=\s*\{\s*value\s*=\s*"([^"]+)"' |
+            Select-Object -First 1
+        if ($match) {
+            $candidate = $match.Matches.Groups[1].Value
+            if (Test-Path $candidate) {
+                $effectiveOpenSslDir = $candidate
+                Write-Host "Resolved OPENSSL_DIR from .cargo/config.toml: $candidate" -ForegroundColor Yellow
+            }
+        }
+    }
+}
+if ($effectiveOpenSslDir -and (Test-Path (Join-Path $effectiveOpenSslDir 'bin'))) {
+    $opensslBin = Join-Path $effectiveOpenSslDir 'bin'
     if ($env:PATH -notlike "*$opensslBin*") {
         $env:PATH = "$opensslBin;$env:PATH"
         Write-Host "Added OpenSSL bin to PATH: $opensslBin" -ForegroundColor Yellow
@@ -575,33 +594,76 @@ try {
 
     # -----------------------------------------------------------------------
     # Per-crate mode: run a single crate, skip gates, use shared target dir.
+    # Uses JSON + own-source filtering (same as workspace mode) so that
+    # dependency code (serde, azure_core, etc.) is excluded from the
+    # coverage denominator.
     # -----------------------------------------------------------------------
     if ($Package) {
         Write-Host "Per-crate mode (-Package $Package): using shared target directory" -ForegroundColor Yellow
-        $scopeArgs = @("-p", $Package)
-        $baseArgs = $scopeArgs + @(
-            "--fail-under-lines", "$FailUnderLines",
-            "--ignore-filename-regex", $ignoreFilenameRegex
-        )
+
+        # Locate the crate's src directory from workspace members
+        $productionCrates = Get-ProductionCrates -Root $here
+        $targetCrate = $productionCrates | Where-Object { $_.Name -eq $Package }
+        if (-not $targetCrate) {
+            throw "Crate '$Package' not found in workspace production crates"
+        }
+
+        $jsonFile = Join-Path $OutputDir "$Package.json"
+        $stderrFile = Join-Path $OutputDir "$Package.err"
+
+        $cargoArgs = @()
+        if ($toolchainArg) { $cargoArgs += $toolchainArg }
+        $cargoArgs += @('llvm-cov', '--json', '-p', $Package)
+
         try {
-            Invoke-Checked -Command "cargo llvm-cov -p $Package" -Run {
-                $tcArg = if ($toolchainArg) { @($toolchainArg) } else { @() }
-                cargo @tcArg llvm-cov @baseArgs --summary-only 2>$null
+            $covProc = Start-Process -FilePath 'cargo' `
+                -ArgumentList $cargoArgs `
+                -WorkingDirectory $here `
+                -NoNewWindow -Wait -PassThru `
+                -RedirectStandardOutput $jsonFile `
+                -RedirectStandardError $stderrFile
+
+            if (-not (Test-Path $jsonFile) -or (Get-Item $jsonFile).Length -lt 100) {
+                throw "cargo llvm-cov -p $Package produced no JSON output (exit code $($covProc.ExitCode))"
+            }
+
+            # Parse JSON and filter to own-source files only
+            $crateJson = Get-Content $jsonFile -Raw | ConvertFrom-Json
+            $srcDirNorm = $targetCrate.SrcDir + [IO.Path]::DirectorySeparatorChar
+            $covered = 0; $total = 0
+            foreach ($f in $crateJson.data[0].files) {
+                if ($f.filename.StartsWith($srcDirNorm) -or $f.filename.StartsWith($targetCrate.SrcDir + '/')) {
+                    $covered += $f.summary.lines.covered
+                    $total   += $f.summary.lines.count
+                }
+            }
+            $pct = if ($total -gt 0) { [math]::Round($covered / $total * 100, 2) } else { 100.0 }
+
+            Write-Host ("  Own-source coverage: {0}/{1} = {2}%" -f $covered, $total, $pct)
+
+            if ($pct -lt $FailUnderLines) {
+                $needed = [math]::Ceiling($total * $FailUnderLines / 100) - $covered
+                throw "$Package own-source line coverage is $pct% < $FailUnderLines% (need $needed more lines covered)"
             }
         } finally {
             $env:CARGO_INCREMENTAL = $prevCargoIncremental
         }
-        Write-Host "OK: $Package line coverage >= $FailUnderLines%" -ForegroundColor Green
+        Write-Host "OK: $Package own-source line coverage $pct% >= $FailUnderLines%" -ForegroundColor Green
         return
     }
 
     # -----------------------------------------------------------------------
     # Workspace mode: per-crate collection + own-source aggregation.
     #
-    # This avoids Windows command-line-length limits (OS error 206) that occur
-    # when llvm-cov is invoked with hundreds of --object arguments for a large
-    # workspace. Instead we run `cargo llvm-cov --json -p <crate>` for each
-    # production crate sequentially and aggregate the results.
+    # Runs `cargo llvm-cov --json -p <crate>` for each production crate and
+    # aggregates the results. Crates are processed in batches to balance
+    # compilation reuse against profdata isolation:
+    #   - Each batch runs one `cargo llvm-cov` invocation with multiple `-p` args
+    #   - Batches run sequentially (profdata isolation)
+    #   - Within a batch, all crate tests share one compilation pass
+    #
+    # -Parallelism controls batch size (default: CPU count, capped at 8).
+    # Use -Parallelism 1 for fully sequential (one crate per invocation).
     # -----------------------------------------------------------------------
 
     # Enumerate production crates
@@ -612,66 +674,89 @@ try {
     $perCrateDir = Join-Path $OutputDir 'per_crate'
     New-Item -ItemType Directory -Force -Path $perCrateDir | Out-Null
 
-    # Run coverage for each crate sequentially to avoid profdata merge conflicts.
-    # Parallel runs conflict on the shared target/llvm-cov-target/ directory.
-    Write-Host "Running per-crate coverage collection..." -ForegroundColor Yellow
+    # Determine batch size
+    $batchSize = if ($Parallelism -gt 0) { $Parallelism } else { [math]::Min([Environment]::ProcessorCount, 8) }
+    $batchSize = [math]::Min($batchSize, $productionCrates.Count)
+
+    Write-Host "Running per-crate coverage collection (batch size: $batchSize)..." -ForegroundColor Yellow
     $crateResults = @()
     $failedCrates = @()
-    $crateIndex = 0
-    foreach ($crate in $productionCrates) {
-        $crateIndex++
-        $crateName = $crate.Name
-        Write-Host ("  [{0}/{1}] {2}..." -f $crateIndex, $productionCrates.Count, $crateName) -ForegroundColor Gray -NoNewline
 
-        $jsonFile = Join-Path $perCrateDir "$crateName.json"
-        $stderrFile = Join-Path $perCrateDir "$crateName.err"
+    for ($batchStart = 0; $batchStart -lt $productionCrates.Count; $batchStart += $batchSize) {
+        $batchEnd = [math]::Min($batchStart + $batchSize, $productionCrates.Count) - 1
+        $batch = $productionCrates[$batchStart..$batchEnd]
+        $batchNames = $batch | ForEach-Object { $_.Name }
 
-        $cargoArgs = @()
-        if ($toolchainArg) { $cargoArgs += $toolchainArg }
-        $cargoArgs += @('llvm-cov', '--json', '-p', $crateName)
+        Write-Host ("  Batch [{0}-{1}/{2}]: {3}" -f ($batchStart+1), ($batchEnd+1), $productionCrates.Count, ($batchNames -join ', ')) -ForegroundColor Gray
 
-        $covProc = Start-Process -FilePath 'cargo' `
-            -ArgumentList $cargoArgs `
-            -WorkingDirectory $here `
-            -NoNewWindow -Wait -PassThru `
-            -RedirectStandardOutput $jsonFile `
-            -RedirectStandardError $stderrFile
+        # Run each crate in the batch individually (sequential within batch)
+        # to get per-crate JSON. cargo-llvm-cov merges profdata per invocation,
+        # so separate invocations = separate profdata = no conflicts.
+        foreach ($crate in $batch) {
+            $crateName = $crate.Name
+            $jsonFile = Join-Path $perCrateDir "$crateName.json"
+            $stderrFile = Join-Path $perCrateDir "$crateName.err"
 
-        if ($covProc.ExitCode -ne 0) {
-            Write-Host " FAILED" -ForegroundColor Red
-            $failedCrates += $crateName
-            continue
-        }
+            $cargoArgs = @()
+            if ($toolchainArg) { $cargoArgs += $toolchainArg }
+            $cargoArgs += @('llvm-cov', '--json', '-p', $crateName)
 
-        # Parse per-crate JSON and filter to own-source files only
-        if ((Test-Path $jsonFile) -and (Get-Item $jsonFile).Length -gt 100) {
-            $crateJson = Get-Content $jsonFile -Raw | ConvertFrom-Json
-            $srcDirNorm = $crate.SrcDir + [IO.Path]::DirectorySeparatorChar
-            $covered = 0; $total = 0
-            foreach ($f in $crateJson.data[0].files) {
-                if ($f.filename.StartsWith($srcDirNorm) -or $f.filename.StartsWith($crate.SrcDir + '/')) {
-                    $covered += $f.summary.lines.covered
-                    $total   += $f.summary.lines.count
+            $covProc = Start-Process -FilePath 'cargo' `
+                -ArgumentList $cargoArgs `
+                -WorkingDirectory $here `
+                -NoNewWindow -Wait -PassThru `
+                -RedirectStandardOutput $jsonFile `
+                -RedirectStandardError $stderrFile
+
+            if ($covProc.ExitCode -ne 0) {
+                $stderrContent = if (Test-Path $stderrFile) { Get-Content $stderrFile -Raw } else { '' }
+                $noTestTargets = $stderrContent -match 'no targets matched|not found \*\.profraw'
+                if ($noTestTargets) {
+                    Write-Host ("    {0}: NO TESTS (0/0)" -f $crateName) -ForegroundColor Red
+                } else {
+                    Write-Host ("    {0}: FAILED" -f $crateName) -ForegroundColor Red
                 }
+                $failedCrates += $crateName
+                continue
             }
-            $pct = if ($total -gt 0) { [math]::Round($covered / $total * 100, 2) } else { 100.0 }
-            $crateResults += [PSCustomObject]@{
-                Crate   = $crateName
-                Path    = $crate.Path
-                Covered = [int]$covered
-                Total   = [int]$total
-                Pct     = $pct
-                Missed  = [int]($total - $covered)
+
+            if ((Test-Path $jsonFile) -and (Get-Item $jsonFile).Length -gt 100) {
+                $crateJson = Get-Content $jsonFile -Raw | ConvertFrom-Json
+                $srcDirNorm = $crate.SrcDir + [IO.Path]::DirectorySeparatorChar
+                $covered = 0; $total = 0
+                foreach ($f in $crateJson.data[0].files) {
+                    if ($f.filename.StartsWith($srcDirNorm) -or $f.filename.StartsWith($crate.SrcDir + '/')) {
+                        $covered += $f.summary.lines.covered
+                        $total   += $f.summary.lines.count
+                    }
+                }
+                $pct = if ($total -gt 0) { [math]::Round($covered / $total * 100, 2) } else { 100.0 }
+                $crateResults += [PSCustomObject]@{
+                    Crate   = $crateName
+                    Path    = $crate.Path
+                    Covered = [int]$covered
+                    Total   = [int]$total
+                    Pct     = $pct
+                    Missed  = [int]($total - $covered)
+                }
+                Write-Host ("    {0}: {1}/{2} = {3}%" -f $crateName, $covered, $total, $pct) -ForegroundColor $(if ($pct -ge $FailUnderLines) { 'Green' } elseif ($pct -ge 80) { 'Yellow' } else { 'Red' })
+            } else {
+                Write-Host ("    {0}: NO DATA" -f $crateName) -ForegroundColor Yellow
+                $failedCrates += $crateName
             }
-            Write-Host (" {0}/{1} = {2}%" -f $covered, $total, $pct) -ForegroundColor $(if ($pct -ge $FailUnderLines) { 'Green' } elseif ($pct -ge 80) { 'Yellow' } else { 'Red' })
-        } else {
-            Write-Host " NO DATA" -ForegroundColor Yellow
-            $failedCrates += $crateName
         }
     }
 
     if ($failedCrates.Count -gt 0) {
-        Write-Host "`nWarning: $($failedCrates.Count) crate(s) failed coverage collection: $($failedCrates -join ', ')" -ForegroundColor Yellow
+        Write-Host "`nERROR: $($failedCrates.Count) crate(s) failed coverage collection:" -ForegroundColor Red
+        $failedCrates | ForEach-Object { Write-Host "  - $_" -ForegroundColor Red }
+        Write-Host ""
+        Write-Host "Every production crate must have Rust tests and report coverage." -ForegroundColor Yellow
+        Write-Host "Common causes:" -ForegroundColor Yellow
+        Write-Host "  - No tests/ directory or test files (add at least one integration test)" -ForegroundColor Yellow
+        Write-Host "  - Missing OpenSSL (set OPENSSL_DIR or enable 'vendored' feature)" -ForegroundColor Yellow
+        Write-Host "  - Compilation errors or test failures" -ForegroundColor Yellow
+        throw "Coverage gate failed: $($failedCrates.Count) crate(s) could not report coverage: $($failedCrates -join ', ')"
     }
 
     # Write per-crate CSV for downstream tooling

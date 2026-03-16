@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+#![cfg_attr(coverage_nightly, feature(coverage_attribute))]
+
 //! # CoseSign1 Primitives
 //!
 //! Core types and traits for CoseSign1 signing and verification with pluggable CBOR.

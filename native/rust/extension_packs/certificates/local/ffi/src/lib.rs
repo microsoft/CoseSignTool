@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+#![cfg_attr(coverage_nightly, feature(coverage_attribute))]
+
 #![deny(unsafe_op_in_unsafe_fn)]
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
@@ -87,6 +89,7 @@ pub struct cose_cert_local_chain_t {
 
 /// Returns the ABI version for this library.
 #[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_cert_local_ffi_abi_version() -> u32 {
     ABI_VERSION
 }
@@ -95,12 +98,14 @@ pub extern "C" fn cose_cert_local_ffi_abi_version() -> u32 {
 ///
 /// Ownership: caller must free via `cose_string_free`.
 #[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_cert_local_last_error_message_utf8() -> *mut c_char {
     take_last_error_ptr()
 }
 
 /// Clears the last error for the current thread.
 #[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_cert_local_last_error_clear() {
     clear_last_error();
 }
@@ -112,6 +117,7 @@ pub extern "C" fn cose_cert_local_last_error_clear() {
 /// - `s` must be a string allocated by this library or null
 /// - The string must not be used after this call
 #[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_cert_local_string_free(s: *mut c_char) {
     if s.is_null() {
         return;
@@ -128,6 +134,7 @@ pub unsafe extern "C" fn cose_cert_local_string_free(s: *mut c_char) {
 /// - `out` must be a valid, non-null pointer
 /// - Caller must free the result with `cose_cert_local_factory_free`
 #[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_cert_local_factory_new(out: *mut *mut cose_cert_local_factory_t) -> cose_status_t {
     with_catch_unwind(|| {
         if out.is_null() {
@@ -151,6 +158,7 @@ pub extern "C" fn cose_cert_local_factory_new(out: *mut *mut cose_cert_local_fac
 ///
 /// - `factory` must be a valid handle returned by `cose_cert_local_factory_new` or null
 #[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_cert_local_factory_free(factory: *mut cose_cert_local_factory_t) {
     if factory.is_null() {
         return;
@@ -179,6 +187,7 @@ fn string_from_ptr(arg_name: &'static str, s: *const c_char) -> Result<String, a
 /// - `out_cert_der`, `out_cert_len`, `out_key_der`, `out_key_len` must be valid, non-null pointers
 /// - Caller must free the certificate and key bytes with `cose_cert_local_bytes_free`
 #[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_cert_local_factory_create_cert(
     factory: *const cose_cert_local_factory_t,
     subject: *const c_char,
@@ -251,6 +260,7 @@ pub extern "C" fn cose_cert_local_factory_create_cert(
 /// - `out_cert_der`, `out_cert_len`, `out_key_der`, `out_key_len` must be valid, non-null pointers
 /// - Caller must free the certificate and key bytes with `cose_cert_local_bytes_free`
 #[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_cert_local_factory_create_self_signed(
     factory: *const cose_cert_local_factory_t,
     out_cert_der: *mut *mut u8,
@@ -302,6 +312,7 @@ pub extern "C" fn cose_cert_local_factory_create_self_signed(
 /// - `out` must be a valid, non-null pointer
 /// - Caller must free the result with `cose_cert_local_chain_free`
 #[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_cert_local_chain_new(out: *mut *mut cose_cert_local_chain_t) -> cose_status_t {
     with_catch_unwind(|| {
         if out.is_null() {
@@ -326,6 +337,7 @@ pub extern "C" fn cose_cert_local_chain_new(out: *mut *mut cose_cert_local_chain
 ///
 /// - `chain_factory` must be a valid handle returned by `cose_cert_local_chain_new` or null
 #[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_cert_local_chain_free(chain_factory: *mut cose_cert_local_chain_t) {
     if chain_factory.is_null() {
         return;
@@ -345,6 +357,7 @@ pub extern "C" fn cose_cert_local_chain_free(chain_factory: *mut cose_cert_local
 /// - Caller must free each certificate and key with `cose_cert_local_bytes_free`
 /// - Caller must free the arrays themselves with `cose_cert_local_array_free`
 #[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_cert_local_chain_create(
     chain_factory: *const cose_cert_local_chain_t,
     algorithm: u32,
@@ -444,6 +457,7 @@ pub extern "C" fn cose_cert_local_chain_create(
 /// - Caller must free the certificate and key bytes with `cose_cert_local_bytes_free`
 /// - If no private key is present, `*out_key_der` will be null and `*out_key_len` will be 0
 #[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_cert_local_load_pem(
     pem_data: *const u8,
     pem_len: usize,
@@ -502,6 +516,7 @@ pub extern "C" fn cose_cert_local_load_pem(
 /// - `out_cert_der`, `out_cert_len` must be valid, non-null pointers
 /// - Caller must free the certificate bytes with `cose_cert_local_bytes_free`
 #[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_cert_local_load_der(
     cert_data: *const u8,
     cert_len: usize,
@@ -543,6 +558,7 @@ pub extern "C" fn cose_cert_local_load_der(
 /// - `len` must be the length originally returned
 /// - The bytes must not be used after this call
 #[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_cert_local_bytes_free(ptr: *mut u8, len: usize) {
     if ptr.is_null() || len == 0 {
         return;
@@ -560,6 +576,7 @@ pub unsafe extern "C" fn cose_cert_local_bytes_free(ptr: *mut u8, len: usize) {
 /// - `ptr` must be a pointer allocated by this library or null
 /// - `len` must be the length originally returned
 #[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_cert_local_array_free(ptr: *mut *mut u8, len: usize) {
     if ptr.is_null() || len == 0 {
         return;
@@ -577,6 +594,7 @@ pub unsafe extern "C" fn cose_cert_local_array_free(ptr: *mut *mut u8, len: usiz
 /// - `ptr` must be a pointer allocated by this library or null
 /// - `len` must be the length originally returned
 #[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_cert_local_lengths_array_free(ptr: *mut usize, len: usize) {
     if ptr.is_null() || len == 0 {
         return;

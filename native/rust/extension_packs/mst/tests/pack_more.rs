@@ -51,8 +51,9 @@ fn base64_encode(input: &[u8], alphabet: &[u8; 64], pad: bool) -> String {
 fn base64url_encode(input: &[u8]) -> String {
     base64_encode(input, BASE64_URL_SAFE, false)
 }
-use ring::signature::KeyPair as _;
-use ring::{rand, signature};
+use openssl::ec::{EcGroup, EcKey};
+use openssl::nid::Nid;
+use openssl::pkey::PKey;
 use sha2::{Digest, Sha256};
 use std::sync::Arc;
 
@@ -200,24 +201,21 @@ fn reencode_statement_with_cleared_unprotected_headers_for_test(statement_bytes:
 }
 
 fn build_valid_statement_and_receipt() -> (Vec<u8>, Vec<u8>, String) {
-    let rng = rand::SystemRandom::new();
-    let key_pair_pkcs8 =
-        signature::EcdsaKeyPair::generate_pkcs8(&signature::ECDSA_P256_SHA256_FIXED_SIGNING, &rng)
-            .expect("ring key generation");
+    // Generate an ECDSA P-256 key pair using OpenSSL.
+    let group = EcGroup::from_curve_name(Nid::X9_62_PRIME256V1).unwrap();
+    let ec_key = EcKey::generate(&group).unwrap();
+    let pkey = PKey::from_ec_key(ec_key.clone()).unwrap();
 
-    let key_pair = signature::EcdsaKeyPair::from_pkcs8(
-        &signature::ECDSA_P256_SHA256_FIXED_SIGNING,
-        key_pair_pkcs8.as_ref(),
-        &rng,
-    )
-    .expect("ring key accepted");
+    // Extract uncompressed public key point (0x04 || x || y)
+    let mut ctx = openssl::bn::BigNumContext::new().unwrap();
+    let pubkey_bytes = ec_key.public_key()
+        .to_bytes(&group, openssl::ec::PointConversionForm::UNCOMPRESSED, &mut ctx)
+        .unwrap();
+    assert_eq!(pubkey_bytes.len(), 65);
+    assert_eq!(pubkey_bytes[0], 0x04);
 
-    let pubkey = key_pair.public_key().as_ref();
-    assert_eq!(pubkey.len(), 65);
-    assert_eq!(pubkey[0], 0x04);
-
-    let x_b64 = base64url_encode(&pubkey[1..33]);
-    let y_b64 = base64url_encode(&pubkey[33..65]);
+    let x_b64 = base64url_encode(&pubkey_bytes[1..33]);
+    let y_b64 = base64url_encode(&pubkey_bytes[33..65]);
 
     let kid = "test-kid";
     let jwks_json = format!(
@@ -252,11 +250,17 @@ fn build_valid_statement_and_receipt() -> (Vec<u8>, Vec<u8>, String) {
     let issuer = "example.com";
     let receipt_protected = encode_receipt_protected_header_bytes(issuer, kid, -7, 2);
     let sig_structure = build_sig_structure_for_test(receipt_protected.as_slice(), acc.as_slice());
-    let signature_bytes = key_pair
-        .sign(&rng, sig_structure.as_slice())
-        .expect("ecdsa sign")
-        .as_ref()
-        .to_vec();
+
+    // Sign using OpenSSL ECDSA with SHA-256.
+    // COSE ECDSA uses fixed-length r||s format (not DER).
+    let sig_der = {
+        let mut signer = openssl::sign::Signer::new(openssl::hash::MessageDigest::sha256(), &pkey).unwrap();
+        signer.sign_oneshot_to_vec(&sig_structure).unwrap()
+    };
+    // Convert DER-encoded ECDSA signature to fixed-length r||s format (64 bytes for P-256)
+    let signature_bytes = cose_sign1_crypto_openssl::ecdsa_format::der_to_fixed(&sig_der, 64)
+        .expect("der_to_fixed");
+    assert_eq!(signature_bytes.len(), 64, "P-256 fixed sig should be 64 bytes");
 
     let receipt_bytes = encode_receipt_bytes_with_signature(
         receipt_protected.as_slice(),

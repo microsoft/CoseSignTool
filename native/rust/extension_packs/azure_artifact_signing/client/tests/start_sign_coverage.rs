@@ -228,7 +228,7 @@ fn run_sign_test<F>(
 ) where
     F: FnOnce(CertificateProfileClient) + Send + 'static,
 {
-    let rt = tokio::runtime::Builder::new_multi_thread()
+    let rt = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
         .expect("Failed to create test runtime");
@@ -248,7 +248,7 @@ fn run_sign_test<F>(
 // Test a much simpler scenario first to ensure our mock infrastructure works
 #[test]
 fn test_mock_client_basic() {
-    let rt = tokio::runtime::Builder::new_multi_thread()
+    let rt = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
         .expect("Failed to create test runtime");
@@ -307,7 +307,7 @@ fn test_start_sign_and_poll_to_completion() {
         |client| {
             let digest = b"test-digest-sha256";
             // Use the sync sign() method which handles the internal runtime
-            let result = client.sign("PS256", digest).expect("Should complete signing");
+            let result = client.sign("PS256", digest, None).expect("Should complete signing");
 
             assert_eq!(result.operation_id, "op-12345");
             assert_eq!(result.status, OperationStatus::Succeeded);
@@ -336,7 +336,7 @@ fn test_start_sign_immediate_success() {
         vec![], // No polling needed
         |client| {
             let digest = b"another-test-digest";
-            let result = client.sign("ES256", digest).expect("Should complete immediately");
+            let result = client.sign("ES256", digest, None).expect("Should complete immediately");
 
             assert_eq!(result.operation_id, "op-immediate");
             assert_eq!(result.status, OperationStatus::Succeeded);
@@ -360,7 +360,7 @@ fn test_start_sign_error_response() {
         vec![],
         |client| {
             let digest = b"test-digest";
-            let result = client.sign("INVALID_ALG", digest);
+            let result = client.sign("INVALID_ALG", digest, None);
 
             assert!(result.is_err());
             let error = result.unwrap_err();
@@ -395,7 +395,7 @@ fn test_start_sign_operation_failed() {
         vec![failed_response],
         |client| {
             let digest = b"failing-digest";
-            let result = client.sign("PS256", digest);
+            let result = client.sign("PS256", digest, None);
 
             assert!(result.is_err());
             // The poller should detect the Failed status and return an error
@@ -447,7 +447,7 @@ fn test_start_sign_multiple_in_progress_then_success() {
         vec![in_progress1, in_progress2, final_success],
         |client| {
             let digest = b"long-running-digest";
-            let result = client.sign("RS256", digest).expect("Should eventually succeed");
+            let result = client.sign("RS256", digest, None).expect("Should eventually succeed");
 
             assert_eq!(result.operation_id, "op-long");
             assert_eq!(result.status, OperationStatus::Succeeded);
@@ -482,7 +482,7 @@ fn test_start_sign_timed_out_operation() {
         vec![timeout_response],
         |client| {
             let digest = b"timeout-digest";
-            let result = client.sign("PS256", digest);
+            let result = client.sign("PS256", digest, None);
 
             assert!(result.is_err());
             // TimedOut status should be treated as failed by the poller
@@ -515,7 +515,7 @@ fn test_start_sign_not_found_operation() {
         vec![not_found_response],
         |client| {
             let digest = b"notfound-digest";
-            let result = client.sign("ES256", digest);
+            let result = client.sign("ES256", digest, None);
 
             assert!(result.is_err());
             // NotFound status should be treated as failed by the poller
@@ -542,7 +542,7 @@ fn test_start_sign_malformed_json_response() {
         vec![],
         |client| {
             let digest = b"malformed-digest";
-            let result = client.sign("PS256", digest);
+            let result = client.sign("PS256", digest, None);
 
             assert!(result.is_err());
             // Should fail to parse the malformed JSON response

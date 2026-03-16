@@ -35,6 +35,7 @@ pub struct InspectArgs {
     pub show_cwt: bool,
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub fn run(args: InspectArgs) -> i32 {
     tracing::info!(input = %args.input.display(), output_format = %args.output_format, "Inspecting COSE_Sign1 message");
 

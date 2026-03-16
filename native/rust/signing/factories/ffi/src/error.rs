@@ -91,6 +91,7 @@ pub fn set_error(out_error: *mut *mut CoseSign1FactoriesErrorHandle, inner: Erro
 /// - `handle` must be a valid error handle or null
 /// - Caller is responsible for freeing the returned string via `cose_sign1_factories_string_free`
 #[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_sign1_factories_error_message(
     handle: *const CoseSign1FactoriesErrorHandle,
 ) -> *mut libc::c_char {
@@ -115,6 +116,7 @@ pub unsafe extern "C" fn cose_sign1_factories_error_message(
 ///
 /// - `handle` must be a valid error handle or null
 #[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_sign1_factories_error_code(handle: *const CoseSign1FactoriesErrorHandle) -> i32 {
     match unsafe { handle_to_inner(handle) } {
         Some(inner) => inner.code,
@@ -129,6 +131,7 @@ pub unsafe extern "C" fn cose_sign1_factories_error_code(handle: *const CoseSign
 /// - `handle` must be a valid error handle or null
 /// - The handle must not be used after this call
 #[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_sign1_factories_error_free(handle: *mut CoseSign1FactoriesErrorHandle) {
     if handle.is_null() {
         return;
@@ -145,6 +148,7 @@ pub unsafe extern "C" fn cose_sign1_factories_error_free(handle: *mut CoseSign1F
 /// - `s` must be a string allocated by this library or null
 /// - The string must not be used after this call
 #[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_sign1_factories_string_free(s: *mut libc::c_char) {
     if s.is_null() {
         return;

@@ -43,8 +43,12 @@ impl AzureArtifactSigningCertificateSource {
         Ok(Self { client })
     }
 
+    /// Create from a pre-configured client (for testing with mock transports).
+    pub fn with_client(client: CertificateProfileClient) -> Self {
+        Self { client }
+    }
+
     /// Fetch the certificate chain (PKCS#7 bytes).
-    #[cfg_attr(coverage_nightly, coverage(off))]
     pub fn fetch_certificate_chain_pkcs7(&self) -> Result<Vec<u8>, AasError> {
         self.client
             .get_certificate_chain()
@@ -52,7 +56,6 @@ impl AzureArtifactSigningCertificateSource {
     }
 
     /// Fetch the root certificate (DER bytes).
-    #[cfg_attr(coverage_nightly, coverage(off))]
     pub fn fetch_root_certificate(&self) -> Result<Vec<u8>, AasError> {
         self.client
             .get_root_certificate()
@@ -60,7 +63,6 @@ impl AzureArtifactSigningCertificateSource {
     }
 
     /// Fetch the EKU OIDs for this certificate profile.
-    #[cfg_attr(coverage_nightly, coverage(off))]
     pub fn fetch_eku(&self) -> Result<Vec<String>, AasError> {
         self.client
             .get_eku()
@@ -70,14 +72,25 @@ impl AzureArtifactSigningCertificateSource {
     /// Sign a digest using the AAS HSM (sync — blocks on the Poller internally).
     ///
     /// Returns `(signature_bytes, signing_cert_der)`.
-    #[cfg_attr(coverage_nightly, coverage(off))]
     pub fn sign_digest(
         &self,
         algorithm: &str,
         digest: &[u8],
     ) -> Result<(Vec<u8>, Vec<u8>), AasError> {
+        self.sign_digest_with_options(algorithm, digest, None)
+    }
+
+    /// Sign a digest with custom sign options (e.g., polling frequency).
+    ///
+    /// Returns `(signature_bytes, signing_cert_der)`.
+    pub fn sign_digest_with_options(
+        &self,
+        algorithm: &str,
+        digest: &[u8],
+        options: Option<azure_artifact_signing_client::SignOptions>,
+    ) -> Result<(Vec<u8>, Vec<u8>), AasError> {
         let status = self.client
-            .sign(algorithm, digest)
+            .sign(algorithm, digest, options)
             .map_err(|e| AasError::SigningFailed(e.to_string()))?;
         Self::decode_sign_status(status)
     }
@@ -85,7 +98,6 @@ impl AzureArtifactSigningCertificateSource {
     /// Start a sign operation and return the `Poller<SignStatus>` for async callers.
     ///
     /// Callers can `await` the poller or stream intermediate status updates.
-    #[cfg_attr(coverage_nightly, coverage(off))]
     pub fn start_sign(
         &self,
         algorithm: &str,
@@ -97,7 +109,6 @@ impl AzureArtifactSigningCertificateSource {
     }
 
     /// Decode base64 fields from a completed SignStatus.
-    #[cfg_attr(coverage_nightly, coverage(off))]
     fn decode_sign_status(status: SignStatus) -> Result<(Vec<u8>, Vec<u8>), AasError> {
         let sig_b64 = status.signature
             .ok_or_else(|| AasError::SigningFailed("No signature in response".into()))?;
@@ -114,7 +125,6 @@ impl AzureArtifactSigningCertificateSource {
     }
 
     /// Access the underlying client (for advanced callers who want direct Poller access).
-    #[cfg_attr(coverage_nightly, coverage(off))]
     pub fn client(&self) -> &CertificateProfileClient {
         &self.client
     }

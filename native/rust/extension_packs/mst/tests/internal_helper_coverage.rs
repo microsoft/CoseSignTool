@@ -7,29 +7,29 @@
 use cbor_primitives::CborEncoder;
 use cose_sign1_primitives::{CoseHeaderLabel, CoseHeaderValue, ProtectedHeader};
 use cose_sign1_transparent_mst::validation::receipt_verify::{
-    ring_verifier_for_cose_alg, ccf_accumulator_sha256, extract_proof_blobs, get_cwt_issuer_host,
+    validate_cose_alg_supported, ccf_accumulator_sha256, extract_proof_blobs, get_cwt_issuer_host,
     MstCcfInclusionProof, reencode_statement_with_cleared_unprotected_headers,
     ReceiptVerifyError, is_cose_sign1_tagged_18, parse_leaf, parse_path,
 };
 
 #[test]
-fn test_ring_verifier_for_cose_alg_es256() {
-    let verifier = ring_verifier_for_cose_alg(-7).unwrap(); // ES256
+fn test_validate_cose_alg_supported_es256() {
+    let verifier = validate_cose_alg_supported(-7).unwrap(); // ES256
     // Just check that we get a valid verifier - the actual verification
     // behavior is tested in integration tests
     let _ = verifier; // Ensure it compiles and doesn't panic
 }
 
 #[test]
-fn test_ring_verifier_for_cose_alg_es384() {
-    let verifier = ring_verifier_for_cose_alg(-35).unwrap(); // ES384
+fn test_validate_cose_alg_supported_es384() {
+    let verifier = validate_cose_alg_supported(-35).unwrap(); // ES384
     // Just check that we get a valid verifier
     let _ = verifier; // Ensure it compiles and doesn't panic
 }
 
 #[test]
-fn test_ring_verifier_for_cose_alg_unsupported() {
-    let result = ring_verifier_for_cose_alg(-999);
+fn test_validate_cose_alg_supported_unsupported() {
+    let result = validate_cose_alg_supported(-999);
     assert!(result.is_err());
     match result.unwrap_err() {
         ReceiptVerifyError::UnsupportedAlg(-999) => {},
@@ -38,9 +38,9 @@ fn test_ring_verifier_for_cose_alg_unsupported() {
 }
 
 #[test]
-fn test_ring_verifier_for_cose_alg_rs256() {
+fn test_validate_cose_alg_supported_rs256() {
     // RS256 is not supported by MST
-    let result = ring_verifier_for_cose_alg(-257);
+    let result = validate_cose_alg_supported(-257);
     assert!(result.is_err());
     match result.unwrap_err() {
         ReceiptVerifyError::UnsupportedAlg(-257) => {},

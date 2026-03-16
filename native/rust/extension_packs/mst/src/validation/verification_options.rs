@@ -6,7 +6,10 @@
 //! Port of C# `Azure.Security.CodeTransparency.CodeTransparencyVerificationOptions`.
 
 use crate::validation::jwks_cache::JwksCache;
-use code_transparency_client::JwksDocument;
+use code_transparency_client::{
+    CodeTransparencyClient, CodeTransparencyClientConfig, CodeTransparencyClientOptions,
+    JwksDocument,
+};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -56,7 +59,6 @@ impl Default for UnauthorizedReceiptBehavior {
 /// - **Network fallback**: When `allow_network_fetch` is `true` (default) and a
 ///   key isn't in the cache, it's fetched from the service and cached.
 /// - **Offline-only**: Set `allow_network_fetch = false` to use only pre-seeded keys.
-#[derive(Debug, Clone)]
 pub struct CodeTransparencyVerificationOptions {
     /// List of authorized issuer domains. If empty, all issuers are treated as authorized.
     pub authorized_domains: Vec<String>,
@@ -71,6 +73,40 @@ pub struct CodeTransparencyVerificationOptions {
     /// [`with_offline_keys`](Self::with_offline_keys), or let verification
     /// auto-populate from network fetches.
     pub jwks_cache: Option<Arc<JwksCache>>,
+    /// Optional factory for creating `CodeTransparencyClient` instances.
+    ///
+    /// When set, the verification code calls this factory instead of constructing
+    /// clients from the issuer hostname. This allows tests to inject mock clients.
+    ///
+    /// The factory receives the issuer hostname and `CodeTransparencyClientOptions`,
+    /// and returns a `CodeTransparencyClient`.
+    pub client_factory: Option<Arc<dyn Fn(&str, &CodeTransparencyClientOptions) -> CodeTransparencyClient + Send + Sync>>,
+}
+
+impl std::fmt::Debug for CodeTransparencyVerificationOptions {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CodeTransparencyVerificationOptions")
+            .field("authorized_domains", &self.authorized_domains)
+            .field("authorized_receipt_behavior", &self.authorized_receipt_behavior)
+            .field("unauthorized_receipt_behavior", &self.unauthorized_receipt_behavior)
+            .field("allow_network_fetch", &self.allow_network_fetch)
+            .field("jwks_cache", &self.jwks_cache)
+            .field("client_factory", &self.client_factory.as_ref().map(|_| "Some(<factory>)"))
+            .finish()
+    }
+}
+
+impl Clone for CodeTransparencyVerificationOptions {
+    fn clone(&self) -> Self {
+        Self {
+            authorized_domains: self.authorized_domains.clone(),
+            authorized_receipt_behavior: self.authorized_receipt_behavior,
+            unauthorized_receipt_behavior: self.unauthorized_receipt_behavior,
+            allow_network_fetch: self.allow_network_fetch,
+            jwks_cache: self.jwks_cache.clone(),
+            client_factory: self.client_factory.clone(),
+        }
+    }
 }
 
 impl Default for CodeTransparencyVerificationOptions {
@@ -81,6 +117,7 @@ impl Default for CodeTransparencyVerificationOptions {
             unauthorized_receipt_behavior: UnauthorizedReceiptBehavior::default(),
             allow_network_fetch: true,
             jwks_cache: None,
+            client_factory: None,
         }
     }
 }

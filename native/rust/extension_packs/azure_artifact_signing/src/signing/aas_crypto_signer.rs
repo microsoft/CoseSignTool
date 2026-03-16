@@ -13,7 +13,6 @@ pub struct AasCryptoSigner {
 }
 
 impl AasCryptoSigner {
-    #[cfg_attr(coverage_nightly, coverage(off))]
     pub fn new(
         source: Arc<AzureArtifactSigningCertificateSource>,
         algorithm_name: String,
@@ -25,7 +24,6 @@ impl AasCryptoSigner {
 }
 
 impl CryptoSigner for AasCryptoSigner {
-    #[cfg_attr(coverage_nightly, coverage(off))]
     fn sign(&self, data: &[u8]) -> Result<Vec<u8>, CryptoError> {
         // COSE sign expects us to sign the Sig_structure bytes.
         // AAS expects a pre-computed digest. Hash here based on algorithm.
@@ -44,8 +42,6 @@ impl CryptoSigner for AasCryptoSigner {
         Ok(signature)
     }
 
-    #[cfg_attr(coverage_nightly, coverage(off))]
     fn algorithm(&self) -> i64 { self.algorithm_id }
-    #[cfg_attr(coverage_nightly, coverage(off))]
     fn key_type(&self) -> &str { &self.key_type }
 }

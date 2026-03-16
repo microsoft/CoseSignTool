@@ -6,10 +6,11 @@
 use cbor_primitives::CborEncoder;
 
 use cose_sign1_transparent_mst::validation::receipt_verify::{
-    base64url_decode, find_jwk_for_kid, is_cose_sign1_tagged_18, jwk_to_spki_der,
+    base64url_decode, find_jwk_for_kid, is_cose_sign1_tagged_18, local_jwk_to_ec_jwk,
     sha256, sha256_concat_slices, validate_receipt_alg_against_jwk, verify_mst_receipt,
     Jwk, ReceiptVerifyError, ReceiptVerifyInput,
 };
+use cose_sign1_crypto_openssl::jwk_verifier::OpenSslJwkVerifierFactory;
 
 /// Test that ReceiptVerifyError debug output works for all variants
 #[test]
@@ -113,15 +114,9 @@ fn test_is_cose_sign1_tagged_18_integer_input() {
     assert!(!result);
 }
 
-/// Test jwk_to_spki_der with P-384 curve
+/// Test local_jwk_to_ec_jwk with P-384 curve
 #[test]
-fn test_jwk_to_spki_der_p384_valid() {
-    // P-384 needs 48-byte coordinates
-    // Creating valid 48-byte base64url encoded coordinates
-    let x_bytes = vec![1u8; 48];
-    let y_bytes = vec![2u8; 48];
-
-    // Manually encode to base64url - 48 bytes encodes to 64 chars without padding
+fn test_local_jwk_to_ec_jwk_p384_valid() {
     let x_b64 = "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEB";
     let y_b64 = "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIC";
 
@@ -133,58 +128,61 @@ fn test_jwk_to_spki_der_p384_valid() {
         y: Some(y_b64.to_string()),
     };
 
-    let result = jwk_to_spki_der(&jwk);
+    let result = local_jwk_to_ec_jwk(&jwk);
     assert!(result.is_ok());
-
-    let der_bytes = result.unwrap();
-    assert_eq!(der_bytes[0], 0x04); // Uncompressed point format
-    assert_eq!(der_bytes.len(), 97); // 1 + 48 + 48 for P-384
+    let ec = result.unwrap();
+    assert_eq!(ec.crv, "P-384");
+    assert_eq!(ec.x, x_b64);
+    assert_eq!(ec.y, y_b64);
+    assert_eq!(ec.kid, Some("test-key".to_string()));
 }
 
 #[test]
-fn test_jwk_to_spki_der_wrong_coord_length_p256() {
-    // Provide P-256 curve but wrong length coordinates (31 bytes instead of 32)
-    let short_coord = "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQ"; // 31 bytes
+fn test_local_jwk_to_ec_jwk_wrong_kty() {
+    let jwk = Jwk {
+        kty: "RSA".to_string(),
+        crv: Some("P-256".to_string()),
+        kid: None,
+        x: Some("x".to_string()),
+        y: Some("y".to_string()),
+    };
+    assert!(local_jwk_to_ec_jwk(&jwk).is_err());
+}
 
+#[test]
+fn test_local_jwk_to_ec_jwk_missing_crv() {
+    let jwk = Jwk {
+        kty: "EC".to_string(),
+        crv: None,
+        kid: None,
+        x: Some("x".to_string()),
+        y: Some("y".to_string()),
+    };
+    assert!(local_jwk_to_ec_jwk(&jwk).is_err());
+}
+
+#[test]
+fn test_local_jwk_to_ec_jwk_missing_x() {
     let jwk = Jwk {
         kty: "EC".to_string(),
         crv: Some("P-256".to_string()),
-        kid: Some("test-key".to_string()),
-        x: Some(short_coord.to_string()),
-        y: Some(short_coord.to_string()),
+        kid: None,
+        x: None,
+        y: Some("y".to_string()),
     };
-
-    let result = jwk_to_spki_der(&jwk);
-    assert!(result.is_err());
-    match result.unwrap_err() {
-        ReceiptVerifyError::JwkUnsupported(msg) => {
-            assert!(msg.contains("unexpected_xy_len"));
-        }
-        _ => panic!("Wrong error type"),
-    }
+    assert!(local_jwk_to_ec_jwk(&jwk).is_err());
 }
 
 #[test]
-fn test_jwk_to_spki_der_wrong_coord_length_p384() {
-    // Provide P-384 curve but P-256 length coordinates (32 bytes instead of 48)
-    let short_coord = "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE"; // 32 bytes
-
+fn test_local_jwk_to_ec_jwk_missing_y() {
     let jwk = Jwk {
         kty: "EC".to_string(),
-        crv: Some("P-384".to_string()),
-        kid: Some("test-key".to_string()),
-        x: Some(short_coord.to_string()),
-        y: Some(short_coord.to_string()),
+        crv: Some("P-256".to_string()),
+        kid: None,
+        x: Some("x".to_string()),
+        y: None,
     };
-
-    let result = jwk_to_spki_der(&jwk);
-    assert!(result.is_err());
-    match result.unwrap_err() {
-        ReceiptVerifyError::JwkUnsupported(msg) => {
-            assert!(msg.contains("unexpected_xy_len"));
-        }
-        _ => panic!("Wrong error type"),
-    }
+    assert!(local_jwk_to_ec_jwk(&jwk).is_err());
 }
 
 /// Test validate_receipt_alg_against_jwk with various curve/alg combinations
@@ -363,6 +361,7 @@ fn test_receipt_verify_input_clone() {
     let statement = b"statement";
     let receipt = b"receipt";
     let jwks = r#"{"keys":[]}"#;
+    let factory = OpenSslJwkVerifierFactory;
 
     let input = ReceiptVerifyInput {
         statement_bytes_with_receipts: statement,
@@ -371,6 +370,7 @@ fn test_receipt_verify_input_clone() {
         allow_network_fetch: true,
         jwks_api_version: Some("2023-01-01"),
         client: None,
+        jwk_verifier_factory: &factory,
     };
 
     let cloned = input.clone();

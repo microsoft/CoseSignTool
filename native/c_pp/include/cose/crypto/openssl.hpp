@@ -264,6 +264,64 @@ inline CryptoVerifierHandle CryptoProvider::VerifierFromDer(const std::vector<ui
     return CryptoVerifierHandle(verifier);
 }
 
+// ============================================================================
+// JWK verifier factory — free functions
+// ============================================================================
+
+/**
+ * @brief Create a verifier from EC JWK public key fields.
+ *
+ * @param crv   Curve name ("P-256", "P-384", "P-521")
+ * @param x     Base64url-encoded x-coordinate
+ * @param y     Base64url-encoded y-coordinate
+ * @param cose_algorithm  COSE algorithm identifier (-7 = ES256, -35 = ES384, -36 = ES512)
+ * @param kid   Optional key ID (empty string → no kid)
+ * @return CryptoVerifierHandle
+ */
+inline CryptoVerifierHandle VerifierFromEcJwk(
+    const std::string& crv,
+    const std::string& x,
+    const std::string& y,
+    int64_t cose_algorithm,
+    const std::string& kid = "")
+{
+    cose_crypto_verifier_t* verifier = nullptr;
+    const char* kid_ptr = kid.empty() ? nullptr : kid.c_str();
+    detail::ThrowIfNotOk(cose_crypto_openssl_jwk_verifier_from_ec(
+        crv.c_str(), x.c_str(), y.c_str(), kid_ptr, cose_algorithm, &verifier
+    ));
+    if (!verifier) {
+        throw cose_error("Failed to create EC JWK verifier");
+    }
+    return CryptoVerifierHandle(verifier);
+}
+
+/**
+ * @brief Create a verifier from RSA JWK public key fields.
+ *
+ * @param n     Base64url-encoded modulus
+ * @param e     Base64url-encoded public exponent
+ * @param cose_algorithm  COSE algorithm identifier (-37 = PS256, etc.)
+ * @param kid   Optional key ID (empty string → no kid)
+ * @return CryptoVerifierHandle
+ */
+inline CryptoVerifierHandle VerifierFromRsaJwk(
+    const std::string& n,
+    const std::string& e,
+    int64_t cose_algorithm,
+    const std::string& kid = "")
+{
+    cose_crypto_verifier_t* verifier = nullptr;
+    const char* kid_ptr = kid.empty() ? nullptr : kid.c_str();
+    detail::ThrowIfNotOk(cose_crypto_openssl_jwk_verifier_from_rsa(
+        n.c_str(), e.c_str(), kid_ptr, cose_algorithm, &verifier
+    ));
+    if (!verifier) {
+        throw cose_error("Failed to create RSA JWK verifier");
+    }
+    return CryptoVerifierHandle(verifier);
+}
+
 } // namespace cose
 
 #endif // COSE_CRYPTO_OPENSSL_HPP

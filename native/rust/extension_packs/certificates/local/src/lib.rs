@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+#![cfg_attr(coverage_nightly, feature(coverage_attribute))]
+
 //! Local certificate creation, ephemeral certs, chain building, and key loading.
 //!
 //! This crate provides functionality for creating X.509 certificates with

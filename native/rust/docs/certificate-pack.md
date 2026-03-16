@@ -21,7 +21,7 @@ In addition, the pack provides the primary signing key resolver for `x5chain`:
 - Signature verification is conservative:
 	- ES256 is supported when the leaf key matches `id-ecPublicKey` and is a P-256 uncompressed SEC1 point.
 		- ML-DSA verification is available behind the `pqc-mldsa` feature flag (FIPS 204).
-		  - Implementation: `pqcrypto-mldsa` (PQClean-based).
+		  - Implementation: OpenSSL PQC provider (when available).
 		  - Enabling this feature may require a C toolchain in environments that build dependencies from source.
 
 ## Header location

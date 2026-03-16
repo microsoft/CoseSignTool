@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+#![cfg_attr(coverage_nightly, feature(coverage_attribute))]
+
 //! Test-only utilities for composing validation scenarios.
 //!
 //! This crate exists to keep the production `cose_sign1_validation` surface focused while still

@@ -1,8 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-#![deny(unsafe_op_in_unsafe_fn)]
 #![cfg_attr(coverage_nightly, feature(coverage_attribute))]
+
+#![deny(unsafe_op_in_unsafe_fn)]
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
 //! C/C++ FFI for COSE Sign1 CWT Claims operations.
@@ -75,7 +76,6 @@ pub const ABI_VERSION: u32 = 1;
 
 /// Returns the ABI version for this library.
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_cwt_claims_abi_version() -> u32 {
     ABI_VERSION
 }
@@ -113,7 +113,6 @@ pub fn impl_cwt_claims_create_inner(
 /// - `out_handle` must be valid for writes
 /// - Caller owns the returned handle and must free it with `cose_cwt_claims_free`
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_cwt_claims_create(
     out_handle: *mut *mut CoseCwtClaimsHandle,
     out_error: *mut *mut CoseCwtErrorHandle,
@@ -166,7 +165,6 @@ pub fn impl_cwt_claims_set_issuer_inner(
 /// - `handle` must be a valid CWT claims handle
 /// - `issuer` must be a valid null-terminated C string
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_cwt_claims_set_issuer(
     handle: *mut CoseCwtClaimsHandle,
     issuer: *const libc::c_char,
@@ -216,7 +214,6 @@ pub fn impl_cwt_claims_set_subject_inner(
 /// - `handle` must be a valid CWT claims handle
 /// - `subject` must be a valid null-terminated C string
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_cwt_claims_set_subject(
     handle: *mut CoseCwtClaimsHandle,
     subject: *const libc::c_char,
@@ -255,7 +252,6 @@ pub fn impl_cwt_claims_set_issued_at_inner(
 ///
 /// - `handle` must be a valid CWT claims handle
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_cwt_claims_set_issued_at(
     handle: *mut CoseCwtClaimsHandle,
     unix_timestamp: i64,
@@ -294,7 +290,6 @@ pub fn impl_cwt_claims_set_not_before_inner(
 ///
 /// - `handle` must be a valid CWT claims handle
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_cwt_claims_set_not_before(
     handle: *mut CoseCwtClaimsHandle,
     unix_timestamp: i64,
@@ -333,7 +328,6 @@ pub fn impl_cwt_claims_set_expiration_inner(
 ///
 /// - `handle` must be a valid CWT claims handle
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_cwt_claims_set_expiration(
     handle: *mut CoseCwtClaimsHandle,
     unix_timestamp: i64,
@@ -383,7 +377,6 @@ pub fn impl_cwt_claims_set_audience_inner(
 /// - `handle` must be a valid CWT claims handle
 /// - `audience` must be a valid null-terminated C string
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_cwt_claims_set_audience(
     handle: *mut CoseCwtClaimsHandle,
     audience: *const libc::c_char,
@@ -472,7 +465,6 @@ pub fn impl_cwt_claims_to_cbor_inner(
 /// - `out_bytes` and `out_len` must be valid for writes
 /// - Caller must free returned bytes with `cose_cwt_bytes_free`
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_cwt_claims_to_cbor(
     handle: *const CoseCwtClaimsHandle,
     out_bytes: *mut *mut u8,
@@ -542,7 +534,6 @@ pub fn impl_cwt_claims_from_cbor_inner(
 /// - `out_handle` must be valid for writes
 /// - Caller must free returned handle with `cose_cwt_claims_free`
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_cwt_claims_from_cbor(
     cbor_data: *const u8,
     cbor_len: u32,
@@ -620,7 +611,6 @@ pub fn impl_cwt_claims_get_issuer_inner(
 /// - Caller must free returned string with `cose_cwt_string_free`
 /// - Returns null pointer in `out_issuer` if issuer is not set
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_cwt_claims_get_issuer(
     handle: *const CoseCwtClaimsHandle,
     out_issuer: *mut *const libc::c_char,
@@ -693,7 +683,6 @@ pub fn impl_cwt_claims_get_subject_inner(
 /// - Caller must free returned string with `cose_cwt_string_free`
 /// - Returns null pointer in `out_subject` if subject is not set
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_cwt_claims_get_subject(
     handle: *const CoseCwtClaimsHandle,
     out_subject: *mut *const libc::c_char,
@@ -713,7 +702,6 @@ pub unsafe extern "C" fn cose_cwt_claims_get_subject(
 /// - `handle` must be a valid CWT claims handle or NULL
 /// - The handle must not be used after this call
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_cwt_claims_free(handle: *mut CoseCwtClaimsHandle) {
     if handle.is_null() {
         return;
@@ -731,7 +719,6 @@ pub unsafe extern "C" fn cose_cwt_claims_free(handle: *mut CoseCwtClaimsHandle) 
 /// - `len` must be the length returned alongside the bytes
 /// - The bytes must not be used after this call
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_cwt_bytes_free(ptr: *mut u8, len: u32) {
     if ptr.is_null() {
         return;

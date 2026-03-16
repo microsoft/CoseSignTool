@@ -22,7 +22,6 @@ const MICROSOFT_EKU_PREFIX: &str = "1.3.6.1.4.1.311";
 /// 4. Build DID:x509 with that specific EKU policy
 ///
 /// Falls back to generic `build_from_chain_with_eku()` if no Microsoft EKU is found.
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub fn build_did_x509_from_ats_chain(chain_ders: &[&[u8]]) -> Result<String, AasError> {
     // Try AAS-specific Microsoft EKU selection first
     if let Some(microsoft_eku) = find_deepest_greatest_microsoft_eku(chain_ders) {
@@ -45,7 +44,6 @@ pub fn build_did_x509_from_ats_chain(chain_ders: &[&[u8]]) -> Result<String, Aas
 /// 1. Filter to Microsoft EKUs (starting with `1.3.6.1.4.1.311`)
 /// 2. Select the OID with the most segments (deepest)
 /// 3. If tied, select the one with the greatest last segment value
-#[cfg_attr(coverage_nightly, coverage(off))]
 fn find_deepest_greatest_microsoft_eku(chain_ders: &[&[u8]]) -> Option<String> {
     if chain_ders.is_empty() {
         return None;
@@ -81,7 +79,6 @@ fn find_deepest_greatest_microsoft_eku(chain_ders: &[&[u8]]) -> Option<String> {
 /// Extract EKU OIDs from a DER-encoded X.509 certificate.
 ///
 /// Returns None if parsing fails or no EKU extension is present.
-#[cfg_attr(coverage_nightly, coverage(off))]
 fn extract_eku_oids(cert_der: &[u8]) -> Option<Vec<String>> {
     // Use x509-parser if available, or fall back to a simple approach
     // For now, try the did_x509 crate's parsing which already handles this
@@ -105,7 +102,6 @@ fn extract_eku_oids(cert_der: &[u8]) -> Option<Vec<String>> {
 }
 
 /// Get the numeric value of the last segment of an OID.
-#[cfg_attr(coverage_nightly, coverage(off))]
 fn last_segment_value(oid: &str) -> u64 {
     oid.rsplit('.')
         .next()

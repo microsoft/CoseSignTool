@@ -1,8 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-#![deny(unsafe_op_in_unsafe_fn)]
 #![cfg_attr(coverage_nightly, feature(coverage_attribute))]
+
+#![deny(unsafe_op_in_unsafe_fn)]
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
 //! C/C++ FFI projections for OpenSSL crypto provider.
@@ -62,7 +63,8 @@ use std::ptr;
 use std::slice;
 
 use cose_sign1_crypto_openssl::OpenSslCryptoProvider;
-use crypto_primitives::{CryptoProvider, CryptoSigner, CryptoVerifier};
+use cose_sign1_crypto_openssl::jwk_verifier::OpenSslJwkVerifierFactory;
+use crypto_primitives::{CryptoProvider, CryptoSigner, CryptoVerifier, EcJwk, JwkVerifierFactory, RsaJwk};
 
 // ============================================================================
 // Error handling
@@ -72,7 +74,7 @@ thread_local! {
     static LAST_ERROR: RefCell<Option<CString>> = const { RefCell::new(None) };
 }
 
-fn set_last_error(message: impl Into<String>) {
+pub fn set_last_error(message: impl Into<String>) {
     let s = message.into();
     let c = CString::new(s).unwrap_or_else(|_| CString::new("error message contained NUL").unwrap());
     LAST_ERROR.with(|slot| {
@@ -80,7 +82,7 @@ fn set_last_error(message: impl Into<String>) {
     });
 }
 
-fn clear_last_error() {
+pub fn clear_last_error() {
     LAST_ERROR.with(|slot| {
         *slot.borrow_mut() = None;
     });
@@ -96,7 +98,8 @@ fn take_last_error_ptr() -> *mut c_char {
 }
 
 #[inline(never)]
-fn with_catch_unwind<F: FnOnce() -> Result<cose_status_t, anyhow::Error>>(f: F) -> cose_status_t {
+#[cfg_attr(coverage_nightly, coverage(off))]
+pub fn with_catch_unwind<F: FnOnce() -> Result<cose_status_t, anyhow::Error>>(f: F) -> cose_status_t {
     clear_last_error();
     match catch_unwind(AssertUnwindSafe(f)) {
         Ok(Ok(status)) => status,
@@ -483,6 +486,113 @@ pub unsafe extern "C" fn cose_crypto_verifier_free(verifier: *mut cose_crypto_ve
     unsafe {
         drop(Box::from_raw(verifier as *mut Box<dyn CryptoVerifier>));
     }
+}
+
+// ============================================================================
+// JWK verifier factory functions
+// ============================================================================
+
+/// Helper: reads a non-null C string into a Rust String. Returns Err on null or invalid UTF-8.
+fn cstr_to_string(ptr: *const c_char, name: &str) -> Result<String, anyhow::Error> {
+    if ptr.is_null() {
+        anyhow::bail!("{name} must not be null");
+    }
+    let cstr = unsafe { std::ffi::CStr::from_ptr(ptr) };
+    cstr.to_str()
+        .map(|s| s.to_string())
+        .map_err(|_| anyhow::anyhow!("{name} is not valid UTF-8"))
+}
+
+/// Creates a crypto verifier from EC JWK public key fields.
+///
+/// The caller supplies base64url-encoded x/y coordinates, curve name, and COSE algorithm.
+///
+/// # Safety
+///
+/// - `crv`, `x`, `y` must be valid, non-null, NUL-terminated UTF-8 C strings.
+/// - `kid` may be null (no key ID). If non-null it must be a valid C string.
+/// - `out_verifier` must be a valid, non-null, aligned pointer.
+/// - Caller owns the returned verifier and must free it with `cose_crypto_verifier_free`.
+#[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
+pub unsafe extern "C" fn cose_crypto_openssl_jwk_verifier_from_ec(
+    crv: *const c_char,
+    x: *const c_char,
+    y: *const c_char,
+    kid: *const c_char,
+    cose_algorithm: i64,
+    out_verifier: *mut *mut cose_crypto_verifier_t,
+) -> cose_status_t {
+    with_catch_unwind(|| {
+        if out_verifier.is_null() {
+            anyhow::bail!("out_verifier must not be null");
+        }
+
+        let ec_jwk = EcJwk {
+            kty: "EC".to_string(),
+            crv: cstr_to_string(crv, "crv")?,
+            x: cstr_to_string(x, "x")?,
+            y: cstr_to_string(y, "y")?,
+            kid: if kid.is_null() {
+                None
+            } else {
+                Some(cstr_to_string(kid, "kid")?)
+            },
+        };
+
+        let factory = OpenSslJwkVerifierFactory;
+        let verifier = factory
+            .verifier_from_ec_jwk(&ec_jwk, cose_algorithm)
+            .map_err(|e| anyhow::anyhow!("EC JWK verifier: {}", e))?;
+
+        unsafe { *out_verifier = Box::into_raw(verifier) as *mut cose_crypto_verifier_t };
+        Ok(COSE_OK)
+    })
+}
+
+/// Creates a crypto verifier from RSA JWK public key fields.
+///
+/// The caller supplies base64url-encoded modulus (n) and exponent (e), plus a COSE algorithm.
+///
+/// # Safety
+///
+/// - `n`, `e` must be valid, non-null, NUL-terminated UTF-8 C strings.
+/// - `kid` may be null. If non-null it must be a valid C string.
+/// - `out_verifier` must be a valid, non-null, aligned pointer.
+/// - Caller owns the returned verifier and must free it with `cose_crypto_verifier_free`.
+#[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
+pub unsafe extern "C" fn cose_crypto_openssl_jwk_verifier_from_rsa(
+    n: *const c_char,
+    e: *const c_char,
+    kid: *const c_char,
+    cose_algorithm: i64,
+    out_verifier: *mut *mut cose_crypto_verifier_t,
+) -> cose_status_t {
+    with_catch_unwind(|| {
+        if out_verifier.is_null() {
+            anyhow::bail!("out_verifier must not be null");
+        }
+
+        let rsa_jwk = RsaJwk {
+            kty: "RSA".to_string(),
+            n: cstr_to_string(n, "n")?,
+            e: cstr_to_string(e, "e")?,
+            kid: if kid.is_null() {
+                None
+            } else {
+                Some(cstr_to_string(kid, "kid")?)
+            },
+        };
+
+        let factory = OpenSslJwkVerifierFactory;
+        let verifier = factory
+            .verifier_from_rsa_jwk(&rsa_jwk, cose_algorithm)
+            .map_err(|e| anyhow::anyhow!("RSA JWK verifier: {}", e))?;
+
+        unsafe { *out_verifier = Box::into_raw(verifier) as *mut cose_crypto_verifier_t };
+        Ok(COSE_OK)
+    })
 }
 
 // ============================================================================

@@ -41,7 +41,6 @@ struct AasCertificateSourceAdapter {
 }
 
 impl AasCertificateSourceAdapter {
-    #[cfg_attr(coverage_nightly, coverage(off))]
     fn new(inner: Arc<AzureArtifactSigningCertificateSource>) -> Self {
         Self {
             inner,
@@ -50,7 +49,6 @@ impl AasCertificateSourceAdapter {
         }
     }
 
-    #[cfg_attr(coverage_nightly, coverage(off))]
     fn ensure_fetched(&self) -> Result<(), CertificateError> {
         if self.leaf_cert.get().is_some() {
             return Ok(());
@@ -74,18 +72,15 @@ impl AasCertificateSourceAdapter {
 }
 
 impl CertificateSource for AasCertificateSourceAdapter {
-    #[cfg_attr(coverage_nightly, coverage(off))]
     fn get_signing_certificate(&self) -> Result<&[u8], CertificateError> {
         self.ensure_fetched()?;
         Ok(self.leaf_cert.get().unwrap())
     }
 
-    #[cfg_attr(coverage_nightly, coverage(off))]
     fn has_private_key(&self) -> bool {
         false // remote — private key lives in HSM
     }
 
-    #[cfg_attr(coverage_nightly, coverage(off))]
     fn get_chain_builder(
         &self,
     ) -> &dyn cose_sign1_certificates::chain_builder::CertificateChainBuilder {
@@ -107,24 +102,20 @@ struct AasSigningKeyProviderAdapter {
 }
 
 impl CryptoSigner for AasSigningKeyProviderAdapter {
-    #[cfg_attr(coverage_nightly, coverage(off))]
     fn sign(&self, data: &[u8]) -> Result<Vec<u8>, CryptoError> {
         self.signer.sign(data)
     }
 
-    #[cfg_attr(coverage_nightly, coverage(off))]
     fn algorithm(&self) -> i64 {
         self.signer.algorithm()
     }
 
-    #[cfg_attr(coverage_nightly, coverage(off))]
     fn key_type(&self) -> &str {
         self.signer.key_type()
     }
 }
 
 impl SigningKeyProvider for AasSigningKeyProviderAdapter {
-    #[cfg_attr(coverage_nightly, coverage(off))]
     fn is_remote(&self) -> bool {
         true
     }
@@ -171,7 +162,24 @@ impl AzureArtifactSigningService {
         Self::from_source(cert_source, options)
     }
 
-    #[cfg_attr(coverage_nightly, coverage(off))]
+    /// Create from a pre-configured client (for testing with mock transports).
+    ///
+    /// This bypasses credential setup and uses the provided client directly,
+    /// allowing tests to inject `SequentialMockTransport` without Azure credentials.
+    pub fn from_client(
+        client: azure_artifact_signing_client::CertificateProfileClient,
+    ) -> Result<Self, SigningError> {
+        let cert_source = Arc::new(
+            AzureArtifactSigningCertificateSource::with_client(client),
+        );
+        let options = AzureArtifactSigningOptions {
+            endpoint: String::new(),
+            account_name: String::new(),
+            certificate_profile_name: String::new(),
+        };
+        Self::from_source(cert_source, options)
+    }
+
     fn from_source(
         cert_source: Arc<AzureArtifactSigningCertificateSource>,
         _options: AzureArtifactSigningOptions,
@@ -214,7 +222,6 @@ impl AzureArtifactSigningService {
     ///
     /// Fetches the root cert from AAS and uses the Microsoft EKU selection
     /// logic to build a DID:x509 identifier.
-    #[cfg_attr(coverage_nightly, coverage(off))]
     fn build_ats_did_issuer(
         cert_source: &AzureArtifactSigningCertificateSource,
     ) -> Result<String, SigningError> {
@@ -231,22 +238,18 @@ impl AzureArtifactSigningService {
 
 /// Delegate all `SigningService` methods to the inner `CertificateSigningService`.
 impl SigningService for AzureArtifactSigningService {
-    #[cfg_attr(coverage_nightly, coverage(off))]
     fn get_cose_signer(&self, ctx: &SigningContext) -> Result<CoseSigner, SigningError> {
         self.inner.get_cose_signer(ctx)
     }
 
-    #[cfg_attr(coverage_nightly, coverage(off))]
     fn is_remote(&self) -> bool {
         true
     }
 
-    #[cfg_attr(coverage_nightly, coverage(off))]
     fn service_metadata(&self) -> &SigningServiceMetadata {
         self.inner.service_metadata()
     }
 
-    #[cfg_attr(coverage_nightly, coverage(off))]
     fn verify_signature(
         &self,
         message_bytes: &[u8],

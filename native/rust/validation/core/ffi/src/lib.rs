@@ -1,5 +1,4 @@
 #![deny(unsafe_op_in_unsafe_fn)]
-#![cfg_attr(coverage_nightly, feature(coverage_attribute))]
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
 //! Base FFI crate for COSE Sign1 validation.
@@ -27,7 +26,6 @@ thread_local! {
     static LAST_ERROR: RefCell<Option<CString>> = const { RefCell::new(None) };
 }
 
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub fn set_last_error(message: impl Into<String>) {
     let s = message.into();
     let c = CString::new(s).unwrap_or_else(|_| CString::new("error message contained NUL").unwrap());
@@ -36,14 +34,12 @@ pub fn set_last_error(message: impl Into<String>) {
     });
 }
 
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub fn clear_last_error() {
     LAST_ERROR.with(|slot| {
         *slot.borrow_mut() = None;
     });
 }
 
-#[cfg_attr(coverage_nightly, coverage(off))]
 fn take_last_error_ptr() -> *mut c_char {
     LAST_ERROR.with(|slot| {
         slot.borrow_mut()
@@ -91,7 +87,6 @@ pub struct cose_trust_policy_builder_t {
     pub builder: Option<TrustPlanBuilder>,
 }
 
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub fn with_trust_policy_builder_mut(
     policy_builder: *mut cose_trust_policy_builder_t,
     f: impl FnOnce(TrustPlanBuilder) -> TrustPlanBuilder,
@@ -107,7 +102,6 @@ pub fn with_trust_policy_builder_mut(
 }
 
 #[inline(never)]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub fn with_catch_unwind<F: FnOnce() -> Result<cose_status_t, anyhow::Error>>(f: F) -> cose_status_t {
     clear_last_error();
     match catch_unwind(AssertUnwindSafe(f)) {
@@ -118,7 +112,6 @@ pub fn with_catch_unwind<F: FnOnce() -> Result<cose_status_t, anyhow::Error>>(f:
         }
         Err(_) => {
             // Panic handler: unreachable in normal tests
-            #[cfg_attr(coverage_nightly, coverage(off))]
             fn handle_ffi_panic() -> cose_status_t {
                 cose_status_t::COSE_PANIC
             }
@@ -130,7 +123,6 @@ pub fn with_catch_unwind<F: FnOnce() -> Result<cose_status_t, anyhow::Error>>(f:
 
 /// Returns the ABI version for this library.
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_validation_abi_version() -> u32 {
     ABI_VERSION
 }
@@ -139,13 +131,11 @@ pub extern "C" fn cose_sign1_validation_abi_version() -> u32 {
 ///
 /// Ownership: caller must free via `cose_string_free`.
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_last_error_message_utf8() -> *mut c_char {
     take_last_error_ptr()
 }
 
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_last_error_clear() {
     clear_last_error();
 }
@@ -157,7 +147,6 @@ pub extern "C" fn cose_last_error_clear() {
 /// - `s` must be a string allocated by this library or null
 /// - The string must not be used after this call
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_string_free(s: *mut c_char) {
     if s.is_null() {
         return;
@@ -168,7 +157,6 @@ pub unsafe extern "C" fn cose_string_free(s: *mut c_char) {
 }
 
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_validator_builder_new(out: *mut *mut cose_sign1_validator_builder_t) -> cose_status_t {
     with_catch_unwind(|| {
         if out.is_null() {
@@ -188,7 +176,6 @@ pub extern "C" fn cose_sign1_validator_builder_new(out: *mut *mut cose_sign1_val
 }
 
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_validator_builder_free(builder: *mut cose_sign1_validator_builder_t) {
     if builder.is_null() {
         return;
@@ -205,7 +192,6 @@ pub extern "C" fn cose_sign1_validator_builder_free(builder: *mut cose_sign1_val
 // - cose_sign1_validation_primitives_ffi
 
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_validator_builder_build(
     builder: *mut cose_sign1_validator_builder_t,
     out: *mut *mut cose_sign1_validator_t,
@@ -228,7 +214,6 @@ pub extern "C" fn cose_sign1_validator_builder_build(
 }
 
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_validator_free(validator: *mut cose_sign1_validator_t) {
     if validator.is_null() {
         return;
@@ -239,7 +224,6 @@ pub extern "C" fn cose_sign1_validator_free(validator: *mut cose_sign1_validator
 }
 
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_validation_result_free(result: *mut cose_sign1_validation_result_t) {
     if result.is_null() {
         return;
@@ -250,7 +234,6 @@ pub extern "C" fn cose_sign1_validation_result_free(result: *mut cose_sign1_vali
 }
 
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_validation_result_is_success(
     result: *const cose_sign1_validation_result_t,
     out_ok: *mut bool,
@@ -271,7 +254,6 @@ pub extern "C" fn cose_sign1_validation_result_is_success(
 ///
 /// Ownership: caller must free via `cose_string_free`.
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_validation_result_failure_message_utf8(
     result: *const cose_sign1_validation_result_t,
 ) -> *mut c_char {
@@ -290,7 +272,6 @@ pub extern "C" fn cose_sign1_validation_result_failure_message_utf8(
 }
 
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_validator_validate_bytes(
     validator: *const cose_sign1_validator_t,
     cose_bytes: *const u8,

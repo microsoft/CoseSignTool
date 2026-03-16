@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+#![cfg_attr(coverage_nightly, feature(coverage_attribute))]
+
 //! Cryptographic backend traits for pluggable crypto providers.
 //!
 //! This crate defines pure traits for cryptographic operations without
@@ -30,12 +32,14 @@
 
 pub mod algorithms;
 pub mod error;
+pub mod jwk;
 pub mod provider;
 pub mod signer;
 pub mod verifier;
 
 // Re-export all public types
 pub use error::CryptoError;
+pub use jwk::{EcJwk, Jwk, JwkVerifierFactory, PqcJwk, RsaJwk};
 pub use provider::{CryptoProvider, NullCryptoProvider};
 pub use signer::{CryptoSigner, SigningContext};
 pub use verifier::{CryptoVerifier, VerifyingContext};

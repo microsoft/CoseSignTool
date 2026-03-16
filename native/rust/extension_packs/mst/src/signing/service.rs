@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 use code_transparency_client::CodeTransparencyClient;
+use cose_sign1_crypto_openssl::jwk_verifier::OpenSslJwkVerifierFactory;
 use cose_sign1_signing::transparency::{
     TransparencyProvider, TransparencyValidationResult, TransparencyError,
     extract_receipts,
@@ -26,7 +27,6 @@ impl TransparencyProvider for MstTransparencyProvider {
         "Microsoft Signing Transparency"
     }
 
-    #[cfg_attr(coverage_nightly, coverage(off))]
     fn add_transparency_proof(&self, cose_bytes: &[u8]) -> Result<Vec<u8>, TransparencyError> {
         self.client.make_transparent(cose_bytes)
             .map_err(|e| TransparencyError::SubmissionFailed(e.to_string()))
@@ -42,6 +42,7 @@ impl TransparencyProvider for MstTransparencyProvider {
             ));
         }
         for receipt_bytes in &receipts {
+            let factory = OpenSslJwkVerifierFactory;
             let input = ReceiptVerifyInput {
                 statement_bytes_with_receipts: cose_bytes,
                 receipt_bytes: receipt_bytes.as_slice(),
@@ -49,6 +50,7 @@ impl TransparencyProvider for MstTransparencyProvider {
                 allow_network_fetch: true,
                 jwks_api_version: None,
                 client: Some(&self.client),
+                jwk_verifier_factory: &factory,
             };
             if let Ok(result) = verify_mst_receipt(input) {
                 if result.trusted {

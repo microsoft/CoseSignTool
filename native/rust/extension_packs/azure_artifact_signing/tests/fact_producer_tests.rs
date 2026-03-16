@@ -20,8 +20,8 @@ fn test_ats_fact_producer_name() {
 fn test_ats_fact_producer_provides() {
     let producer = AasFactProducer;
     let provided = producer.provides();
-    // Currently returns empty slice as per the TODO
-    assert_eq!(provided.len(), 0);
+    // Now returns registered fact keys for AAS detection
+    assert_eq!(provided.len(), 2);
 }
 
 #[test]

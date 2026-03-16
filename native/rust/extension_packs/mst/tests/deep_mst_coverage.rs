@@ -8,7 +8,7 @@
 //! - ReceiptVerifyError Display variants
 //! - extract_proof_blobs error paths
 //! - parse_leaf / parse_path error paths
-//! - jwk_to_spki_der edge cases
+//! - local_jwk_to_ec_jwk edge cases
 //! - validate_receipt_alg_against_jwk mismatch
 //! - ccf_accumulator_sha256 size checks
 //! - find_jwk_for_kid not found
@@ -21,6 +21,7 @@ extern crate cbor_primitives_everparse;
 
 use cose_sign1_transparent_mst::validation::receipt_verify::*;
 use cose_sign1_primitives::{CoseHeaderLabel, CoseHeaderValue};
+use crypto_primitives::EcJwk;
 
 // =========================================================================
 // ReceiptVerifyError Display coverage
@@ -272,24 +273,24 @@ fn extract_proof_blobs_valid() {
 }
 
 // =========================================================================
-// ring_verifier_for_cose_alg
+// validate_cose_alg_supported
 // =========================================================================
 
 #[test]
 fn ring_verifier_es256() {
-    let result = ring_verifier_for_cose_alg(-7);
+    let result = validate_cose_alg_supported(-7);
     assert!(result.is_ok());
 }
 
 #[test]
 fn ring_verifier_es384() {
-    let result = ring_verifier_for_cose_alg(-35);
+    let result = validate_cose_alg_supported(-35);
     assert!(result.is_ok());
 }
 
 #[test]
 fn ring_verifier_unsupported() {
-    let result = ring_verifier_for_cose_alg(-999);
+    let result = validate_cose_alg_supported(-999);
     assert!(result.is_err());
     let msg = format!("{}", result.unwrap_err());
     assert!(msg.contains("unsupported_alg"));
@@ -354,7 +355,7 @@ fn validate_alg_curve_mismatch() {
 }
 
 // =========================================================================
-// jwk_to_spki_der
+// local_jwk_to_ec_jwk
 // =========================================================================
 
 #[test]
@@ -366,7 +367,7 @@ fn jwk_to_spki_non_ec_kty() {
         x: None,
         y: None,
     };
-    let result = jwk_to_spki_der(&jwk);
+    let result = local_jwk_to_ec_jwk(&jwk);
     assert!(result.is_err());
     let msg = format!("{}", result.unwrap_err());
     assert!(msg.contains("kty=RSA"));
@@ -381,7 +382,7 @@ fn jwk_to_spki_missing_crv() {
         x: None,
         y: None,
     };
-    let result = jwk_to_spki_der(&jwk);
+    let result = local_jwk_to_ec_jwk(&jwk);
     assert!(result.is_err());
     let msg = format!("{}", result.unwrap_err());
     assert!(msg.contains("missing_crv"));
@@ -389,6 +390,7 @@ fn jwk_to_spki_missing_crv() {
 
 #[test]
 fn jwk_to_spki_unsupported_crv() {
+    // local_jwk_to_ec_jwk does NOT validate curves — it just copies strings
     let jwk = Jwk {
         kty: "EC".to_string(),
         crv: Some("P-521".to_string()),
@@ -396,10 +398,10 @@ fn jwk_to_spki_unsupported_crv() {
         x: Some("AAAA".to_string()),
         y: Some("BBBB".to_string()),
     };
-    let result = jwk_to_spki_der(&jwk);
-    assert!(result.is_err());
-    let msg = format!("{}", result.unwrap_err());
-    assert!(msg.contains("unsupported_crv=P-521"));
+    let result = local_jwk_to_ec_jwk(&jwk);
+    assert!(result.is_ok());
+    let ec = result.unwrap();
+    assert_eq!(ec.crv, "P-521");
 }
 
 #[test]
@@ -411,7 +413,7 @@ fn jwk_to_spki_missing_x() {
         x: None,
         y: Some("AAAA".to_string()),
     };
-    let result = jwk_to_spki_der(&jwk);
+    let result = local_jwk_to_ec_jwk(&jwk);
     assert!(result.is_err());
     let msg = format!("{}", result.unwrap_err());
     assert!(msg.contains("missing_x"));
@@ -426,7 +428,7 @@ fn jwk_to_spki_missing_y() {
         x: Some("AAAA".to_string()),
         y: None,
     };
-    let result = jwk_to_spki_der(&jwk);
+    let result = local_jwk_to_ec_jwk(&jwk);
     assert!(result.is_err());
     let msg = format!("{}", result.unwrap_err());
     assert!(msg.contains("missing_y"));
@@ -434,7 +436,7 @@ fn jwk_to_spki_missing_y() {
 
 #[test]
 fn jwk_to_spki_wrong_coord_length() {
-    // P-256 expects 32-byte x/y, provide short ones
+    // local_jwk_to_ec_jwk does NOT validate coordinate lengths — it just copies strings
     let jwk = Jwk {
         kty: "EC".to_string(),
         crv: Some("P-256".to_string()),
@@ -442,17 +444,18 @@ fn jwk_to_spki_wrong_coord_length() {
         x: Some("AQID".to_string()), // 3 bytes
         y: Some("BAUF".to_string()), // 3 bytes
     };
-    let result = jwk_to_spki_der(&jwk);
-    assert!(result.is_err());
-    let msg = format!("{}", result.unwrap_err());
-    assert!(msg.contains("unexpected_xy_len"));
+    let result = local_jwk_to_ec_jwk(&jwk);
+    assert!(result.is_ok());
+    let ec = result.unwrap();
+    assert_eq!(ec.x, "AQID");
+    assert_eq!(ec.y, "BAUF");
 }
 
 #[test]
 fn jwk_to_spki_p256_valid() {
-    // Valid P-256 coordinates (32 bytes each in base64url)
-    let x = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"; // 32 bytes of zeros
-    let y = "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"; // 32 bytes of 0x04...
+    // Valid P-256 coordinates from a real JWK (base64url encoded)
+    let x = "f83OJ3D2xF1Bg8vub9tLe1gHMzV76e8Tus9uPHvRVEU";
+    let y = "x_FEzRu9m36HLN_tue659LNpXW6pCyStikYjKIWI5a0";
     let jwk = Jwk {
         kty: "EC".to_string(),
         crv: Some("P-256".to_string()),
@@ -460,30 +463,35 @@ fn jwk_to_spki_p256_valid() {
         x: Some(x.to_string()),
         y: Some(y.to_string()),
     };
-    let result = jwk_to_spki_der(&jwk);
-    assert!(result.is_ok());
-    let bytes = result.unwrap();
-    assert_eq!(bytes[0], 0x04); // uncompressed point marker
-    assert_eq!(bytes.len(), 1 + 32 + 32);
+    let result = local_jwk_to_ec_jwk(&jwk);
+    assert!(result.is_ok(), "Valid P-256 JWK should produce EcJwk: {:?}", result.err());
+    let ec = result.unwrap();
+    assert_eq!(ec.kty, "EC");
+    assert_eq!(ec.crv, "P-256");
+    assert_eq!(ec.x, x);
+    assert_eq!(ec.y, y);
+    assert!(ec.kid.is_none());
 }
 
 #[test]
 fn jwk_to_spki_p384_valid() {
-    // Valid P-384 coordinates (48 bytes each in base64url)
-    let x = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"; // 48 bytes
-    let y = "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"; // 48 bytes
+    let x = "iA7aWvDLjPncbY2mAHKoz21MWUF2xSvAkxJBKagKU3w8mPQNcrBx-dQmED6JIiYC";
+    let y = "6tCCMCF6-nBMnHjJsNUMvSQ90H76Rv1IIJL2n1-3xG0NhwFKZ_dqJe2LL_3qcl3L";
     let jwk = Jwk {
         kty: "EC".to_string(),
         crv: Some("P-384".to_string()),
-        kid: None,
+        kid: Some("p384-kid".to_string()),
         x: Some(x.to_string()),
         y: Some(y.to_string()),
     };
-    let result = jwk_to_spki_der(&jwk);
-    assert!(result.is_ok());
-    let bytes = result.unwrap();
-    assert_eq!(bytes[0], 0x04);
-    assert_eq!(bytes.len(), 1 + 48 + 48);
+    let result = local_jwk_to_ec_jwk(&jwk);
+    assert!(result.is_ok(), "Valid P-384 JWK should produce EcJwk: {:?}", result.err());
+    let ec = result.unwrap();
+    assert_eq!(ec.kty, "EC");
+    assert_eq!(ec.crv, "P-384");
+    assert_eq!(ec.x, x);
+    assert_eq!(ec.y, y);
+    assert_eq!(ec.kid.as_deref(), Some("p384-kid"));
 }
 
 // =========================================================================

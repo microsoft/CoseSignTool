@@ -3,6 +3,7 @@
 
 #![cfg_attr(coverage_nightly, feature(coverage_attribute))]
 
+
 //! # CBOR Primitives
 //!
 //! A zero-dependency trait crate that defines abstractions for CBOR encoding/decoding,
@@ -398,7 +399,6 @@ pub trait CborDecoder<'a> {
     fn decode_bstr(&mut self) -> Result<&'a [u8], Self::Error>;
 
     /// Decodes a byte string and returns an owned copy.
-    #[cfg_attr(coverage_nightly, coverage(off))]
     fn decode_bstr_owned(&mut self) -> Result<Vec<u8>, Self::Error> {
         self.decode_bstr().map(|b| b.to_vec())
     }
@@ -412,7 +412,6 @@ pub trait CborDecoder<'a> {
     fn decode_tstr(&mut self) -> Result<&'a str, Self::Error>;
 
     /// Decodes a text string and returns an owned copy.
-    #[cfg_attr(coverage_nightly, coverage(off))]
     fn decode_tstr_owned(&mut self) -> Result<String, Self::Error> {
         self.decode_tstr().map(|s| s.to_string())
     }

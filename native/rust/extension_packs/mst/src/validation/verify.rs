@@ -16,6 +16,7 @@ use crate::validation::verification_options::{
 use code_transparency_client::{
     CodeTransparencyClient, CodeTransparencyClientConfig, CodeTransparencyClientOptions,
 };
+use cose_sign1_crypto_openssl::jwk_verifier::OpenSslJwkVerifierFactory;
 use cose_sign1_primitives::CoseSign1Message;
 use cose_sign1_signing::transparency::extract_receipts;
 use std::collections::{HashMap, HashSet};
@@ -160,13 +161,17 @@ pub fn verify_transparent_statement_message(
             continue;
         }
 
-        // Get or create client
+        // Get or create client — use factory if provided, else default construction.
         let client = clients.entry(issuer.clone()).or_insert_with(|| {
-            let endpoint = url::Url::parse(&format!("https://{}", issuer))
-                .unwrap_or_else(|_| url::Url::parse("https://invalid").unwrap());
-            CodeTransparencyClient::with_options(
-                endpoint, CodeTransparencyClientConfig::default(), client_options.clone(),
-            )
+            if let Some(ref factory) = options.client_factory {
+                factory(issuer, &client_options)
+            } else {
+                let endpoint = url::Url::parse(&format!("https://{}", issuer))
+                    .unwrap_or_else(|_| url::Url::parse("https://invalid").unwrap());
+                CodeTransparencyClient::with_options(
+                    endpoint, CodeTransparencyClientConfig::default(), client_options.clone(),
+                )
+            }
         });
 
         // Resolve JWKS: cache → network → fail.
@@ -174,6 +179,7 @@ pub fn verify_transparent_statement_message(
         let jwks_json = resolve_jwks_for_issuer(issuer, client, &options);
         let used_cache = jwks_json.is_some();
 
+        let factory = OpenSslJwkVerifierFactory;
         let input = ReceiptVerifyInput {
             statement_bytes_with_receipts: raw_bytes,
             receipt_bytes: &receipt.raw_bytes,
@@ -181,6 +187,7 @@ pub fn verify_transparent_statement_message(
             allow_network_fetch: options.allow_network_fetch && !used_cache,
             jwks_api_version: None,
             client: Some(client),
+            jwk_verifier_factory: &factory,
         };
 
         match verify_mst_receipt(input) {
@@ -204,6 +211,7 @@ pub fn verify_transparent_statement_message(
                                     allow_network_fetch: false,
                                     jwks_api_version: None,
                                     client: Some(client),
+                                    jwk_verifier_factory: &factory,
                                 };
                                 if let Ok(r) = verify_mst_receipt(retry) {
                                     if r.trusted {
@@ -300,6 +308,7 @@ fn fetch_and_cache_jwks(
 /// multiple MST instances.
 ///
 /// If the caller provides their own `jwks_cache` on the options, this is not used.
+#[cfg_attr(coverage_nightly, coverage(off))]
 fn create_default_cache() -> JwksCache {
     use crate::validation::jwks_cache::{DEFAULT_MISS_THRESHOLD, DEFAULT_REFRESH_INTERVAL};
 

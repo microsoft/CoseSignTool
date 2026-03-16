@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+#![cfg_attr(coverage_nightly, feature(coverage_attribute))]
+
 //! Factory patterns for creating COSE_Sign1 messages.
 //!
 //! This crate provides factory implementations that map V2 C# factory patterns

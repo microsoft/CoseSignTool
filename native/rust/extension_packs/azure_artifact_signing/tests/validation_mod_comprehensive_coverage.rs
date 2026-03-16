@@ -28,8 +28,8 @@ fn test_ats_fact_producer_provides() {
     let producer = AasFactProducer;
     let provided_facts = producer.provides();
     
-    // Currently returns empty array - this tests the implementation
-    assert_eq!(provided_facts.len(), 0, "Should return empty fact keys array");
+    // Returns registered AAS fact keys
+    assert_eq!(provided_facts.len(), 2, "Should return 2 fact keys (identified + compliance)");
 }
 
 #[test]
@@ -121,7 +121,7 @@ fn test_ats_fact_producer_trait_object() {
     
     // Test through trait object
     assert_eq!(producer_trait.name(), "azure_artifact_signing");
-    assert_eq!(producer_trait.provides().len(), 0);
+    assert_eq!(producer_trait.provides().len(), 2);
 }
 
 #[test]
@@ -147,7 +147,7 @@ fn test_trust_pack_composition_pattern() {
     
     // The fact producer should work when called through the trust pack
     assert_eq!(fact_producer.name(), "azure_artifact_signing");
-    assert_eq!(fact_producer.provides().len(), 0);
+    assert_eq!(fact_producer.provides().len(), 2);
 }
 
 #[test]
@@ -165,7 +165,7 @@ fn test_fact_producer_provides_empty_initially() {
     let producer = AasFactProducer;
     let provided = producer.provides();
     
-    assert!(provided.is_empty(), "Initially should provide empty fact keys");
+    assert_eq!(provided.len(), 2);
     
     // The comment in the code says "TODO: Register fact keys"
     // This test documents the current state
@@ -219,7 +219,7 @@ fn test_fact_producer_stability() {
     // Multiple calls should return consistent results
     for i in 0..5 {
         assert_eq!(producer.name(), "azure_artifact_signing", "Iteration {}", i);
-        assert_eq!(producer.provides().len(), 0, "Iteration {}", i);
+        assert_eq!(producer.provides().len(), 2, "Iteration {}", i);
     }
 }
 

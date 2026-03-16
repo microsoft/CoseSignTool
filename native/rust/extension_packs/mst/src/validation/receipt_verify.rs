@@ -3,7 +3,7 @@
 
 use cbor_primitives::{CborDecoder, CborEncoder};
 use cose_sign1_primitives::{CoseHeaderLabel, CoseHeaderValue, CoseSign1Message, ProtectedHeader};
-use ring::signature;
+use crypto_primitives::{EcJwk, JwkVerifierFactory};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
 use url::Url;
@@ -130,6 +130,10 @@ pub struct ReceiptVerifyInput<'a> {
     /// Optional Code Transparency client for JWKS fetching.
     /// If `None` and `allow_network_fetch` is true, a default client is created.
     pub client: Option<&'a code_transparency_client::CodeTransparencyClient>,
+
+    /// Factory for creating crypto verifiers from JWK public keys.
+    /// Callers pass a backend-specific implementation (e.g., OpenSslJwkVerifierFactory).
+    pub jwk_verifier_factory: &'a dyn JwkVerifierFactory,
 }
 
 #[derive(Clone, Debug)]
@@ -184,9 +188,8 @@ pub fn verify_mst_receipt(
     let issuer = get_cwt_issuer_host(&receipt.protected, CWT_CLAIMS_LABEL, CWT_ISS_LABEL)
         .ok_or(ReceiptVerifyError::MissingIssuer)?;
 
-    // Map the COSE alg to the expected ECDSA verifier.
-    // Do this early so unsupported alg values are classified as UnsupportedAlg.
-    let verifier = ring_verifier_for_cose_alg(alg)?;
+    // Map the COSE alg early so unsupported alg values are classified as UnsupportedAlg.
+    validate_cose_alg_supported(alg)?;
 
     // Resolve the receipt signing key.
     // Match the Azure .NET client behavior (GetServiceCertificateKey):
@@ -201,8 +204,14 @@ pub fn verify_mst_receipt(
         input.jwks_api_version,
         input.client,
     )?;
-    let spki = jwk_to_spki_der(&jwk)?;
     validate_receipt_alg_against_jwk(&jwk, alg)?;
+
+    // Convert local Jwk to crypto_primitives::EcJwk for the trait-based factory.
+    let ec_jwk = local_jwk_to_ec_jwk(&jwk)?;
+    let verifier = input
+        .jwk_verifier_factory
+        .verifier_from_ec_jwk(&ec_jwk, alg)
+        .map_err(|e| ReceiptVerifyError::JwkUnsupported(format!("jwk_verifier: {e}")))?;
 
     // VDP is unprotected header label 396.
     let vdp_value = receipt
@@ -216,10 +225,6 @@ pub fn verify_mst_receipt(
     let signed_statement_bytes =
         reencode_statement_with_cleared_unprotected_headers(input.statement_bytes_with_receipts)?;
     let expected_data_hash = sha256(signed_statement_bytes.as_slice());
-
-    // COSE encodes ECDSA signatures as the fixed-length concatenation r||s.
-    // Use ring's FIXED verifiers to avoid having to re-encode to ASN.1 DER.
-    let pk = signature::UnparsedPublicKey::new(verifier, spki.as_slice());
 
     let mut any_matching_data_hash = false;
     for proof_blob in proof_blobs {
@@ -250,17 +255,17 @@ pub fn verify_mst_receipt(
         let sig_structure = receipt
             .sig_structure_bytes(acc.as_slice(), None)
             .map_err(|e| ReceiptVerifyError::SigStructureEncode(e.to_string()))?;
-        if pk
-            .verify(sig_structure.as_slice(), receipt.signature.as_slice())
-            .is_ok()
-        {
-            return Ok(ReceiptVerifyOutput {
-                trusted: true,
-                details: None,
-                issuer,
-                kid,
-                statement_sha256: expected_data_hash,
-            });
+        match verifier.verify(sig_structure.as_slice(), receipt.signature.as_slice()) {
+            Ok(true) => {
+                return Ok(ReceiptVerifyOutput {
+                    trusted: true,
+                    details: None,
+                    issuer,
+                    kid,
+                    statement_sha256: expected_data_hash,
+                });
+            }
+            _ => {} // Signature invalid or error — try next proof
         }
     }
 
@@ -572,13 +577,10 @@ pub fn extract_proof_blobs(vdp_value: &CoseHeaderValue) -> Result<Vec<Vec<u8>>, 
     Err(ReceiptVerifyError::MissingProof)
 }
 
-/// Map a COSE alg value to ring's fixed-length ECDSA verifier.
-pub fn ring_verifier_for_cose_alg(
-    alg: i64,
-) -> Result<&'static dyn ring::signature::VerificationAlgorithm, ReceiptVerifyError> {
+/// Validate that the COSE alg value is a supported ECDSA algorithm.
+pub fn validate_cose_alg_supported(alg: i64) -> Result<(), ReceiptVerifyError> {
     match alg {
-        COSE_ALG_ES256 => Ok(&signature::ECDSA_P256_SHA256_FIXED),
-        COSE_ALG_ES384 => Ok(&signature::ECDSA_P384_SHA384_FIXED),
+        COSE_ALG_ES256 | COSE_ALG_ES384 => Ok(()),
         _ => Err(ReceiptVerifyError::UnsupportedAlg(alg)),
     }
 }
@@ -665,10 +667,11 @@ pub fn find_jwk_for_kid(jwks_json: &str, kid: &str) -> Result<Jwk, ReceiptVerify
     Err(ReceiptVerifyError::JwkNotFound(kid.to_string()))
 }
 
-/// Convert an EC JWK (x/y coordinates) to an uncompressed SEC1 point.
+/// Convert a local (serde-parsed) JWK to a `crypto_primitives::EcJwk`.
 ///
-/// This returns the byte format accepted by ring's ECDSA public key parser.
-pub fn jwk_to_spki_der(jwk: &Jwk) -> Result<Vec<u8>, ReceiptVerifyError> {
+/// The local `Jwk` struct comes from JSON JWKS parsing. This function extracts
+/// the EC fields needed for the backend-agnostic `JwkVerifierFactory` trait.
+pub fn local_jwk_to_ec_jwk(jwk: &Jwk) -> Result<EcJwk, ReceiptVerifyError> {
     if jwk.kty != "EC" {
         return Err(ReceiptVerifyError::JwkUnsupported(format!(
             "kty={}",
@@ -681,12 +684,6 @@ pub fn jwk_to_spki_der(jwk: &Jwk) -> Result<Vec<u8>, ReceiptVerifyError> {
         .as_deref()
         .ok_or_else(|| ReceiptVerifyError::JwkUnsupported("missing_crv".to_string()))?;
 
-    if crv != "P-384" && crv != "P-256" {
-        return Err(ReceiptVerifyError::JwkUnsupported(format!(
-            "unsupported_crv={crv}"
-        )));
-    }
-
     let x = jwk
         .x
         .as_deref()
@@ -696,28 +693,13 @@ pub fn jwk_to_spki_der(jwk: &Jwk) -> Result<Vec<u8>, ReceiptVerifyError> {
         .as_deref()
         .ok_or_else(|| ReceiptVerifyError::JwkUnsupported("missing_y".to_string()))?;
 
-    let x = base64url_decode(x)
-        .map_err(|e| ReceiptVerifyError::JwkUnsupported(format!("x_decode_failed: {e}")))?;
-    let y = base64url_decode(y)
-        .map_err(|e| ReceiptVerifyError::JwkUnsupported(format!("y_decode_failed: {e}")))?;
-
-    let expected_len = if crv == "P-256" { 32 } else { 48 };
-    if x.len() != expected_len || y.len() != expected_len {
-        return Err(ReceiptVerifyError::JwkUnsupported(format!(
-            "unexpected_xy_len: x={} y={} expected={}",
-            x.len(),
-            y.len(),
-            expected_len
-        )));
-    }
-
-    let mut uncompressed = Vec::with_capacity(1 + x.len() + y.len());
-    uncompressed.push(0x04);
-    uncompressed.extend_from_slice(&x);
-    uncompressed.extend_from_slice(&y);
-
-    // ring's ECDSA public key parsers accept the SEC1 uncompressed point format.
-    Ok(uncompressed)
+    Ok(EcJwk {
+        kty: jwk.kty.clone(),
+        crv: crv.to_string(),
+        x: x.to_string(),
+        y: y.to_string(),
+        kid: jwk.kid.clone(),
+    })
 }
 
 /// Extract the CWT issuer hostname from a protected header's CWT claims map.

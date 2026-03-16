@@ -129,15 +129,80 @@ impl AzureKeyVaultSigningKey {
     }
 
     /// Builds the CBOR-encoded COSE_Key map.
+    ///
+    /// For EC keys: `{1: 2(EC2), 3: alg, -1: crv, -2: x, -3: y}`
+    /// For RSA keys: `{1: 3(RSA), 3: alg, -1: n, -2: e}`
     fn build_cose_key_cbor(&self) -> Result<Vec<u8>, AkvError> {
-        // This is a simplified version. A full implementation would need to:
-        // 1. Extract public key parameters from the crypto client
-        // 2. Build a proper COSE_Key map with kty, alg, crv, x, y (for EC) or n, e (for RSA)
-        // 3. Encode to CBOR
-        //
-        // For now, we return the public key bytes as-is (which is not a valid COSE_Key).
-        // TODO: Implement full COSE_Key encoding with cbor_primitives
-        self.crypto_client.public_key_bytes()
+        use cbor_primitives::{CborEncoder, CborProvider};
+
+        let provider = cose_sign1_primitives::provider::cbor_provider();
+        let mut encoder = provider.encoder();
+
+        let key_type = self.crypto_client.key_type();
+        let public_key = self.crypto_client.public_key_bytes()
+            .map_err(|e| AkvError::General(format!("failed to get public key: {}", e)))?;
+
+        match key_type {
+            "EC" => {
+                // EC uncompressed point: 0x04 || x || y
+                if public_key.is_empty() || public_key[0] != 0x04 {
+                    return Err(AkvError::General("invalid EC public key format".into()));
+                }
+                let coord_len = (public_key.len() - 1) / 2;
+                let x = &public_key[1..1 + coord_len];
+                let y = &public_key[1 + coord_len..];
+
+                let crv = match self.algorithm {
+                    -7 => 1,   // P-256
+                    -35 => 2,  // P-384
+                    -36 => 3,  // P-521
+                    _ => 1,    // default P-256
+                };
+
+                encoder.encode_map(5).map_err(|e| AkvError::General(e.to_string()))?;
+                encoder.encode_i64(1).map_err(|e| AkvError::General(e.to_string()))?; // kty
+                encoder.encode_i64(2).map_err(|e| AkvError::General(e.to_string()))?; // EC2
+                encoder.encode_i64(3).map_err(|e| AkvError::General(e.to_string()))?; // alg
+                encoder.encode_i64(self.algorithm).map_err(|e| AkvError::General(e.to_string()))?;
+                encoder.encode_i64(-1).map_err(|e| AkvError::General(e.to_string()))?; // crv
+                encoder.encode_i64(crv).map_err(|e| AkvError::General(e.to_string()))?;
+                encoder.encode_i64(-2).map_err(|e| AkvError::General(e.to_string()))?; // x
+                encoder.encode_bstr(x).map_err(|e| AkvError::General(e.to_string()))?;
+                encoder.encode_i64(-3).map_err(|e| AkvError::General(e.to_string()))?; // y
+                encoder.encode_bstr(y).map_err(|e| AkvError::General(e.to_string()))?;
+            }
+            "RSA" => {
+                // RSA: public_key = n || e (from public_key_bytes impl)
+                // For COSE_Key, we need separate n and e
+                // n is typically 256 bytes (2048-bit) or 512 bytes (4096-bit)
+                // e is typically 3 bytes (65537)
+                // Heuristic: last 3 bytes are e if they decode to 65537
+                let rsa_e_len = 3; // standard RSA public exponent length
+                if public_key.len() <= rsa_e_len {
+                    return Err(AkvError::General("RSA public key too short".into()));
+                }
+                let n = &public_key[..public_key.len() - rsa_e_len];
+                let e = &public_key[public_key.len() - rsa_e_len..];
+
+                encoder.encode_map(4).map_err(|e| AkvError::General(e.to_string()))?;
+                encoder.encode_i64(1).map_err(|e| AkvError::General(e.to_string()))?; // kty
+                encoder.encode_i64(3).map_err(|e| AkvError::General(e.to_string()))?; // RSA
+                encoder.encode_i64(3).map_err(|e| AkvError::General(e.to_string()))?; // alg
+                encoder.encode_i64(self.algorithm).map_err(|e| AkvError::General(e.to_string()))?;
+                encoder.encode_i64(-1).map_err(|e| AkvError::General(e.to_string()))?; // n
+                encoder.encode_bstr(n).map_err(|e| AkvError::General(e.to_string()))?;
+                encoder.encode_i64(-2).map_err(|e| AkvError::General(e.to_string()))?; // e
+                encoder.encode_bstr(e).map_err(|e| AkvError::General(e.to_string()))?;
+            }
+            _ => {
+                return Err(AkvError::InvalidKeyType(format!(
+                    "cannot build COSE_Key for key type: {}",
+                    key_type
+                )));
+            }
+        }
+
+        Ok(encoder.into_bytes())
     }
 }
 
@@ -183,22 +248,19 @@ impl SigningServiceKey for AzureKeyVaultSigningKey {
 impl AzureKeyVaultSigningKey {
     /// Hashes the sig_structure according to the key's algorithm.
     fn hash_sig_structure(&self, sig_structure: &[u8]) -> Result<Vec<u8>, CryptoError> {
-        use ring::digest;
+        use sha2::Digest;
 
-        let digest_algorithm = match self.algorithm {
-            -7 | -37 => &digest::SHA256,  // ES256, PS256
-            -35 => &digest::SHA384,       // ES384
-            -36 => &digest::SHA512,       // ES512
+        match self.algorithm {
+            -7 | -37 => Ok(sha2::Sha256::digest(sig_structure).to_vec()),  // ES256, PS256
+            -35 => Ok(sha2::Sha384::digest(sig_structure).to_vec()),       // ES384
+            -36 => Ok(sha2::Sha512::digest(sig_structure).to_vec()),       // ES512
             _ => {
-                return Err(CryptoError::UnsupportedOperation(format!(
+                Err(CryptoError::UnsupportedOperation(format!(
                     "Unsupported algorithm for hashing: {}",
                     self.algorithm
                 )))
             }
-        };
-
-        let hash = digest::digest(digest_algorithm, sig_structure);
-        Ok(hash.as_ref().to_vec())
+        }
     }
 }
 

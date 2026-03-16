@@ -3,6 +3,7 @@
 
 #![cfg_attr(coverage_nightly, feature(coverage_attribute))]
 
+
 //! Azure Artifact Signing extension pack for COSE_Sign1 signing and validation.
 //!
 //! This crate provides integration with Microsoft Azure Artifact Signing (AAS),

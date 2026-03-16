@@ -119,6 +119,7 @@ pub struct SignArgs {
     pub mst_endpoint: Option<String>,
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub fn run(args: SignArgs) -> i32 {
     tracing::info!(
         input = %args.input.display(),

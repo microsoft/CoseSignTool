@@ -3,7 +3,7 @@
 
 //! Comprehensive tests for MST receipt_verify private helper functions.
 //! Targets specific functions mentioned in the coverage gap task:
-//! - ring_verifier_for_cose_alg
+//! - validate_cose_alg_supported
 //! - ccf_accumulator_sha256  
 //! - extract_proof_blobs
 //! - MstCcfInclusionProof parsing
@@ -12,27 +12,27 @@ use cose_sign1_transparent_mst::validation::*;
 use cose_sign1_primitives::{CoseHeaderLabel, CoseHeaderValue};
 use sha2::{Digest, Sha256};
 
-// Test ring_verifier_for_cose_alg function
+// Test validate_cose_alg_supported function
 #[test]
-fn test_ring_verifier_for_cose_alg_es256() {
-    let result = ring_verifier_for_cose_alg(-7); // ES256
+fn test_validate_cose_alg_supported_es256() {
+    let result = validate_cose_alg_supported(-7); // ES256
     assert!(result.is_ok());
     let _verifier = result.unwrap();
     // Just verify we got a verifier - don't test the pointer value
 }
 
 #[test]
-fn test_ring_verifier_for_cose_alg_es384() {
-    let result = ring_verifier_for_cose_alg(-35); // ES384  
+fn test_validate_cose_alg_supported_es384() {
+    let result = validate_cose_alg_supported(-35); // ES384  
     assert!(result.is_ok());
     let _verifier = result.unwrap();
     // Just verify we got a verifier - don't test the pointer value
 }
 
 #[test]
-fn test_ring_verifier_for_cose_alg_unsupported() {
+fn test_validate_cose_alg_supported_unsupported() {
     // Test unsupported algorithm
-    let result = ring_verifier_for_cose_alg(-999);
+    let result = validate_cose_alg_supported(-999);
     assert!(result.is_err());
     match result.unwrap_err() {
         ReceiptVerifyError::UnsupportedAlg(alg) => assert_eq!(alg, -999),
@@ -41,7 +41,7 @@ fn test_ring_verifier_for_cose_alg_unsupported() {
 }
 
 #[test]
-fn test_ring_verifier_for_cose_alg_common_unsupported() {
+fn test_validate_cose_alg_supported_common_unsupported() {
     // Test other common but unsupported algs
     let unsupported_algs = [
         -37,  // PS256
@@ -52,7 +52,7 @@ fn test_ring_verifier_for_cose_alg_common_unsupported() {
     ];
     
     for alg in unsupported_algs {
-        let result = ring_verifier_for_cose_alg(alg);
+        let result = validate_cose_alg_supported(alg);
         assert!(result.is_err(), "Algorithm {} should be unsupported", alg);
         match result.unwrap_err() {
             ReceiptVerifyError::UnsupportedAlg(returned_alg) => assert_eq!(returned_alg, alg),

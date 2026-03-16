@@ -161,7 +161,9 @@ fn test_ats_fact_producer_name_and_provides() {
     // Cover the AasFactProducer trait methods
     let producer = AasFactProducer;
     assert_eq!(producer.name(), "azure_artifact_signing");
-    assert!(producer.provides().is_empty());
+    // provides() now returns the registered fact keys
+    assert!(!producer.provides().is_empty());
+    assert_eq!(producer.provides().len(), 2);
 }
 
 #[test]

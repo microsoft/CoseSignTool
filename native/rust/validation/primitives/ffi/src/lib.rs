@@ -14,7 +14,6 @@
 //!
 //! Future expansions can add declarative rule/predicate authoring in a stable way.
 
-#![cfg_attr(coverage_nightly, feature(coverage_attribute))]
 
 #![deny(unsafe_op_in_unsafe_fn)]
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
@@ -118,7 +117,6 @@ fn compile_and_selected(selected: Vec<CompiledTrustPlan>) -> CompiledTrustPlan {
 }
 
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_trust_plan_builder_new_from_validator_builder(
     builder: *const cose_sign1_validator_builder_t,
     out: *mut *mut cose_sign1_trust_plan_builder_t,
@@ -142,7 +140,6 @@ pub extern "C" fn cose_sign1_trust_plan_builder_new_from_validator_builder(
 }
 
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_trust_plan_builder_free(plan_builder: *mut cose_sign1_trust_plan_builder_t) {
     if plan_builder.is_null() {
         return;
@@ -154,7 +151,6 @@ pub extern "C" fn cose_sign1_trust_plan_builder_free(plan_builder: *mut cose_sig
 
 /// Select all configured packs' default trust plans.
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_trust_plan_builder_add_all_pack_default_plans(
     plan_builder: *mut cose_sign1_trust_plan_builder_t,
 ) -> cose_status_t {
@@ -198,7 +194,6 @@ pub extern "C" fn cose_sign1_trust_plan_builder_add_pack_default_plan_by_name(
 
 /// Returns the number of packs configured on this plan builder.
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_trust_plan_builder_pack_count(
     plan_builder: *const cose_sign1_trust_plan_builder_t,
     out_count: *mut usize,
@@ -241,7 +236,6 @@ pub extern "C" fn cose_sign1_trust_plan_builder_pack_name_utf8(
 
 /// Returns whether the pack at `index` provides a default trust plan.
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_trust_plan_builder_pack_has_default_plan(
     plan_builder: *const cose_sign1_trust_plan_builder_t,
     index: usize,
@@ -268,7 +262,6 @@ pub extern "C" fn cose_sign1_trust_plan_builder_pack_has_default_plan(
 
 /// Clears any selected plans on the builder.
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_trust_plan_builder_clear_selected_plans(
     plan_builder: *mut cose_sign1_trust_plan_builder_t,
 ) -> cose_status_t {
@@ -281,7 +274,6 @@ pub extern "C" fn cose_sign1_trust_plan_builder_clear_selected_plans(
 }
 
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_compiled_trust_plan_free(plan: *mut cose_sign1_compiled_trust_plan_t) {
     if plan.is_null() {
         return;
@@ -347,7 +339,6 @@ pub extern "C" fn cose_sign1_trust_plan_builder_compile_and(
 
 /// Compile an allow-all bundled plan.
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_trust_plan_builder_compile_allow_all(
     plan_builder: *mut cose_sign1_trust_plan_builder_t,
     out_plan: *mut *mut cose_sign1_compiled_trust_plan_t,
@@ -371,7 +362,6 @@ pub extern "C" fn cose_sign1_trust_plan_builder_compile_allow_all(
 
 /// Compile a deny-all bundled plan.
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_trust_plan_builder_compile_deny_all(
     plan_builder: *mut cose_sign1_trust_plan_builder_t,
     out_plan: *mut *mut cose_sign1_compiled_trust_plan_t,
@@ -398,7 +388,6 @@ pub extern "C" fn cose_sign1_trust_plan_builder_compile_deny_all(
 /// This causes the eventual validator to use the bundled plan instead of OR-composing
 /// pack default plans.
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_validator_builder_with_compiled_trust_plan(
     builder: *mut cose_sign1_validator_builder_t,
     plan: *const cose_sign1_compiled_trust_plan_t,
@@ -418,7 +407,6 @@ pub extern "C" fn cose_sign1_validator_builder_with_compiled_trust_plan(
 /// This builder starts empty and lets callers express a small, stable subset of message-scope
 /// requirements without referencing Rust fact types.
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_trust_policy_builder_new_from_validator_builder(
     builder: *const cose_sign1_validator_builder_t,
     out: *mut *mut cose_trust_policy_builder_t,
@@ -442,7 +430,6 @@ pub extern "C" fn cose_sign1_trust_policy_builder_new_from_validator_builder(
 }
 
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_trust_policy_builder_free(policy_builder: *mut cose_trust_policy_builder_t) {
     if policy_builder.is_null() {
         return;
@@ -454,7 +441,6 @@ pub extern "C" fn cose_sign1_trust_policy_builder_free(policy_builder: *mut cose
 
 /// Set the next composition operator to AND.
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_trust_policy_builder_and(
     policy_builder: *mut cose_trust_policy_builder_t,
 ) -> cose_status_t {
@@ -466,7 +452,6 @@ pub extern "C" fn cose_sign1_trust_policy_builder_and(
 
 /// Set the next composition operator to OR.
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_trust_policy_builder_or(
     policy_builder: *mut cose_trust_policy_builder_t,
 ) -> cose_status_t {
@@ -478,7 +463,6 @@ pub extern "C" fn cose_sign1_trust_policy_builder_or(
 
 /// Require that Content-Type is present and non-empty.
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_trust_policy_builder_require_content_type_non_empty(
     policy_builder: *mut cose_trust_policy_builder_t,
 ) -> cose_status_t {
@@ -492,7 +476,6 @@ pub extern "C" fn cose_sign1_trust_policy_builder_require_content_type_non_empty
 
 /// Require that Content-Type equals the provided value.
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_trust_policy_builder_require_content_type_eq(
     policy_builder: *mut cose_trust_policy_builder_t,
     content_type_utf8: *const c_char,
@@ -508,7 +491,6 @@ pub extern "C" fn cose_sign1_trust_policy_builder_require_content_type_eq(
 
 /// Require that a detached payload is present.
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_trust_policy_builder_require_detached_payload_present(
     policy_builder: *mut cose_trust_policy_builder_t,
 ) -> cose_status_t {
@@ -522,7 +504,6 @@ pub extern "C" fn cose_sign1_trust_policy_builder_require_detached_payload_prese
 
 /// Require that a detached payload is absent.
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_trust_policy_builder_require_detached_payload_absent(
     policy_builder: *mut cose_trust_policy_builder_t,
 ) -> cose_status_t {
@@ -540,7 +521,6 @@ pub extern "C" fn cose_sign1_trust_policy_builder_require_detached_payload_absen
 /// If the fact is missing, this requirement is treated as trusted (so it does not require
 /// linking any optional counter-signature pack).
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_trust_policy_builder_require_counter_signature_envelope_sig_structure_intact_or_missing(
     policy_builder: *mut cose_trust_policy_builder_t,
 ) -> cose_status_t {
@@ -572,7 +552,6 @@ pub extern "C" fn cose_sign1_trust_policy_builder_require_counter_signature_enve
 
 /// Require that CWT Claims are present.
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_claims_present(
     policy_builder: *mut cose_trust_policy_builder_t,
 ) -> cose_status_t {
@@ -586,7 +565,6 @@ pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_claims_present(
 
 /// Require that CWT Claims are absent.
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_claims_absent(
     policy_builder: *mut cose_trust_policy_builder_t,
 ) -> cose_status_t {
@@ -600,7 +578,6 @@ pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_claims_absent(
 
 /// Require that CWT `iss` (issuer) equals the provided value.
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_iss_eq(
     policy_builder: *mut cose_trust_policy_builder_t,
     iss_utf8: *const c_char,
@@ -616,7 +593,6 @@ pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_iss_eq(
 
 /// Require that CWT `sub` (subject) equals the provided value.
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_sub_eq(
     policy_builder: *mut cose_trust_policy_builder_t,
     sub_utf8: *const c_char,
@@ -632,7 +608,6 @@ pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_sub_eq(
 
 /// Require that CWT `aud` (audience) equals the provided value.
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_aud_eq(
     policy_builder: *mut cose_trust_policy_builder_t,
     aud_utf8: *const c_char,
@@ -648,7 +623,6 @@ pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_aud_eq(
 
 /// Require that a numeric-label CWT claim is present (and can be decoded).
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_claim_label_present(
     policy_builder: *mut cose_trust_policy_builder_t,
     label: i64,
@@ -663,7 +637,6 @@ pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_claim_label_presen
 
 /// Require that a text-key CWT claim is present (and can be decoded).
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_claim_text_present(
     policy_builder: *mut cose_trust_policy_builder_t,
     key_utf8: *const c_char,
@@ -679,7 +652,6 @@ pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_claim_text_present
 
 /// Require that a numeric-label CWT claim decodes to an `i64` and equals the provided value.
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_claim_label_i64_eq(
     policy_builder: *mut cose_trust_policy_builder_t,
     label: i64,
@@ -697,7 +669,6 @@ pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_claim_label_i64_eq
 
 /// Require that a numeric-label CWT claim decodes to a `bool` and equals the provided value.
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_claim_label_bool_eq(
     policy_builder: *mut cose_trust_policy_builder_t,
     label: i64,
@@ -715,7 +686,6 @@ pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_claim_label_bool_e
 
 /// Require that a numeric-label CWT claim decodes to an `i64` and is >= the provided value.
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_claim_label_i64_ge(
     policy_builder: *mut cose_trust_policy_builder_t,
     label: i64,
@@ -733,7 +703,6 @@ pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_claim_label_i64_ge
 
 /// Require that a numeric-label CWT claim decodes to an `i64` and is <= the provided value.
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_claim_label_i64_le(
     policy_builder: *mut cose_trust_policy_builder_t,
     label: i64,
@@ -751,7 +720,6 @@ pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_claim_label_i64_le
 
 /// Require that a text-key CWT claim decodes to a UTF-8 string and equals the provided value.
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_claim_text_str_eq(
     policy_builder: *mut cose_trust_policy_builder_t,
     key_utf8: *const c_char,
@@ -773,7 +741,6 @@ pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_claim_text_str_eq(
 
 /// Require that a numeric-label CWT claim decodes to a UTF-8 string and equals the provided value.
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_claim_label_str_eq(
     policy_builder: *mut cose_trust_policy_builder_t,
     label: i64,
@@ -794,7 +761,6 @@ pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_claim_label_str_eq
 
 /// Require that a numeric-label CWT claim decodes to a UTF-8 string and starts with `prefix`.
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_claim_label_str_starts_with(
     policy_builder: *mut cose_trust_policy_builder_t,
     label: i64,
@@ -815,7 +781,6 @@ pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_claim_label_str_st
 
 /// Require that a text-key CWT claim decodes to a UTF-8 string and starts with `prefix`.
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_claim_text_str_starts_with(
     policy_builder: *mut cose_trust_policy_builder_t,
     key_utf8: *const c_char,
@@ -837,7 +802,6 @@ pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_claim_text_str_sta
 
 /// Require that a numeric-label CWT claim decodes to a UTF-8 string and contains `needle`.
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_claim_label_str_contains(
     policy_builder: *mut cose_trust_policy_builder_t,
     label: i64,
@@ -858,7 +822,6 @@ pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_claim_label_str_co
 
 /// Require that a text-key CWT claim decodes to a UTF-8 string and contains `needle`.
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_claim_text_str_contains(
     policy_builder: *mut cose_trust_policy_builder_t,
     key_utf8: *const c_char,
@@ -880,7 +843,6 @@ pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_claim_text_str_con
 
 /// Require that a text-key CWT claim decodes to a `bool` and equals the provided value.
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_claim_text_bool_eq(
     policy_builder: *mut cose_trust_policy_builder_t,
     key_utf8: *const c_char,
@@ -899,7 +861,6 @@ pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_claim_text_bool_eq
 
 /// Require that a text-key CWT claim decodes to an `i64` and is >= the provided value.
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_claim_text_i64_ge(
     policy_builder: *mut cose_trust_policy_builder_t,
     key_utf8: *const c_char,
@@ -918,7 +879,6 @@ pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_claim_text_i64_ge(
 
 /// Require that a text-key CWT claim decodes to an `i64` and is <= the provided value.
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_claim_text_i64_le(
     policy_builder: *mut cose_trust_policy_builder_t,
     key_utf8: *const c_char,
@@ -937,7 +897,6 @@ pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_claim_text_i64_le(
 
 /// Require that a text-key CWT claim decodes to an `i64` and equals the provided value.
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_claim_text_i64_eq(
     policy_builder: *mut cose_trust_policy_builder_t,
     key_utf8: *const c_char,
@@ -958,7 +917,6 @@ pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_claim_text_i64_eq(
 
 /// Require that CWT `exp` (expiration time) is >= the provided value.
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_exp_ge(
     policy_builder: *mut cose_trust_policy_builder_t,
     min: i64,
@@ -975,7 +933,6 @@ pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_exp_ge(
 
 /// Require that CWT `exp` (expiration time) is <= the provided value.
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_exp_le(
     policy_builder: *mut cose_trust_policy_builder_t,
     max: i64,
@@ -992,7 +949,6 @@ pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_exp_le(
 
 /// Require that CWT `nbf` (not before) is >= the provided value.
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_nbf_ge(
     policy_builder: *mut cose_trust_policy_builder_t,
     min: i64,
@@ -1009,7 +965,6 @@ pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_nbf_ge(
 
 /// Require that CWT `nbf` (not before) is <= the provided value.
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_nbf_le(
     policy_builder: *mut cose_trust_policy_builder_t,
     max: i64,
@@ -1026,7 +981,6 @@ pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_nbf_le(
 
 /// Require that CWT `iat` (issued at) is >= the provided value.
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_iat_ge(
     policy_builder: *mut cose_trust_policy_builder_t,
     min: i64,
@@ -1043,7 +997,6 @@ pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_iat_ge(
 
 /// Require that CWT `iat` (issued at) is <= the provided value.
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_iat_le(
     policy_builder: *mut cose_trust_policy_builder_t,
     max: i64,
@@ -1060,7 +1013,6 @@ pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_iat_le(
 
 /// Compile this policy into a bundled compiled trust plan.
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_trust_policy_builder_compile(
     policy_builder: *mut cose_trust_policy_builder_t,
     out_plan: *mut *mut cose_sign1_compiled_trust_plan_t,

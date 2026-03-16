@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+#![cfg_attr(coverage_nightly, feature(coverage_attribute))]
+
 //! # COSE Sign1 Headers
 //!
 //! Provides CWT (CBOR Web Token) Claims support and header contributors

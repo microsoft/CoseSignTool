@@ -10,6 +10,7 @@ use cose_sign1_signing::{
     CoseSigner, HeaderContributor, HeaderContributorContext, HeaderMergeStrategy, SigningContext,
     SigningError, SigningService, SigningServiceMetadata,
 };
+use crypto_primitives::CryptoVerifier;
 
 use crate::common::{AkvError, KeyVaultCryptoClient};
 use crate::signing::{
@@ -169,19 +170,42 @@ impl SigningService for AzureKeyVaultSigningService {
 
     fn verify_signature(
         &self,
-        _message_bytes: &[u8],
+        message_bytes: &[u8],
         _context: &SigningContext,
     ) -> Result<bool, SigningError> {
         self.ensure_initialized()?;
 
-        // For post-sign verification, we would:
-        // 1. Parse the COSE_Sign1 message
-        // 2. Extract the signature
-        // 3. Use the signing_key's public key to verify
-        //
-        // For now, return error as verification is not yet implemented
-        Err(SigningError::VerificationFailed(
-            "Post-sign verification not yet implemented for AKV signing service".to_string(),
-        ))
+        // Parse the COSE_Sign1 message
+        let msg = cose_sign1_primitives::CoseSign1Message::parse(message_bytes)
+            .map_err(|e| SigningError::VerificationFailed(format!("failed to parse: {}", e)))?;
+
+        // Get the public key from the signing key
+        let public_key_bytes = self
+            .signing_key
+            .crypto_client()
+            .public_key_bytes()
+            .map_err(|e| SigningError::VerificationFailed(format!("public key: {}", e)))?;
+
+        // Determine the COSE algorithm from the signing key
+        let algorithm = self.signing_key.algorithm;
+
+        // Create a crypto verifier from the SPKI DER public key bytes
+        let verifier = cose_sign1_crypto_openssl::evp_verifier::EvpVerifier::from_der(
+            &public_key_bytes,
+            algorithm,
+        )
+        .map_err(|e| {
+            SigningError::VerificationFailed(format!("verifier creation: {}", e))
+        })?;
+
+        // Build sig_structure from the message
+        let payload = msg.payload.as_deref().unwrap_or_default();
+        let sig_structure = msg
+            .sig_structure_bytes(payload, None)
+            .map_err(|e| SigningError::VerificationFailed(format!("sig_structure: {}", e)))?;
+
+        verifier
+            .verify(&sig_structure, &msg.signature)
+            .map_err(|e| SigningError::VerificationFailed(format!("verify: {}", e)))
     }
 }

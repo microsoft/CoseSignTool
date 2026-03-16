@@ -3,6 +3,7 @@
 
 #![cfg_attr(coverage_nightly, feature(coverage_attribute))]
 
+
 //! Rust port of Azure.CodeSigning.Sdk — REST client for Azure Artifact Signing.
 //!
 //! Reverse-engineered from Azure.CodeSigning.Sdk NuGet v0.1.164.
@@ -19,6 +20,9 @@
 pub mod error;
 pub mod models;
 pub mod client;
+
+#[cfg(feature = "test-utils")]
+pub mod mock_transport;
 
 pub use client::{CertificateProfileClient, CertificateProfileClientCreateOptions, SignOptions};
 pub use error::AasClientError;

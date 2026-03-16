@@ -4,8 +4,8 @@
 //! Targeted tests for uncovered lines in receipt_verify.rs.
 //!
 //! Covers: sha256/sha256_concat_slices, parse_leaf, parse_path, MstCcfInclusionProof::parse,
-//! ccf_accumulator_sha256, extract_proof_blobs, ring_verifier_for_cose_alg,
-//! validate_receipt_alg_against_jwk, jwk_to_spki_der, find_jwk_for_kid,
+//! ccf_accumulator_sha256, extract_proof_blobs, validate_cose_alg_supported,
+//! validate_receipt_alg_against_jwk, local_jwk_to_ec_jwk, find_jwk_for_kid,
 //! is_cose_sign1_tagged_18, reencode_statement_with_cleared_unprotected_headers,
 //! and base64url_decode.
 
@@ -13,6 +13,7 @@ extern crate cbor_primitives_everparse;
 
 use cbor_primitives::CborEncoder;
 use cose_sign1_transparent_mst::validation::receipt_verify::*;
+use crypto_primitives::EcJwk;
 
 // ============================================================================
 // Target: lines 273-278 — sha256 and sha256_concat_slices
@@ -306,23 +307,23 @@ fn test_base64url_decode_invalid_char() {
 }
 
 // ============================================================================
-// Target: lines 577-586 — ring_verifier_for_cose_alg
+// Target: lines 577-586 — validate_cose_alg_supported
 // ============================================================================
 #[test]
 fn test_ring_verifier_es256() {
-    let result = ring_verifier_for_cose_alg(-7);
+    let result = validate_cose_alg_supported(-7);
     assert!(result.is_ok());
 }
 
 #[test]
 fn test_ring_verifier_es384() {
-    let result = ring_verifier_for_cose_alg(-35);
+    let result = validate_cose_alg_supported(-35);
     assert!(result.is_ok());
 }
 
 #[test]
 fn test_ring_verifier_unsupported_alg() {
-    let result = ring_verifier_for_cose_alg(-999);
+    let result = validate_cose_alg_supported(-999);
     assert!(result.is_err());
     match result {
         Err(ReceiptVerifyError::UnsupportedAlg(-999)) => {}
@@ -396,10 +397,10 @@ fn test_validate_alg_against_jwk_missing_crv() {
 }
 
 // ============================================================================
-// Target: lines 203-204 — jwk_to_spki_der
+// Target: lines 203-204 — local_jwk_to_ec_jwk
 // ============================================================================
 #[test]
-fn test_jwk_to_spki_der_p256_valid() {
+fn test_local_jwk_to_ec_jwk_p256_valid() {
     let jwk = Jwk {
         kty: "EC".to_string(),
         crv: Some("P-256".to_string()),
@@ -407,32 +408,37 @@ fn test_jwk_to_spki_der_p256_valid() {
         x: Some("f83OJ3D2xF1Bg8vub9tLe1gHMzV76e8Tus9uPHvRVEU".to_string()),
         y: Some("x_FEzRu9m36HLN_tue659LNpXW6pCyStikYjKIWI5a0".to_string()),
     };
-    let result = jwk_to_spki_der(&jwk);
+    let result = local_jwk_to_ec_jwk(&jwk);
     assert!(result.is_ok());
-    let spki = result.unwrap();
-    assert_eq!(spki.len(), 65); // 1 + 32 + 32
-    assert_eq!(spki[0], 0x04); // uncompressed point prefix
+    let ec_jwk = result.unwrap();
+    assert_eq!(ec_jwk.kty, "EC");
+    assert_eq!(ec_jwk.crv, "P-256");
+    assert_eq!(ec_jwk.x, "f83OJ3D2xF1Bg8vub9tLe1gHMzV76e8Tus9uPHvRVEU");
+    assert_eq!(ec_jwk.y, "x_FEzRu9m36HLN_tue659LNpXW6pCyStikYjKIWI5a0");
+    assert_eq!(ec_jwk.kid, None);
 }
 
 #[test]
-fn test_jwk_to_spki_der_p384_valid() {
-    // Use valid base64url-encoded 48-byte x and y for P-384
+fn test_local_jwk_to_ec_jwk_p384_valid() {
     let jwk = Jwk {
         kty: "EC".to_string(),
         crv: Some("P-384".to_string()),
-        kid: None,
+        kid: Some("my-p384-key".to_string()),
         x: Some("iA7lWQLzVrKGEFjfGMfMHfTEZ2KnLiKU7JuNT3E7ygsfE7ygsfE7ygsfE7ygsfE".to_string()),
         y: Some("mLgl1xH0TKP0VFl_0umg0Q6HBEUL0umg0Q6HBEUL0umg0Q6HBEUL0umg0Q6HBEUL".to_string()),
     };
-    let result = jwk_to_spki_der(&jwk);
-    // May succeed or fail depending on base64 decode length; tests the path
-    if let Ok(spki) = result {
-        assert_eq!(spki[0], 0x04);
-    }
+    let result = local_jwk_to_ec_jwk(&jwk);
+    assert!(result.is_ok());
+    let ec_jwk = result.unwrap();
+    assert_eq!(ec_jwk.kty, "EC");
+    assert_eq!(ec_jwk.crv, "P-384");
+    assert_eq!(ec_jwk.x, "iA7lWQLzVrKGEFjfGMfMHfTEZ2KnLiKU7JuNT3E7ygsfE7ygsfE7ygsfE7ygsfE");
+    assert_eq!(ec_jwk.y, "mLgl1xH0TKP0VFl_0umg0Q6HBEUL0umg0Q6HBEUL0umg0Q6HBEUL0umg0Q6HBEUL");
+    assert_eq!(ec_jwk.kid, Some("my-p384-key".to_string()));
 }
 
 #[test]
-fn test_jwk_to_spki_der_wrong_kty() {
+fn test_local_jwk_to_ec_jwk_wrong_kty() {
     let jwk = Jwk {
         kty: "RSA".to_string(),
         crv: None,
@@ -440,7 +446,7 @@ fn test_jwk_to_spki_der_wrong_kty() {
         x: None,
         y: None,
     };
-    let result = jwk_to_spki_der(&jwk);
+    let result = local_jwk_to_ec_jwk(&jwk);
     assert!(result.is_err());
     match result {
         Err(ReceiptVerifyError::JwkUnsupported(msg)) => {
@@ -451,7 +457,8 @@ fn test_jwk_to_spki_der_wrong_kty() {
 }
 
 #[test]
-fn test_jwk_to_spki_der_unsupported_curve() {
+fn test_local_jwk_to_ec_jwk_unsupported_curve_accepted() {
+    // local_jwk_to_ec_jwk does NOT validate curves — it just copies strings
     let jwk = Jwk {
         kty: "EC".to_string(),
         crv: Some("P-521".to_string()),
@@ -459,18 +466,16 @@ fn test_jwk_to_spki_der_unsupported_curve() {
         x: Some("abc".to_string()),
         y: Some("def".to_string()),
     };
-    let result = jwk_to_spki_der(&jwk);
-    assert!(result.is_err());
-    match result {
-        Err(ReceiptVerifyError::JwkUnsupported(msg)) => {
-            assert!(msg.contains("unsupported_crv"));
-        }
-        other => panic!("Expected JwkUnsupported, got: {:?}", other),
-    }
+    let result = local_jwk_to_ec_jwk(&jwk);
+    assert!(result.is_ok());
+    let ec_jwk = result.unwrap();
+    assert_eq!(ec_jwk.crv, "P-521");
+    assert_eq!(ec_jwk.x, "abc");
+    assert_eq!(ec_jwk.y, "def");
 }
 
 #[test]
-fn test_jwk_to_spki_der_missing_x() {
+fn test_local_jwk_to_ec_jwk_missing_x() {
     let jwk = Jwk {
         kty: "EC".to_string(),
         crv: Some("P-256".to_string()),
@@ -478,12 +483,12 @@ fn test_jwk_to_spki_der_missing_x() {
         x: None,
         y: Some("abc".to_string()),
     };
-    let result = jwk_to_spki_der(&jwk);
+    let result = local_jwk_to_ec_jwk(&jwk);
     assert!(result.is_err());
 }
 
 #[test]
-fn test_jwk_to_spki_der_missing_y() {
+fn test_local_jwk_to_ec_jwk_missing_y() {
     let jwk = Jwk {
         kty: "EC".to_string(),
         crv: Some("P-256".to_string()),
@@ -491,12 +496,12 @@ fn test_jwk_to_spki_der_missing_y() {
         x: Some("abc".to_string()),
         y: None,
     };
-    let result = jwk_to_spki_der(&jwk);
+    let result = local_jwk_to_ec_jwk(&jwk);
     assert!(result.is_err());
 }
 
 #[test]
-fn test_jwk_to_spki_der_missing_crv() {
+fn test_local_jwk_to_ec_jwk_missing_crv() {
     let jwk = Jwk {
         kty: "EC".to_string(),
         crv: None,
@@ -504,7 +509,7 @@ fn test_jwk_to_spki_der_missing_crv() {
         x: Some("abc".to_string()),
         y: Some("def".to_string()),
     };
-    let result = jwk_to_spki_der(&jwk);
+    let result = local_jwk_to_ec_jwk(&jwk);
     assert!(result.is_err());
 }
 

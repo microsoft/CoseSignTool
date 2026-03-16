@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+#![cfg_attr(coverage_nightly, feature(coverage_attribute))]
+
 //! COSE_Sign1 validation entrypoint.
 //!
 //! This crate provides the primary validation API for COSE_Sign1 messages.

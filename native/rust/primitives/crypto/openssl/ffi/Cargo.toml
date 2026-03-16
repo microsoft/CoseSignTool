@@ -23,7 +23,7 @@ default = ["cbor-everparse"]
 cbor-everparse = ["dep:cbor_primitives_everparse", "cose_sign1_crypto_openssl/cbor-everparse"]
 
 [dev-dependencies]
-
+openssl = { workspace = true }
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }

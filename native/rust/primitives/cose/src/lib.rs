@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+#![cfg_attr(coverage_nightly, feature(coverage_attribute))]
+
 //! # COSE Primitives
 //!
 //! RFC 9052 COSE types and constants shared across all COSE message types.

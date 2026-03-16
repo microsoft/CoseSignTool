@@ -9,27 +9,11 @@
 #   2. pkg-config (Linux/macOS)
 #   3. vcpkg (Windows) — requires VCPKG_ROOT or vcpkg in PATH
 #
-# To find YOUR OpenSSL installation:
-#   vcpkg:    $env:VCPKG_ROOT\installed\<triplet>  (e.g. x64-windows)
-#   Homebrew: brew --prefix openssl@3
-#   System:   /usr or /usr/local
-#   Vendored: cargo check --features openssl/vendored (no system OpenSSL needed)
-#
-# The default below uses VCPKG_ROOT so it works on any machine with vcpkg.
-# Set the OPENSSL_DIR env var directly to override.
+# For self-contained builds without system OpenSSL:
+#   cargo build --features openssl/vendored
+# (requires Perl and a C compiler)
 
 [env]
-# Derive OPENSSL_DIR from VCPKG_ROOT if not already set.
+# Default OPENSSL_DIR for Windows vcpkg installs.
 # `force = false` means a real OPENSSL_DIR env var takes precedence.
-# If VCPKG_ROOT is unset this will resolve to "\installed\x64-windows"
-# which will fail gracefully — set OPENSSL_DIR explicitly in that case.
 OPENSSL_DIR = { value = "c:\\vcpkg\\installed\\x64-windows", force = false }
-
-# Runtime DLL discovery (Windows, dynamic linking):
-# Before running tests, add the OpenSSL bin directory to PATH:
-#   $env:PATH = "$env:OPENSSL_DIR\bin;$env:PATH"
-#
-# The collect-coverage.ps1 script handles this automatically.
-# For manual test runs:
-#   $env:PATH = "$env:OPENSSL_DIR\bin;$env:PATH"
-#   cargo test -p cose_sign1_crypto_openssl --features pqc

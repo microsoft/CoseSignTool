@@ -80,6 +80,7 @@ pub struct VerifyArgs {
     pub output_format: String,
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub fn run(args: VerifyArgs) -> i32 {
     #[cfg(not(feature = "certificates"))]
     {

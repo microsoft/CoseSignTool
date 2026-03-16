@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+#![cfg_attr(coverage_nightly, feature(coverage_attribute))]
+
 //! # CBOR Primitives EverParse Implementation
 //!
 //! This crate provides a concrete implementation of the `cbor_primitives` traits

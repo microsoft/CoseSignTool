@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+#![cfg_attr(coverage_nightly, feature(coverage_attribute))]
+
 //! Azure Key Vault COSE signing and validation support pack.
 //!
 //! This crate provides Azure Key Vault integration for both signing and

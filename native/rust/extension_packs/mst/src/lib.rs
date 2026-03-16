@@ -3,6 +3,7 @@
 
 #![cfg_attr(coverage_nightly, feature(coverage_attribute))]
 
+
 //! Microsoft Supply Chain Transparency (MST) support pack for COSE_Sign1.
 //!
 //! This crate provides validation support for transparent signing receipts

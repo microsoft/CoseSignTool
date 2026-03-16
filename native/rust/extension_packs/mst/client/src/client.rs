@@ -94,13 +94,11 @@ impl std::fmt::Debug for CodeTransparencyClient {
 
 impl CodeTransparencyClient {
     /// Creates a new client with default pipeline options.
-    #[cfg_attr(coverage_nightly, coverage(off))]
     pub fn new(endpoint: Url, config: CodeTransparencyClientConfig) -> Self {
         Self::with_options(endpoint, config, CodeTransparencyClientOptions::default())
     }
 
     /// Creates a new client with custom pipeline options.
-    #[cfg_attr(coverage_nightly, coverage(off))]
     pub fn with_options(
         endpoint: Url,
         config: CodeTransparencyClientConfig,
@@ -171,7 +169,6 @@ impl CodeTransparencyClient {
     /// The caller owns the poller and can `.await` it or stream intermediate status.
     /// This maps C# `CreateEntry(WaitUntil, ...)` — the `Poller` handles both
     /// `Started` (return immediately) and `Completed` (`.await`) semantics.
-    #[cfg_attr(coverage_nightly, coverage(off))]
     pub fn create_entry(&self, cose_bytes: &[u8]) -> Result<Poller<OperationStatus>, CodeTransparencyError> {
         let pipeline = self.pipeline.clone();
         let api_version = self.config.api_version.clone();
@@ -229,10 +226,26 @@ impl CodeTransparencyClient {
                     let monitor_json = serde_json::to_vec(&monitor)
                         .map_err(|e| azure_core::Error::new(azure_core::error::ErrorKind::DataConversion, e))?;
                     let response: Response<OperationStatus> =
-                        RawResponse::from_bytes(status_code, headers, monitor_json).into();
+                        RawResponse::from_bytes(status_code, headers.clone(), monitor_json).into();
 
                     match monitor.status() {
-                        PollerStatus::Succeeded | PollerStatus::Failed | PollerStatus::Canceled => {
+                        PollerStatus::Succeeded => {
+                            // Succeeded: the result is already in the operation response.
+                            // Provide a target callback that returns the same response.
+                            let target_json = serde_json::to_vec(&monitor)
+                                .map_err(|e| azure_core::Error::new(azure_core::error::ErrorKind::DataConversion, e))?;
+                            Ok(PollerResult::Succeeded {
+                                response,
+                                target: Box::new(move || {
+                                    Box::pin(async move {
+                                        let r: Response<OperationStatus> =
+                                            RawResponse::from_bytes(status_code, headers, target_json).into();
+                                        Ok(r)
+                                    })
+                                }),
+                            })
+                        }
+                        PollerStatus::Failed | PollerStatus::Canceled => {
                             Ok(PollerResult::Done { response })
                         }
                         _ => {
@@ -330,20 +343,6 @@ impl CodeTransparencyClient {
         })
     }
 
-    fn send_post(&self, url: &Url, content_type: &str, accept: &str, body: Vec<u8>) -> Result<Vec<u8>, CodeTransparencyError> {
-        self.runtime.block_on(async {
-            let mut request = Request::new(url.clone(), Method::Post);
-            request.insert_header("content-type", content_type.to_string());
-            request.insert_header("accept", accept.to_string());
-            request.set_body(Body::from(body));
-            let ctx = Context::new();
-            let response = self.pipeline.stream(&ctx, &mut request, None).await
-                .map_err(CodeTransparencyError::from_azure_error)?;
-            let resp_body = response.into_body().collect().await
-                .map_err(|e| CodeTransparencyError::HttpError(e.to_string()))?;
-            Ok(resp_body.to_vec())
-        })
-    }
 }
 
 /// Read a text field from a CBOR map.

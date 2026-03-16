@@ -3,6 +3,7 @@
 
 #![cfg_attr(coverage_nightly, feature(coverage_attribute))]
 
+
 //! Rust port of `Azure.Security.CodeTransparency` — REST client for the
 //! Azure Code Transparency Service (MST).
 //!

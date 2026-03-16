@@ -17,9 +17,11 @@ pqc = ["dep:openssl-sys", "dep:foreign-types", "crypto_primitives/pqc", "cose_pr
 [dependencies]
 cose_primitives = { path = "../../cose", default-features = false }
 crypto_primitives = { path = ".." }
-openssl = "0.10"
+openssl = { workspace = true }
 openssl-sys = { version = "0.9", optional = true }
 foreign-types = { version = "0.3", optional = true }
 
 [dev-dependencies]
 cbor_primitives_everparse = { path = "../../cbor/everparse" }
+base64 = { workspace = true }
+openssl = { workspace = true }

@@ -2,6 +2,8 @@
 //!
 //! This crate exposes the Microsoft Secure Transparency (MST) receipt verification pack to C/C++ consumers.
 
+#![cfg_attr(coverage_nightly, feature(coverage_attribute))]
+
 #![deny(unsafe_op_in_unsafe_fn)]
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
@@ -47,6 +49,7 @@ pub struct cose_mst_trust_options_t {
 
 /// Adds the MST trust pack with default options (online mode).
 #[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_validator_builder_with_mst_pack(builder: *mut cose_sign1_validator_builder_t) -> cose_status_t { with_catch_unwind(|| {
     let builder = unsafe { builder.as_mut() }.ok_or_else(|| anyhow::anyhow!("builder must not be null"))?;
     builder.packs.push(Arc::new(MstTrustPack::online()));
@@ -55,6 +58,7 @@ pub extern "C" fn cose_sign1_validator_builder_with_mst_pack(builder: *mut cose_
 
 /// Adds the MST trust pack with custom options (offline JWKS, etc.).
 #[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_validator_builder_with_mst_pack_ex(builder: *mut cose_sign1_validator_builder_t, options: *const cose_mst_trust_options_t) -> cose_status_t { with_catch_unwind(|| {
     let builder = unsafe { builder.as_mut() }.ok_or_else(|| anyhow::anyhow!("builder must not be null"))?;
 
@@ -98,6 +102,7 @@ pub extern "C" fn cose_sign1_validator_builder_with_mst_pack_ex(builder: *mut co
 ///
 /// This API is provided by the MST pack FFI library and extends `cose_trust_policy_builder_t`.
 #[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_mst_trust_policy_builder_require_receipt_present(policy_builder: *mut cose_trust_policy_builder_t) -> cose_status_t { with_catch_unwind(|| {
     with_trust_policy_builder_mut(policy_builder, |b| b.for_counter_signature(|s| s.require_mst_receipt_present()))?;
     Ok(cose_status_t::COSE_OK)
@@ -105,6 +110,7 @@ pub extern "C" fn cose_sign1_mst_trust_policy_builder_require_receipt_present(po
 
 /// Trust-policy helper: require that an MST receipt is not present on all counter-signatures.
 #[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_mst_trust_policy_builder_require_receipt_not_present(policy_builder: *mut cose_trust_policy_builder_t) -> cose_status_t { with_catch_unwind(|| {
     with_trust_policy_builder_mut(policy_builder, |b| {
         b.for_counter_signature(|s| s.require::<MstReceiptPresentFact>(|w| w.require_receipt_not_present()))
@@ -114,6 +120,7 @@ pub extern "C" fn cose_sign1_mst_trust_policy_builder_require_receipt_not_presen
 
 /// Trust-policy helper: require that the MST receipt signature verified.
 #[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_mst_trust_policy_builder_require_receipt_signature_verified(policy_builder: *mut cose_trust_policy_builder_t) -> cose_status_t { with_catch_unwind(|| {
     with_trust_policy_builder_mut(policy_builder, |b| b.for_counter_signature(|s| s.require_mst_receipt_signature_verified()))?;
     Ok(cose_status_t::COSE_OK)
@@ -121,6 +128,7 @@ pub extern "C" fn cose_sign1_mst_trust_policy_builder_require_receipt_signature_
 
 /// Trust-policy helper: require that the MST receipt signature did not verify.
 #[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_mst_trust_policy_builder_require_receipt_signature_not_verified(policy_builder: *mut cose_trust_policy_builder_t) -> cose_status_t { with_catch_unwind(|| {
     with_trust_policy_builder_mut(policy_builder, |b| {
         b.for_counter_signature(|s| s.require::<MstReceiptSignatureVerifiedFact>(|w| w.require_receipt_signature_not_verified()))
@@ -130,6 +138,7 @@ pub extern "C" fn cose_sign1_mst_trust_policy_builder_require_receipt_signature_
 
 /// Trust-policy helper: require that the MST receipt issuer contains the provided substring.
 #[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_mst_trust_policy_builder_require_receipt_issuer_contains(policy_builder: *mut cose_trust_policy_builder_t, needle_utf8: *const c_char) -> cose_status_t { with_catch_unwind(|| {
     let needle = string_from_ptr("needle_utf8", needle_utf8)?;
     with_trust_policy_builder_mut(policy_builder, |b| b.for_counter_signature(|s| s.require_mst_receipt_issuer_contains(needle)))?;
@@ -138,6 +147,7 @@ pub extern "C" fn cose_sign1_mst_trust_policy_builder_require_receipt_issuer_con
 
 /// Trust-policy helper: require that the MST receipt issuer equals the provided value.
 #[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_mst_trust_policy_builder_require_receipt_issuer_eq(policy_builder: *mut cose_trust_policy_builder_t, issuer_utf8: *const c_char) -> cose_status_t { with_catch_unwind(|| {
     let issuer = string_from_ptr("issuer_utf8", issuer_utf8)?;
     with_trust_policy_builder_mut(policy_builder, |b| b.for_counter_signature(|s| s.require_mst_receipt_issuer_eq(issuer)))?;
@@ -146,6 +156,7 @@ pub extern "C" fn cose_sign1_mst_trust_policy_builder_require_receipt_issuer_eq(
 
 /// Trust-policy helper: require that the MST receipt key id (kid) equals the provided value.
 #[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_mst_trust_policy_builder_require_receipt_kid_eq(policy_builder: *mut cose_trust_policy_builder_t, kid_utf8: *const c_char) -> cose_status_t { with_catch_unwind(|| {
     let kid = string_from_ptr("kid_utf8", kid_utf8)?;
     with_trust_policy_builder_mut(policy_builder, |b| b.for_counter_signature(|s| s.require_mst_receipt_kid_eq(kid)))?;
@@ -154,6 +165,7 @@ pub extern "C" fn cose_sign1_mst_trust_policy_builder_require_receipt_kid_eq(pol
 
 /// Trust-policy helper: require that the MST receipt key id (kid) contains the provided substring.
 #[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_mst_trust_policy_builder_require_receipt_kid_contains(policy_builder: *mut cose_trust_policy_builder_t, needle_utf8: *const c_char) -> cose_status_t { with_catch_unwind(|| {
     let needle = string_from_ptr("needle_utf8", needle_utf8)?;
     with_trust_policy_builder_mut(policy_builder, |b| {
@@ -164,6 +176,7 @@ pub extern "C" fn cose_sign1_mst_trust_policy_builder_require_receipt_kid_contai
 
 /// Trust-policy helper: require that the MST receipt is trusted.
 #[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_mst_trust_policy_builder_require_receipt_trusted(policy_builder: *mut cose_trust_policy_builder_t) -> cose_status_t { with_catch_unwind(|| {
     with_trust_policy_builder_mut(policy_builder, |b| {
         b.for_counter_signature(|s| s.require::<MstReceiptTrustedFact>(|w| w.require_receipt_trusted()))
@@ -173,6 +186,7 @@ pub extern "C" fn cose_sign1_mst_trust_policy_builder_require_receipt_trusted(po
 
 /// Trust-policy helper: require that the MST receipt is not trusted.
 #[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_mst_trust_policy_builder_require_receipt_not_trusted(policy_builder: *mut cose_trust_policy_builder_t) -> cose_status_t { with_catch_unwind(|| {
     with_trust_policy_builder_mut(policy_builder, |b| {
         b.for_counter_signature(|s| s.require::<MstReceiptTrustedFact>(|w| w.require_receipt_not_trusted()))
@@ -182,6 +196,7 @@ pub extern "C" fn cose_sign1_mst_trust_policy_builder_require_receipt_not_truste
 
 /// Trust-policy helper: convenience = require (receipt trusted) AND (issuer contains substring).
 #[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_mst_trust_policy_builder_require_receipt_trusted_from_issuer_contains(policy_builder: *mut cose_trust_policy_builder_t, needle_utf8: *const c_char) -> cose_status_t { with_catch_unwind(|| {
     let needle = string_from_ptr("needle_utf8", needle_utf8)?;
     with_trust_policy_builder_mut(policy_builder, |b| b.for_counter_signature(|s| s.require_mst_receipt_trusted_from_issuer(needle)))?;
@@ -190,6 +205,7 @@ pub extern "C" fn cose_sign1_mst_trust_policy_builder_require_receipt_trusted_fr
 
 /// Trust-policy helper: require that the MST receipt statement SHA-256 digest equals the provided hex string.
 #[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_mst_trust_policy_builder_require_receipt_statement_sha256_eq(policy_builder: *mut cose_trust_policy_builder_t, sha256_hex_utf8: *const c_char) -> cose_status_t { with_catch_unwind(|| {
     let sha256_hex = string_from_ptr("sha256_hex_utf8", sha256_hex_utf8)?;
     with_trust_policy_builder_mut(policy_builder, |b| {
@@ -202,6 +218,7 @@ pub extern "C" fn cose_sign1_mst_trust_policy_builder_require_receipt_statement_
 
 /// Trust-policy helper: require that the MST receipt statement coverage equals the provided value.
 #[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_mst_trust_policy_builder_require_receipt_statement_coverage_eq(policy_builder: *mut cose_trust_policy_builder_t, coverage_utf8: *const c_char) -> cose_status_t { with_catch_unwind(|| {
     let coverage = string_from_ptr("coverage_utf8", coverage_utf8)?;
     with_trust_policy_builder_mut(policy_builder, |b| {
@@ -214,6 +231,7 @@ pub extern "C" fn cose_sign1_mst_trust_policy_builder_require_receipt_statement_
 
 /// Trust-policy helper: require that the MST receipt statement coverage contains the provided substring.
 #[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_mst_trust_policy_builder_require_receipt_statement_coverage_contains(policy_builder: *mut cose_trust_policy_builder_t, needle_utf8: *const c_char) -> cose_status_t { with_catch_unwind(|| {
     let needle = string_from_ptr("needle_utf8", needle_utf8)?;
     with_trust_policy_builder_mut(policy_builder, |b| {
@@ -258,6 +276,7 @@ pub struct MstClientHandle(CodeTransparencyClient);
 /// - `out_client` must be valid for writes
 /// - Caller must free the returned client with `cose_mst_client_free`
 #[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_mst_client_new(
     endpoint: *const c_char,
     api_version: *const c_char,
@@ -303,6 +322,7 @@ pub extern "C" fn cose_mst_client_new(
 /// - `client` must be a valid client handle created by `cose_mst_client_new` or null
 /// - The handle must not be used after this call
 #[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_mst_client_free(client: *mut MstClientHandle) {
     if client.is_null() {
         return;
@@ -336,6 +356,7 @@ pub unsafe extern "C" fn cose_mst_client_free(client: *mut MstClientHandle) {
 /// - `out_bytes` and `out_len` must be valid for writes
 /// - Caller must free the returned bytes with `cose_mst_bytes_free`
 #[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_mst_make_transparent(
     client: *const MstClientHandle,
     cose_bytes: *const u8,
@@ -403,6 +424,7 @@ pub extern "C" fn cose_sign1_mst_make_transparent(
 /// - `out_operation_id` and `out_entry_id` must be valid for writes
 /// - Caller must free the returned strings with `cose_mst_string_free`
 #[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_mst_create_entry(
     client: *const MstClientHandle,
     cose_bytes: *const u8,
@@ -479,6 +501,7 @@ pub extern "C" fn cose_sign1_mst_create_entry(
 /// - `out_bytes` and `out_len` must be valid for writes
 /// - Caller must free the returned bytes with `cose_mst_bytes_free`
 #[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_mst_get_entry_statement(
     client: *const MstClientHandle,
     entry_id: *const c_char,
@@ -524,6 +547,7 @@ pub extern "C" fn cose_sign1_mst_get_entry_statement(
 /// - `len` must be the length returned alongside the bytes
 /// - The bytes must not be used after this call
 #[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_mst_bytes_free(ptr: *mut u8, len: usize) {
     if ptr.is_null() {
         return;
@@ -540,6 +564,7 @@ pub unsafe extern "C" fn cose_mst_bytes_free(ptr: *mut u8, len: usize) {
 /// - `s` must have been returned by an MST client function or be null
 /// - The string must not be used after this call
 #[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_mst_string_free(s: *mut c_char) {
     if s.is_null() {
         return;

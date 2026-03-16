@@ -1,8 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-#![deny(unsafe_op_in_unsafe_fn)]
 #![cfg_attr(coverage_nightly, feature(coverage_attribute))]
+
+#![deny(unsafe_op_in_unsafe_fn)]
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
 //! C/C++ FFI projections for cose_sign1_primitives types and message verification.
@@ -120,7 +121,6 @@ pub const ABI_VERSION: u32 = 1;
 
 /// Returns the ABI version for this library.
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_ffi_abi_version() -> u32 {
     ABI_VERSION
 }
@@ -136,7 +136,6 @@ pub extern "C" fn cose_sign1_ffi_abi_version() -> u32 {
 /// - `key` must be a valid key handle or NULL
 /// - The handle must not be used after this call
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_key_free(key: *mut CoseKeyHandle) {
     if key.is_null() {
         return;
@@ -176,7 +175,6 @@ pub fn key_algorithm_inner(
 /// - `key` must be a valid key handle
 /// - `out_alg` must be valid for writes
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_key_algorithm(
     key: *const CoseKeyHandle,
     out_alg: *mut i64,
@@ -209,7 +207,6 @@ pub fn key_type_inner(key: *const CoseKeyHandle) -> *mut libc::c_char {
 /// - `key` must be a valid key handle
 /// - Caller must free the returned string with `cose_sign1_string_free`
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_key_type(key: *const CoseKeyHandle) -> *mut libc::c_char {
     key_type_inner(key)
 }
@@ -257,7 +254,6 @@ pub fn message_protected_headers_inner(
 /// - `out_headers` must be valid for writes
 /// - Caller owns the returned header map handle and must free it with `cose_headermap_free`
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_sign1_message_protected_headers(
     message: *const CoseSign1MessageHandle,
     out_headers: *mut *mut CoseHeaderMapHandle,
@@ -304,7 +300,6 @@ pub fn message_unprotected_headers_inner(
 /// - `out_headers` must be valid for writes
 /// - Caller owns the returned header map handle and must free it with `cose_headermap_free`
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_sign1_message_unprotected_headers(
     message: *const CoseSign1MessageHandle,
     out_headers: *mut *mut CoseHeaderMapHandle,
@@ -319,7 +314,6 @@ pub unsafe extern "C" fn cose_sign1_message_unprotected_headers(
 /// - `headers` must be a valid header map handle or NULL
 /// - The handle must not be used after this call
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_headermap_free(headers: *mut CoseHeaderMapHandle) {
     if headers.is_null() {
         return;
@@ -376,7 +370,6 @@ pub fn headermap_get_int_inner(
 /// - `headers` must be a valid header map handle
 /// - `out_value` must be valid for writes
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_headermap_get_int(
     headers: *const CoseHeaderMapHandle,
     label: i64,
@@ -425,7 +418,6 @@ pub fn headermap_get_bytes_inner(
 /// - `out_bytes` and `out_len` must be valid for writes
 /// - The returned bytes pointer is valid only as long as the header map handle is valid
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_headermap_get_bytes(
     headers: *const CoseHeaderMapHandle,
     label: i64,
@@ -465,7 +457,6 @@ pub fn headermap_get_text_inner(
 /// - `headers` must be a valid header map handle
 /// - Caller must free the returned string with `cose_sign1_string_free`
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_headermap_get_text(
     headers: *const CoseHeaderMapHandle,
     label: i64,
@@ -496,7 +487,6 @@ pub fn headermap_contains_inner(
 ///
 /// - `headers` must be a valid header map handle
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_headermap_contains(
     headers: *const CoseHeaderMapHandle,
     label: i64,
@@ -522,7 +512,6 @@ pub fn headermap_len_inner(headers: *const CoseHeaderMapHandle) -> usize {
 ///
 /// - `headers` must be a valid header map handle
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_headermap_len(headers: *const CoseHeaderMapHandle) -> usize {
     headermap_len_inner(headers)
 }

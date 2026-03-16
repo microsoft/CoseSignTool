@@ -1,7 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-#![cfg_attr(coverage_nightly, feature(coverage_attribute))]
 
 //! Targeted coverage tests for CWT claims CBOR encode/decode paths.
 //!

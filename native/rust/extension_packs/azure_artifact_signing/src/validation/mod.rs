@@ -24,30 +24,66 @@ impl TrustFactProducer for AasFactProducer {
         "azure_artifact_signing"
     }
 
-    // produce() requires a TrustFactContext that cannot be constructed outside
-    // the TrustFactEngine. The engine dispatches to produce() internally, and the
-    // AasFactProducer::provides() returns &[] so the engine never routes to it.
-    #[cfg_attr(coverage_nightly, coverage(off))]
     fn produce(&self, ctx: &mut TrustFactContext<'_>) -> Result<(), TrustError> {
-        // TODO: Detect AAS-issued certificates by examining the x5chain issuer CN
-        // and EKU OIDs (specific to Microsoft Artifact Signing).
-        // For now, produce a default "not identified" fact.
+        // Detect AAS-issued certificates by examining the signing certificate's
+        // issuer CN and EKU OIDs.
+        //
+        // AAS-issued certificates have:
+        // - Issuer CN containing "Microsoft" (e.g., "Microsoft ID Verified CS EOC CA 01")
+        // - EKU OID matching the Microsoft Code Signing pattern: 1.3.6.1.4.1.311.*
+        let mut is_ats_issued = false;
+        let mut issuer_cn: Option<String> = None;
+        let mut eku_oids: Vec<String> = Vec::new();
+
+        // Try to get signing certificate identity facts from the certificates pack
+        // (these are produced by X509CertificateTrustPack if an x5chain is present).
+        if let Ok(identity_set) = ctx.get_fact_set::<cose_sign1_certificates::validation::facts::X509SigningCertificateIdentityFact>(ctx.subject()) {
+            if let cose_sign1_validation_primitives::facts::TrustFactSet::Available(identities) = identity_set {
+                if let Some(identity) = identities.first() {
+                    issuer_cn = Some(identity.issuer.clone());
+                    // Check if issuer contains "Microsoft" — strong AAS indicator
+                    if identity.issuer.contains("Microsoft") {
+                        is_ats_issued = true;
+                    }
+                }
+            }
+        }
+
+        // Check EKU facts for Microsoft-specific OIDs
+        if let Ok(eku_set) = ctx.get_fact_set::<cose_sign1_certificates::validation::facts::X509SigningCertificateEkuFact>(ctx.subject()) {
+            if let cose_sign1_validation_primitives::facts::TrustFactSet::Available(ekus) = eku_set {
+                for eku in &ekus {
+                    eku_oids.push(eku.oid_value.clone());
+                    // Microsoft Artifact Signing EKUs: 1.3.6.1.4.1.311.76.59.*
+                    if eku.oid_value.starts_with("1.3.6.1.4.1.311") {
+                        is_ats_issued = true;
+                    }
+                }
+            }
+        }
+
         ctx.observe(AasSigningServiceIdentifiedFact {
-            is_ats_issued: false,
-            issuer_cn: None,
-            eku_oids: Vec::new(),
+            is_ats_issued,
+            issuer_cn,
+            eku_oids,
         })?;
-        
+
         ctx.observe(AasComplianceFact {
-            fips_level: "unknown".to_string(),
-            scitt_compliant: false,
+            fips_level: if is_ats_issued { "FIPS 140-2 Level 3".to_string() } else { "unknown".to_string() },
+            scitt_compliant: is_ats_issued,
         })?;
-        
+
         Ok(())
     }
 
     fn provides(&self) -> &'static [FactKey] {
-        &[]  // TODO: Register fact keys for AasSigningServiceIdentifiedFact and AasComplianceFact
+        static KEYS: std::sync::OnceLock<Vec<FactKey>> = std::sync::OnceLock::new();
+        KEYS.get_or_init(|| {
+            vec![
+                FactKey::of::<AasSigningServiceIdentifiedFact>(),
+                FactKey::of::<AasComplianceFact>(),
+            ]
+        })
     }
 }
 

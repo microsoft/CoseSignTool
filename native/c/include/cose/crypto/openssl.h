@@ -176,6 +176,53 @@ cose_status_t cose_crypto_verifier_verify(
 void cose_crypto_verifier_free(cose_crypto_verifier_t* verifier);
 
 // ============================================================================
+// JWK verifier factory
+// ============================================================================
+
+/**
+ * @brief Creates a verifier from EC JWK public key fields
+ *
+ * Accepts base64url-encoded x/y coordinates (per RFC 7518) and a COSE algorithm
+ * identifier. The resulting verifier can be used with cose_crypto_verifier_verify().
+ *
+ * @param crv  Curve name: "P-256", "P-384", or "P-521"
+ * @param x    Base64url-encoded x-coordinate
+ * @param y    Base64url-encoded y-coordinate
+ * @param kid  Key ID (may be NULL)
+ * @param cose_algorithm  COSE algorithm identifier (e.g. -7 for ES256)
+ * @param out_verifier  Output pointer to receive verifier handle
+ * @return COSE_OK on success, error code otherwise
+ */
+cose_status_t cose_crypto_openssl_jwk_verifier_from_ec(
+    const char* crv,
+    const char* x,
+    const char* y,
+    const char* kid,
+    int64_t cose_algorithm,
+    cose_crypto_verifier_t** out_verifier
+);
+
+/**
+ * @brief Creates a verifier from RSA JWK public key fields
+ *
+ * Accepts base64url-encoded modulus (n) and exponent (e) per RFC 7518.
+ *
+ * @param n    Base64url-encoded RSA modulus
+ * @param e    Base64url-encoded RSA public exponent
+ * @param kid  Key ID (may be NULL)
+ * @param cose_algorithm  COSE algorithm identifier (e.g. -37 for PS256)
+ * @param out_verifier  Output pointer to receive verifier handle
+ * @return COSE_OK on success, error code otherwise
+ */
+cose_status_t cose_crypto_openssl_jwk_verifier_from_rsa(
+    const char* n,
+    const char* e,
+    const char* kid,
+    int64_t cose_algorithm,
+    cose_crypto_verifier_t** out_verifier
+);
+
+// ============================================================================
 // Memory management
 // ============================================================================
 

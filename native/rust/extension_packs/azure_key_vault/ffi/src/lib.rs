@@ -2,6 +2,7 @@
 //!
 //! This crate exposes the Azure Key Vault KID validation pack and signing key creation to C/C++ consumers.
 
+#![cfg_attr(coverage_nightly, feature(coverage_attribute))]
 #![deny(unsafe_op_in_unsafe_fn)]
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
@@ -198,6 +199,7 @@ unsafe fn c_str_to_option_string(ptr: *const c_char) -> Result<Option<String>, a
 /// key_name: null-terminated UTF-8
 /// key_version: null-terminated UTF-8, or null for latest
 #[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_akv_key_client_new_dev(
     vault_url: *const c_char,
     key_name: *const c_char,
@@ -230,6 +232,7 @@ pub extern "C" fn cose_akv_key_client_new_dev(
 
 /// Create an AKV key client using ClientSecretCredential.
 #[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_akv_key_client_new_client_secret(
     vault_url: *const c_char,
     key_name: *const c_char,
@@ -290,6 +293,7 @@ pub extern "C" fn cose_akv_key_client_free(client: *mut AkvKeyClientHandle) {
 /// The returned key can be used with the signing FFI (cosesign1_impl_signing_service_create etc).
 /// Note: This consumes the AKV client handle - the client is no longer valid after this call.
 #[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_akv_create_signing_key(
     akv_client: *mut AkvKeyClientHandle,
     out_key: *mut *mut cose_sign1_signing_ffi::CoseKeyHandle,
@@ -335,6 +339,7 @@ pub struct AkvSigningServiceHandle(cose_sign1_azure_key_vault::signing::AzureKey
 /// - `out` must be valid for writes
 /// - The `client` handle is consumed by this call and must not be used afterward
 #[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_akv_create_signing_service(
     client: *mut AkvKeyClientHandle,
     out: *mut *mut AkvSigningServiceHandle,

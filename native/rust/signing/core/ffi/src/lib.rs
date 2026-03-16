@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 #![cfg_attr(coverage_nightly, feature(coverage_attribute))]
+
 #![deny(unsafe_op_in_unsafe_fn)]
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
@@ -89,7 +90,6 @@ pub const ABI_VERSION: u32 = 1;
 
 /// Returns the ABI version for this library.
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_sign1_signing_abi_version() -> u32 {
     ABI_VERSION
 }
@@ -155,7 +155,6 @@ pub fn impl_headermap_new_inner(
 /// - `out_headers` must be valid for writes
 /// - Caller owns the returned handle and must free it with `cose_headermap_free`
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_headermap_new(
     out_headers: *mut *mut CoseHeaderMapHandle,
 ) -> i32 {
@@ -188,7 +187,6 @@ pub fn impl_headermap_set_int_inner(
 ///
 /// - `headers` must be a valid header map handle
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_headermap_set_int(
     headers: *mut CoseHeaderMapHandle,
     label: i64,
@@ -235,7 +233,6 @@ pub fn impl_headermap_set_bytes_inner(
 /// - `headers` must be a valid header map handle
 /// - `value` must be valid for reads of `value_len` bytes
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_headermap_set_bytes(
     headers: *mut CoseHeaderMapHandle,
     label: i64,
@@ -282,7 +279,6 @@ pub fn impl_headermap_set_text_inner(
 /// - `headers` must be a valid header map handle
 /// - `value` must be a valid null-terminated C string
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_headermap_set_text(
     headers: *mut CoseHeaderMapHandle,
     label: i64,
@@ -311,7 +307,6 @@ pub fn impl_headermap_len_inner(
 ///
 /// - `headers` must be a valid header map handle
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_headermap_len(
     headers: *const CoseHeaderMapHandle,
 ) -> usize {
@@ -325,7 +320,6 @@ pub unsafe extern "C" fn cose_headermap_len(
 /// - `headers` must be a valid header map handle or NULL
 /// - The handle must not be used after this call
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_headermap_free(headers: *mut CoseHeaderMapHandle) {
     if headers.is_null() {
         return;
@@ -372,7 +366,6 @@ pub fn impl_builder_new_inner(
 /// - `out_builder` must be valid for writes
 /// - Caller owns the returned handle and must free it with `cose_sign1_builder_free`
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_sign1_builder_new(
     out_builder: *mut *mut CoseSign1BuilderHandle,
 ) -> i32 {
@@ -401,7 +394,6 @@ pub fn impl_builder_set_tagged_inner(
 ///
 /// - `builder` must be a valid builder handle
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_sign1_builder_set_tagged(
     builder: *mut CoseSign1BuilderHandle,
     tagged: bool,
@@ -431,7 +423,6 @@ pub fn impl_builder_set_detached_inner(
 ///
 /// - `builder` must be a valid builder handle
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_sign1_builder_set_detached(
     builder: *mut CoseSign1BuilderHandle,
     detached: bool,
@@ -467,7 +458,6 @@ pub fn impl_builder_set_protected_inner(
 /// - `builder` must be a valid builder handle
 /// - `headers` must be a valid header map handle
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_sign1_builder_set_protected(
     builder: *mut CoseSign1BuilderHandle,
     headers: *const CoseHeaderMapHandle,
@@ -503,7 +493,6 @@ pub fn impl_builder_set_unprotected_inner(
 /// - `builder` must be a valid builder handle
 /// - `headers` must be a valid header map handle
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_sign1_builder_set_unprotected(
     builder: *mut CoseSign1BuilderHandle,
     headers: *const CoseHeaderMapHandle,
@@ -541,7 +530,6 @@ pub fn impl_builder_set_external_aad_inner(
 /// - `builder` must be a valid builder handle
 /// - `aad` must be valid for reads of `aad_len` bytes, or NULL
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_sign1_builder_set_external_aad(
     builder: *mut CoseSign1BuilderHandle,
     aad: *const u8,
@@ -643,7 +631,6 @@ pub fn impl_builder_sign_inner(
 /// - `payload` must be valid for reads of `payload_len` bytes
 /// - `out_bytes` and `out_len` must be valid for writes
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_sign1_builder_sign(
     builder: *mut CoseSign1BuilderHandle,
     key: *const CoseKeyHandle,
@@ -663,7 +650,6 @@ pub unsafe extern "C" fn cose_sign1_builder_sign(
 /// - `builder` must be a valid builder handle or NULL
 /// - The handle must not be used after this call
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_sign1_builder_free(builder: *mut CoseSign1BuilderHandle) {
     if builder.is_null() {
         return;
@@ -681,7 +667,6 @@ pub unsafe extern "C" fn cose_sign1_builder_free(builder: *mut CoseSign1BuilderH
 /// - `len` must be the length returned alongside the bytes
 /// - The bytes must not be used after this call
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_sign1_bytes_free(bytes: *mut u8, len: usize) {
     if bytes.is_null() {
         return;
@@ -776,7 +761,6 @@ pub fn impl_key_from_callback_inner(
 /// - `user_data` must remain valid for the lifetime of the key handle
 /// - Caller owns the returned handle and must free it with `cose_key_free`
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_key_from_callback(
     algorithm: i64,
     key_type: *const libc::c_char,
@@ -794,7 +778,6 @@ pub unsafe extern "C" fn cose_key_from_callback(
 /// - `key` must be a valid key handle or NULL
 /// - The handle must not be used after this call
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_key_free(key: *mut CoseKeyHandle) {
     if key.is_null() {
         return;
@@ -854,7 +837,6 @@ pub fn impl_signing_service_create_inner(
 /// - `out_service` must be valid for writes
 /// - Caller owns the returned handle and must free it with `cose_sign1_signing_service_free`
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_sign1_signing_service_create(
     key: *const CoseKeyHandle,
     out_service: *mut *mut CoseSign1SigningServiceHandle,
@@ -870,7 +852,6 @@ pub unsafe extern "C" fn cose_sign1_signing_service_create(
 /// - `service` must be a valid signing service handle or NULL
 /// - The handle must not be used after this call
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_sign1_signing_service_free(
     service: *mut CoseSign1SigningServiceHandle,
 ) {
@@ -947,7 +928,6 @@ pub fn impl_signing_service_from_crypto_signer_inner(
 /// - `signer_handle` must not be used after this call (ownership transferred)
 /// - Caller owns the returned handle and must free it with `cose_sign1_signing_service_free`
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_sign1_signing_service_from_crypto_signer(
     signer_handle: *mut CryptoSignerHandle,
     out_service: *mut *mut CoseSign1SigningServiceHandle,
@@ -1012,7 +992,6 @@ pub fn impl_factory_from_crypto_signer_inner(
 /// - `signer_handle` must not be used after this call (ownership transferred)
 /// - Caller owns the returned handle and must free it with `cose_sign1_factory_free`
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_sign1_factory_from_crypto_signer(
     signer_handle: *mut CryptoSignerHandle,
     out_factory: *mut *mut CoseSign1FactoryHandle,
@@ -1065,7 +1044,6 @@ pub fn impl_factory_create_inner(
 /// - `out_factory` must be valid for writes
 /// - Caller owns the returned handle and must free it with `cose_sign1_factory_free`
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_sign1_factory_create(
     service: *const CoseSign1SigningServiceHandle,
     out_factory: *mut *mut CoseSign1FactoryHandle,
@@ -1159,7 +1137,6 @@ pub fn impl_factory_sign_direct_inner(
 /// - `out_cose_bytes` and `out_cose_len` must be valid for writes
 /// - Caller must free the returned bytes with `cose_sign1_cose_bytes_free`
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_sign1_factory_sign_direct(
     factory: *const CoseSign1FactoryHandle,
     payload: *const u8,
@@ -1265,7 +1242,6 @@ pub fn impl_factory_sign_indirect_inner(
 /// - `out_cose_bytes` and `out_cose_len` must be valid for writes
 /// - Caller must free the returned bytes with `cose_sign1_cose_bytes_free`
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_sign1_factory_sign_indirect(
     factory: *const CoseSign1FactoryHandle,
     payload: *const u8,
@@ -1484,7 +1460,6 @@ pub fn impl_factory_sign_direct_file_inner(
 /// - `out_cose_bytes` and `out_cose_len` must be valid for writes
 /// - Caller must free the returned bytes with `cose_sign1_cose_bytes_free`
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_sign1_factory_sign_direct_file(
     factory: *const CoseSign1FactoryHandle,
     file_path: *const libc::c_char,
@@ -1609,7 +1584,6 @@ pub fn impl_factory_sign_indirect_file_inner(
 /// - `out_cose_bytes` and `out_cose_len` must be valid for writes
 /// - Caller must free the returned bytes with `cose_sign1_cose_bytes_free`
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_sign1_factory_sign_indirect_file(
     factory: *const CoseSign1FactoryHandle,
     file_path: *const libc::c_char,
@@ -1719,7 +1693,6 @@ pub fn impl_factory_sign_direct_streaming_inner(
 /// - `out_cose_bytes` and `out_cose_len` must be valid for writes
 /// - Caller must free the returned bytes with `cose_sign1_cose_bytes_free`
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_sign1_factory_sign_direct_streaming(
     factory: *const CoseSign1FactoryHandle,
     read_callback: CoseReadCallback,
@@ -1829,7 +1802,6 @@ pub fn impl_factory_sign_indirect_streaming_inner(
 /// - `out_cose_bytes` and `out_cose_len` must be valid for writes
 /// - Caller must free the returned bytes with `cose_sign1_cose_bytes_free`
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_sign1_factory_sign_indirect_streaming(
     factory: *const CoseSign1FactoryHandle,
     read_callback: CoseReadCallback,
@@ -1859,7 +1831,6 @@ pub unsafe extern "C" fn cose_sign1_factory_sign_indirect_streaming(
 /// - `factory` must be a valid factory handle or NULL
 /// - The handle must not be used after this call
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_sign1_factory_free(factory: *mut CoseSign1FactoryHandle) {
     if factory.is_null() {
         return;
@@ -1877,7 +1848,6 @@ pub unsafe extern "C" fn cose_sign1_factory_free(factory: *mut CoseSign1FactoryH
 /// - `len` must be the length returned alongside the bytes
 /// - The bytes must not be used after this call
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_sign1_cose_bytes_free(ptr: *mut u8, len: u32) {
     if ptr.is_null() {
         return;
@@ -1946,17 +1916,14 @@ impl CryptoSigner for CallbackKey {
     // Accessor methods on CallbackKey are not called during the signing pipeline
     // (CoseSigner::sign_payload only invokes signer.sign), and CallbackKey is a
     // private type that cannot be constructed from external tests.
-    #[cfg_attr(coverage_nightly, coverage(off))]
     fn algorithm(&self) -> i64 {
         self.algorithm
     }
 
-    #[cfg_attr(coverage_nightly, coverage(off))]
     fn key_type(&self) -> &str {
         &self.key_type
     }
 
-    #[cfg_attr(coverage_nightly, coverage(off))]
     fn key_id(&self) -> Option<&[u8]> {
         None
     }
@@ -1996,12 +1963,10 @@ impl cose_sign1_signing::SigningService for SimpleSigningService {
     // SimpleSigningService methods below are unreachable through the FFI:
     // - is_remote/service_metadata: factory does not query these through FFI
     // - verify_signature: always returns Err, making the factory Ok branches unreachable
-    #[cfg_attr(coverage_nightly, coverage(off))]
     fn is_remote(&self) -> bool {
         false
     }
 
-    #[cfg_attr(coverage_nightly, coverage(off))]
     fn service_metadata(&self) -> &cose_sign1_signing::SigningServiceMetadata {
         static METADATA: once_cell::sync::Lazy<cose_sign1_signing::SigningServiceMetadata> =
             once_cell::sync::Lazy::new(|| {
@@ -2013,7 +1978,6 @@ impl cose_sign1_signing::SigningService for SimpleSigningService {
         &METADATA
     }
 
-    #[cfg_attr(coverage_nightly, coverage(off))]
     fn verify_signature(
         &self,
         _message_bytes: &[u8],
@@ -2038,17 +2002,14 @@ impl CryptoSigner for ArcCryptoSignerWrapper {
     // ArcCryptoSignerWrapper accessor methods are not called during the signing
     // pipeline (CoseSigner::sign_payload only invokes signer.sign), and this is
     // a private type that cannot be constructed from external tests.
-    #[cfg_attr(coverage_nightly, coverage(off))]
     fn algorithm(&self) -> i64 {
         self.key.algorithm()
     }
 
-    #[cfg_attr(coverage_nightly, coverage(off))]
     fn key_type(&self) -> &str {
         self.key.key_type()
     }
 
-    #[cfg_attr(coverage_nightly, coverage(off))]
     fn key_id(&self) -> Option<&[u8]> {
         self.key.key_id()
     }

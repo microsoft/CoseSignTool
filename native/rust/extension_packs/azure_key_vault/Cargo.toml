@@ -5,7 +5,6 @@ edition = { workspace = true }
 license = { workspace = true }
 
 [lib]
-test = false
 
 [dependencies]
 cose_sign1_primitives = { path = "../../primitives/cose/sign1" }
@@ -16,10 +15,11 @@ cose_sign1_validation_primitives = { path = "../../validation/primitives", featu
 cbor_primitives = { path = "../../primitives/cbor" }
 cbor_primitives_everparse = { path = "../../primitives/cbor/everparse" }
 crypto_primitives = { path = "../../primitives/crypto" }
+cose_sign1_crypto_openssl = { path = "../../primitives/crypto/openssl" }
+sha2 = { workspace = true }
 regex = { workspace = true }
 once_cell = { workspace = true }
 url = { workspace = true }
-ring = { workspace = true }
 azure_core = { workspace = true, features = ["reqwest", "reqwest_native_tls"] }
 azure_identity = { workspace = true }
 azure_security_keyvault_keys = { workspace = true }
@@ -31,3 +31,8 @@ cose_sign1_validation_primitives = { path = "../../validation/primitives" }
 cose_sign1_validation = { path = "../../validation/core" }
 cbor_primitives = { path = "../../primitives/cbor" }
 cbor_primitives_everparse = { path = "../../primitives/cbor/everparse" }
+async-trait = { workspace = true }
+serde_json = { workspace = true }
+base64 = { workspace = true }
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly)'] }

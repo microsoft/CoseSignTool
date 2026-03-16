@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+#![cfg_attr(coverage_nightly, feature(coverage_attribute))]
+
 //! X.509 certificate support pack for COSE_Sign1 signing and validation.
 //!
 //! This crate provides both signing and validation capabilities for

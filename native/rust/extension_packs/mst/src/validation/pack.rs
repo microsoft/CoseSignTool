@@ -6,6 +6,7 @@ use crate::validation::facts::{
     MstReceiptSignatureVerifiedFact, MstReceiptStatementCoverageFact,
     MstReceiptStatementSha256Fact, MstReceiptTrustedFact,
 };
+use cose_sign1_crypto_openssl::jwk_verifier::OpenSslJwkVerifierFactory;
 use cose_sign1_primitives::{CoseHeaderLabel, CoseHeaderValue};
 use cose_sign1_validation::fluent::*;
 use cose_sign1_validation_primitives::error::TrustError;
@@ -218,6 +219,7 @@ impl TrustFactProducer for MstTrustPack {
                 };
 
                 let jwks_json = self.offline_jwks_json.as_deref();
+                let factory = OpenSslJwkVerifierFactory;
                 let out = verify_mst_receipt(ReceiptVerifyInput {
                     statement_bytes_with_receipts: message_bytes,
                     receipt_bytes: receipt_bytes.as_slice(),
@@ -225,6 +227,7 @@ impl TrustFactProducer for MstTrustPack {
                     allow_network_fetch: self.allow_network,
                     jwks_api_version: self.jwks_api_version.as_deref(),
                     client: None, // Creates temporary client per-issuer
+                    jwk_verifier_factory: &factory,
                 });
 
                 match out {

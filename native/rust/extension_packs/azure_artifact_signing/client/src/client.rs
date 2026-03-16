@@ -201,22 +201,16 @@ impl CertificateProfileClient {
     /// Creates a new client with an explicit credential.
     ///
     /// Follows the same pattern as `azure_security_keyvault_certificates::CertificateClient::new()`.
-    #[cfg_attr(coverage_nightly, coverage(off))]
     pub fn new(
         options: CertificateProfileClientOptions,
         credential: Arc<dyn TokenCredential>,
         create_options: Option<CertificateProfileClientCreateOptions>,
     ) -> Result<Self> {
         let create_options = create_options.unwrap_or_default();
-        let endpoint = Url::parse(&options.endpoint)?;
-
-        // Build auth scope: {endpoint}/.default
         let auth_scope = options.auth_scope();
-
         let auth_policy: Arc<dyn azure_core::http::policies::Policy> = Arc::new(
             BearerTokenAuthorizationPolicy::new(credential, vec![auth_scope]),
         );
-
         let pipeline = Pipeline::new(
             option_env!("CARGO_PKG_NAME"),
             option_env!("CARGO_PKG_VERSION"),
@@ -225,22 +219,7 @@ impl CertificateProfileClient {
             vec![auth_policy],
             None,
         );
-
-        let runtime = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .map_err(|e| azure_core::Error::new(azure_core::error::ErrorKind::Other, e))?;
-
-        Ok(Self {
-            endpoint,
-            api_version: options.api_version,
-            pipeline,
-            account_name: options.account_name,
-            certificate_profile_name: options.certificate_profile_name,
-            correlation_id: options.correlation_id,
-            client_version: options.client_version,
-            runtime,
-        })
+        Self::new_with_pipeline(options, pipeline)
     }
 
     /// Creates a new client with DeveloperToolsCredential (for local dev).
@@ -312,7 +291,6 @@ impl CertificateProfileClient {
     /// println!("Signature: {} bytes", result.signature.unwrap_or_default().len());
     /// # Ok(()) }
     /// ```
-    #[cfg_attr(coverage_nightly, coverage(off))]
     pub fn start_sign(
         &self,
         algorithm: &str,
@@ -472,9 +450,13 @@ impl CertificateProfileClient {
     /// Convenience: sign a digest synchronously (blocks on the Poller).
     ///
     /// For FFI boundary use. Rust callers should prefer `start_sign()` + `await`.
-    #[cfg_attr(coverage_nightly, coverage(off))]
-    pub fn sign(&self, algorithm: &str, digest: &[u8]) -> Result<SignStatus> {
-        let poller = self.start_sign(algorithm, digest, None)?;
+    pub fn sign(
+        &self,
+        algorithm: &str,
+        digest: &[u8],
+        options: Option<SignOptions>,
+    ) -> Result<SignStatus> {
+        let poller = self.start_sign(algorithm, digest, options)?;
         use std::future::IntoFuture;
         let response = self.runtime.block_on(poller.into_future())?;
         response.into_model()
@@ -485,12 +467,10 @@ impl CertificateProfileClient {
     // =================================================================
 
     /// Get the Extended Key Usage OIDs for this certificate profile.
-    #[cfg_attr(coverage_nightly, coverage(off))]
     pub fn get_eku(&self) -> Result<Vec<String>> {
         self.runtime.block_on(self.get_eku_async())
     }
 
-    #[cfg_attr(coverage_nightly, coverage(off))]
     async fn get_eku_async(&self) -> Result<Vec<String>> {
         let ctx = azure_core::http::Context::new();
         let mut request = build_eku_request(
@@ -510,12 +490,10 @@ impl CertificateProfileClient {
     // =================================================================
 
     /// Get the root certificate (DER bytes).
-    #[cfg_attr(coverage_nightly, coverage(off))]
     pub fn get_root_certificate(&self) -> Result<Vec<u8>> {
         self.runtime.block_on(self.get_root_certificate_async())
     }
 
-    #[cfg_attr(coverage_nightly, coverage(off))]
     async fn get_root_certificate_async(&self) -> Result<Vec<u8>> {
         let ctx = azure_core::http::Context::new();
         let mut request = build_root_certificate_request(
@@ -535,12 +513,10 @@ impl CertificateProfileClient {
     // =================================================================
 
     /// Get the certificate chain (PKCS#7 bytes — DER-encoded).
-    #[cfg_attr(coverage_nightly, coverage(off))]
     pub fn get_certificate_chain(&self) -> Result<Vec<u8>> {
         self.runtime.block_on(self.get_certificate_chain_async())
     }
 
-    #[cfg_attr(coverage_nightly, coverage(off))]
     async fn get_certificate_chain_async(&self) -> Result<Vec<u8>> {
         let ctx = azure_core::http::Context::new();
         let mut request = build_certificate_chain_request(

@@ -3,12 +3,14 @@
 
 //! Test coverage for MST receipt verification functionality.
 
+use cose_sign1_crypto_openssl::jwk_verifier::OpenSslJwkVerifierFactory;
 use cose_sign1_transparent_mst::validation::receipt_verify::{
     verify_mst_receipt, ReceiptVerifyError, ReceiptVerifyInput, ReceiptVerifyOutput,
 };
 
 #[test]
 fn test_verify_mst_receipt_invalid_cbor() {
+    let factory = OpenSslJwkVerifierFactory;
     let input = ReceiptVerifyInput {
         statement_bytes_with_receipts: &[],
         receipt_bytes: &[0xFF, 0xFF], // Invalid CBOR
@@ -16,6 +18,7 @@ fn test_verify_mst_receipt_invalid_cbor() {
         allow_network_fetch: false,
         jwks_api_version: None,
         client: None,
+        jwk_verifier_factory: &factory,
     };
 
     let result = verify_mst_receipt(input);
@@ -30,6 +33,7 @@ fn test_verify_mst_receipt_invalid_cbor() {
 
 #[test]
 fn test_verify_mst_receipt_empty_bytes() {
+    let factory = OpenSslJwkVerifierFactory;
     let input = ReceiptVerifyInput {
         statement_bytes_with_receipts: &[],
         receipt_bytes: &[], // Empty bytes
@@ -37,6 +41,7 @@ fn test_verify_mst_receipt_empty_bytes() {
         allow_network_fetch: false,
         jwks_api_version: None,
         client: None,
+        jwk_verifier_factory: &factory,
     };
 
     let result = verify_mst_receipt(input);
@@ -173,6 +178,7 @@ fn test_receipt_verify_input_construction() {
     let statement_bytes = b"test_statement";
     let receipt_bytes = b"test_receipt";
     let jwks_json = r#"{"keys": []}"#;
+    let factory = OpenSslJwkVerifierFactory;
 
     let input = ReceiptVerifyInput {
         statement_bytes_with_receipts: statement_bytes,
@@ -181,6 +187,7 @@ fn test_receipt_verify_input_construction() {
         allow_network_fetch: true,
         jwks_api_version: Some("2023-01-01"),
         client: None,
+        jwk_verifier_factory: &factory,
     };
 
     // Just verify the struct can be constructed and accessed
@@ -221,6 +228,7 @@ fn test_verify_mst_receipt_malformed_cbor_map() {
     cbor_bytes.push(0xF6); // null (payload)
     cbor_bytes.push(0x40); // empty bstr (signature)
 
+    let factory = OpenSslJwkVerifierFactory;
     let input = ReceiptVerifyInput {
         statement_bytes_with_receipts: &cbor_bytes,
         receipt_bytes: &cbor_bytes,
@@ -228,6 +236,7 @@ fn test_verify_mst_receipt_malformed_cbor_map() {
         allow_network_fetch: false,
         jwks_api_version: None,
         client: None,
+        jwk_verifier_factory: &factory,
     };
 
     let result = verify_mst_receipt(input);

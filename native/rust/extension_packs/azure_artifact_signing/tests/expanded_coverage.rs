@@ -360,7 +360,7 @@ fn aas_trust_pack_fact_producer_name() {
 fn aas_fact_producer_provides_empty() {
     use cose_sign1_validation_primitives::facts::TrustFactProducer;
     let producer = cose_sign1_azure_artifact_signing::validation::AasFactProducer;
-    assert!(producer.provides().is_empty());
+    assert_eq!(producer.provides().len(), 2);
 }
 
 #[test]

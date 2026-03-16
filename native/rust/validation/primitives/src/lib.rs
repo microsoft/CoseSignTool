@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+#![cfg_attr(coverage_nightly, feature(coverage_attribute))]
+
 //! Trust evaluation engine for COSE_Sign1 validation.
 //!
 //! This crate models “trust” as an explicit decision over a [`subject`] using a

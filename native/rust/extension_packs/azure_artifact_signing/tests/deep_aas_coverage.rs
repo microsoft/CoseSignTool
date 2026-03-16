@@ -109,8 +109,8 @@ fn aas_fact_producer_name() {
 fn aas_fact_producer_provides() {
     let producer = AasFactProducer;
     let keys = producer.provides();
-    // Currently returns empty; just exercise the method
-    assert!(keys.is_empty());
+    // Now returns the registered fact keys
+    assert_eq!(keys.len(), 2);
 }
 
 // =========================================================================

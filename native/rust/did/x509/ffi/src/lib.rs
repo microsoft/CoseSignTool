@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 #![cfg_attr(coverage_nightly, feature(coverage_attribute))]
+
 #![deny(unsafe_op_in_unsafe_fn)]
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
@@ -72,7 +73,6 @@ fn handle_panic(out_error: *mut *mut DidX509ErrorHandle, context: &str) -> i32 {
 }
 
 /// Handle a NUL byte in a CString by setting the error and returning FFI_ERR_INVALID_ARGUMENT.
-#[cfg_attr(coverage_nightly, coverage(off))]
 fn handle_nul_byte(out_error: *mut *mut DidX509ErrorHandle, field: &str) -> i32 {
     set_error(
         out_error,
@@ -91,7 +91,6 @@ pub const ABI_VERSION: u32 = 1;
 
 /// Returns the ABI version for this library.
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn did_x509_abi_version() -> u32 {
     ABI_VERSION
 }
@@ -162,7 +161,6 @@ pub fn impl_parse_inner(
 /// - `out_handle` must be valid for writes
 /// - Caller owns the returned handle and must free it with `did_x509_parsed_free`
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn did_x509_parse(
     did_string: *const libc::c_char,
     out_handle: *mut *mut DidX509ParsedHandle,
@@ -217,7 +215,6 @@ pub fn impl_parsed_get_fingerprint_inner(
 /// - `out_fingerprint` must be valid for writes
 /// - Caller is responsible for freeing the returned string via `did_x509_string_free`
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn did_x509_parsed_get_fingerprint(
     handle: *const DidX509ParsedHandle,
     out_fingerprint: *mut *const libc::c_char,
@@ -272,7 +269,6 @@ pub fn impl_parsed_get_hash_algorithm_inner(
 /// - `out_algorithm` must be valid for writes
 /// - Caller is responsible for freeing the returned string via `did_x509_string_free`
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn did_x509_parsed_get_hash_algorithm(
     handle: *const DidX509ParsedHandle,
     out_algorithm: *mut *const libc::c_char,
@@ -311,7 +307,6 @@ pub fn impl_parsed_get_policy_count_inner(
 /// - `handle` must be a valid parsed DID handle
 /// - `out_count` must be valid for writes
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn did_x509_parsed_get_policy_count(
     handle: *const DidX509ParsedHandle,
     out_count: *mut u32,
@@ -326,7 +321,6 @@ pub unsafe extern "C" fn did_x509_parsed_get_policy_count(
 /// - `handle` must be a valid parsed DID handle or NULL
 /// - The handle must not be used after this call
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn did_x509_parsed_free(handle: *mut DidX509ParsedHandle) {
     if handle.is_null() {
         return;
@@ -436,7 +430,6 @@ pub fn impl_build_with_eku_inner(
 /// - `out_did_string` must be valid for writes
 /// - Caller is responsible for freeing the returned string via `did_x509_string_free`
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn did_x509_build_with_eku(
     ca_cert_der: *const u8,
     ca_cert_len: u32,
@@ -543,7 +536,6 @@ pub fn impl_build_from_chain_inner(
 /// - `out_did_string` must be valid for writes
 /// - Caller is responsible for freeing the returned string via `did_x509_string_free`
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn did_x509_build_from_chain(
     chain_certs: *const *const u8,
     chain_cert_lens: *const u32,
@@ -668,7 +660,6 @@ pub fn impl_validate_inner(
 /// - `chain_cert_lens` must be an array of `chain_count` certificate lengths
 /// - `out_is_valid` must be valid for writes (set to 1 if valid, 0 if invalid)
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn did_x509_validate(
     did_string: *const libc::c_char,
     chain_certs: *const *const u8,
@@ -813,7 +804,6 @@ pub fn impl_resolve_inner(
 /// - `out_did_document_json` must be valid for writes
 /// - Caller is responsible for freeing the returned string via `did_x509_string_free`
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn did_x509_resolve(
     did_string: *const libc::c_char,
     chain_certs: *const *const u8,

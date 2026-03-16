@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+#![cfg_attr(coverage_nightly, feature(coverage_attribute))]
+
 //! Core signing abstractions for COSE_Sign1 messages.
 //!
 //! This crate provides traits and types for building signing services and managing

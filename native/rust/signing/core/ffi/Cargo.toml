@@ -29,7 +29,7 @@ cbor-everparse = ["dep:cbor_primitives_everparse"]
 
 [dev-dependencies]
 tempfile = "3"
-openssl = "0.10"
+openssl = { workspace = true }
 cose_sign1_crypto_openssl_ffi = { path = "../../../primitives/crypto/openssl/ffi" }
 
 [lints.rust]

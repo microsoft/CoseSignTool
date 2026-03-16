@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+#![cfg_attr(coverage_nightly, feature(coverage_attribute))]
+
 //! Azure Artifact Signing pack FFI bindings.
 
 #![deny(unsafe_op_in_unsafe_fn)]

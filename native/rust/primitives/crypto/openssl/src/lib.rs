@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+#![cfg_attr(coverage_nightly, feature(coverage_attribute))]
+
 //! # OpenSSL Cryptographic Provider for CoseSign1
 //!
 //! This crate provides CoseKey implementations using safe Rust bindings to OpenSSL
@@ -72,6 +74,8 @@ pub mod ecdsa_format;
 pub mod evp_key;
 pub mod evp_signer;
 pub mod evp_verifier;
+pub mod jwk_verifier;
+pub mod key_conversion;
 pub mod provider;
 
 // Re-exports
@@ -80,6 +84,7 @@ pub use evp_key::{EvpPrivateKey, EvpPublicKey, KeyType};
 pub use evp_key::{MlDsaVariant, generate_mldsa_keypair, generate_mldsa_key_der, sign_x509_prehash};
 pub use evp_signer::EvpSigner;
 pub use evp_verifier::EvpVerifier;
+pub use jwk_verifier::OpenSslJwkVerifierFactory;
 pub use provider::OpenSslCryptoProvider;
 
 // Re-export COSE algorithm constants for convenience

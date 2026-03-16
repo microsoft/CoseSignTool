@@ -4,6 +4,7 @@
 //! Test coverage for MST receipt verification error paths via public API.
 
 use cbor_primitives::CborEncoder;
+use cose_sign1_crypto_openssl::jwk_verifier::OpenSslJwkVerifierFactory;
 use cose_sign1_transparent_mst::validation::receipt_verify::{
     verify_mst_receipt, ReceiptVerifyError, ReceiptVerifyInput,
 };
@@ -41,6 +42,7 @@ fn test_verify_receipt_wrong_vds() {
     
     let receipt_bytes = enc.into_bytes();
     
+    let factory = OpenSslJwkVerifierFactory;
     let input = ReceiptVerifyInput {
         statement_bytes_with_receipts: &[],
         receipt_bytes: &receipt_bytes,
@@ -48,6 +50,7 @@ fn test_verify_receipt_wrong_vds() {
         allow_network_fetch: false,
         jwks_api_version: None,
         client: None,
+        jwk_verifier_factory: &factory,
     };
     
     let result = verify_mst_receipt(input);
@@ -91,6 +94,7 @@ fn test_verify_receipt_unsupported_alg() {
     
     let receipt_bytes = enc.into_bytes();
     
+    let factory = OpenSslJwkVerifierFactory;
     let input = ReceiptVerifyInput {
         statement_bytes_with_receipts: &[],
         receipt_bytes: &receipt_bytes,
@@ -98,6 +102,7 @@ fn test_verify_receipt_unsupported_alg() {
         allow_network_fetch: false,
         jwks_api_version: None,
         client: None,
+        jwk_verifier_factory: &factory,
     };
     
     let result = verify_mst_receipt(input);
@@ -120,6 +125,7 @@ fn test_verify_receipt_missing_alg() {
     
     let receipt_bytes = enc.into_bytes();
     
+    let factory = OpenSslJwkVerifierFactory;
     let input = ReceiptVerifyInput {
         statement_bytes_with_receipts: &[],
         receipt_bytes: &receipt_bytes,
@@ -127,6 +133,7 @@ fn test_verify_receipt_missing_alg() {
         allow_network_fetch: false,
         jwks_api_version: None,
         client: None,
+        jwk_verifier_factory: &factory,
     };
     
     let result = verify_mst_receipt(input);
@@ -158,6 +165,7 @@ fn test_verify_receipt_missing_kid() {
     
     let receipt_bytes = enc.into_bytes();
     
+    let factory = OpenSslJwkVerifierFactory;
     let input = ReceiptVerifyInput {
         statement_bytes_with_receipts: &[],
         receipt_bytes: &receipt_bytes,
@@ -165,6 +173,7 @@ fn test_verify_receipt_missing_kid() {
         allow_network_fetch: false,
         jwks_api_version: None,
         client: None,
+        jwk_verifier_factory: &factory,
     };
     
     let result = verify_mst_receipt(input);
@@ -200,6 +209,7 @@ fn test_verify_receipt_missing_issuer() {
     
     let receipt_bytes = enc.into_bytes();
     
+    let factory = OpenSslJwkVerifierFactory;
     let input = ReceiptVerifyInput {
         statement_bytes_with_receipts: &[],
         receipt_bytes: &receipt_bytes,
@@ -207,6 +217,7 @@ fn test_verify_receipt_missing_issuer() {
         allow_network_fetch: false,
         jwks_api_version: None,
         client: None,
+        jwk_verifier_factory: &factory,
     };
     
     let result = verify_mst_receipt(input);
@@ -248,6 +259,7 @@ fn test_verify_receipt_missing_vds() {
     
     let receipt_bytes = enc.into_bytes();
     
+    let factory = OpenSslJwkVerifierFactory;
     let input = ReceiptVerifyInput {
         statement_bytes_with_receipts: &[],
         receipt_bytes: &receipt_bytes,
@@ -255,6 +267,7 @@ fn test_verify_receipt_missing_vds() {
         allow_network_fetch: false,
         jwks_api_version: None,
         client: None,
+        jwk_verifier_factory: &factory,
     };
     
     let result = verify_mst_receipt(input);
@@ -267,6 +280,7 @@ fn test_verify_receipt_missing_vds() {
 
 #[test]
 fn test_verify_receipt_invalid_cbor() {
+    let factory = OpenSslJwkVerifierFactory;
     let input = ReceiptVerifyInput {
         statement_bytes_with_receipts: &[],
         receipt_bytes: &[0xFF, 0xFF], // Invalid CBOR
@@ -274,6 +288,7 @@ fn test_verify_receipt_invalid_cbor() {
         allow_network_fetch: false,
         jwks_api_version: None,
         client: None,
+        jwk_verifier_factory: &factory,
     };
 
     let result = verify_mst_receipt(input);
@@ -286,6 +301,7 @@ fn test_verify_receipt_invalid_cbor() {
 
 #[test]
 fn test_verify_receipt_empty_bytes() {
+    let factory = OpenSslJwkVerifierFactory;
     let input = ReceiptVerifyInput {
         statement_bytes_with_receipts: &[],
         receipt_bytes: &[], // Empty bytes
@@ -293,6 +309,7 @@ fn test_verify_receipt_empty_bytes() {
         allow_network_fetch: false,
         jwks_api_version: None,
         client: None,
+        jwk_verifier_factory: &factory,
     };
 
     let result = verify_mst_receipt(input);
@@ -336,6 +353,7 @@ fn test_verify_receipt_no_offline_jwks_no_network() {
     
     let receipt_bytes = enc.into_bytes();
     
+    let factory = OpenSslJwkVerifierFactory;
     let input = ReceiptVerifyInput {
         statement_bytes_with_receipts: &[],
         receipt_bytes: &receipt_bytes,
@@ -343,6 +361,7 @@ fn test_verify_receipt_no_offline_jwks_no_network() {
         allow_network_fetch: false, // no network fetch
         jwks_api_version: None,
         client: None,
+        jwk_verifier_factory: &factory,
     };
     
     let result = verify_mst_receipt(input);
@@ -400,6 +419,7 @@ fn test_verify_receipt_jwk_not_found() {
         ]
     }"#;
     
+    let factory = OpenSslJwkVerifierFactory;
     let input = ReceiptVerifyInput {
         statement_bytes_with_receipts: &[],
         receipt_bytes: &receipt_bytes,
@@ -407,6 +427,7 @@ fn test_verify_receipt_jwk_not_found() {
         allow_network_fetch: false, // no network fallback
         jwks_api_version: None,
         client: None,
+        jwk_verifier_factory: &factory,
     };
     
     let result = verify_mst_receipt(input);
@@ -457,6 +478,7 @@ fn test_verify_receipt_invalid_statement_bytes() {
     // Provide invalid statement bytes that will fail the reencode step
     let invalid_statement = vec![0xFF, 0xFF]; // Invalid CBOR
     
+    let factory = OpenSslJwkVerifierFactory;
     let input = ReceiptVerifyInput {
         statement_bytes_with_receipts: &invalid_statement,
         receipt_bytes: &receipt_bytes,
@@ -464,6 +486,7 @@ fn test_verify_receipt_invalid_statement_bytes() {
         allow_network_fetch: false,
         jwks_api_version: None,
         client: None,
+        jwk_verifier_factory: &factory,
     };
     
     let result = verify_mst_receipt(input);
@@ -503,6 +526,7 @@ fn test_verify_receipt_es384_algorithm() {
     
     let receipt_bytes = enc.into_bytes();
     
+    let factory = OpenSslJwkVerifierFactory;
     let input = ReceiptVerifyInput {
         statement_bytes_with_receipts: &[],
         receipt_bytes: &receipt_bytes,
@@ -510,11 +534,12 @@ fn test_verify_receipt_es384_algorithm() {
         allow_network_fetch: false,
         jwks_api_version: None,
         client: None,
+        jwk_verifier_factory: &factory,
     };
     
     let result = verify_mst_receipt(input);
     assert!(result.is_err());
-    // This exercises the ES384 path in ring_verifier_for_cose_alg
+    // This exercises the ES384 path in validate_cose_alg_supported
 }
 
 #[test]
@@ -563,6 +588,7 @@ fn test_verify_receipt_with_vdp_header() {
     
     let receipt_bytes = enc.into_bytes();
     
+    let factory = OpenSslJwkVerifierFactory;
     let input = ReceiptVerifyInput {
         statement_bytes_with_receipts: &[],
         receipt_bytes: &receipt_bytes,
@@ -570,6 +596,7 @@ fn test_verify_receipt_with_vdp_header() {
         allow_network_fetch: false,
         jwks_api_version: None,
         client: None,
+        jwk_verifier_factory: &factory,
     };
     
     let result = verify_mst_receipt(input);
@@ -610,6 +637,7 @@ fn test_verify_receipt_missing_cwt_issuer() {
     
     let receipt_bytes = enc.into_bytes();
     
+    let factory = OpenSslJwkVerifierFactory;
     let input = ReceiptVerifyInput {
         statement_bytes_with_receipts: &[],
         receipt_bytes: &receipt_bytes,
@@ -617,6 +645,7 @@ fn test_verify_receipt_missing_cwt_issuer() {
         allow_network_fetch: false,
         jwks_api_version: None,
         client: None,
+        jwk_verifier_factory: &factory,
     };
     
     let result = verify_mst_receipt(input);

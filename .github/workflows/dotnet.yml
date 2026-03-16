@@ -78,21 +78,68 @@ jobs:
       run: ${{ matrix.dir_command }}
 
   native-coverage-windows:
-    name: native-coverage-windows-asan
+    name: native-coverage-windows
     if: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
     runs-on: windows-latest
+    env:
+      VCPKG_ROOT: C:\vcpkg
+      OPENSSL_DIR: C:\vcpkg\installed\x64-windows
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Setup Rust
+    # ── OpenSSL via vcpkg ──────────────────────────────────────────────
+    - name: Install OpenSSL via vcpkg
+      shell: pwsh
+      run: |
+        & "$env:VCPKG_ROOT\vcpkg" install openssl:x64-windows
+        # Ensure OpenSSL DLLs are on PATH for test execution
+        $env:PATH = "$env:VCPKG_ROOT\installed\x64-windows\bin;$env:PATH"
+        [Environment]::SetEnvironmentVariable('PATH', $env:PATH, 'Process')
+
+    # ── Rust toolchains ────────────────────────────────────────────────
+    - name: Setup Rust (stable)
       uses: dtolnay/rust-toolchain@stable
 
+    - name: Setup Rust (nightly, for coverage)
+      uses: dtolnay/rust-toolchain@nightly
+      with:
+        components: llvm-tools-preview
+
+    - name: Install cargo-llvm-cov
+      shell: pwsh
+      run: cargo install cargo-llvm-cov --locked
+
+    # ── Rust: build + test ─────────────────────────────────────────────
+    - name: Build Rust workspace (exclude partner crate)
+      shell: pwsh
+      run: |
+        $env:PATH = "$env:VCPKG_ROOT\installed\x64-windows\bin;$env:PATH"
+        cargo build --manifest-path native/rust/Cargo.toml --workspace --exclude cose-openssl
+
+    - name: Test Rust workspace (exclude partner crate)
+      shell: pwsh
+      run: |
+        $env:PATH = "$env:VCPKG_ROOT\installed\x64-windows\bin;$env:PATH"
+        cargo test --manifest-path native/rust/Cargo.toml --workspace --exclude cose-openssl
+
+    # ── Rust: coverage (90% gate) ─────────────────────────────────────
+    - name: Rust coverage (90% line gate)
+      shell: pwsh
+      run: |
+        $env:PATH = "$env:VCPKG_ROOT\installed\x64-windows\bin;$env:PATH"
+        Push-Location native/rust
+        pwsh -NoProfile -File collect-coverage.ps1 -NoHtml
+        Pop-Location
+
+    # ── Build Rust FFI static libraries for C/C++ tests ───────────────
     - name: Build Rust FFI libraries (release)
       shell: pwsh
       run: |
-        cargo build --manifest-path native/rust/Cargo.toml --release -p cose_sign1_validation_ffi -p cose_sign1_validation_ffi_certificates -p cose_sign1_validation_ffi_mst -p cose_sign1_validation_ffi_akv -p cose_sign1_validation_ffi_trust
+        $env:PATH = "$env:VCPKG_ROOT\installed\x64-windows\bin;$env:PATH"
+        cargo build --manifest-path native/rust/Cargo.toml --release --workspace --exclude cose-openssl
 
+    # ── C/C++ coverage ─────────────────────────────────────────────────
     - name: Install OpenCppCoverage
       shell: pwsh
       run: |
@@ -101,11 +148,13 @@ jobs:
     - name: Native C coverage (Debug + ASAN, 95% gate)
       shell: pwsh
       run: |
+        $env:PATH = "$env:VCPKG_ROOT\installed\x64-windows\bin;$env:PATH"
         ./native/c/collect-coverage.ps1 -Configuration Debug -MinimumLineCoveragePercent 95
 
     - name: Native C++ coverage (Debug + ASAN, 95% gate)
       shell: pwsh
       run: |
+        $env:PATH = "$env:VCPKG_ROOT\installed\x64-windows\bin;$env:PATH"
         ./native/c_pp/collect-coverage.ps1 -Configuration Debug -MinimumLineCoveragePercent 95
 
   # Create a changelog that includes all the PRs merged since the last release.

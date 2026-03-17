@@ -230,6 +230,12 @@ public:
     
 private:
     friend class CryptoProvider;
+    friend CryptoVerifierHandle VerifierFromEcJwk(
+        const std::string&, const std::string&, const std::string&,
+        int64_t, const std::string&);
+    friend CryptoVerifierHandle VerifierFromRsaJwk(
+        const std::string&, const std::string&,
+        int64_t, const std::string&);
     explicit CryptoVerifierHandle(cose_crypto_verifier_t* h) : handle_(h) {}
     cose_crypto_verifier_t* handle_;
 };

@@ -20,7 +20,7 @@
     <PackageVersion Include="Azure.Core" Version="1.51.1" />
     <PackageVersion Include="Azure.Identity" Version="1.18.0" />
     <PackageVersion Include="Azure.Security.CodeTransparency" Version="1.0.0-beta.8" />
-    <PackageVersion Include="Azure.Developer.TrustedSigning.CryptoProvider" Version="0.1.60" />
+    <PackageVersion Include="Azure.Developer.ArtifactSigning.CryptoProvider" Version="0.1.72" />
   </ItemGroup>
   <!-- Testing Framework Packages -->
   <ItemGroup>

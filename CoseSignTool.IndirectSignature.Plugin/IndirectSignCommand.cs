@@ -31,24 +31,24 @@ public class IndirectSignCommand : IndirectSignatureCommandBase
             {
                 options[option.Key] = option.Value;
             }
-            
+
             // Add CWT Claims options for SCITT compliance
             options["enable-scitt"] = "Enable SCITT compliance with automatic CWT claims (default: true)";
             options["cwt-issuer"] = "The CWT issuer (iss) claim. Defaults to DID:x509 identity from certificate";
             options["cwt-subject"] = "The CWT subject (sub) claim. Defaults to 'UnknownIntent'";
             options["cwt-audience"] = "The CWT audience (aud) claim (optional)";
-            
+
             // Add payload location option for CoseHashEnvelope format
             options["payload-location"] = "A URI indicating where the payload can be retrieved from (optional, CoseHashEnvelope format only)";
-            
+
             return options;
         }
     }
 
     /// <inheritdoc/>
-    public override string Usage => GetBaseUsage("indirect-sign", "sign") + 
-                                   GetCertificateUsage() + 
-                                   GetAdditionalOptionalArguments() + 
+    public override string Usage => GetBaseUsage("indirect-sign", "sign") +
+                                   GetCertificateUsage() +
+                                   GetAdditionalOptionalArguments() +
                                    GetCertificateProviderInfo() +
                                    GetExamples();
 
@@ -112,7 +112,7 @@ Payload location (optional):
             // Parse algorithm and version parameters
             HashAlgorithmName hashAlgorithm;
             IndirectSignatureFactory.IndirectSignatureVersion signatureVersion;
-            
+
             try
             {
                 hashAlgorithm = ParseHashAlgorithm(configuration);
@@ -129,7 +129,7 @@ Payload location (optional):
             string? cwtIssuer = GetOptionalValue(configuration, "cwt-issuer");
             string? cwtSubject = GetOptionalValue(configuration, "cwt-subject");
             string? cwtAudience = GetOptionalValue(configuration, "cwt-audience");
-            
+
             // Parse custom CWT claims (can be specified multiple times)
             List<string>? cwtClaims = null;
             string? cwtClaimsValue = GetOptionalValue(configuration, "cwt-claims");
@@ -149,7 +149,7 @@ Payload location (optional):
                     index++;
                 }
             }
-            
+
             Logger.LogVerbose($"SCITT compliance: {enableScitt}");
             if (!string.IsNullOrEmpty(cwtIssuer))
             {
@@ -179,12 +179,12 @@ Payload location (optional):
             using CancellationTokenSource combinedCts = CreateTimeoutCancellationToken(timeoutSeconds, cancellationToken);
             Logger.LogVerbose($"Creating indirect signature with hash algorithm: {hashAlgorithm.Name}, version: {signatureVersion}");
             (PluginExitCode exitCode, JsonElement? result) = await CreateIndirectSignature(
-                payloadPath, 
-                signaturePath, 
-                certificate, 
+                payloadPath,
+                signaturePath,
+                certificate,
                 additionalCertificates,
-                contentType, 
-                hashAlgorithm, 
+                contentType,
+                hashAlgorithm,
                 signatureVersion,
                 configuration,
                 enableScitt,
@@ -265,7 +265,7 @@ Payload location (optional):
             logger.LogVerbose($"Reading payload from: {payloadPath}");
             byte[] payload = await File.ReadAllBytesAsync(payloadPath, cancellationToken);
             logger.LogVerbose($"Payload size: {payload.Length} bytes");
-            
+
             // Create signing key provider
             logger.LogVerbose($"Using certificate: {certificate.Subject}");
             logger.LogVerbose($"Certificate thumbprint: {certificate.Thumbprint}");
@@ -288,7 +288,7 @@ Payload location (optional):
             if (!string.IsNullOrEmpty(cwtIssuer) || !string.IsNullOrEmpty(cwtSubject) || !string.IsNullOrEmpty(cwtAudience) || (cwtClaims != null && cwtClaims.Count > 0))
             {
                 logger.LogVerbose("Creating CWT claims customizer to override defaults");
-                
+
                 // Create a CWT claims extender with user-specified values
                 // This will merge with and override the automatic defaults from CertificateCoseSigningKeyProvider
                 CoseSign1.Headers.CWTClaimsHeaderExtender cwtCustomizer = new();
@@ -335,7 +335,7 @@ Payload location (optional):
 
             // Create indirect signature factory
             using IndirectSignatureFactory factory = new IndirectSignatureFactory(hashAlgorithm);
-            
+
             // Create the indirect signature with optional header extender
             // Note: When EnableScittCompliance is true, CertificateCoseSigningKeyProvider automatically includes default CWT claims
             logger.LogVerbose("Creating indirect signature...");
@@ -515,10 +515,10 @@ Payload location (optional):
         usage.AppendLine();
         usage.AppendLine("Certificate options (one source required for signing):");
         usage.AppendLine();
-        
+
         // Add certificate provider options if any are available
         usage.AppendLine("  Certificate Provider Plugin (recommended for cloud/HSM signing):");
-        usage.AppendLine("    --cert-provider   Use a certificate provider plugin (e.g., azure-trusted-signing)");
+        usage.AppendLine("    --cert-provider   Use a certificate provider plugin (e.g., azure-artifact-signing)");
         usage.AppendLine("                      See Certificate Providers section below for available providers");
         usage.AppendLine();
         usage.AppendLine("  --OR--");
@@ -543,7 +543,7 @@ Payload location (optional):
         usage.AppendLine("                    Labels: integers or RFC 8392 names (iss, sub, aud, exp, nbf, iat, cti).");
         usage.AppendLine("                    Timestamps accept date/time strings or Unix timestamps.");
         usage.AppendLine("                    Examples: --cwt-claims \"exp:2024-12-31T23:59:59Z\" --cwt-claims \"100:custom-value\"");
-        
+
         return usage.ToString();
     }
 
@@ -563,7 +563,7 @@ Payload location (optional):
         System.Reflection.FieldInfo? managerField = coseSignToolType.GetField(
             "CertificateProviderManager",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public);
-        
+
         if (managerField == null)
         {
             return string.Empty;
@@ -580,11 +580,11 @@ Payload location (optional):
         sb.AppendLine();
         sb.AppendLine("  The following certificate provider plugins are available:");
         sb.AppendLine();
-        
+
         foreach (var kvp in manager.Providers)
         {
             sb.AppendLine($"  {kvp.Key,-30} {kvp.Value.Description}");
-            
+
             // Show required parameters if available
             var providerOptions = kvp.Value.GetProviderOptions();
             if (providerOptions.Any())
@@ -598,10 +598,10 @@ Payload location (optional):
             }
             sb.AppendLine();
         }
-        
+
         sb.AppendLine("  For detailed documentation, use: CoseSignTool help <provider-name>");
         sb.AppendLine();
-        
+
         return sb.ToString();
     }
 

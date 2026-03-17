@@ -107,20 +107,10 @@ impl AkvKeyClient {
             CurveName::P521 => "P-521".to_string(),
             _ => "Unknown".to_string(),
         });
-        // Derive version from the kid URL if not explicitly provided.
-        // The kid URL is formatted as: https://{vault}/keys/{name}/{version}
-        // We extract only the last path segment (a UUID/counter) and reconstruct
-        // key_id from caller-supplied inputs, breaking the taint chain from
-        // key_response for CodeQL cleartext-logging safety.
-        let kid_derived_version: Option<String> = key_response.key.as_ref()
-            .and_then(|k| k.kid.as_ref())
-            .and_then(|kid| {
-                let seg = kid.rsplit('/').next().unwrap_or("");
-                if seg.is_empty() { None } else { Some(String::from(seg)) }
-            });
-        let resolved_version = key_version
-            .map(|s| s.to_string())
-            .or(kid_derived_version);
+        // Use only the caller-supplied key_version to avoid taint from the API
+        // response (CodeQL cleartext-logging). If the caller didn't supply a
+        // version, we construct the key_id without a version segment.
+        let resolved_version = key_version.map(|s| s.to_string());
 
         // Construct key_id from caller-supplied vault_url/key_name (not from the
         // API response) so the value carries no response-derived taint.

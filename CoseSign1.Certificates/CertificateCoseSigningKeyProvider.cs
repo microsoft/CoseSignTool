@@ -55,6 +55,10 @@ public abstract class CertificateCoseSigningKeyProvider : ICoseSigningKeyProvide
             {
                 return null;
             }
+            catch (CoseSign1Exception)
+            {
+                return null;
+            }
         }
     }
 

@@ -152,7 +152,8 @@ public class MstTransparencyServiceLoggingTests
         {
             await service.VerifyTransparencyAsync(message);
         }
-        catch
+        // Intentionally catching all exceptions: test expects failure with mock data.
+        catch (Exception)
         {
             // Expected to fail since we're using mock data
         }

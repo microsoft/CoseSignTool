@@ -199,7 +199,7 @@ public class CoseSign1MessageFactoryTests
         ArgumentOutOfRangeException? bytesException = Assert.Throws<ArgumentOutOfRangeException>(() => coseSign1MessageFactory.CreateCoseSign1Message(bytesPayload, keyProvider));
         bytesException.Message.Should().Be("The payload to sign is empty.");
 
-        Stream streamPayload = new MemoryStream();
+        using Stream streamPayload = new MemoryStream();
         ArgumentOutOfRangeException? streamException = Assert.Throws<ArgumentOutOfRangeException>(() => coseSign1MessageFactory.CreateCoseSign1Message(streamPayload, keyProvider));
         streamException.Message.Should().Be("The payload to sign is empty.");
 

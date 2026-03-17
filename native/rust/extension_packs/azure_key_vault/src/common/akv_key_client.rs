@@ -102,6 +102,8 @@ impl AkvKeyClient {
 
         // Extract key version from the kid URL if not explicitly provided.
         // The kid URL is formatted as: https://{vault}/keys/{name}/{version}
+        // Safe to store: key_version is a non-secret version identifier (UUID or counter),
+        // not key material. It is used only for AKV API routing, never logged.
         let resolved_version = key_version
             .map(|s| s.to_string())
             .or_else(|| {

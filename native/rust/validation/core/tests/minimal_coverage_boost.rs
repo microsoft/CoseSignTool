@@ -213,7 +213,7 @@ fn test_async_validate_basic() {
     // The validation may fail due to signature verification issues with our mock setup
     // The important thing is that we exercise the async code path without panicking
     match result {
-        Ok(validation_result) => {
+        Ok(_validation_result) => {
             // If validation succeeds, that's good
             println!("Validation succeeded");
         }

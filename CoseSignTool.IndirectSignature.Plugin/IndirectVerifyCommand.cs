@@ -127,6 +127,7 @@ public class IndirectVerifyCommand : IndirectSignatureCommandBase
             Logger.LogVerbose("Indirect verify operation completed");
             return exitCode;
         }
+        // Intentionally catching all exceptions: top-level plugin command handler maps any failure to an exit code.
         catch (Exception ex)
         {
             return HandleCommonException(ex, configuration, cancellationToken, Logger);
@@ -251,6 +252,7 @@ public class IndirectVerifyCommand : IndirectSignatureCommandBase
             PluginExitCode exitCode = isValid ? PluginExitCode.Success : PluginExitCode.IndirectSignatureVerificationFailure;
             return (exitCode, jsonResult);
         }
+        // Intentionally catching all exceptions: verification can fail due to cryptographic, I/O, or format errors.
         catch (Exception ex)
         {
             logger.LogError($"Error verifying indirect signature: {ex.Message}");
@@ -273,7 +275,13 @@ public class IndirectVerifyCommand : IndirectSignatureCommandBase
             collection.Import(rootCertsPath);
             return collection.Cast<X509Certificate2>().ToList();
         }
-        catch (Exception ex)
+        catch (CryptographicException ex)
+        {
+            logger.LogWarning($"Failed to load root certificates from {rootCertsPath}: {ex.Message}");
+            logger.LogException(ex);
+            return new List<X509Certificate2>();
+        }
+        catch (IOException ex)
         {
             logger.LogWarning($"Failed to load root certificates from {rootCertsPath}: {ex.Message}");
             logger.LogException(ex);

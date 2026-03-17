@@ -180,7 +180,8 @@ public class DidX509Generator
 
             return result.ToString();
         }
-        catch
+        // Intentionally catching all exceptions: DN parsing can fail in various ways and should not prevent DID generation.
+        catch (Exception)
         {
             // If parsing fails, return empty string
             return string.Empty;
@@ -329,21 +330,13 @@ public class DidX509Generator
             return false;
         }
         
-        var parts = value.Split('.');
+        string[] parts = value.Split('.');
         if (parts.Length < 2)
         {
             return false;
         }
         
-        foreach (var part in parts)
-        {
-            if (string.IsNullOrEmpty(part) || !part.All(char.IsDigit))
-            {
-                return false;
-            }
-        }
-        
-        return true;
+        return parts.All(part => !string.IsNullOrEmpty(part) && part.All(char.IsDigit));
     }
 
     /// <summary>
@@ -351,7 +344,10 @@ public class DidX509Generator
     /// </summary>
     protected static bool IsHexDigit(char c)
     {
-        return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+        bool isDigit = c >= '0' && c <= '9';
+        bool isLowerHex = c >= 'a' && c <= 'f';
+        bool isUpperHex = c >= 'A' && c <= 'F';
+        return isDigit || isLowerHex || isUpperHex;
     }
 
     /// <summary>
@@ -396,10 +392,11 @@ public class DidX509Generator
     /// </summary>
     protected static bool IsDidX509AllowedCharacter(char c)
     {
-        return (c >= 'A' && c <= 'Z') ||
-               (c >= 'a' && c <= 'z') ||
-               (c >= '0' && c <= '9') ||
-               c == '-' || c == '_' || c == '.';
+        bool isUpperAlpha = c >= 'A' && c <= 'Z';
+        bool isLowerAlpha = c >= 'a' && c <= 'z';
+        bool isDigit = c >= '0' && c <= '9';
+        bool isSpecialChar = c == '-' || c == '_' || c == '.';
+        return isUpperAlpha || isLowerAlpha || isDigit || isSpecialChar;
     }
 
     /// <summary>
@@ -421,10 +418,11 @@ public class DidX509Generator
     /// </summary>
     protected static bool IsBase64UrlCharacter(char c)
     {
-        return (c >= 'A' && c <= 'Z') ||
-               (c >= 'a' && c <= 'z') ||
-               (c >= '0' && c <= '9') ||
-               c == '-' || c == '_';
+        bool isUpperAlpha = c >= 'A' && c <= 'Z';
+        bool isLowerAlpha = c >= 'a' && c <= 'z';
+        bool isDigit = c >= '0' && c <= '9';
+        bool isSpecialChar = c == '-' || c == '_';
+        return isUpperAlpha || isLowerAlpha || isDigit || isSpecialChar;
     }
 
     /// <summary>
@@ -468,12 +466,9 @@ public class DidX509Generator
         }
 
         // Verify hash is valid base64url
-        foreach (char c in hashPart)
+        if (!hashPart.All(IsBase64UrlCharacter))
         {
-            if (!IsBase64UrlCharacter(c))
-            {
-                return false;
-            }
+            return false;
         }
 
         // Validate subject policy format

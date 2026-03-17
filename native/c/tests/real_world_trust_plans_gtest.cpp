@@ -32,9 +32,9 @@ extern "C" {
 
 static std::string take_last_error() {
     char* err = cose_last_error_message_utf8();
-    std::string out = err ? err : "(no error message)";
+    std::string error_message = err ? err : "(no error message)";
     if (err) cose_string_free(err);
-    return out;
+    return error_message;
 }
 
 static void assert_ok(cose_status_t st, const char* call) {
@@ -58,15 +58,15 @@ static std::vector<uint8_t> read_file_bytes(const std::string& path) {
     }
 
     f.seekg(0, std::ios::beg);
-    std::vector<uint8_t> out(static_cast<size_t>(size));
-    if (!out.empty()) {
-        f.read(reinterpret_cast<char*>(out.data()), static_cast<std::streamsize>(out.size()));
+    std::vector<uint8_t> file_bytes(static_cast<size_t>(size));
+    if (!file_bytes.empty()) {
+        f.read(reinterpret_cast<char*>(file_bytes.data()), static_cast<std::streamsize>(file_bytes.size()));
         if (!f) {
             throw std::runtime_error("failed to read file: " + path);
         }
     }
 
-    return out;
+    return file_bytes;
 }
 
 static std::string join_path2(const std::string& a, const std::string& b) {
@@ -95,11 +95,11 @@ TEST(RealWorldTrustPlansC, CoverageHelpers) {
     std::string tmp_dir = temp ? temp : ".";
     std::string tmp_path = join_path2(tmp_dir, "cose_native_tmp_file.bin");
     {
-        std::ofstream out(tmp_path, std::ios::binary | std::ios::trunc);
-        ASSERT_TRUE(out.good());
+        std::ofstream output_stream(tmp_path, std::ios::binary | std::ios::trunc);
+        ASSERT_TRUE(output_stream.good());
         const unsigned char bytes[3] = { 1, 2, 3 };
-        out.write(reinterpret_cast<const char*>(bytes), 3);
-        ASSERT_TRUE(out.good());
+        output_stream.write(reinterpret_cast<const char*>(bytes), 3);
+        ASSERT_TRUE(output_stream.good());
     }
 
     auto got = read_file_bytes(tmp_path);

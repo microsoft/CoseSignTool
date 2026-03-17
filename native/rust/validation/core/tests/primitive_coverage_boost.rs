@@ -191,7 +191,7 @@ fn test_cose_sign1_message_comprehensive() {
         create_detached_cose_message(),
     ];
     
-    for (i, message_bytes) in test_messages.into_iter().enumerate() {
+    for (_i, message_bytes) in test_messages.into_iter().enumerate() {
         // Test parsing each message
         match CoseSign1Message::parse(&message_bytes) {
             Ok(message) => {

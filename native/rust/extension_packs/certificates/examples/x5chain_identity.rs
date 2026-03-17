@@ -59,15 +59,16 @@ fn main() {
 
     match facts {
         TrustFactSet::Available(items) => {
+            // Example-only: in production, avoid logging certificate thumbprints or subject names.
             println!("x5chain items: {}", items.len());
-            for f in items {
-                println!("thumbprint: {}", f.certificate_thumbprint);
-                println!("subject: {}", f.subject);
-                println!("issuer: {}", f.issuer);
+            for f in &items {
+                println!("thumbprint: [{} bytes]", f.certificate_thumbprint.len());
+                println!("subject: [present={}]", !f.subject.is_empty());
+                println!("issuer: [present={}]", !f.issuer.is_empty());
             }
         }
-        other => {
-            println!("unexpected fact set: {:?}", other);
+        _other => {
+            println!("unexpected fact set variant");
         }
     }
 }

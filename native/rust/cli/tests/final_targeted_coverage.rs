@@ -561,6 +561,7 @@ fn pfx_provider_with_valid_pfx() {
 
     let dir = temp_dir("pfx_prov");
     let pfx_path = dir.join("test.pfx");
+    // Test-only: deterministic key material for reproducible tests
     make_pfx(&pfx_path, "testpass");
 
     let args = SigningProviderArgs {
@@ -596,6 +597,7 @@ fn pfx_provider_wrong_password() {
 
     let dir = temp_dir("pfx_badpw");
     let pfx_path = dir.join("test.pfx");
+    // Test-only: deterministic key material for reproducible tests
     make_pfx(&pfx_path, "correct");
 
     let args = SigningProviderArgs {

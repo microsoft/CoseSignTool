@@ -721,8 +721,8 @@ public class IndirectSignCommandTests
             bool hasClaims = message.TryGetCwtClaims(out CwtClaims? claims);
             Assert.IsTrue(hasClaims);
             Assert.IsNotNull(claims);
-            Assert.IsTrue(claims.CustomClaims.ContainsKey(101));
-            Assert.AreEqual(timestamp, claims.CustomClaims[101]);
+            Assert.IsTrue(claims.CustomClaims.TryGetValue(101, out object? customClaimValue));
+            Assert.AreEqual(timestamp, customClaimValue);
         }
         finally
         {
@@ -1044,8 +1044,8 @@ public class IndirectSignCommandTests
         IDictionary<string, string> options = command.Options;
 
         // Assert
-        Assert.IsTrue(options.ContainsKey("payload-location"), "Options should contain payload-location");
-        Assert.IsTrue(options["payload-location"].Contains("URI"), "payload-location description should mention URI");
+        Assert.IsTrue(options.TryGetValue("payload-location", out string? payloadLocationValue), "Options should contain payload-location");
+        Assert.IsTrue(payloadLocationValue!.Contains("URI"), "payload-location description should mention URI");
     }
 
     [TestMethod]

@@ -558,11 +558,13 @@ public class CertificateCoseSigningKeyProviderTests
     [Test]
     public void TestConstructorWithNullChainBuilderDefaultsToX509ChainBuilder()
     {
+        ICertificateChainBuilder? nullBuilder = null;
+        List<X509Certificate2>? nullRoots = null;
         Mock<CertificateCoseSigningKeyProvider> testObj = new(
             MockBehavior.Strict,
-            (ICertificateChainBuilder?)null,
+            nullBuilder,
             HashAlgorithmName.SHA256,
-            (List<X509Certificate2>?)null)
+            nullRoots)
         {
             CallBase = true
         };
@@ -811,7 +813,7 @@ public class CertificateCoseSigningKeyProviderTests
     [Test]
     public void TestConstructorWithRootCertificatesNonZeroCount()
     {
-        X509Certificate2 root = TestCertificateUtils.CreateCertificate("Root");
+        using X509Certificate2 root = TestCertificateUtils.CreateCertificate("Root");
         List<X509Certificate2> rootCerts = new() { root };
 
         Mock<CertificateCoseSigningKeyProvider> testObj = new(
@@ -825,8 +827,6 @@ public class CertificateCoseSigningKeyProviderTests
 
         testObj.Object.ChainBuilder.Should().NotBeNull();
         testObj.Object.ChainBuilder!.ChainPolicy.ExtraStore.Count.Should().Be(1);
-
-        root.Dispose();
     }
 
     /// <summary>

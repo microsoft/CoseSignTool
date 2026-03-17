@@ -66,7 +66,8 @@ public class CoseSign1MessageCwtClaimsExtensionsTests
     public void TryGetCwtClaims_WithNullMessage_ReturnsFalse()
     {
         // Act
-        bool result = ((CoseSign1Message?)null).TryGetCwtClaims(out CwtClaims? claims);
+        CoseSign1Message? nullMessage = null;
+        bool result = nullMessage.TryGetCwtClaims(out CwtClaims? claims);
 
         // Assert
         Assert.That(result, Is.False);

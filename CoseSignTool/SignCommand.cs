@@ -9,7 +9,7 @@ using CoseSign1.Abstractions.Interfaces;
 /// <summary>
 /// Signs a file with a COSE signature based on passed in command line arguments.
 /// </summary>
-public class SignCommand : CoseCommand
+public sealed class SignCommand : CoseCommand
 {
     /// <summary>
     /// A map of command line options to their abbreviated aliases.
@@ -320,14 +320,9 @@ public class SignCommand : CoseCommand
                 }
 
                 // Chain the CWT customizer with any existing header extender
-                if (headerExtender != null)
-                {
-                    headerExtender = new CoseSign1.Headers.ChainedCoseHeaderExtender(new[] { cwtCustomizer, headerExtender });
-                }
-                else
-                {
-                    headerExtender = cwtCustomizer;
-                }
+                headerExtender = headerExtender != null
+                    ? new CoseSign1.Headers.ChainedCoseHeaderExtender(new[] { cwtCustomizer, headerExtender })
+                    : cwtCustomizer;
             }
 
             // Create a cancellation token with timeout (default 30 seconds from MaxWaitTime)
@@ -1315,7 +1310,7 @@ public class SignCommand : CoseCommand
     /// Command line usage specific to the SignInternal command.
     /// Each line should have no more than 120 characters to avoid wrapping. Break is here:                            *V*
     /// </summary>
-    protected new const string UsageString = @"
+    private new const string UsageString = @"
 Sign command: Signs the specified file or piped content with a detached or embedded COSE signature.
     A detached signature resides in a separate file and validates against the original content when provided.
     An embedded signature contains a copy of the original payload. Not supported for payload of >2gb in size.

@@ -314,7 +314,7 @@ public class CertificateProviderPluginManagerTests
     {
         // Arrange
         CertificateProviderPluginManager manager = new CertificateProviderPluginManager();
-        string nonExistentPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        string nonExistentPath = Path.Join(Path.GetTempPath(), Guid.NewGuid().ToString());
 
         // Act & Assert - Should not throw
         manager.DiscoverAndLoadPlugins(nonExistentPath);
@@ -326,7 +326,7 @@ public class CertificateProviderPluginManagerTests
     {
         // Arrange
         CertificateProviderPluginManager manager = new CertificateProviderPluginManager();
-        string nonExistentFile = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.dll");
+        string nonExistentFile = Path.Join(Path.GetTempPath(), $"{Guid.NewGuid()}.dll");
 
         // Act & Assert
         Assert.ThrowsException<FileNotFoundException>(() => manager.LoadPluginFromAssembly(nonExistentFile));
@@ -413,7 +413,7 @@ public class CertificateProviderPluginManagerTests
         // Arrange
         Mock<IPluginLogger> mockLogger = new Mock<IPluginLogger>();
         CertificateProviderPluginManager manager = new CertificateProviderPluginManager(mockLogger.Object);
-        string nonExistentPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}");
+        string nonExistentPath = Path.Join(Path.GetTempPath(), $"{Guid.NewGuid()}");
 
         // Act
         manager.DiscoverAndLoadPlugins(nonExistentPath);
@@ -428,7 +428,7 @@ public class CertificateProviderPluginManagerTests
         // Arrange
         Mock<IPluginLogger> mockLogger = new Mock<IPluginLogger>();
         CertificateProviderPluginManager manager = new CertificateProviderPluginManager(mockLogger.Object);
-        string tempDir = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}");
+        string tempDir = Path.Join(Path.GetTempPath(), $"{Guid.NewGuid()}");
         Directory.CreateDirectory(tempDir);
 
         try

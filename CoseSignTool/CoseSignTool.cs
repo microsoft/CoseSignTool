@@ -300,6 +300,7 @@ public class CoseSignTool
         {
             return Fail(ExitCode.UserSpecifiedFileNotFound, ex);
         }
+        // Intentionally catching all exceptions: top-level entry point must map any unhandled failure to an exit code.
         catch (Exception ex)
         {
             return Fail(ExitCode.UnknownError, ex);

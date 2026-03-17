@@ -63,7 +63,7 @@ fn test_new_with_mismatched_chain_error() {
     
     match result {
         Err(CertificateError::InvalidCertificate(msg)) => {
-            assert!(msg.contains("First chain certificate does not match"), "Error: {}", msg);
+            assert!(msg.contains("First chain certificate does not match"), "error message did not contain expected substring (len={})", msg.len());
         }
         _ => panic!("Expected InvalidCertificate error"),
     }

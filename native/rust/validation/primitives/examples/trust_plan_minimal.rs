@@ -74,5 +74,6 @@ fn main() {
         .evaluate(&engine, &subject, &Default::default())
         .expect("trust evaluation failed");
 
-    println!("decision: {:?}", decision);
+    // Example-only: in production, avoid logging full trust decision details.
+    println!("decision resolved: is_trusted={}", decision.is_trusted);
 }

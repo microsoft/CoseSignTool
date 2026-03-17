@@ -150,6 +150,7 @@ fn test_sign_command_pfx_provider() {
     let payload_path = temp_dir.join("payload.txt");
     let output_path = temp_dir.join("output.cose");
 
+    // Test-only: deterministic key material for reproducible tests
     let password = "test123";
     create_test_pfx(&pfx_path, password);
     create_test_payload(&payload_path, b"PFX signature test");
@@ -173,6 +174,7 @@ fn test_sign_command_pfx_wrong_password() {
     let payload_path = temp_dir.join("payload.txt");
     let output_path = temp_dir.join("output.cose");
 
+    // Test-only: deterministic key material for reproducible tests
     create_test_pfx(&pfx_path, "correct123");
     create_test_payload(&payload_path, b"PFX wrong password test");
 
@@ -385,6 +387,7 @@ fn test_pfx_password_env_fallback() {
     let payload_path = temp_dir.join("payload.txt");
     let output_path = temp_dir.join("output.cose");
 
+    // Test-only: deterministic key material for reproducible tests
     let password = "env_test123";
     create_test_pfx(&pfx_path, password);
     create_test_payload(&payload_path, b"PFX env password test");

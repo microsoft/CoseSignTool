@@ -51,11 +51,14 @@ fn create_validator_builder_with_mixed_packs() -> *mut cose_sign1_validator_buil
         .with_default_trust_plan(plan_with_default_2));
 
     // Add packs directly to the builder's packs vector
-    // SAFETY: We know builder is not null and valid, and packs field is public for testing
+    // SAFETY: builder was verified non-null above via assert, and was allocated by
+    // cose_sign1_validator_builder_new which returns a valid heap-allocated object.
+    // This test intentionally manipulates the builder's internal state for FFI edge case testing.
     unsafe {
-        (*builder).packs.push(pack_with_default);
-        (*builder).packs.push(pack_without_default);
-        (*builder).packs.push(pack_with_default_2);
+        let builder_ref = builder.as_mut().expect("builder pointer must be valid");
+        builder_ref.packs.push(pack_with_default);
+        builder_ref.packs.push(pack_without_default);
+        builder_ref.packs.push(pack_with_default_2);
     }
 
     builder

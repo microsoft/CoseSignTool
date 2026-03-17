@@ -64,6 +64,7 @@ TEST(CoverageSurface, TrustAndCoreBuilders) {
     EXPECT_NO_THROW((void)plan_builder.AddAllPackDefaultPlans());
 
     const size_t pack_count = plan_builder.PackCount();
+    (void)pack_count; // Suppress CodeQL cpp/unused-static-variable false positive.
     // Cover PackName failure path (out-of-range index).
     EXPECT_THROW((void)plan_builder.PackName(pack_count), cose::cose_error);
 
@@ -91,14 +92,14 @@ TEST(CoverageSurface, TrustAndCoreBuilders) {
     allow_all2 = std::move(deny_all2);
 
     // Cover TrustPlanBuilder move-assignment branch where the destination already owns a builder.
-    cose::TrustPlanBuilder tb1(b3);
-    cose::TrustPlanBuilder tb2(b3);
-    tb1 = std::move(tb2);
-    EXPECT_NO_THROW((void)tb1.PackCount());
-    EXPECT_THROW((void)tb2.PackCount(), cose::cose_error);
+    cose::TrustPlanBuilder plan_builder_target(b3);
+    cose::TrustPlanBuilder plan_builder_source(b3);
+    plan_builder_target = std::move(plan_builder_source);
+    EXPECT_NO_THROW((void)plan_builder_target.PackCount());
+    EXPECT_THROW((void)plan_builder_source.PackCount(), cose::cose_error);
 
-    cose::ValidatorBuilder b4;
-    EXPECT_NO_THROW((void)cose::WithCompiledTrustPlan(b4, allow_all));
+    cose::ValidatorBuilder plan_test_builder;
+    EXPECT_NO_THROW((void)cose::WithCompiledTrustPlan(plan_test_builder, allow_all));
 
     // Cover WithCompiledTrustPlan error path by using a moved-from builder handle.
     cose::ValidatorBuilder moved_from;
@@ -107,11 +108,11 @@ TEST(CoverageSurface, TrustAndCoreBuilders) {
     EXPECT_THROW((void)cose::WithCompiledTrustPlan(moved_from, allow_all), cose::cose_error);
 
     // Cover CheckBuilder() failure on TrustPolicyBuilder.
-    cose::TrustPolicyBuilder p2(std::move(p));
+    cose::TrustPolicyBuilder moved_policy(std::move(p));
     EXPECT_THROW((void)p.And(), cose::cose_error);
 
-    // Use p2 so it stays alive and is destroyed cleanly.
-    EXPECT_NO_THROW((void)p2.Compile());
+    // Use moved_policy so it stays alive and is destroyed cleanly.
+    EXPECT_NO_THROW((void)moved_policy.Compile());
 }
 
 TEST(CoverageSurface, ThrowsWhenValidatorBuilderConsumed) {

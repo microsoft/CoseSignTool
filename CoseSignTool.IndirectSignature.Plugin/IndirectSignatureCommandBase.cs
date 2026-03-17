@@ -212,6 +212,7 @@ public abstract class IndirectSignatureCommandBase : PluginCommandBase
             logger?.LogException(ex);
             return (null, PluginExitCode.CertificateLoadFailure);
         }
+        // Intentionally catching all exceptions: certificate provider plugins may throw arbitrary exception types.
         catch (Exception ex)
         {
             logger?.LogError($"Unexpected error loading signing key provider: {ex.Message}");
@@ -310,6 +311,8 @@ public abstract class IndirectSignatureCommandBase : PluginCommandBase
                 return (null, null, PluginExitCode.MissingRequiredOption);
             }
         }
+        // Intentionally catching all exceptions: certificate store and PFX operations can throw
+        // CryptographicException, IOException, SecurityException, or platform-specific exceptions.
         catch (Exception ex)
         {
             logger?.LogError($"Error loading certificate: {ex.Message}");
@@ -391,6 +394,7 @@ public abstract class IndirectSignatureCommandBase : PluginCommandBase
             await File.WriteAllTextAsync(outputPath, json, cancellationToken);
             logger?.LogInformation($"Result written to: {outputPath}");
         }
+        // Intentionally catching all exceptions: JSON result writing is best-effort and should not fail the main operation.
         catch (Exception ex)
         {
             logger?.LogWarning($"Failed to write result to {outputPath}: {ex.Message}");

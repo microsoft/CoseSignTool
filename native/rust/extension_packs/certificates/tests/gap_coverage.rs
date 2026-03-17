@@ -107,7 +107,7 @@ fn thumbprint_deserialize_not_array_errors() {
     let result = CoseX509Thumbprint::deserialize(&cbor_int);
     assert!(result.is_err());
     let msg = result.unwrap_err().to_string();
-    assert!(msg.contains("array"), "Expected 'array' in error: {}", msg);
+    assert!(msg.contains("array"), "error message did not contain expected 'array' substring (len={})", msg.len());
 }
 
 #[test]
@@ -117,7 +117,7 @@ fn thumbprint_deserialize_wrong_array_length() {
     let result = CoseX509Thumbprint::deserialize(&cbor_arr3);
     assert!(result.is_err());
     let msg = result.unwrap_err().to_string();
-    assert!(msg.contains("2 element"), "Expected '2 element' in error: {}", msg);
+    assert!(msg.contains("2 element"), "error message did not contain expected '2 element' substring (len={})", msg.len());
 }
 
 #[test]
@@ -132,7 +132,7 @@ fn thumbprint_deserialize_unsupported_hash_id() {
     let result = CoseX509Thumbprint::deserialize(&cbor);
     assert!(result.is_err());
     let msg = result.unwrap_err().to_string();
-    assert!(msg.contains("Unsupported"), "Expected 'Unsupported' in error: {}", msg);
+    assert!(msg.contains("Unsupported"), "error message did not contain expected 'Unsupported' substring (len={})", msg.len());
 }
 
 #[test]
@@ -147,7 +147,7 @@ fn thumbprint_deserialize_non_integer_hash_id() {
     let result = CoseX509Thumbprint::deserialize(&cbor);
     assert!(result.is_err());
     let msg = result.unwrap_err().to_string();
-    assert!(msg.contains("integer"), "Expected 'integer' in error: {}", msg);
+    assert!(msg.contains("integer"), "error message did not contain expected 'integer' substring (len={})", msg.len());
 }
 
 #[test]
@@ -162,7 +162,7 @@ fn thumbprint_deserialize_non_bstr_thumbprint() {
     let result = CoseX509Thumbprint::deserialize(&cbor);
     assert!(result.is_err());
     let msg = result.unwrap_err().to_string();
-    assert!(msg.contains("ByteString"), "Expected 'ByteString' in error: {}", msg);
+    assert!(msg.contains("ByteString"), "error message did not contain expected 'ByteString' substring (len={})", msg.len());
 }
 
 #[test]
@@ -228,7 +228,7 @@ fn extract_x5t_non_bytes_value_returns_error() {
     let result = extract_x5t(&headers);
     assert!(result.is_err());
     let msg = result.unwrap_err().to_string();
-    assert!(msg.contains("raw CBOR or bytes"), "Expected 'raw CBOR or bytes' in: {}", msg);
+    assert!(msg.contains("raw CBOR or bytes"), "error message did not contain expected 'raw CBOR or bytes' substring (len={})", msg.len());
 }
 
 #[test]

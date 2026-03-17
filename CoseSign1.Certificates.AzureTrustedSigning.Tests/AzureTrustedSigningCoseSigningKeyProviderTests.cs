@@ -46,7 +46,8 @@ public class AzureTrustedSigningCoseSigningKeyProviderTests
     {
         // Arrange
         Mock<AzSignContext> mockSignContext = new Mock<AzSignContext>();
-        mockSignContext.Setup(context => context.GetCertChain(It.IsAny<CancellationToken>())).Returns((IReadOnlyList<X509Certificate2>?)null);
+        IReadOnlyList<X509Certificate2>? nullChain = null;
+        mockSignContext.Setup(context => context.GetCertChain(It.IsAny<CancellationToken>())).Returns(nullChain);
         AzureTrustedSigningCoseSigningKeyProvider provider = new AzureTrustedSigningCoseSigningKeyProvider(mockSignContext.Object);
 
         // Act & Assert
@@ -408,7 +409,8 @@ public class AzureTrustedSigningCoseSigningKeyProviderTests
     {
         // Arrange
         Mock<AzSignContext> mockSignContext = new Mock<AzSignContext>();
-        mockSignContext.Setup(context => context.GetCertChain(It.IsAny<CancellationToken>())).Returns((IReadOnlyList<X509Certificate2>?)null);
+        IReadOnlyList<X509Certificate2>? nullChain = null;
+        mockSignContext.Setup(context => context.GetCertChain(It.IsAny<CancellationToken>())).Returns(nullChain);
         AzureTrustedSigningCoseSigningKeyProvider provider = new AzureTrustedSigningCoseSigningKeyProvider(mockSignContext.Object);
 
         // Act

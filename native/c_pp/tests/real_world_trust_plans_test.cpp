@@ -27,7 +27,7 @@
 #define COSE_MST_JWKS_PATH ""
 #endif
 
-static std::vector<uint8_t> read_file_bytes(const std::string& path) {
+std::vector<uint8_t> read_file_bytes(const std::string& path) {
     std::ifstream f(path, std::ios::binary);
     if (!f) {
         throw std::runtime_error("failed to open file: " + path);
@@ -51,14 +51,14 @@ static std::vector<uint8_t> read_file_bytes(const std::string& path) {
     return out;
 }
 
-static std::string join_path2(const std::string& a, const std::string& b) {
+std::string join_path2(const std::string& a, const std::string& b) {
     if (a.empty()) return b;
     const char last = a.back();
     if (last == '/' || last == '\\') return a + b;
     return a + "/" + b;
 }
 
-static void test_compile_fails_when_required_pack_missing() {
+void test_compile_fails_when_required_pack_missing() {
 #ifndef COSE_HAS_CERTIFICATES_PACK
     std::cout << "SKIP: " << __func__ << " (COSE_HAS_CERTIFICATES_PACK not enabled)\n";
     return;
@@ -78,7 +78,7 @@ static void test_compile_fails_when_required_pack_missing() {
 #endif
 }
 
-static void test_compile_succeeds_when_required_pack_present() {
+void test_compile_succeeds_when_required_pack_present() {
 #ifndef COSE_HAS_CERTIFICATES_PACK
     std::cout << "SKIP: " << __func__ << " (COSE_HAS_CERTIFICATES_PACK not enabled)\n";
     return;
@@ -100,7 +100,7 @@ static void test_compile_succeeds_when_required_pack_present() {
 #endif
 }
 
-static void test_real_v1_policy_can_gate_on_certificate_facts() {
+void test_real_v1_policy_can_gate_on_certificate_facts() {
 #ifndef COSE_HAS_CERTIFICATES_PACK
     std::cout << "SKIP: " << __func__ << " (COSE_HAS_CERTIFICATES_PACK not enabled)\n";
     return;
@@ -120,7 +120,7 @@ static void test_real_v1_policy_can_gate_on_certificate_facts() {
 #endif
 }
 
-static void test_real_scitt_policy_can_require_cwt_claims_and_mst_receipt_trusted_from_issuer() {
+void test_real_scitt_policy_can_require_cwt_claims_and_mst_receipt_trusted_from_issuer() {
 #ifndef COSE_HAS_MST_PACK
     std::cout << "SKIP: " << __func__ << " (COSE_HAS_MST_PACK not enabled)\n";
     return;
@@ -174,7 +174,7 @@ static void test_real_scitt_policy_can_require_cwt_claims_and_mst_receipt_truste
 #endif
 }
 
-static void test_real_v1_policy_can_validate_with_mst_only_by_bypassing_primary_signature() {
+void test_real_v1_policy_can_validate_with_mst_only_by_bypassing_primary_signature() {
 #ifndef COSE_HAS_MST_PACK
     std::cout << "SKIP: " << __func__ << " (COSE_HAS_MST_PACK not enabled)\n";
     return;
@@ -231,18 +231,18 @@ static const test_case_t g_tests[] = {
     {"real_v1_policy_can_validate_with_mst_only_by_bypassing_primary_signature", test_real_v1_policy_can_validate_with_mst_only_by_bypassing_primary_signature},
 };
 
-static void usage(const char* argv0) {
+void usage(const char* argv0) {
     std::cerr << "Usage:\n";
     std::cerr << "  " << argv0 << " [--list] [--test <name>]\n";
 }
 
-static void list_tests() {
+void list_tests() {
     for (const auto& t : g_tests) {
         std::cout << t.name << "\n";
     }
 }
 
-static int run_one(const std::string& name) {
+int run_one(const std::string& name) {
     for (const auto& t : g_tests) {
         if (name == t.name) {
             std::cout << "RUN: " << t.name << "\n";

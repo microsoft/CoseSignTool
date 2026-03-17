@@ -26,12 +26,12 @@
 #define COSE_MST_JWKS_PATH ""
 #endif
 
-static void fail(const char* msg) {
+void fail(const char* msg) {
     fprintf(stderr, "FAIL: %s\n", msg);
     exit(1);
 }
 
-static void assert_status_ok(cose_status_t st, const char* call) {
+void assert_status_ok(cose_status_t st, const char* call) {
     if (st == COSE_OK) return;
 
     fprintf(stderr, "FAILED: %s\n", call);
@@ -41,14 +41,14 @@ static void assert_status_ok(cose_status_t st, const char* call) {
     exit(1);
 }
 
-static void assert_status_not_ok(cose_status_t st, const char* call) {
+void assert_status_not_ok(cose_status_t st, const char* call) {
     if (st != COSE_OK) return;
 
     fprintf(stderr, "EXPECTED FAILURE but got COSE_OK: %s\n", call);
     exit(1);
 }
 
-static bool read_file_bytes(const char* path, uint8_t** out_bytes, size_t* out_len) {
+bool read_file_bytes(const char* path, uint8_t** out_bytes, size_t* out_len) {
     *out_bytes = NULL;
     *out_len = 0;
 
@@ -99,7 +99,7 @@ static bool read_file_bytes(const char* path, uint8_t** out_bytes, size_t* out_l
     return true;
 }
 
-static char* join_path2(const char* a, const char* b) {
+char* join_path2(const char* a, const char* b) {
     size_t alen = strlen(a);
     size_t blen = strlen(b);
 
@@ -119,7 +119,7 @@ static char* join_path2(const char* a, const char* b) {
     return out;
 }
 
-static void test_compile_fails_when_required_pack_missing(void) {
+void test_compile_fails_when_required_pack_missing(void) {
 #ifndef COSE_HAS_CERTIFICATES_PACK
     printf("SKIP: %s (COSE_HAS_CERTIFICATES_PACK not enabled)\n", __func__);
     return;
@@ -149,7 +149,7 @@ static void test_compile_fails_when_required_pack_missing(void) {
 #endif
 }
 
-static void test_compile_succeeds_when_required_pack_present(void) {
+void test_compile_succeeds_when_required_pack_present(void) {
 #ifndef COSE_HAS_CERTIFICATES_PACK
     printf("SKIP: %s (COSE_HAS_CERTIFICATES_PACK not enabled)\n", __func__);
     return;
@@ -197,7 +197,7 @@ static void test_compile_succeeds_when_required_pack_present(void) {
 #endif
 }
 
-static void test_real_v1_policy_can_gate_on_certificate_facts(void) {
+void test_real_v1_policy_can_gate_on_certificate_facts(void) {
 #ifndef COSE_HAS_CERTIFICATES_PACK
     printf("SKIP: %s (COSE_HAS_CERTIFICATES_PACK not enabled)\n", __func__);
     return;
@@ -239,7 +239,7 @@ static void test_real_v1_policy_can_gate_on_certificate_facts(void) {
 #endif
 }
 
-static void test_real_scitt_policy_can_require_cwt_claims_and_mst_receipt_trusted_from_issuer(void) {
+void test_real_scitt_policy_can_require_cwt_claims_and_mst_receipt_trusted_from_issuer(void) {
 #ifndef COSE_HAS_MST_PACK
     printf("SKIP: %s (COSE_HAS_MST_PACK not enabled)\n", __func__);
     return;
@@ -329,7 +329,7 @@ static void test_real_scitt_policy_can_require_cwt_claims_and_mst_receipt_truste
 #endif
 }
 
-static void test_real_v1_policy_can_validate_with_mst_only_by_bypassing_primary_signature(void) {
+void test_real_v1_policy_can_validate_with_mst_only_by_bypassing_primary_signature(void) {
 #ifndef COSE_HAS_MST_PACK
     printf("SKIP: %s (COSE_HAS_MST_PACK not enabled)\n", __func__);
     return;
@@ -451,20 +451,20 @@ static const test_case_t g_tests[] = {
     {"real_v1_policy_can_validate_with_mst_only_by_bypassing_primary_signature", test_real_v1_policy_can_validate_with_mst_only_by_bypassing_primary_signature},
 };
 
-static void usage(const char* argv0) {
+void usage(const char* argv0) {
     fprintf(stderr,
             "Usage:\n"
             "  %s [--list] [--test <name>]\n",
             argv0);
 }
 
-static void list_tests(void) {
+void list_tests(void) {
     for (size_t i = 0; i < (sizeof(g_tests) / sizeof(g_tests[0])); i++) {
         printf("%s\n", g_tests[i].name);
     }
 }
 
-static int run_one(const char* name) {
+int run_one(const char* name) {
     for (size_t i = 0; i < (sizeof(g_tests) / sizeof(g_tests[0])); i++) {
         if (strcmp(g_tests[i].name, name) == 0) {
             printf("RUN: %s\n", g_tests[i].name);

@@ -214,6 +214,7 @@ Payload location (optional):
             Logger.LogVerbose("Indirect sign operation completed");
             return exitCode;
         }
+        // Intentionally catching all exceptions: top-level plugin command handler maps any failure to an exit code.
         catch (Exception ex)
         {
             return HandleCommonException(ex, configuration, cancellationToken, Logger);
@@ -377,6 +378,7 @@ Payload location (optional):
 
             return (PluginExitCode.Success, jsonElement);
         }
+        // Intentionally catching all exceptions: signing can fail due to cryptographic, I/O, or serialization errors.
         catch (Exception ex)
         {
             logger.LogError($"Error creating indirect signature: {ex.Message}");

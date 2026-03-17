@@ -379,7 +379,7 @@ fn create_large_payload_cose_message() -> (CoseSign1Message, Arc<[u8]>) {
 
 #[test]
 fn test_validate_bytes_async_with_simple_message() {
-    let (message, bytes) = create_test_cose_message();
+    let (_message, bytes) = create_test_cose_message();
     
     // Use Vec<Arc<dyn CoseSign1TrustPack>> as required
     let trust_packs: Vec<Arc<dyn CoseSign1TrustPack>> = vec![

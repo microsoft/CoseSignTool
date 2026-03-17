@@ -126,7 +126,9 @@ public class CoseSign1CertificateException : CoseSign1Exception
 #if NET5_0_OR_GREATER
         return;
 #else
-        base.GetObjectData(info, context); // deprecated in .NET 5.0
+#pragma warning disable SYSLIB0051 // GetObjectData is obsolete in .NET 5.0+ but required for older frameworks
+        base.GetObjectData(info, context);
+#pragma warning restore SYSLIB0051
 #endif
     }
 #endif

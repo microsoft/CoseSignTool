@@ -129,9 +129,9 @@ public class X509ChainTrustValidatorTests
                 trustValidator.AllowUnprotected.Should().BeFalse();
                 trustValidator.ChainBuilder.Should().BeOfType<X509ChainBuilder>();
                 trustValidator.ChainBuilder.ChainPolicy.RevocationMode.Should().Be(X509RevocationMode.Online);
-                trustValidator.Roots.Should().NotBeNull();
-                trustValidator.Roots?.Count.Should().Be(certChain.Count);
-                trustValidator.Roots?.SequenceEqual(certChain).Should().BeTrue();
+                trustValidator.Roots!.Should().NotBeNull();
+                trustValidator.Roots!.Count.Should().Be(certChain.Count);
+                trustValidator.Roots!.SequenceEqual(certChain).Should().BeTrue();
             });
         yield return Tuple.Create<Func<X509ChainTrustValidator>, Action<X509ChainTrustValidator>>(
             () => new X509ChainTrustValidator(
@@ -143,9 +143,9 @@ public class X509ChainTrustValidatorTests
                 trustValidator.AllowUnprotected.Should().BeFalse();
                 trustValidator.ChainBuilder.Should().BeOfType<X509ChainBuilder>();
                 trustValidator.ChainBuilder.ChainPolicy.RevocationMode.Should().Be(X509RevocationMode.NoCheck);
-                trustValidator.Roots.Should().NotBeNull();
-                trustValidator.Roots?.Count.Should().Be(certChain.Count);
-                trustValidator.Roots?.SequenceEqual(certChain).Should().BeTrue();
+                trustValidator.Roots!.Should().NotBeNull();
+                trustValidator.Roots!.Count.Should().Be(certChain.Count);
+                trustValidator.Roots!.SequenceEqual(certChain).Should().BeTrue();
             });
         yield return Tuple.Create<Func<X509ChainTrustValidator>, Action<X509ChainTrustValidator>>(
             () => new X509ChainTrustValidator(
@@ -159,9 +159,9 @@ public class X509ChainTrustValidatorTests
                 trustValidator.AllowUnprotected.Should().BeTrue();
                 trustValidator.ChainBuilder.Should().BeOfType<X509ChainBuilder>();
                 trustValidator.ChainBuilder.ChainPolicy.RevocationMode.Should().Be(X509RevocationMode.NoCheck);
-                trustValidator.Roots.Should().NotBeNull();
-                trustValidator.Roots?.Count.Should().Be(certChain.Count);
-                trustValidator.Roots?.SequenceEqual(certChain).Should().BeTrue();
+                trustValidator.Roots!.Should().NotBeNull();
+                trustValidator.Roots!.Count.Should().Be(certChain.Count);
+                trustValidator.Roots!.SequenceEqual(certChain).Should().BeTrue();
             });
         yield return Tuple.Create<Func<X509ChainTrustValidator>, Action<X509ChainTrustValidator>>(
             () => new X509ChainTrustValidator(
@@ -175,9 +175,9 @@ public class X509ChainTrustValidatorTests
                 trustValidator.AllowUnprotected.Should().BeFalse();
                 trustValidator.ChainBuilder.Should().BeOfType<X509ChainBuilder>();
                 trustValidator.ChainBuilder.ChainPolicy.RevocationMode.Should().Be(X509RevocationMode.NoCheck);
-                trustValidator.Roots.Should().NotBeNull();
-                trustValidator.Roots?.Count.Should().Be(certChain.Count);
-                trustValidator.Roots?.SequenceEqual(certChain).Should().BeTrue();
+                trustValidator.Roots!.Should().NotBeNull();
+                trustValidator.Roots!.Count.Should().Be(certChain.Count);
+                trustValidator.Roots!.SequenceEqual(certChain).Should().BeTrue();
             });
         yield return Tuple.Create<Func<X509ChainTrustValidator>, Action<X509ChainTrustValidator>>(
             () => new X509ChainTrustValidator(
@@ -191,9 +191,9 @@ public class X509ChainTrustValidatorTests
                 trustValidator.AllowUnprotected.Should().BeTrue();
                 trustValidator.ChainBuilder.Should().BeOfType<X509ChainBuilder>();
                 trustValidator.ChainBuilder.ChainPolicy.RevocationMode.Should().Be(X509RevocationMode.NoCheck);
-                trustValidator.Roots.Should().NotBeNull();
-                trustValidator.Roots?.Count.Should().Be(certChain.Count);
-                trustValidator.Roots?.SequenceEqual(certChain).Should().BeTrue();
+                trustValidator.Roots!.Should().NotBeNull();
+                trustValidator.Roots!.Count.Should().Be(certChain.Count);
+                trustValidator.Roots!.SequenceEqual(certChain).Should().BeTrue();
             });
     }
 

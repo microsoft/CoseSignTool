@@ -134,6 +134,8 @@ public class AzureTrustedSigningCertificateProviderPlugin : ICertificateProvider
             logger?.LogError($"Invalid Azure Trusted Signing endpoint URL: {endpoint}");
             throw new ArgumentException($"Invalid Azure Trusted Signing endpoint URL: {endpoint}. Ensure it is a valid HTTPS URL.", nameof(configuration), ex);
         }
+        // Intentionally catching all exceptions: Azure SDK can throw various exception types
+        // (e.g., CredentialUnavailableException, RequestFailedException) depending on configuration and network state.
         catch (Exception ex)
         {
             logger?.LogError($"Failed to create Azure Trusted Signing provider: {ex.Message}");

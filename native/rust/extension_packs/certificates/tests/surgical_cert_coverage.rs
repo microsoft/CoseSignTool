@@ -348,7 +348,7 @@ fn trust_pack_provides_all_fact_keys() {
 
 /// Helper: build a COSE_Sign1 message with an x5chain header containing the given cert chain.
 fn build_cose_with_x5chain(
-    leaf_der: &[u8],
+    _leaf_der: &[u8],
     chain: &[Vec<u8>],
     signing_key_der: &[u8],
 ) -> Vec<u8> {
@@ -613,7 +613,7 @@ fn validate_cert_with_key_usage_flags() {
 
     // We need to sign with this cert's key... but we don't have it from the helper.
     // Use a separate signing key and just embed the cert in x5chain.
-    let (signing_cert_der, signing_pkey) = generate_self_signed_cert("Signing Key Usage");
+    let (signing_cert_der, _signing_pkey) = generate_self_signed_cert("Signing Key Usage");
     let _ = cert_der; // We'll use the signing cert that also has key usage
 
     // Generate a cert with comprehensive key usage as the signing cert

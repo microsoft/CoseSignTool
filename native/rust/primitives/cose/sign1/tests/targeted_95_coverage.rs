@@ -23,7 +23,7 @@ use crypto_primitives::CryptoSigner;
 struct MockSigner;
 
 impl CryptoSigner for MockSigner {
-    fn sign(&self, data: &[u8]) -> Result<Vec<u8>, crypto_primitives::CryptoError> {
+    fn sign(&self, _data: &[u8]) -> Result<Vec<u8>, crypto_primitives::CryptoError> {
         // Return a hash-like deterministic signature
         Ok(vec![0xAA; 64])
     }

@@ -165,7 +165,7 @@ fn chain_trust_reports_trust_evaluation_disabled_when_not_trusting_embedded_chai
     let trusted = engine.get_fact_set::<X509ChainTrustedFact>(&subject).unwrap();
 
     let TrustFactSet::Available(v) = trusted else {
-        panic!("expected Available, got {trusted:?}");
+        panic!("expected Available, got unexpected TrustFactSet variant");
     };
 
     assert_eq!(1, v.len());
@@ -217,7 +217,7 @@ fn chain_trust_reports_not_well_formed_when_trusting_embedded_chain_but_chain_is
     let trusted = engine.get_fact_set::<X509ChainTrustedFact>(&subject).unwrap();
 
     let TrustFactSet::Available(v) = trusted else {
-        panic!("expected Available, got {trusted:?}");
+        panic!("expected Available, got unexpected TrustFactSet variant");
     };
 
     assert_eq!(1, v.len());

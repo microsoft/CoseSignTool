@@ -26,9 +26,12 @@ public class CoseX509ThumbprintTests
     [TestMethod]
     public void ConstructThumbprintWithAlgo()
     {
+        using HashAlgorithm sha256Algo = SHA256.Create();
+        using HashAlgorithm sha384Algo = SHA384.Create();
+        using HashAlgorithm sha512Algo = SHA512.Create();
         HashAlgorithm[] algos = new HashAlgorithm[]
         {
-            SHA256.Create(), SHA384.Create(), SHA512.Create()
+            sha256Algo, sha384Algo, sha512Algo
         };
 
         foreach (HashAlgorithm algo in algos)

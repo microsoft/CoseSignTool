@@ -140,7 +140,7 @@ public class IndirectSignatureCommandBaseLoggingTests
         });
 
         // Act
-        (X509Certificate2? certificate, List<X509Certificate2>? additionalCertificates, PluginExitCode result) = 
+        (X509Certificate2? certificate, _, PluginExitCode result) = 
             IndirectSignatureCommandBase.LoadSigningCertificate(configuration, logger);
 
         // Assert
@@ -165,12 +165,12 @@ public class IndirectSignatureCommandBaseLoggingTests
         try
         {
             // Act
-            (X509Certificate2? certificate, List<X509Certificate2>? additionalCertificates, PluginExitCode result) = 
+            (X509Certificate2? certificate2, _, PluginExitCode result2) = 
                 IndirectSignatureCommandBase.LoadSigningCertificate(configuration, logger);
 
             // Assert
-            Assert.AreEqual(PluginExitCode.CertificateLoadFailure, result);
-            Assert.IsNull(certificate);
+            Assert.AreEqual(PluginExitCode.CertificateLoadFailure, result2);
+            Assert.IsNull(certificate2);
             Assert.IsTrue(logger.LoggedMessages.Any(m => m.Message.Contains("ERROR:")));
         }
         finally

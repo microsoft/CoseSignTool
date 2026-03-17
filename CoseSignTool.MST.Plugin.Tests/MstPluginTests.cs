@@ -226,8 +226,8 @@ public class RegisterCommandTests
         finally
         {
             // Clean up temporary files
-            try { File.Delete(tempPayloadFile); } catch { }
-            try { File.Delete(tempSignatureFile); } catch { }
+            try { File.Delete(tempPayloadFile); } catch (IOException) { /* Expected: cleanup may fail if file is in use */ }
+            try { File.Delete(tempSignatureFile); } catch (IOException) { /* Expected: cleanup may fail if file is in use */ }
         }
     }
 }
@@ -406,8 +406,8 @@ public class VerifyCommandTests
         finally
         {
             // Clean up temporary files
-            try { File.Delete(tempPayloadFile); } catch { }
-            try { File.Delete(tempSignatureFile); } catch { }
+            try { File.Delete(tempPayloadFile); } catch (IOException) { /* Expected: cleanup may fail if file is in use */ }
+            try { File.Delete(tempSignatureFile); } catch (IOException) { /* Expected: cleanup may fail if file is in use */ }
         }
     }
 }

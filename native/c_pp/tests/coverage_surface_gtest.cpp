@@ -64,7 +64,6 @@ TEST(CoverageSurface, TrustAndCoreBuilders) {
     EXPECT_NO_THROW((void)plan_builder.AddAllPackDefaultPlans());
 
     const size_t pack_count = plan_builder.PackCount();
-    (void)pack_count; // Suppress CodeQL cpp/unused-static-variable false positive.
     // Cover PackName failure path (out-of-range index).
     EXPECT_THROW((void)plan_builder.PackName(pack_count), cose::cose_error);
 

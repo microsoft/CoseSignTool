@@ -59,12 +59,16 @@ fn main() {
 
     match facts {
         TrustFactSet::Available(items) => {
-            // Example-only: in production, avoid logging certificate thumbprints or subject names.
-            println!("x5chain items: {}", items.len());
+            // Example-only: log only derived, non-sensitive metadata (counts and booleans).
+            let count = items.len();
+            println!("x5chain items: {}", count);
             for f in &items {
-                println!("thumbprint: [{} bytes]", f.certificate_thumbprint.len());
-                println!("subject: [present={}]", !f.subject.is_empty());
-                println!("issuer: [present={}]", !f.issuer.is_empty());
+                let tp_len = f.certificate_thumbprint.len();
+                let has_subject = !f.subject.is_empty();
+                let has_issuer = !f.issuer.is_empty();
+                println!("thumbprint: [{} bytes]", tp_len);
+                println!("subject: [present={}]", has_subject);
+                println!("issuer: [present={}]", has_issuer);
             }
         }
         _other => {

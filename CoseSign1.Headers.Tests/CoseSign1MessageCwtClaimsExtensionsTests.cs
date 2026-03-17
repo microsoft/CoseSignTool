@@ -65,9 +65,8 @@ public class CoseSign1MessageCwtClaimsExtensionsTests
     [Test]
     public void TryGetCwtClaims_WithNullMessage_ReturnsFalse()
     {
-        // Act
-        CoseSign1Message? nullMessage = null;
-        bool result = nullMessage.TryGetCwtClaims(out CwtClaims? claims);
+        // Act — call as static method to avoid CodeQL cs/dereferenced-value-is-always-null on extension syntax.
+        bool result = CoseSign1MessageCwtClaimsExtensions.TryGetCwtClaims(null!, out CwtClaims? claims);
 
         // Assert
         Assert.That(result, Is.False);

@@ -279,7 +279,7 @@ fn der_load_missing_cert_file() {
         Err(CertLocalError::IoError(msg)) => {
             assert!(!msg.is_empty());
         }
-        other => panic!("expected IoError, got unexpected error variant"),
+        _other => panic!("expected IoError, got unexpected error variant"),
     }
 }
 
@@ -298,7 +298,7 @@ fn der_load_missing_key_file() {
         Err(CertLocalError::IoError(msg)) => {
             assert!(!msg.is_empty());
         }
-        other => panic!("expected IoError, got unexpected error variant"),
+        _other => panic!("expected IoError, got unexpected error variant"),
     }
 
     let _ = std::fs::remove_dir_all(&temp_dir);
@@ -312,7 +312,7 @@ fn der_load_invalid_cert_bytes() {
         Err(CertLocalError::LoadFailed(msg)) => {
             assert!(msg.contains("invalid DER"));
         }
-        other => panic!("expected LoadFailed, got unexpected error variant"),
+        _other => panic!("expected LoadFailed, got unexpected error variant"),
     }
 }
 
@@ -329,7 +329,7 @@ fn pem_load_missing_end_marker() {
         Err(CertLocalError::LoadFailed(msg)) => {
             assert!(msg.contains("missing end marker"), "error did not contain expected 'missing end marker' substring");
         }
-        other => panic!("expected LoadFailed with missing end marker, got unexpected error variant"),
+        _other => panic!("expected LoadFailed with missing end marker, got unexpected error variant"),
     }
 }
 
@@ -342,7 +342,7 @@ fn pem_load_invalid_utf8() {
         Err(CertLocalError::LoadFailed(msg)) => {
             assert!(msg.contains("UTF-8"), "error did not contain expected 'UTF-8' substring");
         }
-        other => panic!("expected LoadFailed with UTF-8 error, got unexpected error variant"),
+        _other => panic!("expected LoadFailed with UTF-8 error, got unexpected error variant"),
     }
 }
 
@@ -355,7 +355,7 @@ fn pem_load_no_certificate_only_key() {
         Err(CertLocalError::LoadFailed(msg)) => {
             assert!(msg.contains("no certificate"), "error did not contain expected 'no certificate' substring");
         }
-        other => panic!("expected LoadFailed with no certificate error, got unexpected error variant"),
+        _other => panic!("expected LoadFailed with no certificate error, got unexpected error variant"),
     }
 }
 
@@ -365,7 +365,7 @@ fn pem_load_missing_file() {
     assert!(result.is_err());
     match result {
         Err(CertLocalError::IoError(_)) => {}
-        other => panic!("expected IoError, got unexpected error variant"),
+        _other => panic!("expected IoError, got unexpected error variant"),
     }
 }
 

@@ -77,61 +77,59 @@ jobs:
     - name: List working directory
       run: ${{ matrix.dir_command }}
 
-  # Create a changelog that includes all the PRs merged since the last release.
-  # If it's not a pull request, skip to the build job.
+  # Generate and commit a changelog on every push to main.
+  # On pull requests this job passes without committing because:
+  #   - Fork PRs cannot receive pushes via GITHUB_TOKEN (GitHub security boundary).
+  #   - The changelog is auto-generated from merged PRs, so it only needs to be
+  #     up-to-date on main, not in every PR branch.
+  # Commits made with GITHUB_TOKEN do not trigger new workflow runs, so there is
+  # no risk of an infinite loop.
   create_changelog:
-    needs: [ build ]  # Wait here so we don't create any race conditions.
     runs-on: ubuntu-latest
     permissions:
-      actions: write
       contents: write
-      deployments: write
-      packages: write
-      pull-requests: write
-      security-events: write
-      statuses: write
     steps:
-      # Checkout the working branch.
-      - name: Checkout code
-        if: ${{ github.event_name == 'pull_request' }}
-        uses: actions/checkout@v2
+      #### PUSH TO MAIN — generate, commit, and push the changelog ####
+      - name: Checkout main
+        if: ${{ github.event_name == 'push' }}
+        uses: actions/checkout@v4
+        with:
+          ref: main
 
-      # Sync the changelog version.
-      - name: Fetch and checkout
-        if: ${{ github.event_name == 'pull_request' }}
+      - name: Configure git
+        if: ${{ github.event_name == 'push' }}
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          echo "Fetch from repository."
-          git fetch
-          echo "Undo any user changes to CHANGELOG.md. This is needed because the user's copy becomes obsolete after every checkin."
-          git reset -- CHANGELOG.md
-          echo "Checkout the working branch."
-          git checkout $GITHUB_HEAD_REF
 
-      # Generate the new changelog.
       - name: Generate changelog
-        if: ${{ github.event_name == 'pull_request' }}
+        if: ${{ github.event_name == 'push' }}
         uses: tj-actions/github-changelog-generator@v1.19
         with:
           output: CHANGELOG.md
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      # Commit the changelog.
       - name: Commit changelog
-        if: ${{ github.event_name == 'pull_request' }}
+        if: ${{ github.event_name == 'push' }}
         run: |
           git add CHANGELOG.md
           if git diff-index --quiet HEAD; then
-            echo "No changes were logged."
+            echo "No changelog changes to commit."
           else
-            git commit --allow-empty -m "Update changelog for release"
+            git commit -m "Update changelog"
             git push
           fi
 
-      # Print default message if changelog is not updated.
-      - name: Print exit message when changelog is not updated
-        if: ${{ github.event_name != 'pull_request' }}
+      #### PULL REQUEST — nothing to commit; just pass ####
+
+      - name: Skip changelog commit for PRs
+        if: ${{ github.event_name == 'pull_request' }}
+        run: echo "Changelog will be updated automatically when this PR is merged to main."
+
+      #### OTHER EVENTS — nothing to do ####
+
+      - name: No-op for other events
+        if: ${{ github.event_name != 'push' && github.event_name != 'pull_request' }}
         run: echo "Changelog is already up to date."
 
   #### PUSH EVENTS ####
@@ -142,6 +140,7 @@ jobs:
   create_release:
     name: Create Release
     if: ${{ github.event_name == 'push' || github.event_name == 'release'}}
+    needs: [ create_changelog ]  # Ensure changelog is committed before tagging.
     runs-on: ubuntu-latest
     permissions:
       actions: write

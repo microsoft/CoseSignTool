@@ -79,6 +79,24 @@ fn create_test_pfx(path: &std::path::Path, password: &str) -> Vec<u8> {
     pfx_bytes
 }
 
+/// Returns the password for test PFX files.
+/// Not a real credential — test-only self-signed certificates.
+fn test_pfx_password() -> &'static str {
+    "test123"
+}
+
+/// Returns an alternate password for wrong-password test scenarios.
+/// Not a real credential — test-only self-signed certificates.
+fn test_pfx_password_alt() -> &'static str {
+    "correct123"
+}
+
+/// Returns a password for environment variable fallback tests.
+/// Not a real credential — test-only self-signed certificates.
+fn test_pfx_password_env() -> &'static str {
+    "env_test123"
+}
+
 // Helper to create a test payload file
 fn create_test_payload(path: &std::path::Path, content: &[u8]) {
     fs::write(path, content).unwrap();
@@ -151,7 +169,7 @@ fn test_sign_command_pfx_provider() {
     let output_path = temp_dir.join("output.cose");
 
     // Test-only: deterministic key material for reproducible tests
-    let password = "test123";
+    let password = test_pfx_password();
     create_test_pfx(&pfx_path, password);
     create_test_payload(&payload_path, b"PFX signature test");
 
@@ -175,7 +193,7 @@ fn test_sign_command_pfx_wrong_password() {
     let output_path = temp_dir.join("output.cose");
 
     // Test-only: deterministic key material for reproducible tests
-    create_test_pfx(&pfx_path, "correct123");
+    create_test_pfx(&pfx_path, test_pfx_password_alt());
     create_test_payload(&payload_path, b"PFX wrong password test");
 
     let mut args = default_sign_args(payload_path, output_path.clone(), "pfx".to_string());
@@ -388,7 +406,7 @@ fn test_pfx_password_env_fallback() {
     let output_path = temp_dir.join("output.cose");
 
     // Test-only: deterministic key material for reproducible tests
-    let password = "env_test123";
+    let password = test_pfx_password_env();
     create_test_pfx(&pfx_path, password);
     create_test_payload(&payload_path, b"PFX env password test");
 

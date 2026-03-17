@@ -7,7 +7,7 @@ use super::crypto_client::KeyVaultCryptoClient;
 use super::error::AkvError;
 use azure_security_keyvault_keys::{
     KeyClient,
-    models::{SignParameters, SignatureAlgorithm, KeyClientGetKeyOptions},
+    models::{SignParameters, SignatureAlgorithm, KeyClientGetKeyOptions, KeyType, CurveName},
 };
 use azure_identity::DeveloperToolsCredential;
 use std::sync::Arc;
@@ -92,10 +92,21 @@ impl AkvKeyClient {
         let jwk = key_response.key.as_ref()
             .ok_or_else(|| AkvError::InvalidKeyType("no key material in response".into()))?;
 
-        let key_type = jwk.kty.as_ref()
-            .map(|t| format!("{:?}", t))
-            .unwrap_or_default();
-        let curve_name = jwk.crv.as_ref().map(|c| format!("{:?}", c));
+        // Map JWK key type and curve to canonical strings via pattern matching.
+        // This avoids Debug-formatting key-response fields (cleartext-logging).
+        let key_type = match jwk.kty.as_ref() {
+            Some(KeyType::Ec | KeyType::EcHsm) => "EC".to_string(),
+            Some(KeyType::Rsa | KeyType::RsaHsm) => "RSA".to_string(),
+            Some(KeyType::Oct | KeyType::OctHsm) => "Oct".to_string(),
+            _ => String::new(),
+        };
+        let curve_name = jwk.crv.as_ref().map(|c| match c {
+            CurveName::P256 => "P-256".to_string(),
+            CurveName::P256K => "P-256K".to_string(),
+            CurveName::P384 => "P-384".to_string(),
+            CurveName::P521 => "P-521".to_string(),
+            _ => "Unknown".to_string(),
+        });
         let key_id = key_response.key.as_ref()
             .and_then(|k| k.kid.clone())
             .unwrap_or_else(|| format!("{}/keys/{}", vault_url, key_name));

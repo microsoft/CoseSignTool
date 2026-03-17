@@ -162,7 +162,7 @@ fn new_with_options_ec_key() {
 
     let client = client.unwrap();
     assert_eq!(client.key_id(), "https://myvault.vault.azure.net/keys/mykey/abc123");
-    assert!(client.key_type().contains("Ec"), "Key type should contain EC, got: {}", client.key_type());
+    assert_eq!(client.key_type(), "EC", "Key type should be EC, got: {}", client.key_type());
     assert!(client.curve_name().is_some());
 }
 

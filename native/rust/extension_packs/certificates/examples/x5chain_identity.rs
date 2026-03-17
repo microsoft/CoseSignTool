@@ -59,17 +59,9 @@ fn main() {
 
     match facts {
         TrustFactSet::Available(items) => {
-            // Example-only: log only derived, non-sensitive metadata (counts and booleans).
-            let count = items.len();
-            println!("x5chain items: {}", count);
-            for f in &items {
-                let tp_len = f.certificate_thumbprint.len();
-                let has_subject = !f.subject.is_empty();
-                let has_issuer = !f.issuer.is_empty();
-                println!("thumbprint: [{} bytes]", tp_len);
-                println!("subject: [present={}]", has_subject);
-                println!("issuer: [present={}]", has_issuer);
-            }
+            // Report only aggregate count to avoid logging certificate identity data
+            // (thumbprint, subject, issuer are sensitive per static analysis).
+            println!("x5chain identity facts: {} items available", items.len());
         }
         _other => {
             println!("unexpected fact set variant");

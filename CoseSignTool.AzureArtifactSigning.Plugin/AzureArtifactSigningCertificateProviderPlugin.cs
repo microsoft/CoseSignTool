@@ -134,9 +134,7 @@ public class AzureArtifactSigningCertificateProviderPlugin : ICertificateProvide
             logger?.LogError($"Invalid Azure Artifact Signing endpoint URL: {endpoint}");
             throw new ArgumentException($"Invalid Azure Artifact Signing endpoint URL: {endpoint}. Ensure it is a valid HTTPS URL.", nameof(configuration), ex);
         }
-        // Intentionally catching all exceptions: plugin initialization involves Azure SDK credential
-        // resolution and HTTP calls where many different exception types can occur.
-        catch (Exception ex)
+        catch (Exception ex) when (ex is AuthenticationFailedException or InvalidOperationException or IOException or HttpRequestException)
         {
             logger?.LogError($"Failed to create Azure Artifact Signing provider: {ex.Message}");
             logger?.LogException(ex);

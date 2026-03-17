@@ -42,11 +42,17 @@ public abstract class CertificateCoseSigningKeyProvider : ICoseSigningKeyProvide
                 // Generate DID:x509 identifier from the chain
                 return DefaultDidGenerator.GenerateFromChain(certChain);
             }
-            // Intentionally catching all exceptions: chain building or DID generation can fail in various ways
-            // (e.g., CryptographicException, InvalidOperationException) and should return null gracefully.
-            catch (Exception)
+            catch (CryptographicException)
             {
-                // If chain building or DID generation fails, return null
+                // Chain building or DID generation can fail and should return null gracefully.
+                return null;
+            }
+            catch (InvalidOperationException)
+            {
+                return null;
+            }
+            catch (ArgumentException)
+            {
                 return null;
             }
         }

@@ -123,13 +123,6 @@ public class CoseSign1CertificateException : CoseSign1Exception
             info.AddValue(nameof(Status), string.Join("\r\n", Status.Select(s => $"{s.Status}: {s.StatusInformation}")));
         }
 
-#if NET5_0_OR_GREATER
-        return;
-#else
-#pragma warning disable SYSLIB0051 // GetObjectData is obsolete in .NET 5.0+ but required for older frameworks
-        base.GetObjectData(info, context);
-#pragma warning restore SYSLIB0051
-#endif
     }
 #endif
 }

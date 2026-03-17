@@ -127,8 +127,7 @@ public class IndirectVerifyCommand : IndirectSignatureCommandBase
             Logger.LogVerbose("Indirect verify operation completed");
             return exitCode;
         }
-        // Intentionally catching all exceptions: top-level plugin command handler maps any failure to an exit code.
-        catch (Exception ex)
+        catch (Exception ex) when (ex is ArgumentException or OperationCanceledException or CryptographicException or IOException or InvalidOperationException or FormatException or UnauthorizedAccessException or NotSupportedException)
         {
             return HandleCommonException(ex, configuration, cancellationToken, Logger);
         }
@@ -252,8 +251,7 @@ public class IndirectVerifyCommand : IndirectSignatureCommandBase
             PluginExitCode exitCode = isValid ? PluginExitCode.Success : PluginExitCode.IndirectSignatureVerificationFailure;
             return (exitCode, jsonResult);
         }
-        // Intentionally catching all exceptions: verification can fail due to cryptographic, I/O, or format errors.
-        catch (Exception ex)
+        catch (Exception ex) when (ex is CryptographicException or IOException or FormatException or InvalidOperationException or ArgumentException or UnauthorizedAccessException or NotSupportedException)
         {
             logger.LogError($"Error verifying indirect signature: {ex.Message}");
             logger.LogException(ex);

@@ -67,8 +67,7 @@ public class CertificateProviderPluginManager
             {
                 LoadPluginFromAssembly(pluginFile);
             }
-            // Intentionally catching all exceptions: plugin assemblies may throw arbitrary exceptions during loading.
-            catch (Exception ex)
+            catch (Exception ex) when (ex is BadImageFormatException or FileLoadException or TypeLoadException or ReflectionTypeLoadException or InvalidOperationException or IOException)
             {
                 _logger?.LogWarning($"Failed to load plugin from {Path.GetFileName(pluginFile)}: {ex.Message}");
                 _logger?.LogException(ex);
@@ -110,8 +109,7 @@ public class CertificateProviderPluginManager
                     RegisterPlugin(plugin);
                 }
             }
-            // Intentionally catching all exceptions: plugin constructors may throw arbitrary exceptions.
-            catch (Exception ex)
+            catch (Exception ex) when (ex is MissingMethodException or TargetInvocationException or TypeLoadException or InvalidOperationException or MemberAccessException)
             {
                 _logger?.LogWarning($"Failed to instantiate plugin {type.Name}: {ex.Message}");
                 _logger?.LogException(ex);

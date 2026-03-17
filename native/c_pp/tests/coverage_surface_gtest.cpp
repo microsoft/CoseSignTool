@@ -63,11 +63,10 @@ TEST(CoverageSurface, TrustAndCoreBuilders) {
     cose::TrustPlanBuilder plan_builder(b3);
     EXPECT_NO_THROW((void)plan_builder.AddAllPackDefaultPlans());
 
-    const size_t pack_count = plan_builder.PackCount();
     // Cover PackName failure path (out-of-range index).
-    EXPECT_THROW((void)plan_builder.PackName(pack_count), cose::cose_error);
+    EXPECT_THROW((void)plan_builder.PackName(plan_builder.PackCount()), cose::cose_error);
 
-    for (size_t i = 0; i < pack_count; ++i) {
+    for (size_t i = 0; i < plan_builder.PackCount(); ++i) {
         const auto name = plan_builder.PackName(i);
         (void)plan_builder.PackHasDefaultPlan(i);
         if (plan_builder.PackHasDefaultPlan(i)) {

@@ -180,10 +180,17 @@ public class DidX509Generator
 
             return result.ToString();
         }
-        // Intentionally catching all exceptions: DN parsing can fail in various ways and should not prevent DID generation.
-        catch (Exception)
+        catch (CryptographicException)
         {
-            // If parsing fails, return empty string
+            // DN parsing can fail in various ways and should not prevent DID generation.
+            return string.Empty;
+        }
+        catch (FormatException)
+        {
+            return string.Empty;
+        }
+        catch (ArgumentException)
+        {
             return string.Empty;
         }
     }

@@ -164,10 +164,6 @@ public class MstTransparencyServiceLoggingTests
         {
             // Expected to fail since we're using mock data
         }
-        catch (NullReferenceException)
-        {
-            // Expected to fail since we're using mock data
-        }
 
         // Assert
         Assert.That(logMessages, Has.Some.Matches<string>(m => m.Contains("Starting transparency verification")));

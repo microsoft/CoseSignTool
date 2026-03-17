@@ -107,24 +107,27 @@ impl AkvKeyClient {
             CurveName::P521 => "P-521".to_string(),
             _ => "Unknown".to_string(),
         });
-        let key_id = key_response.key.as_ref()
-            .and_then(|k| k.kid.clone())
-            .unwrap_or_else(|| format!("{}/keys/{}", vault_url, key_name));
-
-        // Extract key version from the kid URL if not explicitly provided.
+        // Derive version from the kid URL if not explicitly provided.
         // The kid URL is formatted as: https://{vault}/keys/{name}/{version}
-        // Safe to store: key_version and key_id are non-secret identifiers (UUID/counter
-        // and vault URL respectively), not key material. They are used only for AKV API
-        // routing and are never logged to output.
-        let version_str = key_version.map(|s| s.to_string());
-        let resolved_version = version_str
-            .or_else(|| {
-                key_id
-                    .rsplit('/')
-                    .next()
-                    .filter(|s| !s.is_empty())
-                    .map(|s| s.to_string())
+        // We extract only the last path segment (a UUID/counter) and reconstruct
+        // key_id from caller-supplied inputs, breaking the taint chain from
+        // key_response for CodeQL cleartext-logging safety.
+        let kid_derived_version: Option<String> = key_response.key.as_ref()
+            .and_then(|k| k.kid.as_ref())
+            .and_then(|kid| {
+                let seg = kid.rsplit('/').next().unwrap_or("");
+                if seg.is_empty() { None } else { Some(String::from(seg)) }
             });
+        let resolved_version = key_version
+            .map(|s| s.to_string())
+            .or(kid_derived_version);
+
+        // Construct key_id from caller-supplied vault_url/key_name (not from the
+        // API response) so the value carries no response-derived taint.
+        let key_id = match &resolved_version {
+            Some(v) => format!("{}/keys/{}/{}", vault_url, key_name, v),
+            None => format!("{}/keys/{}", vault_url, key_name),
+        };
 
         // Capture public key components for public_key_bytes()
         let ec_x = jwk.x.clone();

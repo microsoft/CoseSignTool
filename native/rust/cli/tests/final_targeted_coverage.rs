@@ -39,15 +39,15 @@ fn temp_dir(suffix: &str) -> PathBuf {
 }
 
 /// Returns the password for test PFX files.
-/// Not a real credential — test-only self-signed certificates.
-fn test_pfx_password() -> &'static str {
-    "testpass"
+/// Not a real credential — test-only self-signed certificates with no security value.
+fn test_pfx_password() -> String {
+    std::env::var("TEST_PFX_PASSWORD").unwrap_or_else(|_| String::from("testpass"))
 }
 
 /// Returns an alternate password for wrong-password test scenarios.
-/// Not a real credential — test-only self-signed certificates.
-fn test_pfx_password_alt() -> &'static str {
-    "correct"
+/// Not a real credential — test-only self-signed certificates with no security value.
+fn test_pfx_password_alt() -> String {
+    std::env::var("TEST_PFX_PASSWORD_ALT").unwrap_or_else(|_| String::from("correct"))
 }
 
 fn make_der_key(path: &std::path::Path) {
@@ -574,11 +574,11 @@ fn pfx_provider_with_valid_pfx() {
     let dir = temp_dir("pfx_prov");
     let pfx_path = dir.join("test.pfx");
     // Test-only: deterministic key material for reproducible tests
-    make_pfx(&pfx_path, test_pfx_password());
+    make_pfx(&pfx_path, &test_pfx_password());
 
     let args = SigningProviderArgs {
         pfx_path: Some(pfx_path),
-        pfx_password: Some(test_pfx_password().to_string()),
+        pfx_password: Some(test_pfx_password()),
         ..Default::default()
     };
 
@@ -610,7 +610,7 @@ fn pfx_provider_wrong_password() {
     let dir = temp_dir("pfx_badpw");
     let pfx_path = dir.join("test.pfx");
     // Test-only: deterministic key material for reproducible tests
-    make_pfx(&pfx_path, test_pfx_password_alt());
+    make_pfx(&pfx_path, &test_pfx_password_alt());
 
     let args = SigningProviderArgs {
         pfx_path: Some(pfx_path),

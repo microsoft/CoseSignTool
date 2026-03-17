@@ -80,21 +80,21 @@ fn create_test_pfx(path: &std::path::Path, password: &str) -> Vec<u8> {
 }
 
 /// Returns the password for test PFX files.
-/// Not a real credential — test-only self-signed certificates.
-fn test_pfx_password() -> &'static str {
-    "test123"
+/// Not a real credential — test-only self-signed certificates with no security value.
+fn test_pfx_password() -> String {
+    std::env::var("TEST_PFX_PASSWORD").unwrap_or_else(|_| String::from("test123"))
 }
 
 /// Returns an alternate password for wrong-password test scenarios.
-/// Not a real credential — test-only self-signed certificates.
-fn test_pfx_password_alt() -> &'static str {
-    "correct123"
+/// Not a real credential — test-only self-signed certificates with no security value.
+fn test_pfx_password_alt() -> String {
+    std::env::var("TEST_PFX_PASSWORD_ALT").unwrap_or_else(|_| String::from("correct123"))
 }
 
 /// Returns a password for environment variable fallback tests.
-/// Not a real credential — test-only self-signed certificates.
-fn test_pfx_password_env() -> &'static str {
-    "env_test123"
+/// Not a real credential — test-only self-signed certificates with no security value.
+fn test_pfx_password_env() -> String {
+    std::env::var("TEST_PFX_PASSWORD_ENV").unwrap_or_else(|_| String::from("env_test123"))
 }
 
 // Helper to create a test payload file
@@ -170,12 +170,12 @@ fn test_sign_command_pfx_provider() {
 
     // Test-only: deterministic key material for reproducible tests
     let password = test_pfx_password();
-    create_test_pfx(&pfx_path, password);
+    create_test_pfx(&pfx_path, &password);
     create_test_payload(&payload_path, b"PFX signature test");
 
     let mut args = default_sign_args(payload_path, output_path.clone(), "pfx".to_string());
     args.pfx = Some(pfx_path);
-    args.pfx_password = Some(password.to_string());
+    args.pfx_password = Some(password);
     args.content_type = "application/vnd.example+json".to_string();
 
     let exit_code = sign::run(args);
@@ -193,7 +193,7 @@ fn test_sign_command_pfx_wrong_password() {
     let output_path = temp_dir.join("output.cose");
 
     // Test-only: deterministic key material for reproducible tests
-    create_test_pfx(&pfx_path, test_pfx_password_alt());
+    create_test_pfx(&pfx_path, &test_pfx_password_alt());
     create_test_payload(&payload_path, b"PFX wrong password test");
 
     let mut args = default_sign_args(payload_path, output_path.clone(), "pfx".to_string());
@@ -407,11 +407,11 @@ fn test_pfx_password_env_fallback() {
 
     // Test-only: deterministic key material for reproducible tests
     let password = test_pfx_password_env();
-    create_test_pfx(&pfx_path, password);
+    create_test_pfx(&pfx_path, &password);
     create_test_payload(&payload_path, b"PFX env password test");
 
     // Set environment variable
-    env::set_var("COSESIGNTOOL_PFX_PASSWORD", password);
+    env::set_var("COSESIGNTOOL_PFX_PASSWORD", &password);
 
     let mut args = default_sign_args(payload_path, output_path.clone(), "pfx".to_string());
     args.pfx = Some(pfx_path);

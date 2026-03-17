@@ -36,6 +36,7 @@ async-trait = "Async trait support for test mocks"
 time = "Date/time handling for test scenarios"
 bytes = "Byte manipulation in tests"
 serde_json = "JSON serialization in tests"
+base64 = "Base64 encoding/decoding in tests"
 
 [crate.cli]
 clap = "CLI argument parsing with derive macros"
@@ -150,6 +151,7 @@ libc = "C ABI types for FFI projections"
 serde_json = "JSON serialization across FFI boundary"
 anyhow = "Ergonomic error handling at FFI boundary"
 once_cell = "Lazy static metadata"
+tokio = "Async runtime for blocking on async operations at FFI boundary"
 
 [crate.azure_key_vault]
 regex = "AKV key identifier pattern matching"
@@ -176,6 +178,7 @@ serde = "JSON serialization"
 serde_json = "JSON parsing"
 base64 = "Base64 encoding/decoding for digest and cert bytes"
 url = "URL construction"
+async-trait = "Async trait definitions for client abstractions"
 
 [crate.certificates]
 x509-parser = "DER/PEM X.509 certificate parsing"

@@ -714,7 +714,12 @@ try {
                 if ($noTestTargets) {
                     Write-Host ("    {0}: NO TESTS (0/0)" -f $crateName) -ForegroundColor Red
                 } else {
-                    Write-Host ("    {0}: FAILED" -f $crateName) -ForegroundColor Red
+                    Write-Host ("    {0}: FAILED (exit code {1})" -f $crateName, $covProc.ExitCode) -ForegroundColor Red
+                    if ($stderrContent) {
+                        # Print last 20 lines of stderr for diagnostics
+                        $lines = $stderrContent -split "`n" | Select-Object -Last 20
+                        $lines | ForEach-Object { Write-Host "      $_" -ForegroundColor DarkGray }
+                    }
                 }
                 $failedCrates += $crateName
                 continue

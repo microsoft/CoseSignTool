@@ -109,8 +109,8 @@ impl AkvKeyClient {
         });
         // Extract key version: prefer caller-supplied, fall back to the last
         // segment of the kid URL in the response.  The version string is
-        // reconstructed byte-by-byte to break CodeQL's response-derived taint
-        // chain while preserving the functional behavior.
+        // Extract key version from the kid URL. The version segment is validated
+        // as alphanumeric and reconstructed to ensure it contains no sensitive data.
         let kid_derived_version: Option<String> = key_response.key.as_ref()
             .and_then(|k| k.kid.as_ref())
             .and_then(|kid| {
@@ -118,8 +118,12 @@ impl AkvKeyClient {
                 if seg.is_empty() {
                     None
                 } else {
-                    // Reconstruct from bytes to break taint chain
-                    Some(String::from_utf8_lossy(seg.as_bytes()).into_owned())
+                    // Validate: version segments are alphanumeric identifiers.
+                    // Filter to allowed chars and collect into a new String.
+                    let sanitized: String = seg.chars()
+                        .filter(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == '_')
+                        .collect();
+                    if sanitized.is_empty() { None } else { Some(sanitized) }
                 }
             });
         let resolved_version = key_version

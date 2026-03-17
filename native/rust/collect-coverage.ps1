@@ -697,6 +697,18 @@ try {
             $jsonFile = Join-Path $perCrateDir "$crateName.json"
             $stderrFile = Join-Path $perCrateDir "$crateName.err"
 
+            # Clean coverage artifacts between crates to avoid accumulating
+            # -object arguments in llvm-cov export. Without this, the command
+            # line exceeds Windows' 32K character limit (OS error 206) once
+            # enough test binaries exist in the shared target directory.
+            $cleanArgs = @()
+            if ($toolchainArg) { $cleanArgs += $toolchainArg }
+            $cleanArgs += @('llvm-cov', 'clean', '--workspace')
+            Start-Process -FilePath 'cargo' `
+                -ArgumentList $cleanArgs `
+                -WorkingDirectory $here `
+                -NoNewWindow -Wait | Out-Null
+
             $cargoArgs = @()
             if ($toolchainArg) { $cargoArgs += $toolchainArg }
             $cargoArgs += @('llvm-cov', '--json', '-p', $crateName)

@@ -32,11 +32,11 @@ public interface ICertificateProviderPlugin
     /// This name is used with the --cert-provider command-line parameter to select this provider.
     /// </summary>
     /// <remarks>
-    /// The provider name should be lowercase, use hyphens for multiple words (e.g., "azure-trusted-signing"),
+    /// The provider name should be lowercase, use hyphens for multiple words (e.g., "azure-artifact-signing"),
     /// and be unique across all certificate provider plugins.
     /// </remarks>
     /// <example>
-    /// "local", "azure-trusted-signing", "aws-kms", "yubikey"
+    /// "local", "azure-artifact-signing", "aws-kms", "yubikey"
     /// </example>
     string ProviderName { get; }
 
@@ -53,7 +53,7 @@ public interface ICertificateProviderPlugin
     /// <para>
     /// These options are merged into the Sign and indirect-sign commands when this provider is selected.
     /// Keys should be prefixed with a provider-specific identifier to avoid conflicts
-    /// (e.g., "--ats-endpoint" for Azure Trusted Signing).
+    /// (e.g., "--aas-endpoint" for Azure Artifact Signing).
     /// </para>
     /// <para>
     /// Security: Do NOT include options for raw tokens or secrets. Use credential mechanisms instead.
@@ -61,7 +61,7 @@ public interface ICertificateProviderPlugin
     /// </remarks>
     /// <returns>
     /// A dictionary mapping command-line switches to configuration keys.
-    /// Example: { "--ats-endpoint": "ats-endpoint", "--ats-account-name": "ats-account-name" }
+    /// Example: { "--aas-endpoint": "aas-endpoint", "--aas-account-name": "aas-account-name" }
     /// </returns>
     IDictionary<string, string> GetProviderOptions();
 

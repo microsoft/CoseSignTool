@@ -1,7 +1,7 @@
 #### Build, Test, and Publish ####
 # This is the main workflow for the CoseSignTool project. It handles the following events:
-#   - Pull requests: When a user submits a pull request, or pushes a commit to an existing pull request, this workflow 
-#       - generates a changelog and commits it to the working branch, and then 
+#   - Pull requests: When a user submits a pull request, or pushes a commit to an existing pull request, this workflow
+#       - generates a changelog and commits it to the working branch, and then
 #       - builds and tests the code.
 #   - Pushes to the main branch: When a user pushes a commit to the main branch, this workflow
 #       - creates a semantically versioned tag,
@@ -22,7 +22,7 @@ on:
 jobs:
 
   #### PULL REQUEST EVENTS ####
-  
+
   # Build and test the code.
   build:
     name: build-${{matrix.os}}${{matrix.runtime_id && format('-{0}', matrix.runtime_id) || ''}}
@@ -62,7 +62,7 @@ jobs:
           dotnet build --configuration Debug CoseSignTool.sln
           dotnet test --no-restore CoseSign1.Tests/CoseSign1.Tests.csproj
           dotnet test --no-restore CoseSign1.Certificates.Tests/CoseSign1.Certificates.Tests.csproj
-          dotnet test --no-restore CoseSign1.Certificates.AzureTrustedSigning.Tests/CoseSign1.Certificates.AzureTrustedSigning.Tests.csproj
+          dotnet test --no-restore CoseSign1.Certificates.AzureArtifactSigning.Tests/CoseSign1.Certificates.AzureArtifactSigning.Tests.csproj
           dotnet test --no-restore CoseSign1.Headers.Tests/CoseSign1.Headers.Tests.csproj
           dotnet test --no-restore CoseIndirectSignature.Tests/CoseIndirectSignature.Tests.csproj
           dotnet test --no-restore CoseSign1.Transparent.Tests/CoseSign1.Transparent.Tests.csproj
@@ -73,7 +73,7 @@ jobs:
           dotnet test --no-restore CoseSignTool.MST.Plugin.Tests/CoseSignTool.MST.Plugin.Tests.csproj
           dotnet test --no-restore CoseSignTool.IndirectSignature.Plugin.Tests/CoseSignTool.IndirectSignature.Plugin.Tests.csproj
 
-    # List the contents of the working directory to make sure all the artifacts are there.  
+    # List the contents of the working directory to make sure all the artifacts are there.
     - name: List working directory
       run: ${{ matrix.dir_command }}
 
@@ -89,9 +89,7 @@ jobs:
     permissions:
       contents: write
     steps:
-
       #### PUSH TO MAIN — generate, commit, and push the changelog ####
-
       - name: Checkout main
         if: ${{ github.event_name == 'push' }}
         uses: actions/checkout@v4
@@ -312,33 +310,33 @@ jobs:
         # Remove the 'v' prefix from VERSION for VersionNgt property
         VERSION_WITHOUT_V=$(echo "$VERSION" | sed 's/^v//')
         RUNTIME_ID=${{ matrix.runtime_id }}
-        
+
         echo "Publishing single-file self-contained executable for runtime: $RUNTIME_ID"
         echo "Plugins will be bundled inside the executable"
-        
+
         dotnet publish --no-restore --configuration Debug --self-contained true --runtime $RUNTIME_ID --output published/debug --property:FileVersion=$VERSION --property:VersionNgt=$VERSION_WITHOUT_V --property:PublishSingleFile=true CoseSignTool/CoseSignTool.csproj
         dotnet publish --no-restore --configuration Release --self-contained true --runtime $RUNTIME_ID --output published/release --property:FileVersion=$VERSION --property:VersionNgt=$VERSION_WITHOUT_V --property:PublishSingleFile=true CoseSignTool/CoseSignTool.csproj
-        
+
         # PublishSingleFile=true bundles everything into a single executable:
         # - The .NET runtime (self-contained)
         # - All plugins (bundled and extracted on first run)
         # - No separate plugins folder needed - everything is in the exe
       shell: bash
-    
+
     # Verify the single-file executable was created correctly
     # With PublishSingleFile=true and IncludeAllContentForSelfExtract=true, plugins are bundled INSIDE the exe
     - name: Verify single-file executable
       run: |
         Write-Host "Verifying single-file self-contained executable..."
         Write-Host ""
-        
+
         # Check debug output
         Write-Host "=== Debug build ==="
         $debugExe = Get-ChildItem "published/debug/CoseSignTool*" -File | Where-Object { $_.Extension -eq '.exe' -or $_.Extension -eq '' } | Select-Object -First 1
         if ($debugExe) {
           $sizeMB = [math]::Round($debugExe.Length / 1MB, 2)
           Write-Host "✅ Found: $($debugExe.Name) ($sizeMB MB)"
-          
+
           # Plugins are bundled inside, so exe should be > 40MB (contains runtime + plugins)
           if ($sizeMB -gt 40) {
             Write-Host "✅ Size indicates plugins are bundled (expected for single-file with plugins)"
@@ -349,21 +347,21 @@ jobs:
           Write-Host "❌ CoseSignTool executable not found in debug output!"
           exit 1
         }
-        
+
         # Check that plugins folder does NOT exist (should be bundled in exe)
         if (Test-Path "published/debug/plugins") {
           Write-Host "⚠️  Plugins folder exists - it should be cleaned up for single-file publish"
         } else {
           Write-Host "✅ No external plugins folder (correctly bundled in exe)"
         }
-        
+
         Write-Host ""
         Write-Host "=== Release build ==="
         $releaseExe = Get-ChildItem "published/release/CoseSignTool*" -File | Where-Object { $_.Extension -eq '.exe' -or $_.Extension -eq '' } | Select-Object -First 1
         if ($releaseExe) {
           $sizeMB = [math]::Round($releaseExe.Length / 1MB, 2)
           Write-Host "✅ Found: $($releaseExe.Name) ($sizeMB MB)"
-          
+
           if ($sizeMB -gt 40) {
             Write-Host "✅ Size indicates plugins are bundled"
           } else {
@@ -373,13 +371,13 @@ jobs:
           Write-Host "❌ CoseSignTool executable not found in release output!"
           exit 1
         }
-        
+
         if (Test-Path "published/release/plugins") {
           Write-Host "⚠️  Plugins folder exists - it should be cleaned up for single-file publish"
         } else {
           Write-Host "✅ No external plugins folder (correctly bundled in exe)"
         }
-        
+
         Write-Host ""
         Write-Host "Single-file verification complete. Plugins are bundled inside the executable."
         Write-Host "On first run, the exe will extract to a temp directory including the plugins folder."
@@ -408,11 +406,11 @@ jobs:
     - name: Create NuGet packages
       run: |
         echo "📦 Creating NuGet packages for library projects..."
-        
+
         VERSION=${{ needs.create_release.outputs.tag_name }}
         # Remove the 'v' prefix from VERSION for VersionNgt property
         VERSION_WITHOUT_V=$(echo "$VERSION" | sed 's/^v//')
-        
+
         # Define library projects that should be packaged (excluding plugins and test projects)
         LIBRARY_PROJECTS=(
           "CoseHandler/CoseHandler.csproj"
@@ -425,16 +423,16 @@ jobs:
           "CoseSign1.Transparent.MST/CoseSign1.Transparent.MST.csproj"
           "CoseSignTool.Abstractions/CoseSignTool.Abstractions.csproj"
         )
-        
+
         # Create packages directory
         mkdir -p published/packages
-        
+
         # Pack each library project
         for project in "${LIBRARY_PROJECTS[@]}"; do
           if [ -f "$project" ]; then
             project_name=$(basename "${project%.*}")
             echo "📦 Creating package for $project_name..."
-            
+
             dotnet pack "$project" \
               --configuration Release \
               --property:FileVersion=$VERSION \
@@ -442,7 +440,7 @@ jobs:
               --property:VersionNgt=$VERSION_WITHOUT_V \
               --output published/packages \
               --verbosity minimal
-            
+
             if [ $? -eq 0 ]; then
               echo "✅ Successfully created package for $project_name"
             else
@@ -452,7 +450,7 @@ jobs:
             echo "⚠️  Project file not found: $project"
           fi
         done
-        
+
         # List created packages
         echo ""
         echo "📋 Created NuGet packages:"
@@ -463,7 +461,7 @@ jobs:
         else
           echo "❌ No packages directory found"
         fi
-        
+
         echo "🎯 NuGet package creation completed."
       shell: bash
 

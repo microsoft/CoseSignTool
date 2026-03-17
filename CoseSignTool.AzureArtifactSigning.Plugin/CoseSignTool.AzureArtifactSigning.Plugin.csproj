@@ -12,16 +12,16 @@
     <AnalysisLevel>latest</AnalysisLevel>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <RootNamespace>CoseSignTool.AzureTrustedSigning.Plugin</RootNamespace>
+    <RootNamespace>CoseSignTool.AzureArtifactSigning.Plugin</RootNamespace>
     <SignAssembly>true</SignAssembly>
     <DelaySign>True</DelaySign>
     <AssemblyOriginatorKeyFile>..\StrongNameKeys\35MSSharedLib1024.snk</AssemblyOriginatorKeyFile>
-    
+
     <!-- Plugin-specific properties to ensure all dependencies are copied for subdirectory isolation -->
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <PreserveCompilationContext>true</PreserveCompilationContext>
     <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
-    
+
     <!-- Disable NuGet package generation for plugins -->
     <IsPackable>false</IsPackable>
   </PropertyGroup>
@@ -32,7 +32,7 @@
       <ExcludeAssets>none</ExcludeAssets>
       <IncludeAssets>compile; build; native; contentfiles; analyzers</IncludeAssets>
     </ProjectReference>
-    <ProjectReference Include="..\CoseSign1.Certificates.AzureTrustedSigning\CoseSign1.Certificates.AzureTrustedSigning.csproj">
+    <ProjectReference Include="..\CoseSign1.Certificates.AzureArtifactSigning\CoseSign1.Certificates.AzureArtifactSigning.csproj">
       <Private>true</Private>
       <ExcludeAssets>none</ExcludeAssets>
       <IncludeAssets>compile; build; native; contentfiles; analyzers</IncludeAssets>
@@ -40,7 +40,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Azure.Developer.TrustedSigning.CryptoProvider">
+    <PackageReference Include="Azure.Developer.ArtifactSigning.CryptoProvider">
       <Private>true</Private>
     </PackageReference>
     <PackageReference Include="Azure.Identity">

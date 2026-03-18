@@ -35,6 +35,8 @@ jobs:
             - '**/*.cs'
             - '**/*.csproj'
             - '**/*.sln'
+            - '*.props'
+            - '*.targets'
             - 'Directory.Build.props'
             - 'Directory.Packages.props'
 

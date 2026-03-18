@@ -23,10 +23,8 @@ jobs:
 
   #### CHANGE DETECTION ####
   # Determine which paths changed so downstream jobs only run when relevant.
-  # On push-to-main and release events, all jobs run unconditionally.
   detect-changes:
     name: detect-changes
-    if: ${{ github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
     outputs:
       native: ${{ steps.filter.outputs.native }}
@@ -34,6 +32,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
     - name: Check changed paths
       id: filter
@@ -115,7 +115,7 @@ jobs:
   native-rust:
     name: native-rust
     needs: [ detect-changes ]
-    if: ${{ github.event_name == 'push' || (github.event_name == 'pull_request' && needs.detect-changes.outputs.native == 'true') }}
+    if: ${{ github.event_name == 'pull_request' && needs.detect-changes.outputs.native == 'true' }}
     runs-on: windows-latest
     env:
       VCPKG_ROOT: C:\vcpkg
@@ -165,7 +165,7 @@ jobs:
   native-c-cpp:
     name: native-c-cpp
     needs: [ detect-changes ]
-    if: ${{ github.event_name == 'push' || (github.event_name == 'pull_request' && needs.detect-changes.outputs.native == 'true') }}
+    if: ${{ github.event_name == 'pull_request' && needs.detect-changes.outputs.native == 'true' }}
     runs-on: windows-latest
     env:
       VCPKG_ROOT: C:\vcpkg
@@ -267,8 +267,8 @@ jobs:
   #   Official releases are created manually on GitHub.
   create_release:
     name: Create Release
-    if: ${{ github.event_name == 'push' || github.event_name == 'release'}}
-    needs: [ create_changelog ]  # Ensure changelog is committed before tagging.
+    if: ${{ (github.event_name == 'push' && needs.detect-changes.outputs.dotnet == 'true') || github.event_name == 'release' }}
+    needs: [ detect-changes, create_changelog ]  # Ensure changelog is committed before tagging.
     runs-on: ubuntu-latest
     permissions:
       actions: write
@@ -380,8 +380,8 @@ jobs:
   #     automatic release creation does not trigger the release event.
   release_assets:
     name: release-assets
-    if: ${{ github.event_name == 'release' || github.event_name == 'push'}}
-    needs: [ create_release ]
+    if: ${{ github.event_name == 'release' || (github.event_name == 'push' && needs.detect-changes.outputs.dotnet == 'true') }}
+    needs: [ detect-changes, create_release ]
     runs-on: ${{ matrix.os }}
     permissions:
       actions: write

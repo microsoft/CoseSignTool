@@ -310,7 +310,7 @@ public abstract class IndirectSignatureCommandBase : PluginCommandBase
                 return (null, null, PluginExitCode.MissingRequiredOption);
             }
         }
-        catch (Exception ex) when (ex is CryptographicException or IOException or UnauthorizedAccessException or FormatException)
+        catch (Exception ex) when (ex is CryptographicException or IOException or UnauthorizedAccessException or FormatException or ArgumentException or InvalidOperationException)
         {
             logger?.LogError($"Error loading certificate: {ex.Message}");
             logger?.LogException(ex);

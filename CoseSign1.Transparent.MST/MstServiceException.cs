@@ -126,7 +126,7 @@ public class MstServiceException : Exception
         {
             var contentType = response.Headers.ContentType;
 
-            if (contentType?.Contains("cbor", StringComparison.OrdinalIgnoreCase) == true)
+            if (contentType?.IndexOf("cbor", StringComparison.OrdinalIgnoreCase) >= 0)
             {
                 try
                 {

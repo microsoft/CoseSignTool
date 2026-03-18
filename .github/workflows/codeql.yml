@@ -11,8 +11,37 @@ on:
     - cron: '28 20 * * 1'
 
 jobs:
+  # Determine which paths changed so CodeQL jobs only run when relevant.
+  # On push-to-main and schedule events, all jobs run unconditionally.
+  detect-changes:
+    name: detect-changes
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    outputs:
+      native: ${{ steps.filter.outputs.native }}
+      dotnet: ${{ steps.filter.outputs.dotnet }}
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Check changed paths
+      id: filter
+      uses: dorny/paths-filter@v3
+      with:
+        filters: |
+          native:
+            - 'native/**'
+          dotnet:
+            - '**/*.cs'
+            - '**/*.csproj'
+            - '**/*.sln'
+            - 'Directory.Build.props'
+            - 'Directory.Packages.props'
+
   analyze-csharp:
     name: Analyze (csharp, ${{ matrix.os }})
+    needs: [ detect-changes ]
+    if: ${{ github.event_name != 'pull_request' || needs.detect-changes.outputs.dotnet == 'true' }}
     runs-on: ${{ matrix.os }}
     permissions:
       actions: read
@@ -50,6 +79,8 @@ jobs:
 
   analyze-rust:
     name: Analyze (rust, ubuntu-latest)
+    needs: [ detect-changes ]
+    if: ${{ github.event_name != 'pull_request' || needs.detect-changes.outputs.native == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -75,6 +106,8 @@ jobs:
 
   analyze-cpp:
     name: Analyze (c-cpp, ubuntu-latest)
+    needs: [ detect-changes ]
+    if: ${{ github.event_name != 'pull_request' || needs.detect-changes.outputs.native == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       actions: read

@@ -21,12 +21,44 @@ on:
 
 jobs:
 
+  #### CHANGE DETECTION ####
+  # Determine which paths changed so downstream jobs only run when relevant.
+  # On push-to-main and release events, all jobs run unconditionally.
+  detect-changes:
+    name: detect-changes
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    outputs:
+      native: ${{ steps.filter.outputs.native }}
+      dotnet: ${{ steps.filter.outputs.dotnet }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Check changed paths
+      id: filter
+      uses: dorny/paths-filter@v3
+      with:
+        filters: |
+          native:
+            - 'native/**'
+          dotnet:
+            - '**/*.cs'
+            - '**/*.csproj'
+            - '**/*.sln'
+            - 'Directory.Build.props'
+            - 'Directory.Packages.props'
+            - 'Nuget.config'
+            - 'global.json'
+            - '.github/workflows/dotnet.yml'
+
   #### PULL REQUEST EVENTS ####
 
   # Build and test the code.
   build:
     name: build-${{matrix.os}}${{matrix.runtime_id && format('-{0}', matrix.runtime_id) || ''}}
-    if: ${{ github.event_name == 'pull_request' }}
+    needs: [ detect-changes ]
+    if: ${{ github.event_name == 'pull_request' && needs.detect-changes.outputs.dotnet == 'true' }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -80,7 +112,8 @@ jobs:
   # ── Native Rust: build, test, coverage ──────────────────────────────
   native-rust:
     name: native-rust
-    if: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
+    needs: [ detect-changes ]
+    if: ${{ github.event_name == 'push' || (github.event_name == 'pull_request' && needs.detect-changes.outputs.native == 'true') }}
     runs-on: windows-latest
     env:
       VCPKG_ROOT: C:\vcpkg
@@ -129,7 +162,8 @@ jobs:
   # ── Native C/C++: build, test, coverage (ASAN) ────────────────────
   native-c-cpp:
     name: native-c-cpp
-    if: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
+    needs: [ detect-changes ]
+    if: ${{ github.event_name == 'push' || (github.event_name == 'pull_request' && needs.detect-changes.outputs.native == 'true') }}
     runs-on: windows-latest
     env:
       VCPKG_ROOT: C:\vcpkg

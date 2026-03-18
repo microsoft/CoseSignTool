@@ -63,7 +63,7 @@ public static class MstClientOptionsExtensions
             retryDelay ?? MstTransactionNotCachedPolicy.DefaultRetryDelay,
             maxRetries ?? MstTransactionNotCachedPolicy.DefaultMaxRetries);
 
-        options.AddPolicy(policy, HttpPipelinePosition.PerRetry);
+        options.AddPolicy(policy, HttpPipelinePosition.BeforeTransport);
         return options;
     }
 }

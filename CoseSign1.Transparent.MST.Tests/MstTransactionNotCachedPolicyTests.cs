@@ -3,6 +3,7 @@
 
 namespace CoseSign1.Transparent.MST.Tests;
 
+using System.Diagnostics;
 using System.Formats.Cbor;
 using Azure.Core;
 using Azure.Core.Pipeline;
@@ -442,6 +443,286 @@ public class MstTransactionNotCachedPolicyTests
 
     #endregion
 
+    #region Pipeline Integration Tests — SDK Retry Interaction
+
+    /// <summary>
+    /// Baseline: Without the fast retry policy, the SDK's RetryPolicy respects the
+    /// Retry-After: 1 header and waits approximately 1 second before retrying.
+    /// This establishes the latency floor that the policy is designed to eliminate.
+    /// </summary>
+    [Test]
+    public async Task Baseline_WithoutPolicy_SdkRespectsRetryAfterDelay()
+    {
+        // Arrange — 503/TransactionNotCached on first call, 200 on second
+        int callCount = 0;
+        var transport = MockTransport.FromMessageCallback(msg =>
+        {
+            callCount++;
+            if (callCount == 1)
+            {
+                return CreateTransactionNotCachedResponse();
+            }
+            return new MockResponse(200);
+        });
+
+        var options = new SdkRetryTestClientOptions(transport, policy: null);
+        var pipeline = HttpPipelineBuilder.Build(options);
+        var message = CreateHttpMessage(pipeline, RequestMethod.Get, "https://mst.example.com/entries/1.234");
+
+        var sw = Stopwatch.StartNew();
+
+        // Act
+        await pipeline.SendAsync(message, CancellationToken.None);
+
+        sw.Stop();
+
+        // Assert — SDK retried after respecting Retry-After: 1 (should take >= ~900ms)
+        Assert.That(message.Response.Status, Is.EqualTo(200), "Should eventually succeed via SDK retry");
+        Assert.That(callCount, Is.EqualTo(2), "SDK should have made 2 transport calls (initial + 1 retry)");
+        Assert.That(sw.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(900),
+            $"SDK should wait approximately 1 second for the Retry-After header before retrying, but only waited {sw.ElapsedMilliseconds}ms");
+    }
+
+    /// <summary>
+    /// With the policy at PerRetry, verifies whether the fast retry intercepts the 503
+    /// BEFORE the SDK's RetryPolicy applies its Retry-After delay.
+    /// </summary>
+    [Test]
+    public async Task PolicyAtPerRetry_FastRetryResolvesBeforeSdkRetryAfterDelay()
+    {
+        // Arrange — 503/TransactionNotCached on first call, 200 on second
+        int callCount = 0;
+        var transport = MockTransport.FromMessageCallback(msg =>
+        {
+            callCount++;
+            if (callCount == 1)
+            {
+                return CreateTransactionNotCachedResponse();
+            }
+            return new MockResponse(200);
+        });
+
+        var policy = new MstTransactionNotCachedPolicy(TimeSpan.FromMilliseconds(10), 5);
+        var options = new SdkRetryTestClientOptions(transport, policy, HttpPipelinePosition.PerRetry);
+        var pipeline = HttpPipelineBuilder.Build(options);
+        var message = CreateHttpMessage(pipeline, RequestMethod.Get, "https://mst.example.com/entries/1.234");
+
+        var sw = Stopwatch.StartNew();
+
+        // Act
+        await pipeline.SendAsync(message, CancellationToken.None);
+
+        sw.Stop();
+
+        // Assert — fast retry should resolve in well under 1 second
+        Assert.That(message.Response.Status, Is.EqualTo(200), "Fast retry should succeed");
+        Assert.That(callCount, Is.EqualTo(2), "Should be 2 transport calls (initial 503 + 1 fast retry 200)");
+        Assert.That(sw.ElapsedMilliseconds, Is.LessThan(500),
+            $"Fast retry at PerRetry position should resolve in <500ms, but took {sw.ElapsedMilliseconds}ms. " +
+            "If this takes >=1s, the policy is NOT intercepting before the SDK's Retry-After delay.");
+    }
+
+    /// <summary>
+    /// Tests the policy at BeforeTransport position as an alternative to PerRetry.
+    /// BeforeTransport places the policy closest to the transport, inside the retry loop.
+    /// </summary>
+    [Test]
+    public async Task PolicyAtBeforeTransport_FastRetryResolvesBeforeSdkRetryAfterDelay()
+    {
+        // Arrange
+        int callCount = 0;
+        var transport = MockTransport.FromMessageCallback(msg =>
+        {
+            callCount++;
+            if (callCount == 1)
+            {
+                return CreateTransactionNotCachedResponse();
+            }
+            return new MockResponse(200);
+        });
+
+        var policy = new MstTransactionNotCachedPolicy(TimeSpan.FromMilliseconds(10), 5);
+        var options = new SdkRetryTestClientOptions(transport, policy, HttpPipelinePosition.BeforeTransport);
+        var pipeline = HttpPipelineBuilder.Build(options);
+        var message = CreateHttpMessage(pipeline, RequestMethod.Get, "https://mst.example.com/entries/1.234");
+
+        var sw = Stopwatch.StartNew();
+
+        // Act
+        await pipeline.SendAsync(message, CancellationToken.None);
+
+        sw.Stop();
+
+        // Assert
+        Assert.That(message.Response.Status, Is.EqualTo(200), "Fast retry should succeed");
+        Assert.That(callCount, Is.EqualTo(2), "Should be 2 transport calls (initial 503 + 1 fast retry 200)");
+        Assert.That(sw.ElapsedMilliseconds, Is.LessThan(500),
+            $"Fast retry at BeforeTransport should resolve in <500ms, but took {sw.ElapsedMilliseconds}ms.");
+    }
+
+    /// <summary>
+    /// With a 100 ms retry delay the fast retry should still resolve well under 500 ms,
+    /// demonstrating that tighter intervals pull latency down further.
+    /// </summary>
+    [Test]
+    public async Task PolicyAt100msDelay_ResolvesWellUnder500ms()
+    {
+        // Arrange — 503 on first call, 200 on second
+        int callCount = 0;
+        var transport = MockTransport.FromMessageCallback(msg =>
+        {
+            callCount++;
+            if (callCount == 1)
+            {
+                return CreateTransactionNotCachedResponse();
+            }
+            return new MockResponse(200);
+        });
+
+        var policy = new MstTransactionNotCachedPolicy(TimeSpan.FromMilliseconds(100), 5);
+        var options = new SdkRetryTestClientOptions(transport, policy, HttpPipelinePosition.BeforeTransport);
+        var pipeline = HttpPipelineBuilder.Build(options);
+        var message = CreateHttpMessage(pipeline, RequestMethod.Get, "https://mst.example.com/entries/1.234");
+
+        var sw = Stopwatch.StartNew();
+
+        // Act
+        await pipeline.SendAsync(message, CancellationToken.None);
+
+        sw.Stop();
+
+        // Assert — with 100ms delay and 1 retry needed, should finish in ~100-200ms
+        Assert.That(message.Response.Status, Is.EqualTo(200));
+        Assert.That(callCount, Is.EqualTo(2));
+        Assert.That(sw.ElapsedMilliseconds, Is.LessThan(300),
+            $"With 100ms retry delay, expected resolution in <300ms, but took {sw.ElapsedMilliseconds}ms.");
+    }
+
+    /// <summary>
+    /// When the policy's fast retries all exhaust without success, the 503 propagates back to
+    /// the SDK's RetryPolicy which applies its own Retry-After delay before retrying.
+    /// </summary>
+    [Test]
+    public async Task PolicyExhaustsRetries_SdkRetryTakesOver_WithRetryAfterDelay()
+    {
+        // Arrange — 503 on first call, then 200 on subsequent calls
+        // Policy configured with 0 fast retries: passes the 503 straight through to SDK
+        int callCount = 0;
+        var transport = MockTransport.FromMessageCallback(msg =>
+        {
+            callCount++;
+            if (callCount <= 1)
+            {
+                return CreateTransactionNotCachedResponse();
+            }
+            return new MockResponse(200);
+        });
+
+        var policy = new MstTransactionNotCachedPolicy(TimeSpan.FromMilliseconds(10), 0);
+        var options = new SdkRetryTestClientOptions(transport, policy, HttpPipelinePosition.PerRetry);
+        var pipeline = HttpPipelineBuilder.Build(options);
+        var message = CreateHttpMessage(pipeline, RequestMethod.Get, "https://mst.example.com/entries/1.234");
+
+        var sw = Stopwatch.StartNew();
+
+        // Act
+        await pipeline.SendAsync(message, CancellationToken.None);
+
+        sw.Stop();
+
+        // Assert — SDK retry should have applied Retry-After: 1 delay
+        Assert.That(message.Response.Status, Is.EqualTo(200));
+        Assert.That(callCount, Is.EqualTo(2), "Initial 503 + SDK retry 200 = 2 calls");
+        Assert.That(sw.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(800),
+            $"With 0 fast retries, SDK should fall back to Retry-After delay (~1s), but only waited {sw.ElapsedMilliseconds}ms");
+    }
+
+    /// <summary>
+    /// Validates the extension method's registered position intercepts before SDK delay.
+    /// This tests the actual production registration path.
+    /// </summary>
+    [Test]
+    public async Task ConfigureTransactionNotCachedRetry_PolicyInterceptsBeforeSdkDelay()
+    {
+        // Arrange
+        int callCount = 0;
+        var transport = MockTransport.FromMessageCallback(msg =>
+        {
+            callCount++;
+            if (callCount == 1)
+            {
+                return CreateTransactionNotCachedResponse();
+            }
+            return new MockResponse(200);
+        });
+
+        var options = new CodeTransparencyClientOptions();
+        options.ConfigureTransactionNotCachedRetry(
+            retryDelay: TimeSpan.FromMilliseconds(10),
+            maxRetries: 5);
+        options.Transport = transport;
+        // SDK retries enabled with small base delay so only Retry-After dominates
+        options.Retry.MaxRetries = 3;
+        options.Retry.Delay = TimeSpan.FromMilliseconds(1);
+
+        var pipeline = HttpPipelineBuilder.Build(options);
+        var message = CreateHttpMessage(pipeline, RequestMethod.Get, "https://mst.example.com/entries/1.234");
+
+        var sw = Stopwatch.StartNew();
+
+        // Act
+        await pipeline.SendAsync(message, CancellationToken.None);
+
+        sw.Stop();
+
+        // Assert
+        Assert.That(message.Response.Status, Is.EqualTo(200));
+        Assert.That(callCount, Is.EqualTo(2));
+        Assert.That(sw.ElapsedMilliseconds, Is.LessThan(500),
+            $"Extension method should register policy at a position that intercepts before SDK Retry-After delay. Took {sw.ElapsedMilliseconds}ms.");
+    }
+
+    /// <summary>
+    /// With multiple consecutive 503s, the fast retry resolves them without incurring
+    /// multiple SDK Retry-After delays.
+    /// </summary>
+    [Test]
+    public async Task PolicyAtPerRetry_Multiple503s_AllResolvedByFastRetry()
+    {
+        // Arrange — first 3 calls return 503, fourth returns 200
+        // Policy has 5 fast retries, so it should catch all 3 within ONE SDK retry iteration
+        int callCount = 0;
+        var transport = MockTransport.FromMessageCallback(msg =>
+        {
+            callCount++;
+            if (callCount <= 3)
+            {
+                return CreateTransactionNotCachedResponse();
+            }
+            return new MockResponse(200);
+        });
+
+        var policy = new MstTransactionNotCachedPolicy(TimeSpan.FromMilliseconds(10), 5);
+        var options = new SdkRetryTestClientOptions(transport, policy, HttpPipelinePosition.PerRetry);
+        var pipeline = HttpPipelineBuilder.Build(options);
+        var message = CreateHttpMessage(pipeline, RequestMethod.Get, "https://mst.example.com/entries/1.234");
+
+        var sw = Stopwatch.StartNew();
+
+        // Act
+        await pipeline.SendAsync(message, CancellationToken.None);
+
+        sw.Stop();
+
+        // Assert — all resolved by fast retries with no SDK Retry-After delays
+        Assert.That(message.Response.Status, Is.EqualTo(200));
+        Assert.That(callCount, Is.EqualTo(4), "1 initial + 3 fast retries");
+        Assert.That(sw.ElapsedMilliseconds, Is.LessThan(500),
+            $"Multiple 503s should all be resolved by fast retry without SDK delay. Took {sw.ElapsedMilliseconds}ms.");
+    }
+
+    #endregion
+
     #region Test Helpers
 
     /// <summary>
@@ -516,7 +797,32 @@ public class MstTransactionNotCachedPolicyTests
         {
             Transport = transport;
             Retry.MaxRetries = 0; // Disable SDK retries to test policy in isolation
-            AddPolicy(policy, HttpPipelinePosition.PerRetry);
+            AddPolicy(policy, HttpPipelinePosition.BeforeTransport);
+        }
+    }
+
+    /// <summary>
+    /// ClientOptions subclass with SDK retries enabled (MaxRetries=3) to test interaction
+    /// between the fast retry policy and the SDK's built-in RetryPolicy.
+    /// Uses a small base delay so that Retry-After: 1 from the server dominates timing.
+    /// </summary>
+    private sealed class SdkRetryTestClientOptions : ClientOptions
+    {
+        public SdkRetryTestClientOptions(
+            MockTransport transport,
+            MstTransactionNotCachedPolicy? policy,
+            HttpPipelinePosition position = HttpPipelinePosition.PerRetry)
+        {
+            Transport = transport;
+            Retry.MaxRetries = 3;
+            Retry.Delay = TimeSpan.FromMilliseconds(1); // Small base so Retry-After dominates
+            Retry.MaxDelay = TimeSpan.FromSeconds(10);
+            Retry.NetworkTimeout = TimeSpan.FromSeconds(30);
+
+            if (policy != null)
+            {
+                AddPolicy(policy, position);
+            }
         }
     }
 

@@ -40,18 +40,20 @@ using Azure.Core.Pipeline;
 ///
 /// <para>
 /// <b>Pipeline position:</b> Register this policy in the
-/// <see cref="HttpPipelinePosition.PerRetry"/> position so it runs inside the SDK's
-/// retry loop. Each of the policy's internal retries re-sends the request through
-/// the remaining pipeline (transport). If the fast retries succeed, the SDK sees a
-/// successful response. If they exhaust without success, the SDK sees the final 503
-/// and applies its own retry logic as usual.
+/// <see cref="HttpPipelinePosition.BeforeTransport"/> position so it runs inside the SDK's
+/// retry loop, directly adjacent to the transport layer. This ensures the policy
+/// intercepts the 503 response before any library-added per-retry policies
+/// (such as redirect policies) can interfere. Each of the policy's internal retries
+/// re-sends the request through the remaining pipeline (transport). If the fast
+/// retries succeed, the SDK sees a successful response. If they exhaust without
+/// success, the SDK sees the final 503 and applies its own retry logic as usual.
 /// </para>
 ///
 /// <para>
 /// <b>Usage:</b>
 /// <code>
 /// var options = new CodeTransparencyClientOptions();
-/// options.AddPolicy(new MstTransactionNotCachedPolicy(), HttpPipelinePosition.PerRetry);
+/// options.AddPolicy(new MstTransactionNotCachedPolicy(), HttpPipelinePosition.BeforeTransport);
 /// var client = new CodeTransparencyClient(endpoint, credential, options);
 /// </code>
 /// Or use the convenience extension:

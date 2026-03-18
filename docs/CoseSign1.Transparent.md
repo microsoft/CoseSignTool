@@ -334,12 +334,17 @@ using Azure.Core.Pipeline;
 var options = new CodeTransparencyClientOptions();
 options.AddPolicy(
     new MstTransactionNotCachedPolicy(TimeSpan.FromMilliseconds(200), 10),
-    HttpPipelinePosition.PerRetry);
+    HttpPipelinePosition.BeforeTransport);
 ```
 
-> **Important:** This policy does **not** affect the SDK's global `RetryOptions`. The fast
-> retry loop runs entirely within the policy and only targets HTTP 503 responses to
-> `GET /entries/` requests containing a `TransactionNotCached` CBOR error code.
+> **Important:** Use `HttpPipelinePosition.BeforeTransport` (not `PerRetry`). This places the
+> policy directly adjacent to the transport layer, inside the SDK's retry loop, ensuring it
+> intercepts 503 responses before any library-added per-retry policies can interfere. The
+> extension method `ConfigureTransactionNotCachedRetry` handles this automatically.
+
+> This policy does **not** affect the SDK's global `RetryOptions`. The fast retry loop runs
+> entirely within the policy and only targets HTTP 503 responses to `GET /entries/` requests
+> containing a `TransactionNotCached` CBOR error code.
 
 ### Polling Options
 

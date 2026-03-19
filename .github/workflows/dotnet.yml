@@ -115,7 +115,7 @@ jobs:
     - name: List working directory
       run: ${{ matrix.dir_command }}
 
-  # ── Native Rust: build, test, coverage ──────────────────────────────
+  # ── Native Rust: lint, build, test, coverage ─────────────────────────
   native-rust:
     name: native-rust
     needs: [ detect-changes ]
@@ -199,28 +199,16 @@ jobs:
     - name: Setup Rust (stable)
       uses: dtolnay/rust-toolchain@stable
 
-    - name: Build Rust FFI libraries (release)
-      shell: pwsh
-      run: |
-        $env:PATH = "$env:VCPKG_ROOT\installed\x64-windows\bin;$env:PATH"
-        cargo build --manifest-path native/rust/Cargo.toml --release --workspace --exclude cose-openssl
-
     - name: Install OpenCppCoverage
       shell: pwsh
       run: |
         choco install opencppcoverage -y --no-progress
 
-    - name: Native C coverage (Debug + ASAN, 90% gate)
+    - name: Native ASAN coverage (Rust + C + C++, 90% gate)
       shell: pwsh
       run: |
         $env:PATH = "$env:VCPKG_ROOT\installed\x64-windows\bin;$env:PATH"
-        ./native/c/collect-coverage.ps1 -Configuration Debug -MinimumLineCoveragePercent 90
-
-    - name: Native C++ coverage (Debug + ASAN, 90% gate)
-      shell: pwsh
-      run: |
-        $env:PATH = "$env:VCPKG_ROOT\installed\x64-windows\bin;$env:PATH"
-        ./native/c_pp/collect-coverage.ps1 -Configuration Debug -MinimumLineCoveragePercent 90
+        ./native/collect-coverage-asan.ps1 -Configuration Debug -MinimumLineCoveragePercent 90
 
   # Generate and commit a changelog on every push to main.
   # On pull requests this job passes without committing because:

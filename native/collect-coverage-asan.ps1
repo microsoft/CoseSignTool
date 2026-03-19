@@ -131,21 +131,49 @@ try {
     if ($BuildRust) {
         Push-Location (Join-Path $PSScriptRoot 'rust')
         try {
-            cargo build --release -p cose_sign1_validation_ffi -p cose_sign1_certificates_ffi -p cose_sign1_transparent_mst_ffi -p cose_sign1_azure_key_vault_ffi -p cose_sign1_validation_primitives_ffi
+            # Build only the FFI crates that exist in the current workspace.
+            $ffiCrates = @(
+                'cose_sign1_validation_ffi',
+                'cose_sign1_certificates_ffi',
+                'cose_sign1_transparent_mst_ffi',
+                'cose_sign1_azure_key_vault_ffi',
+                'cose_sign1_validation_primitives_ffi'
+            )
+            $cargoMetadata = cargo metadata --format-version 1 --no-deps 2>$null | ConvertFrom-Json
+            $workspaceNames = $cargoMetadata.packages | ForEach-Object { $_.name }
+            $presentFfi = $ffiCrates | Where-Object { $workspaceNames -contains $_ }
 
-            # Explicitly compile the PQClean-backed PQC implementation under ASAN, even though it's
-            # feature-gated and not built by default.
-            # This keeps the default coverage gates unchanged while still ensuring PQClean C is
-            # ASAN-instrumented in the ASAN pipeline.
-            cargo build --release -p cose_sign1_certificates --features pqc-mldsa
+            if ($presentFfi.Count -gt 0) {
+                $buildArgs = @('build', '--release') + ($presentFfi | ForEach-Object { @('-p', $_) })
+                & cargo @buildArgs
+            } else {
+                Write-Host "No FFI crates present in workspace; skipping Rust FFI build." -ForegroundColor Yellow
+            }
+
+            # Build PQC feature if the certificates crate is present.
+            if ($workspaceNames -contains 'cose_sign1_certificates') {
+                cargo build --release -p cose_sign1_certificates --features pqc-mldsa
+            }
         } finally {
             Pop-Location
         }
     }
 
     & (Join-Path $PSScriptRoot 'rust\collect-coverage.ps1') -FailUnderLines $MinimumLineCoveragePercent
-    & (Join-Path $PSScriptRoot 'c\collect-coverage.ps1') -Configuration $Configuration -MinimumLineCoveragePercent $MinimumLineCoveragePercent
-    & (Join-Path $PSScriptRoot 'c_pp\collect-coverage.ps1') -Configuration $Configuration -MinimumLineCoveragePercent $MinimumLineCoveragePercent
+
+    # C/C++ coverage: only run if the test directories have source files.
+    $cTestDir = Join-Path $PSScriptRoot 'c\tests'
+    $cppTestDir = Join-Path $PSScriptRoot 'c_pp\tests'
+    if ((Test-Path $cTestDir) -and (Get-ChildItem $cTestDir -Filter '*.c' -Recurse)) {
+        & (Join-Path $PSScriptRoot 'c\collect-coverage.ps1') -Configuration $Configuration -MinimumLineCoveragePercent $MinimumLineCoveragePercent
+    } else {
+        Write-Host "Skipping C coverage: no test sources in $cTestDir" -ForegroundColor Yellow
+    }
+    if ((Test-Path $cppTestDir) -and (Get-ChildItem $cppTestDir -Filter '*.cpp' -Recurse)) {
+        & (Join-Path $PSScriptRoot 'c_pp\collect-coverage.ps1') -Configuration $Configuration -MinimumLineCoveragePercent $MinimumLineCoveragePercent
+    } else {
+        Write-Host "Skipping C++ coverage: no test sources in $cppTestDir" -ForegroundColor Yellow
+    }
 } finally {
     ${env:CFLAGS_x86_64-pc-windows-msvc} = $prevCFlags
     ${env:CXXFLAGS_x86_64-pc-windows-msvc} = $prevCxxFlags

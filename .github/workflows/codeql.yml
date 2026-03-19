@@ -9,6 +9,7 @@ on:
     branches: [ "**" ]
   schedule:
     - cron: '28 20 * * 1'
+  workflow_dispatch:
 
 jobs:
   # Determine which paths changed so CodeQL jobs only run when relevant.

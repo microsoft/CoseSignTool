@@ -18,6 +18,7 @@ on:
     branches: [ "main" ]  # Trigger on pushes to the main branch.
   release:
     types: [ created ]    # Trigger on new releases.
+  workflow_dispatch:       # Allow manual triggering from the Actions tab.
 
 jobs:
 
@@ -60,7 +61,7 @@ jobs:
   build:
     name: build-${{matrix.os}}${{matrix.runtime_id && format('-{0}', matrix.runtime_id) || ''}}
     needs: [ detect-changes ]
-    if: ${{ github.event_name == 'pull_request' && needs.detect-changes.outputs.dotnet == 'true' }}
+    if: ${{ (github.event_name == 'pull_request' && needs.detect-changes.outputs.dotnet == 'true') || github.event_name == 'workflow_dispatch' }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -119,7 +120,7 @@ jobs:
   native-rust:
     name: native-rust
     needs: [ detect-changes ]
-    if: ${{ github.event_name == 'pull_request' && needs.detect-changes.outputs.native == 'true' }}
+    if: ${{ (github.event_name == 'pull_request' && needs.detect-changes.outputs.native == 'true') || github.event_name == 'workflow_dispatch' }}
     runs-on: windows-latest
     env:
       VCPKG_ROOT: C:\vcpkg
@@ -182,7 +183,7 @@ jobs:
   native-c-cpp:
     name: native-c-cpp
     needs: [ detect-changes ]
-    if: ${{ github.event_name == 'pull_request' && needs.detect-changes.outputs.native == 'true' }}
+    if: ${{ (github.event_name == 'pull_request' && needs.detect-changes.outputs.native == 'true') || github.event_name == 'workflow_dispatch' }}
     runs-on: windows-latest
     env:
       VCPKG_ROOT: C:\vcpkg

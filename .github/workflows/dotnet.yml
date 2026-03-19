@@ -13,7 +13,7 @@
 name: Build, Test, and Publish
 on:
   pull_request:
-    branches: [ "*" ]     # Trigger on all branches for pull requests.
+    branches: [ "**" ]    # Trigger on all branches for pull requests.
   push:
     branches: [ "main" ]  # Trigger on pushes to the main branch.
   release:

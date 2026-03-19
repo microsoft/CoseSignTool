@@ -1,0 +1,19 @@
+# Cargo build configuration for the CoseSignTool native Rust workspace.
+#
+# OpenSSL discovery:
+# The openssl-sys crate (used by cose_sign1_crypto_openssl) needs to find
+# OpenSSL headers and libraries at compile time.
+#
+# Discovery order (openssl-sys):
+#   1. OPENSSL_DIR environment variable
+#   2. pkg-config (Linux/macOS)
+#   3. vcpkg (Windows) — requires VCPKG_ROOT or vcpkg in PATH
+#
+# For self-contained builds without system OpenSSL:
+#   cargo build --features openssl/vendored
+# (requires Perl and a C compiler)
+
+[env]
+# Default OPENSSL_DIR for Windows vcpkg installs.
+# `force = false` means a real OPENSSL_DIR env var takes precedence.
+OPENSSL_DIR = { value = "c:\\vcpkg\\installed\\x64-windows", force = false }

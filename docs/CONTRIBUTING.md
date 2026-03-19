@@ -15,6 +15,53 @@ See [Stye.md](./STYLE.md) for details.
 ## Testing
 All unit tests in the repo must pass in Windows, Linux, and MacOS environments to ensure compatitility.
 
+### C#/.NET Tests
+Run locally with:
+```
+dotnet build CoseSignTool.sln
+dotnet test CoseSignTool.sln
+```
+
+### Native (Rust/C/C++) Tests
+Run locally from the `native/rust/` directory:
+```
+cargo test --workspace --exclude cose-openssl
+```
+OpenSSL must be installed and `OPENSSL_DIR` set (see `native/rust/.cargo/config.toml`).
+
+## CI/CD Pipeline
+The repository uses GitHub Actions with **path-based filtering** to run only the relevant jobs for each change. This saves significant CI time — a C#-only change won't trigger 30+ minutes of Rust/C++ builds, and vice versa.
+
+### Path Filtering Matrix
+
+| Trigger | C# Build & Test | Native Rust/C/C++ | CodeQL (C#) | CodeQL (Rust/C++) | Changelog | Pre-release |
+|---------|-----------------|-------------------|-------------|-------------------|-----------|-------------|
+| **PR — C# paths changed** | ✅ 4 platforms | ❌ skipped | ✅ | ❌ skipped | ❌ | ❌ |
+| **PR — native/ changed** | ❌ skipped | ✅ Rust + C/C++ | ❌ skipped | ✅ | ❌ | ❌ |
+| **PR — both changed** | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
+| **Push to main — C# paths** | ❌ | ❌ | ✅ | ❌ | ✅ | ✅ |
+| **Push to main — native/ only** | ❌ | ❌ | ❌ | ✅ | ✅ | ❌ |
+| **Manual release** | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ (assets) |
+| **Weekly schedule** | ❌ | ❌ | ✅ | ✅ | ❌ | ❌ |
+
+### What Triggers What
+
+**C# paths** (triggers .NET build, C# CodeQL, and releases):
+- `**/*.cs`, `**/*.csproj`, `**/*.sln`
+- `*.props`, `*.targets` (CPM/MSBuild changes)
+- `Directory.Build.props`, `Directory.Packages.props`
+- `Nuget.config`, `global.json`
+- `.github/workflows/dotnet.yml`
+
+**Native paths** (triggers Rust build/test/coverage, C/C++ build/test/coverage, Rust/C++ CodeQL):
+- `native/**`
+
+### Notes for Contributors
+- Native Rust/C/C++ jobs only run on PRs, not on push-to-main (no Rust crate publishing yet).
+- Pre-releases are only created when C# code changes are pushed to main.
+- The changelog is updated on every push to main regardless of which paths changed.
+- CodeQL runs on a weekly schedule for all languages to catch newly discovered vulnerabilities.
+
 ## Pull Request Process
 _Note: There was a bug in the pull request process which caused Github to lose track of running workflows when the CreateChangelog job completes. The work around is to close and re-open the pull request on the pull request page <span>(https<nolink>://github.com/microsoft/CoseSignTool/pull/[pull-request-number])</span> We beleive this is fixed as of version 1.1.1-pre1 so please log an issue if it reappears._
 1. Clone the [repo](https://github.com/microsoft/CoseSignTool).
@@ -37,7 +84,9 @@ _Note: There was a bug in the pull request process which caused Github to lose t
 Do not modify CHANGELOG.md, as it is auto-generated.
 
 ## Releases
-Releases are created automatically on completion of a pull request into main, and have the pre-release flag set. Official releases are created manually by the repo owners and do not use the pre-release flag.
+Pre-releases are created automatically when C#/.NET code changes are pushed to main. Native-only changes (Rust/C/C++) update the changelog but do not create pre-releases, as Rust crate publishing is not yet implemented.
+
+Official releases are created manually by the repo owners and do not use the pre-release flag.
 In both cases, the built binaries and other assets for the release are made available in .zip files.
 
 ### Creating a Manual Release (repo owners)

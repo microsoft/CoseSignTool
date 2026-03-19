@@ -11,8 +11,40 @@ on:
     - cron: '28 20 * * 1'
 
 jobs:
-  analyze:
-    name: Analyze
+  # Determine which paths changed so CodeQL jobs only run when relevant.
+  detect-changes:
+    name: detect-changes
+    if: ${{ github.event_name != 'schedule' }}
+    runs-on: ubuntu-latest
+    outputs:
+      native: ${{ steps.filter.outputs.native }}
+      dotnet: ${{ steps.filter.outputs.dotnet }}
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Check changed paths
+      id: filter
+      uses: dorny/paths-filter@v3
+      with:
+        filters: |
+          native:
+            - 'native/**'
+          dotnet:
+            - '**/*.cs'
+            - '**/*.csproj'
+            - '**/*.sln'
+            - '*.props'
+            - '*.targets'
+            - 'Directory.Build.props'
+            - 'Directory.Packages.props'
+
+  analyze-csharp:
+    name: Analyze (csharp, ${{ matrix.os }})
+    needs: [ detect-changes ]
+    if: ${{ github.event_name == 'schedule' || needs.detect-changes.outputs.dotnet == 'true' }}
     runs-on: ${{ matrix.os }}
     permissions:
       actions: read
@@ -22,7 +54,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [ 'csharp' ]
         os: [ubuntu-latest]
 
     steps:
@@ -35,20 +66,70 @@ jobs:
       with:
         dotnet-version: 9.0.x
 
-    # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
       uses: github/codeql-action/init@v3
       with:
         languages: 'csharp'
-        queries: security-extended,security-and-quality 
-        # See https://codeql.github.com/codeql-query-help/csharp/ for a list of available C# queries.
+        queries: security-extended,security-and-quality
 
-    # Use the Dotnet Build command to load dependencies and build the code.        
     - name: Build debug
       run: dotnet build --verbosity normal CoseSignTool.sln
 
-    # Do the analysis
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v3
       with:
         category: "/language:csharp"
+
+  analyze-rust:
+    name: Analyze (rust, ubuntu-latest)
+    needs: [ detect-changes ]
+    if: ${{ github.event_name == 'schedule' || needs.detect-changes.outputs.native == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    steps:
+
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v3
+      with:
+        languages: 'rust'
+        build-mode: none
+        queries: security-extended,security-and-quality
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
+      with:
+        category: "/language:rust"
+
+  analyze-cpp:
+    name: Analyze (c-cpp, ubuntu-latest)
+    needs: [ detect-changes ]
+    if: ${{ github.event_name == 'schedule' || needs.detect-changes.outputs.native == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    steps:
+
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v3
+      with:
+        languages: 'c-cpp'
+        build-mode: none
+        queries: security-extended,security-and-quality
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v3
+      with:
+        category: "/language:c-cpp"

@@ -1,0 +1,14 @@
+# Rust build outputs
+/target/
+
+# Coverage outputs
+/coverage/
+
+# LLVM/coverage/profiling artifacts
+*.profraw
+*.profdata
+lcov.info
+tarpaulin-report.html
+
+# Editor
+/.vscode/

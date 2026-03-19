@@ -21,12 +21,46 @@ on:
 
 jobs:
 
+  #### CHANGE DETECTION ####
+  # Determine which paths changed so downstream jobs only run when relevant.
+  detect-changes:
+    name: detect-changes
+    runs-on: ubuntu-latest
+    outputs:
+      native: ${{ steps.filter.outputs.native }}
+      dotnet: ${{ steps.filter.outputs.dotnet }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Check changed paths
+      id: filter
+      uses: dorny/paths-filter@v3
+      with:
+        filters: |
+          native:
+            - 'native/**'
+          dotnet:
+            - '**/*.cs'
+            - '**/*.csproj'
+            - '**/*.sln'
+            - '*.props'
+            - '*.targets'
+            - 'Directory.Build.props'
+            - 'Directory.Packages.props'
+            - 'Nuget.config'
+            - 'global.json'
+            - '.github/workflows/dotnet.yml'
+
   #### PULL REQUEST EVENTS ####
 
   # Build and test the code.
   build:
     name: build-${{matrix.os}}${{matrix.runtime_id && format('-{0}', matrix.runtime_id) || ''}}
-    if: ${{ github.event_name == 'pull_request' }}
+    needs: [ detect-changes ]
+    if: ${{ github.event_name == 'pull_request' && needs.detect-changes.outputs.dotnet == 'true' }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -80,6 +114,113 @@ jobs:
     # List the contents of the working directory to make sure all the artifacts are there.
     - name: List working directory
       run: ${{ matrix.dir_command }}
+
+  # ── Native Rust: build, test, coverage ──────────────────────────────
+  native-rust:
+    name: native-rust
+    needs: [ detect-changes ]
+    if: ${{ github.event_name == 'pull_request' && needs.detect-changes.outputs.native == 'true' }}
+    runs-on: windows-latest
+    env:
+      VCPKG_ROOT: C:\vcpkg
+      OPENSSL_DIR: C:\vcpkg\installed\x64-windows
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install OpenSSL via vcpkg
+      shell: pwsh
+      run: |
+        & "$env:VCPKG_ROOT\vcpkg" install openssl:x64-windows
+
+    - name: Setup Rust (stable)
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: clippy, rustfmt
+
+    - name: Rust format check
+      shell: pwsh
+      run: |
+        cargo fmt --manifest-path native/rust/Cargo.toml --all -- --check
+
+    - name: Rust clippy
+      shell: pwsh
+      run: |
+        $env:PATH = "$env:VCPKG_ROOT\installed\x64-windows\bin;$env:PATH"
+        cargo clippy --manifest-path native/rust/Cargo.toml --workspace -- -D warnings
+
+    - name: Setup Rust (nightly, for coverage)
+      uses: dtolnay/rust-toolchain@nightly
+      with:
+        components: llvm-tools-preview
+
+    - name: Install cargo-llvm-cov
+      shell: pwsh
+      run: cargo install cargo-llvm-cov --locked
+
+    - name: Build Rust workspace
+      shell: pwsh
+      run: |
+        $env:PATH = "$env:VCPKG_ROOT\installed\x64-windows\bin;$env:PATH"
+        cargo build --manifest-path native/rust/Cargo.toml --workspace --exclude cose-openssl
+
+    - name: Test Rust workspace
+      shell: pwsh
+      run: |
+        $env:PATH = "$env:VCPKG_ROOT\installed\x64-windows\bin;$env:PATH"
+        cargo test --manifest-path native/rust/Cargo.toml --workspace --exclude cose-openssl
+
+    - name: Rust coverage (90% line gate)
+      shell: pwsh
+      run: |
+        $env:PATH = "$env:VCPKG_ROOT\installed\x64-windows\bin;$env:PATH"
+        Push-Location native/rust
+        pwsh -NoProfile -File collect-coverage.ps1 -NoHtml
+        Pop-Location
+
+  # ── Native C/C++: build, test, coverage (ASAN) ────────────────────
+  native-c-cpp:
+    name: native-c-cpp
+    needs: [ detect-changes ]
+    if: ${{ github.event_name == 'pull_request' && needs.detect-changes.outputs.native == 'true' }}
+    runs-on: windows-latest
+    env:
+      VCPKG_ROOT: C:\vcpkg
+      OPENSSL_DIR: C:\vcpkg\installed\x64-windows
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install OpenSSL via vcpkg
+      shell: pwsh
+      run: |
+        & "$env:VCPKG_ROOT\vcpkg" install openssl:x64-windows
+
+    - name: Setup Rust (stable)
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Build Rust FFI libraries (release)
+      shell: pwsh
+      run: |
+        $env:PATH = "$env:VCPKG_ROOT\installed\x64-windows\bin;$env:PATH"
+        cargo build --manifest-path native/rust/Cargo.toml --release --workspace --exclude cose-openssl
+
+    - name: Install OpenCppCoverage
+      shell: pwsh
+      run: |
+        choco install opencppcoverage -y --no-progress
+
+    - name: Native C coverage (Debug + ASAN, 90% gate)
+      shell: pwsh
+      run: |
+        $env:PATH = "$env:VCPKG_ROOT\installed\x64-windows\bin;$env:PATH"
+        ./native/c/collect-coverage.ps1 -Configuration Debug -MinimumLineCoveragePercent 90
+
+    - name: Native C++ coverage (Debug + ASAN, 90% gate)
+      shell: pwsh
+      run: |
+        $env:PATH = "$env:VCPKG_ROOT\installed\x64-windows\bin;$env:PATH"
+        ./native/c_pp/collect-coverage.ps1 -Configuration Debug -MinimumLineCoveragePercent 90
 
   # Generate and commit a changelog on every push to main.
   # On pull requests this job passes without committing because:
@@ -143,8 +284,8 @@ jobs:
   #   Official releases are created manually on GitHub.
   create_release:
     name: Create Release
-    if: ${{ github.event_name == 'push' || github.event_name == 'release'}}
-    needs: [ create_changelog ]  # Ensure changelog is committed before tagging.
+    if: ${{ (github.event_name == 'push' && needs.detect-changes.outputs.dotnet == 'true') || github.event_name == 'release' }}
+    needs: [ detect-changes, create_changelog ]  # Ensure changelog is committed before tagging.
     runs-on: ubuntu-latest
     permissions:
       actions: write
@@ -256,8 +397,8 @@ jobs:
   #     automatic release creation does not trigger the release event.
   release_assets:
     name: release-assets
-    if: ${{ github.event_name == 'release' || github.event_name == 'push'}}
-    needs: [ create_release ]
+    if: ${{ github.event_name == 'release' || (github.event_name == 'push' && needs.detect-changes.outputs.dotnet == 'true') }}
+    needs: [ detect-changes, create_release ]
     runs-on: ${{ matrix.os }}
     permissions:
       actions: write

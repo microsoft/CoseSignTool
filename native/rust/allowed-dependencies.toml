@@ -1,0 +1,253 @@
+# Allowed external crate dependencies for the Rust workspace.
+# Every external dependency in any member Cargo.toml MUST appear here.
+# To add a new dependency: add it to the relevant section and get PR approval.
+#
+# === Tiers ===
+# [global]        - Allowed in ANY crate's [dependencies]. Keep this VERY small.
+# [crate.<name>]  - Allowed ONLY in that specific crate's [dependencies].
+# [dev]           - Allowed in ANY crate's [dev-dependencies].
+#
+# The lint gate in collect-coverage.ps1 (Assert-AllowedDependencies) enforces
+# that no member crate declares an external dependency not permitted here.
+
+# ---------------------------------------------------------------------------
+# GLOBAL — cryptographic primitives only (universally needed)
+# ---------------------------------------------------------------------------
+[global]
+sha2 = "SHA-256/384/512 for COSE Hash Envelope and certificate thumbprints"
+sha1 = "SHA-1 certificate thumbprint matching (legacy interop)"
+tracing = "Structured logging for the validation/signing pipeline and FFI diagnostics"
+
+# ---------------------------------------------------------------------------
+# DEV — allowed in any crate's [dev-dependencies]
+# ---------------------------------------------------------------------------
+[dev]
+rcgen = "Generate self-signed X.509 certificates for unit tests"
+anyhow = "Ergonomic error context in test assertions"
+ring = "Key generation in tests"
+sha1 = "Hash verification in tests"
+x509-parser = "Certificate inspection in tests"
+once_cell = "Lazy initialization in tests"
+tempfile = "Temporary files in tests"
+openssl = "OpenSSL for cryptographic operations in tests"
+tokio = "Async runtime for tests"
+hex = "Hex encoding/decoding for test data"
+async-trait = "Async trait support for test mocks"
+time = "Date/time handling for test scenarios"
+bytes = "Byte manipulation in tests"
+serde_json = "JSON serialization in tests"
+base64 = "Base64 encoding/decoding in tests"
+
+[crate.cli]
+clap = "CLI argument parsing with derive macros"
+tracing-subscriber = "Logging output for CLI tool"
+serde_json = "JSON output format for inspect command"
+anyhow = "Ergonomic error handling in CLI"
+hex = "Hex encoding for signature/thumbprint display"
+base64 = "Base64 encoding for payload display"
+openssl = "PFX/PKCS#12 parsing for PFX signing provider"
+url = "URL parsing for signing endpoints"
+
+# ---------------------------------------------------------------------------
+# PER-CRATE — scoped to individual crates
+# ---------------------------------------------------------------------------
+
+[crate.cbor_primitives_everparse]
+cborrs = "EverParse-generated deterministic CBOR codec"
+
+[crate.cose_sign1_signing]
+thiserror = "Custom error types"
+
+[crate.azure_artifact_signing_client]
+azure_core = "Azure SDK HTTP pipeline"
+azure_identity = "Azure identity credentials"
+tokio = "Async runtime"
+serde = "JSON serialization"
+serde_json = "JSON parsing"
+base64 = "Base64 encoding/decoding for digest and cert bytes"
+url = "URL construction"
+reqwest = "HTTP client for direct REST API calls (no generated Rust SDK exists for AAS)"
+
+[crate.cose_sign1_headers]
+thiserror = "Custom error types"
+
+[crate.cose_sign1_factories]
+thiserror = "Custom error types"
+
+[crate.cose_sign1_certificates]
+x509-parser = "DER/PEM X.509 certificate parsing"
+openssl = "Safe Rust bindings to OpenSSL for public key verification (EC/RSA/EdDSA/ML-DSA)"
+
+[crate.cose_sign1_certificates_local]
+rcgen = "Generate X.509 certificates for ephemeral signing scenarios"
+time = "Date/time handling for certificate validity periods (notBefore/notAfter)"
+openssl = "Safe Rust bindings to OpenSSL for PKCS#12 (PFX) parsing"
+
+[crate.cose_sign1_validation]
+once_cell = "Lazy regex compilation"
+regex = "Content-type pattern matching"
+
+[crate.cose_sign1_validation_primitives]
+parking_lot = "Fast Mutex for validation engine state"
+regex = "Predicate pattern matching"
+
+[crate.cose_sign1_transparent_mst]
+serde = "Deserialize JWKS responses"
+serde_json = "JSON parsing for JWKS"
+azure_core = "HTTP client with retry/telemetry for online JWKS retrieval"
+tokio = "Async runtime for azure_core HTTP operations"
+url = "URL parsing for JWKS endpoints"
+once_cell = "Lazy regex compilation"
+ring = "Receipt signature verification (pending OpenSSL migration)"
+
+[crate.cose_sign1_azure_key_vault]
+once_cell = "Lazy regex compilation"
+regex = "AKV key identifier pattern matching"
+url = "URL parsing for AKV endpoints"
+ring = "Local hashing for message digests"
+azure_core = "Azure SDK HTTP pipeline with retry, telemetry, credentials"
+azure_identity = "Azure identity credentials (DeveloperToolsCredential, ManagedIdentity, ClientSecret)"
+azure_security_keyvault_keys = "Azure Key Vault Keys client (sign, verify, get_key)"
+tokio = "Async runtime for Azure SDK (block_on at FFI boundary)"
+
+[crate.cose_sign1_azure_artifact_signing]
+azure_core = "Azure SDK HTTP pipeline for AAS certificate/signing API calls"
+azure_identity = "Azure identity credentials for authenticating to AAS"
+tokio = "Async runtime for Azure SDK (block_on at FFI boundary)"
+once_cell = "Lazy initialization of AAS clients"
+
+[crate.x509]
+x509-parser = "X.509 certificate parsing"
+serde = "Serialize/Deserialize DID documents"
+serde_json = "DID document JSON serialization"
+
+[crate.cose_sign1_crypto_openssl]
+openssl = "Safe Rust bindings to OpenSSL for cryptographic operations (EC/RSA/EdDSA)"
+openssl-sys = "Low-level OpenSSL FFI for ML-DSA support (EVP_PKEY_is_a, EVP_PKEY_Q_keygen)"
+foreign-types = "Foreign type wrappers for OpenSSL FFI interop (ForeignType trait)"
+
+# --- FFI crates ---
+
+[crate.cose_sign1_primitives_ffi]
+libc = "C ABI types for FFI projections"
+
+[crate.cose_sign1_signing_ffi]
+libc = "C ABI types for FFI projections"
+once_cell = "Lazy static metadata"
+
+[crate.cose_sign1_factories_ffi]
+libc = "C ABI types for FFI projections"
+once_cell = "Lazy static metadata"
+
+[crate.cose_sign1_headers_ffi]
+libc = "C ABI types for FFI projections"
+
+[crate.did_x509_ffi]
+libc = "C ABI types for FFI projections"
+serde_json = "DID document JSON serialization across FFI boundary"
+
+[crate.ffi]
+libc = "C ABI types for FFI projections"
+serde_json = "JSON serialization across FFI boundary"
+anyhow = "Ergonomic error handling at FFI boundary"
+once_cell = "Lazy static metadata"
+tokio = "Async runtime for blocking on async operations at FFI boundary"
+
+[crate.azure_key_vault]
+regex = "AKV key identifier pattern matching"
+once_cell = "Lazy regex compilation"
+url = "URL parsing for AKV endpoints"
+ring = "Local hashing for message digests"
+azure_core = "Azure SDK HTTP pipeline with retry, telemetry, credentials"
+azure_identity = "Azure identity credentials (DeveloperToolsCredential, ManagedIdentity, ClientSecret)"
+azure_security_keyvault_keys = "Azure Key Vault Keys client (sign, verify, get_key)"
+tokio = "Async runtime for Azure SDK (block_on at FFI boundary)"
+
+[crate.azure_artifact_signing]
+azure_core = "Azure SDK HTTP pipeline for AAS certificate/signing API calls"
+azure_identity = "Azure identity credentials for authenticating to AAS"
+tokio = "Async runtime for Azure SDK (block_on at FFI boundary)"
+once_cell = "Lazy initialization of AAS clients"
+base64 = "Base64 encoding/decoding for digest and cert bytes"
+
+[crate.client]
+azure_core = "Azure SDK HTTP pipeline"
+azure_identity = "Azure identity credentials"
+tokio = "Async runtime"
+serde = "JSON serialization"
+serde_json = "JSON parsing"
+base64 = "Base64 encoding/decoding for digest and cert bytes"
+url = "URL construction"
+async-trait = "Async trait definitions for client abstractions"
+
+[crate.certificates]
+x509-parser = "DER/PEM X.509 certificate parsing"
+openssl = "Safe Rust bindings to OpenSSL for public key verification (EC/RSA/EdDSA/ML-DSA)"
+
+[crate.local]
+x509-parser = "X.509 certificate parsing"
+rcgen = "Generate X.509 certificates for ephemeral signing scenarios"
+time = "Date/time handling for certificate validity periods (notBefore/notAfter)"
+openssl = "Safe Rust bindings to OpenSSL for PKCS#12 (PFX) parsing"
+
+[crate.mst]
+ring = "Receipt signature verification (pending OpenSSL migration)"
+once_cell = "Lazy regex compilation"
+url = "URL parsing for JWKS endpoints"
+serde = "Deserialize JWKS responses"
+serde_json = "JSON parsing for JWKS"
+azure_core = "HTTP client with retry/telemetry for online JWKS retrieval"
+tokio = "Async runtime for azure_core HTTP operations"
+
+[crate.everparse]
+cborrs = "EverParse-generated deterministic CBOR codec"
+
+[crate.openssl]
+openssl = "Safe Rust bindings to OpenSSL for cryptographic operations (EC/RSA/EdDSA)"
+openssl-sys = "Low-level OpenSSL FFI for ML-DSA support (EVP_PKEY_is_a, EVP_PKEY_Q_keygen)"
+foreign-types = "Foreign type wrappers for OpenSSL FFI interop (ForeignType trait)"
+
+[crate.core]
+once_cell = "Lazy static metadata"
+regex = "Content-type pattern matching"
+
+[crate.demo]
+anyhow = "Error handling in demo"
+ring = "Key operations in demo"
+hex = "Hex output in demo"
+base64 = "Encoding in demo"
+rcgen = "Certificate generation in demo"
+x509-parser = "Certificate parsing in demo"
+
+[crate.primitives]
+parking_lot = "Fast Mutex for validation engine state"
+regex = "Predicate pattern matching"
+
+[crate.cose_sign1_validation_ffi]
+anyhow = "Ergonomic error handling at FFI boundary"
+
+[crate.cose_sign1_azure_key_vault_ffi]
+libc = "C ABI types for FFI projections"
+anyhow = "Ergonomic error handling at FFI boundary"
+azure_core = "Azure SDK HTTP pipeline with retry, telemetry, credentials"
+azure_identity = "Azure identity credentials (DeveloperToolsCredential, ManagedIdentity, ClientSecret)"
+
+[crate.cose_sign1_certificates_local_ffi]
+anyhow = "Ergonomic error handling at FFI boundary"
+
+[crate.cose_sign1_azure_artifact_signing_ffi]
+libc = "C ABI types for FFI projections"
+anyhow = "Ergonomic error handling at FFI boundary"
+
+[crate.cose_sign1_crypto_openssl_ffi]
+anyhow = "Ergonomic error handling at FFI boundary"
+
+# --- Demo/test crates (non-production) ---
+
+[crate.cose_sign1_validation_demo]
+anyhow = "Error handling in demo"
+base64 = "Encoding in demo"
+hex = "Hex output in demo"
+rcgen = "Certificate generation in demo"
+ring = "Key operations in demo"
+x509-parser = "Certificate parsing in demo"

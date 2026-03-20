@@ -33,6 +33,11 @@ jobs:
         filters: |
           native:
             - 'native/**'
+          native_c_cpp:
+            - 'native/**/*.c'
+            - 'native/**/*.cpp'
+            - 'native/**/*.h'
+            - 'native/**/*.hpp'
           dotnet:
             - '**/*.cs'
             - '**/*.csproj'
@@ -111,7 +116,7 @@ jobs:
   analyze-cpp:
     name: Analyze (c-cpp, ubuntu-latest)
     needs: [ detect-changes ]
-    if: ${{ github.event_name == 'schedule' || needs.detect-changes.outputs.native == 'true' }}
+    if: ${{ github.event_name == 'schedule' || needs.detect-changes.outputs.native_c_cpp == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       actions: read

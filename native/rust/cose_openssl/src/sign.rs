@@ -10,12 +10,19 @@ pub fn sign(key: &EvpKey, msg: &[u8]) -> Result<Vec<u8>, String> {
 
 // Only used in tests to sign with an explicit digest that differs from the key's default.
 #[cfg(test)]
-pub fn sign_with_md(key: &EvpKey, msg: &[u8], md: *const ossl::EVP_MD) -> Result<Vec<u8>, String> {
+pub fn sign_with_md(
+    key: &EvpKey,
+    msg: &[u8],
+    md: *const ossl::EVP_MD,
+) -> Result<Vec<u8>, String> {
     let ctx = EvpMdContext::<SignOp>::new_with_md(key, md)?;
     sign_with_ctx(&ctx, msg)
 }
 
-fn sign_with_ctx(ctx: &EvpMdContext<SignOp>, msg: &[u8]) -> Result<Vec<u8>, String> {
+fn sign_with_ctx(
+    ctx: &EvpMdContext<SignOp>,
+    msg: &[u8],
+) -> Result<Vec<u8>, String> {
     unsafe {
         let mut sig_size: usize = 0;
         let res = ossl::EVP_DigestSign(
@@ -26,7 +33,7 @@ fn sign_with_ctx(ctx: &EvpMdContext<SignOp>, msg: &[u8]) -> Result<Vec<u8>, Stri
             msg.len(),
         );
         if res != 1 {
-            return Err(format!("Failed to signature size, err: {}", res));
+            return Err(format!("Failed to get signature size, err: {}", res));
         }
 
         let mut sig = vec![0u8; sig_size];

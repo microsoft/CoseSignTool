@@ -5,8 +5,10 @@ use std::ptr;
 
 // Not exposed by openssl-sys 0.9, but available at link time (OpenSSL 3.0+).
 unsafe extern "C" {
-    fn EVP_PKEY_is_a(pkey: *const ossl::EVP_PKEY, name: *const std::ffi::c_char)
-    -> std::ffi::c_int;
+    fn EVP_PKEY_is_a(
+        pkey: *const ossl::EVP_PKEY,
+        name: *const std::ffi::c_char,
+    ) -> std::ffi::c_int;
 
     fn EVP_PKEY_get_group_name(
         pkey: *const ossl::EVP_PKEY,
@@ -120,7 +122,11 @@ impl EvpKey {
                 #[cfg(feature = "pqc")]
                 KeyType::MLDSA(which) => {
                     let alg = CString::new(which.openssl_str()).unwrap();
-                    ossl::EVP_PKEY_Q_keygen(ptr::null_mut(), ptr::null_mut(), alg.as_ptr())
+                    ossl::EVP_PKEY_Q_keygen(
+                        ptr::null_mut(),
+                        ptr::null_mut(),
+                        alg.as_ptr(),
+                    )
                 }
             };
 
@@ -137,7 +143,8 @@ impl EvpKey {
     pub fn from_der_public(der: &[u8]) -> Result<Self, String> {
         let key = unsafe {
             let mut ptr = der.as_ptr();
-            let key = ossl::d2i_PUBKEY(ptr::null_mut(), &mut ptr, der.len() as std::ffi::c_long);
+            let key =
+                ossl::d2i_PUBKEY(ptr::null_mut(), &mut ptr, der.len() as i64);
             if key.is_null() {
                 return Err("Failed to parse DER public key".to_string());
             }
@@ -163,8 +170,11 @@ impl EvpKey {
     pub fn from_der_private(der: &[u8]) -> Result<Self, String> {
         let key = unsafe {
             let mut ptr = der.as_ptr();
-            let key =
-                ossl::d2i_AutoPrivateKey(ptr::null_mut(), &mut ptr, der.len() as std::ffi::c_long);
+            let key = ossl::d2i_AutoPrivateKey(
+                ptr::null_mut(),
+                &mut ptr,
+                der.len() as i64,
+            );
             if key.is_null() {
                 return Err("Failed to parse DER private key".to_string());
             }
@@ -184,7 +194,9 @@ impl EvpKey {
         Ok(EvpKey { key, typ })
     }
 
-    fn detect_key_type_raw(pkey: *mut ossl::EVP_PKEY) -> Result<KeyType, String> {
+    fn detect_key_type_raw(
+        pkey: *mut ossl::EVP_PKEY,
+    ) -> Result<KeyType, String> {
         unsafe {
             let rsa = CString::new("RSA").unwrap();
             if EVP_PKEY_is_a(pkey as *const _, rsa.as_ptr()) == 1 {
@@ -240,7 +252,10 @@ impl EvpKey {
             let len = ossl::i2d_PUBKEY(self.key, &mut der_ptr);
 
             if len <= 0 || der_ptr.is_null() {
-                return Err(format!("Failed to encode public key to DER (rc={})", len));
+                return Err(format!(
+                    "Failed to encode public key to DER (rc={})",
+                    len
+                ));
             }
 
             // Copy the DER data into a Vec and free the OpenSSL-allocated memory
@@ -263,7 +278,10 @@ impl EvpKey {
             let len = ossl::i2d_PrivateKey(self.key, &mut der_ptr);
 
             if len <= 0 || der_ptr.is_null() {
-                return Err(format!("Failed to encode private key to DER (rc={})", len));
+                return Err(format!(
+                    "Failed to encode private key to DER (rc={})",
+                    len
+                ));
             }
 
             let der_slice = std::slice::from_raw_parts(der_ptr, len as usize);
@@ -333,10 +351,17 @@ impl Drop for EvpKey {
 // ---------------------------------------------------------------------------
 
 /// Convert a DER-encoded ECDSA signature to fixed-size (r || s).
-pub fn ecdsa_der_to_fixed(der: &[u8], field_size: usize) -> Result<Vec<u8>, String> {
+pub fn ecdsa_der_to_fixed(
+    der: &[u8],
+    field_size: usize,
+) -> Result<Vec<u8>, String> {
     unsafe {
         let mut p = der.as_ptr();
-        let sig = ossl::d2i_ECDSA_SIG(ptr::null_mut(), &mut p, der.len() as std::ffi::c_long);
+        let sig = ossl::d2i_ECDSA_SIG(
+            ptr::null_mut(),
+            &mut p,
+            der.len() as std::ffi::c_long,
+        );
         if sig.is_null() {
             return Err("Failed to parse DER ECDSA signature".to_string());
         }
@@ -346,7 +371,11 @@ pub fn ecdsa_der_to_fixed(der: &[u8], field_size: usize) -> Result<Vec<u8>, Stri
         ossl::ECDSA_SIG_get0(sig, &mut r, &mut s);
 
         let mut fixed = vec![0u8; field_size * 2];
-        let rc_r = ossl::BN_bn2binpad(r, fixed.as_mut_ptr(), field_size as std::ffi::c_int);
+        let rc_r = ossl::BN_bn2binpad(
+            r,
+            fixed.as_mut_ptr(),
+            field_size as std::ffi::c_int,
+        );
         let rc_s = ossl::BN_bn2binpad(
             s,
             fixed[field_size..].as_mut_ptr(),
@@ -354,7 +383,9 @@ pub fn ecdsa_der_to_fixed(der: &[u8], field_size: usize) -> Result<Vec<u8>, Stri
         );
         ossl::ECDSA_SIG_free(sig);
 
-        if rc_r != field_size as std::ffi::c_int || rc_s != field_size as std::ffi::c_int {
+        if rc_r != field_size as std::ffi::c_int
+            || rc_s != field_size as std::ffi::c_int
+        {
             return Err("BN_bn2binpad failed for ECDSA r or s".to_string());
         }
 
@@ -363,7 +394,10 @@ pub fn ecdsa_der_to_fixed(der: &[u8], field_size: usize) -> Result<Vec<u8>, Stri
 }
 
 /// Convert a fixed-size (r || s) ECDSA signature to DER.
-pub fn ecdsa_fixed_to_der(fixed: &[u8], field_size: usize) -> Result<Vec<u8>, String> {
+pub fn ecdsa_fixed_to_der(
+    fixed: &[u8],
+    field_size: usize,
+) -> Result<Vec<u8>, String> {
     if fixed.len() != field_size * 2 {
         return Err(format!(
             "Expected {} byte ECDSA signature, got {}",
@@ -453,7 +487,13 @@ impl ContextInit for SignOp {
         pctx_out: *mut *mut ossl::EVP_PKEY_CTX,
     ) -> Result<(), i32> {
         unsafe {
-            let rc = ossl::EVP_DigestSignInit(ctx, pctx_out, md, ptr::null_mut(), key);
+            let rc = ossl::EVP_DigestSignInit(
+                ctx,
+                pctx_out,
+                md,
+                ptr::null_mut(),
+                key,
+            );
             match rc {
                 1 => Ok(()),
                 err => Err(err),
@@ -473,7 +513,13 @@ impl ContextInit for VerifyOp {
         pctx_out: *mut *mut ossl::EVP_PKEY_CTX,
     ) -> Result<(), i32> {
         unsafe {
-            let rc = ossl::EVP_DigestVerifyInit(ctx, pctx_out, md, ptr::null_mut(), key);
+            let rc = ossl::EVP_DigestVerifyInit(
+                ctx,
+                pctx_out,
+                md,
+                ptr::null_mut(),
+                key,
+            );
             match rc {
                 1 => Ok(()),
                 err => Err(err),
@@ -492,11 +538,17 @@ impl<T: ContextInit> EvpMdContext<T> {
 
     /// Create a context with an explicit digest, allowing the caller
     /// to override the digest that `key.digest()` would return.
-    pub fn new_with_md(key: &EvpKey, md: *const ossl::EVP_MD) -> Result<Self, String> {
+    pub fn new_with_md(
+        key: &EvpKey,
+        md: *const ossl::EVP_MD,
+    ) -> Result<Self, String> {
         unsafe {
             let ctx = ossl::EVP_MD_CTX_new();
             if ctx.is_null() {
-                return Err(format!("Failed to create ctx for: {}", T::purpose()));
+                return Err(format!(
+                    "Failed to create ctx for: {}",
+                    T::purpose()
+                ));
             }
             let mut pctx: *mut ossl::EVP_PKEY_CTX = ptr::null_mut();
             if let Err(err) = T::init(ctx, md, key.key, &mut pctx) {
@@ -510,11 +562,19 @@ impl<T: ContextInit> EvpMdContext<T> {
             // For RSA keys, configure PSS padding.
             if matches!(key.typ, KeyType::RSA(_)) && !pctx.is_null() {
                 const RSA_PSS_SALTLEN_DIGEST: std::ffi::c_int = -1;
-                if ossl::EVP_PKEY_CTX_set_rsa_padding(pctx, ossl::RSA_PKCS1_PSS_PADDING) != 1 {
+                if ossl::EVP_PKEY_CTX_set_rsa_padding(
+                    pctx,
+                    ossl::RSA_PKCS1_PSS_PADDING,
+                ) != 1
+                {
                     ossl::EVP_MD_CTX_free(ctx);
                     return Err("Failed to set RSA PSS padding".into());
                 }
-                if ossl::EVP_PKEY_CTX_set_rsa_pss_saltlen(pctx, RSA_PSS_SALTLEN_DIGEST) != 1 {
+                if ossl::EVP_PKEY_CTX_set_rsa_pss_saltlen(
+                    pctx,
+                    RSA_PSS_SALTLEN_DIGEST,
+                ) != 1
+                {
                     ossl::EVP_MD_CTX_free(ctx);
                     return Err("Failed to set RSA PSS salt length".into());
                 }
@@ -528,7 +588,9 @@ impl<T: ContextInit> EvpMdContext<T> {
 }
 
 /// Return the OpenSSL digest for the given COSE RSA-PSS algorithm ID.
-pub fn rsa_pss_md_for_cose_alg(alg: i64) -> Result<*const ossl::EVP_MD, String> {
+pub fn rsa_pss_md_for_cose_alg(
+    alg: i64,
+) -> Result<*const ossl::EVP_MD, String> {
     unsafe {
         match alg {
             -37 => Ok(ossl::EVP_sha256()),

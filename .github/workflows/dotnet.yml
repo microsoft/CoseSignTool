@@ -59,9 +59,9 @@ jobs:
 
   # Build and test the code.
   build:
-    name: build-${{matrix.os}}${{matrix.runtime_id && format('-{0}', matrix.runtime_id) || ''}}
+    name: dotnet-${{matrix.os}}${{matrix.runtime_id && format('-{0}', matrix.runtime_id) || ''}}
     needs: [ detect-changes ]
-    if: ${{ (github.event_name == 'pull_request' && needs.detect-changes.outputs.dotnet == 'true') || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.detect-changes.outputs.dotnet == 'true' }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -120,7 +120,7 @@ jobs:
   native-rust:
     name: native-rust
     needs: [ detect-changes ]
-    if: ${{ (github.event_name == 'pull_request' && needs.detect-changes.outputs.native == 'true') || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.detect-changes.outputs.native == 'true' }}
     runs-on: windows-latest
     env:
       VCPKG_ROOT: C:\vcpkg
@@ -183,7 +183,7 @@ jobs:
   native-c-cpp:
     name: native-c-cpp
     needs: [ detect-changes ]
-    if: ${{ (github.event_name == 'pull_request' && needs.detect-changes.outputs.native == 'true') || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.detect-changes.outputs.native == 'true' }}
     runs-on: windows-latest
     env:
       VCPKG_ROOT: C:\vcpkg

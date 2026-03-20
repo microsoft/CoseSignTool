@@ -48,7 +48,7 @@ jobs:
             - 'Directory.Packages.props'
 
   analyze-csharp:
-    name: Analyze (csharp, ${{ matrix.os }})
+    name: codeql-csharp
     needs: [ detect-changes ]
     if: ${{ github.event_name == 'schedule' || needs.detect-changes.outputs.dotnet == 'true' }}
     runs-on: ${{ matrix.os }}

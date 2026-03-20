@@ -1,12 +1,23 @@
 [workspace]
 resolver = "2"
 members = [
+  "primitives/crypto",
+  "primitives/cbor",
+  "primitives/cbor/everparse",
+  "primitives/cose",
+  "primitives/cose/sign1",
+  "primitives/cose/sign1/ffi",
+  "primitives/crypto/openssl",
+  "primitives/crypto/openssl/ffi",
   "cose_openssl",
 ]
 
 [workspace.package]
 edition = "2021"
 license = "MIT"
+
+[workspace.lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }
 
 [workspace.dependencies]
 anyhow = "1"

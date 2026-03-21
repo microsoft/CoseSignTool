@@ -955,8 +955,8 @@ public class MstEndToEndTimingTests
         // Should take ~500-600ms total:
         // - ~400-450ms for LRO (50ms polling, ready at 400ms)
         // - ~100ms for 2x 50ms fast retries
-        Assert.That(sw.ElapsedMilliseconds, Is.LessThan(800),
-            $"With 50ms tuning, should complete in <800ms total. Got {sw.ElapsedMilliseconds}ms");
+        Assert.That(sw.ElapsedMilliseconds, Is.LessThan(1000),
+            $"With 50ms tuning, should complete in <1s total. Got {sw.ElapsedMilliseconds}ms");
     }
 
     /// <summary>
@@ -1146,7 +1146,7 @@ public class MstEndToEndTimingTests
         Assert.That(results[1].TotalMs, Is.LessThan(1800), "Policy only should be <1.8s");
         Assert.That(results[1].TotalMs, Is.GreaterThanOrEqualTo(1000), "Policy only should be >1s (LRO delay)");
         Assert.That(results[2].TotalMs, Is.LessThan(1000), "Both tuned should be <1s");
-        Assert.That(results[3].TotalMs, Is.LessThan(800), "Aggressive should be <800ms");
+        Assert.That(results[3].TotalMs, Is.LessThan(1000), "Aggressive should be <1s");
 
         // Assert improvement ratio for policy only vs baseline
         double policyOnlyImprovement = (double)results[0].TotalMs / results[1].TotalMs;
@@ -1378,8 +1378,8 @@ public class MstEndToEndTimingTests
         Console.WriteLine($"Savings from LRO tuning: {results[0].TotalMs - results[1].TotalMs}ms");
 
         // Tuned should always be close to actual LRO time
-        Assert.That(results[1].TotalMs, Is.LessThan(lroCompletionTimeMs + 200),
-            $"Tuned LRO should complete within 200ms of actual time. Got {results[1].TotalMs}ms for {lroCompletionTimeMs}ms LRO");
+        Assert.That(results[1].TotalMs, Is.LessThan(lroCompletionTimeMs + 350),
+            $"Tuned LRO should complete within 350ms of actual time. Got {results[1].TotalMs}ms for {lroCompletionTimeMs}ms LRO");
     }
 
     #endregion

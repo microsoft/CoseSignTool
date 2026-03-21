@@ -3,9 +3,9 @@
 
 namespace CoseSign1.Certificates;
 
-using System.Formats.Cbor;
 using System.Diagnostics.CodeAnalysis;
-using CoseSign1.Abstractions;
+using System.Formats.Cbor;
+using Cose.Abstractions;
 
 /// <summary>
 /// Represents a COSE X509 thumbprint, which corresponds to the x5t header in a COSE signature structure.

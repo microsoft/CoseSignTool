@@ -4,6 +4,8 @@
 namespace CoseSign1.Certificates.Remote;
 
 using System.Diagnostics.CodeAnalysis;
+using Cose.Abstractions;
+using CoseSign1.Abstractions;
 
 /// <summary>
 /// Certificate signing key implementation for remote certificate sources.

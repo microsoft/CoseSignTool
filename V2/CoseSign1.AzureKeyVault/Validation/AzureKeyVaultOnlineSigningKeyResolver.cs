@@ -8,8 +8,9 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
 using Azure;
 using Azure.Security.KeyVault.Keys;
-using CoseSign1.AzureKeyVault.Common;
+using Cose.Abstractions;
 using CoseSign1.Abstractions;
+using CoseSign1.AzureKeyVault.Common;
 using CoseSign1.Validation.Interfaces;
 
 /// <summary>

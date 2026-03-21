@@ -5,7 +5,7 @@ namespace CoseSign1.Certificates.Trust;
 
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography.X509Certificates;
-using CoseSign1.Abstractions;
+using Cose.Abstractions;
 
 /// <summary>
 /// Builder for configuring certificate trust-pack registrations.

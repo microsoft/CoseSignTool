@@ -3,7 +3,6 @@
 
 namespace CoseSign1.Validation;
 
-using CoseSign1.Abstractions;
 using System.Security.Cryptography.Cose;
 
 /// <summary>

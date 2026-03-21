@@ -3,11 +3,11 @@
 
 namespace CoseSign1.Validation.Tests;
 
+using CoseSign1.Validation.Trust;
 using CoseSign1.Validation.Trust.Engine;
 using CoseSign1.Validation.Trust.Facts;
 using CoseSign1.Validation.Trust.Plan;
 using CoseSign1.Validation.Trust.Rules;
-using CoseSign1.Validation.Trust;
 using Microsoft.Extensions.DependencyInjection;
 
 /// <summary>

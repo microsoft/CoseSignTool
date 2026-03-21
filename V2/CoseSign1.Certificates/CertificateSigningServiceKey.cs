@@ -4,6 +4,7 @@
 namespace CoseSign1.Certificates;
 
 using System.Diagnostics.CodeAnalysis;
+using Cose.Abstractions;
 using CoseSign1.Abstractions;
 
 /// <summary>

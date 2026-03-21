@@ -8,6 +8,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
 using CommunityToolkit.HighPerformance.Buffers;
+using Cose.Abstractions;
 using CoseSign1.Abstractions;
 using CoseSign1.Abstractions.Transparency;
 using CoseSign1.Factories.Direct;
@@ -202,8 +203,8 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
 
             // Chain with any additional header contributors
             var headerContributors = options.AdditionalHeaderContributors?.Any() == true
-                ? new List<IHeaderContributor>(options.AdditionalHeaderContributors) { hashEnvelopeContributor }
-                : new List<IHeaderContributor> { hashEnvelopeContributor };
+                ? new List<ICoseSign1HeaderContributor>(options.AdditionalHeaderContributors) { hashEnvelopeContributor }
+                : new List<ICoseSign1HeaderContributor> { hashEnvelopeContributor };
 
             // Create DirectSignatureOptions with hash as payload and CoseHashEnvelope headers
             var directOptions = new DirectSignatureOptions
@@ -361,8 +362,8 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
 
             // Chain with any additional header contributors
             var headerContributors = options.AdditionalHeaderContributors?.Any() == true
-                ? new List<IHeaderContributor>(options.AdditionalHeaderContributors) { hashEnvelopeContributor }
-                : new List<IHeaderContributor> { hashEnvelopeContributor };
+                ? new List<ICoseSign1HeaderContributor>(options.AdditionalHeaderContributors) { hashEnvelopeContributor }
+                : new List<ICoseSign1HeaderContributor> { hashEnvelopeContributor };
 
             // Create DirectSignatureOptions with hash as payload and CoseHashEnvelope headers
             var directOptions = new DirectSignatureOptions
@@ -481,8 +482,8 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
 
         // Chain with any additional header contributors
         var headerContributors = options.AdditionalHeaderContributors?.Any() == true
-            ? new List<IHeaderContributor>(options.AdditionalHeaderContributors) { hashEnvelopeContributor }
-            : new List<IHeaderContributor> { hashEnvelopeContributor };
+            ? new List<ICoseSign1HeaderContributor>(options.AdditionalHeaderContributors) { hashEnvelopeContributor }
+            : new List<ICoseSign1HeaderContributor> { hashEnvelopeContributor };
 
         // Create DirectSignatureOptions with hash as payload and CoseHashEnvelope headers
         var directOptions = new DirectSignatureOptions
@@ -561,8 +562,8 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
 
         // Chain with any additional header contributors
         var headerContributors = options.AdditionalHeaderContributors?.Any() == true
-            ? new List<IHeaderContributor>(options.AdditionalHeaderContributors) { hashEnvelopeContributor }
-            : new List<IHeaderContributor> { hashEnvelopeContributor };
+            ? new List<ICoseSign1HeaderContributor>(options.AdditionalHeaderContributors) { hashEnvelopeContributor }
+            : new List<ICoseSign1HeaderContributor> { hashEnvelopeContributor };
 
         // Create DirectSignatureOptions with hash as payload and CoseHashEnvelope headers
         var directOptions = new DirectSignatureOptions
@@ -714,4 +715,3 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
 
     #endregion
 }
-

@@ -197,7 +197,8 @@ public sealed class GuardUsageAnalyzer : DiagnosticAnalyzer
 
     private static bool IsGuardAvailable(Compilation compilation)
     {
-        return compilation.GetTypeByMetadataName("CoseSign1.Abstractions.Guard") is not null;
+        return compilation.GetTypeByMetadataName("Cose.Abstractions.Guard") is not null
+            || compilation.GetTypeByMetadataName("CoseSign1.Abstractions.Guard") is not null;
     }
 
     private static bool IsWithinGuardImplementation(ISymbol? containingSymbol)
@@ -206,7 +207,8 @@ public sealed class GuardUsageAnalyzer : DiagnosticAnalyzer
         for (var type = containingSymbol?.ContainingType; type is not null; type = type.ContainingType)
         {
             if (type.Name == "Guard" &&
-                type.ContainingNamespace.ToDisplayString() == "CoseSign1.Abstractions")
+                (type.ContainingNamespace.ToDisplayString() == "CoseSign1.Abstractions" ||
+                 type.ContainingNamespace.ToDisplayString() == "Cose.Abstractions"))
             {
                 return true;
             }

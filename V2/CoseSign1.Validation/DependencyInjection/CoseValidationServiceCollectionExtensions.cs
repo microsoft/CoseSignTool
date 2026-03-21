@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 namespace Microsoft.Extensions.DependencyInjection;
-using CoseSign1.Abstractions;
+
 using CoseSign1.Validation.DependencyInjection;
 using CoseSign1.Validation.Interfaces;
 using CoseSign1.Validation.PostSignature;

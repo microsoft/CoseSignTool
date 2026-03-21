@@ -3,7 +3,7 @@
 
 namespace CoseSign1.Certificates.Trust;
 
-using CoseSign1.Abstractions;
+using Cose.Abstractions;
 
 /// <summary>
 /// Represents an allow-list pattern for certificate identity matching.

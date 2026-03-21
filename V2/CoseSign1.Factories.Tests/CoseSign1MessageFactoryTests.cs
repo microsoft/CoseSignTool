@@ -584,4 +584,3 @@ public class CoseSign1MessageFactoryTests
         return new CoseSigner(rsa, RSASignaturePadding.Pss, HashAlgorithmName.SHA256);
     }
 }
-

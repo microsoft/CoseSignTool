@@ -6,7 +6,7 @@ namespace CoseSign1.Certificates.Trust.Facts.Producers;
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography.Cose;
 using System.Security.Cryptography.X509Certificates;
-using CoseSign1.Abstractions;
+using Cose.Abstractions;
 using CoseSign1.Certificates.Trust;
 using CoseSign1.Certificates.Extensions;
 using CoseSign1.Validation.Interfaces;

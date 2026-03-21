@@ -3,6 +3,7 @@
 
 namespace CoseSign1.Certificates.Tests;
 
+using Cose.Abstractions;
 using CoseSign1.Abstractions;
 using CoseSign1.Certificates.ChainBuilders;
 using CoseSign1.Certificates.Extensions;
@@ -543,7 +544,7 @@ public class CertificateSigningServiceTests
         var mockSigningKey = CreateMockSigningKey();
         var service = new TestCertificateSigningService(mockSigningKey.Object, false);
 
-        var mockContributor = new Mock<IHeaderContributor>();
+        var mockContributor = new Mock<ICoseSign1HeaderContributor>();
         mockContributor.Setup(c => c.MergeStrategy).Returns(HeaderMergeStrategy.Replace);
         mockContributor.Setup(c => c.ContributeProtectedHeaders(It.IsAny<CoseHeaderMap>(), It.IsAny<HeaderContributorContext>()))
             .Callback<CoseHeaderMap, HeaderContributorContext>((headers, ctx) =>
@@ -567,7 +568,7 @@ public class CertificateSigningServiceTests
         var mockSigningKey = CreateMockSigningKey();
         var service = new TestCertificateSigningService(mockSigningKey.Object, false);
 
-        var mockContributor = new Mock<IHeaderContributor>();
+        var mockContributor = new Mock<ICoseSign1HeaderContributor>();
         mockContributor.Setup(c => c.MergeStrategy).Returns(HeaderMergeStrategy.Replace);
         mockContributor.Setup(c => c.ContributeUnprotectedHeaders(It.IsAny<CoseHeaderMap>(), It.IsAny<HeaderContributorContext>()))
             .Callback<CoseHeaderMap, HeaderContributorContext>((headers, _) =>
@@ -679,7 +680,7 @@ public class CertificateSigningServiceTests
 
     private static SigningContext CreateSigningContext(
         string payload,
-        IReadOnlyList<IHeaderContributor>? additionalContributors = null)
+        IReadOnlyList<ICoseSign1HeaderContributor>? additionalContributors = null)
     {
         return new SigningContext(
             System.Text.Encoding.UTF8.GetBytes(payload),

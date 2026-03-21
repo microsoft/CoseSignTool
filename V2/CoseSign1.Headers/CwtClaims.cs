@@ -6,7 +6,7 @@ namespace CoseSign1.Headers;
 using System;
 using System.Collections.Generic;
 using System.Formats.Cbor;
-using CoseSign1.Abstractions;
+using Cose.Abstractions;
 
 /// <summary>
 /// Represents CWT (CBOR Web Token) Claims extracted from or to be added to a COSE signature.

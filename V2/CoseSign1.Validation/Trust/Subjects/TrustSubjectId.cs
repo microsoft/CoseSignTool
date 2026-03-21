@@ -6,7 +6,6 @@ namespace CoseSign1.Validation.Trust.Subjects;
 using System.Buffers.Binary;
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
-using CoseSign1.Abstractions;
 
 /// <summary>
 /// A stable, content-addressed identifier for a trust subject.

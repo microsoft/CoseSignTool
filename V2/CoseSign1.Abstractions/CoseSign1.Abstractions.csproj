@@ -17,6 +17,11 @@
         <PackageReference Include="System.Security.Cryptography.Cose" />
     </ItemGroup>
 
+    <!--Project references-->
+    <ItemGroup>
+        <ProjectReference Include="..\Cose.Abstractions\Cose.Abstractions.csproj" />
+    </ItemGroup>
+
     <!--Files to include in the package-->
     <ItemGroup>
         <None Include="README.md" Pack="true" PackagePath="\" />

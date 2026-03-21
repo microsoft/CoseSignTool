@@ -5,7 +5,6 @@ namespace CoseSign1.Validation.Trust.Ids;
 
 using System.Security.Cryptography.Cose;
 using System.Text;
-using CoseSign1.Abstractions;
 using CoseSign1.Validation.Trust.Subjects;
 
 /// <summary>

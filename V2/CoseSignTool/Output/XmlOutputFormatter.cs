@@ -3,9 +3,9 @@
 
 namespace CoseSignTool.Output;
 
+using System.Diagnostics.CodeAnalysis;
 using System.Xml;
 using System.Xml.Linq;
-using System.Diagnostics.CodeAnalysis;
 
 /// <summary>
 /// XML-based output formatter.

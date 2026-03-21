@@ -6,6 +6,7 @@ namespace CoseSign1.Certificates.Local;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using System.Security;
+using Cose.Abstractions;
 
 /// <summary>
 /// Certificate source that loads from a PFX/PKCS#12 file.

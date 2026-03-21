@@ -2,9 +2,6 @@
 // Licensed under the MIT License.
 
 namespace CoseSign1.Validation.Trust.Facts;
-
-using CoseSign1.Abstractions;
-
 /// <summary>
 /// Provides the logical content type of the payload being protected by a COSE Sign1 message.
 /// </summary>

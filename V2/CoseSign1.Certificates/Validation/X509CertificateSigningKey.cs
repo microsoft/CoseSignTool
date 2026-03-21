@@ -3,6 +3,7 @@
 
 namespace CoseSign1.Certificates.Validation;
 
+using Cose.Abstractions;
 using CoseSign1.Abstractions;
 
 /// <summary>

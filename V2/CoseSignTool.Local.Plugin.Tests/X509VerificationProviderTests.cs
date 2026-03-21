@@ -9,9 +9,9 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
-using CoseSignTool.Abstractions.Security;
-using CoseSign1.Validation.Results;
 using CoseSign1.Tests.Common;
+using CoseSign1.Validation.Results;
+using CoseSignTool.Abstractions.Security;
 using CoseSignTool.Local.Plugin;
 using Microsoft.Extensions.Logging.Abstractions;
 

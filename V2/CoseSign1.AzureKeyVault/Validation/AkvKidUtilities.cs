@@ -54,8 +54,8 @@ internal static class AkvKidUtilities
         // Check if it's a valid URI with vault.azure.net host and /keys/ path
         if (Uri.TryCreate(kid, UriKind.Absolute, out var uri))
         {
-             return uri.Host.EndsWith(ClassStrings.KeyVaultHostSuffix, StringComparison.OrdinalIgnoreCase)
-                 && uri.AbsolutePath.Contains(ClassStrings.KeyVaultKeysPathFragment, StringComparison.OrdinalIgnoreCase);
+            return uri.Host.EndsWith(ClassStrings.KeyVaultHostSuffix, StringComparison.OrdinalIgnoreCase)
+                && uri.AbsolutePath.Contains(ClassStrings.KeyVaultKeysPathFragment, StringComparison.OrdinalIgnoreCase);
         }
 
         return false;

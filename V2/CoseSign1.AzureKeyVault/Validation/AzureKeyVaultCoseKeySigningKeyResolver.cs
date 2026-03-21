@@ -3,10 +3,11 @@
 
 namespace CoseSign1.AzureKeyVault.Validation;
 
-using System.Formats.Cbor;
 using System.Diagnostics.CodeAnalysis;
+using System.Formats.Cbor;
 using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
+using Cose.Abstractions;
 using CoseSign1.Abstractions;
 using CoseSign1.Validation.Interfaces;
 

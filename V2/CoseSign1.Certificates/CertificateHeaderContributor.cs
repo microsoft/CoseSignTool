@@ -3,8 +3,9 @@
 
 namespace CoseSign1.Certificates;
 
-using System.Formats.Cbor;
 using System.Diagnostics.CodeAnalysis;
+using System.Formats.Cbor;
+using Cose.Abstractions;
 using CoseSign1.Abstractions;
 using CoseSign1.Certificates.Extensions;
 
@@ -13,7 +14,7 @@ using CoseSign1.Certificates.Extensions;
 /// to COSE signatures for certificate-based signing keys.
 /// This contributor should be used with ICertificateSigningKey implementations.
 /// </summary>
-public class CertificateHeaderContributor : IHeaderContributor
+public class CertificateHeaderContributor : ICoseSign1HeaderContributor
 {
     [ExcludeFromCodeCoverage]
     internal static class ClassStrings
@@ -108,6 +109,24 @@ public class CertificateHeaderContributor : IHeaderContributor
     /// <param name="headers">The header map to contribute to.</param>
     /// <param name="context">The header contributor context.</param>
     public void ContributeUnprotectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
+    {
+        // No unprotected headers for certificates
+    }
+
+    /// <inheritdoc/>
+    /// <remarks>
+    /// No-op without signing context. Certificate headers require the signing key.
+    /// </remarks>
+    public void ContributeProtectedHeaders(CoseHeaderMap headers)
+    {
+        // Certificate headers require signing key context
+    }
+
+    /// <inheritdoc/>
+    /// <remarks>
+    /// No-op without signing context.
+    /// </remarks>
+    public void ContributeUnprotectedHeaders(CoseHeaderMap headers)
     {
         // No unprotected headers for certificates
     }

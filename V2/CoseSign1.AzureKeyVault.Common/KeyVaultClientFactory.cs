@@ -8,7 +8,7 @@ using Azure.Security.KeyVault.Certificates;
 using Azure.Security.KeyVault.Keys;
 using Azure.Security.KeyVault.Keys.Cryptography;
 using Azure.Security.KeyVault.Secrets;
-using CoseSign1.Abstractions;
+using Cose.Abstractions;
 
 /// <summary>
 /// Factory abstraction for creating and providing Azure Key Vault SDK clients.

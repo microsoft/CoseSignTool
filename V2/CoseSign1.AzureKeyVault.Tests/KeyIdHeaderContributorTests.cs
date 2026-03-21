@@ -3,6 +3,9 @@
 
 namespace CoseSign1.AzureKeyVault.Tests;
 
+using Cose.Abstractions;
+using CoseSign1.Abstractions;
+
 /// <summary>
 /// Tests for <see cref="KeyIdHeaderContributor"/>.
 /// </summary>

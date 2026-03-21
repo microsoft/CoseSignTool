@@ -3,6 +3,8 @@
 
 namespace CoseSign1.Abstractions.Tests.Polyfills;
 
+using Cose.Abstractions;
+
 /// <summary>
 /// Tests for <see cref="Guard"/>.
 /// </summary>

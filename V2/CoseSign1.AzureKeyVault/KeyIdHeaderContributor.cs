@@ -5,6 +5,7 @@ namespace CoseSign1.AzureKeyVault;
 
 using System.Security.Cryptography.Cose;
 using System.Text;
+using Cose.Abstractions;
 using CoseSign1.Abstractions;
 
 /// <summary>
@@ -30,7 +31,7 @@ using CoseSign1.Abstractions;
 /// </list>
 /// </para>
 /// </remarks>
-public sealed class KeyIdHeaderContributor : IHeaderContributor
+public sealed class KeyIdHeaderContributor : ICoseSign1HeaderContributor
 {
     /// <summary>
     /// The COSE header label for key ID (kid) per RFC 9052.
@@ -75,7 +76,7 @@ public sealed class KeyIdHeaderContributor : IHeaderContributor
     /// Adds the <c>kid</c> (Key ID) header to protected headers with the Key Vault key URI.
     /// The kid is added to protected headers (not unprotected) to prevent tampering.
     /// </remarks>
-    public void ContributeProtectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
+    public void ContributeProtectedHeaders(CoseHeaderMap headers)
     {
         // RFC 9052 requires "kid" (label 4) to be a bstr.
         var kidValue = CoseHeaderValue.FromBytes(Encoding.UTF8.GetBytes(KeyId));
@@ -95,8 +96,20 @@ public sealed class KeyIdHeaderContributor : IHeaderContributor
     /// Does not contribute any unprotected headers.
     /// The key ID must be in protected headers to prevent tampering.
     /// </remarks>
-    public void ContributeUnprotectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
+    public void ContributeUnprotectedHeaders(CoseHeaderMap headers)
     {
         // kid is only added to protected headers to prevent tampering
+    }
+
+    /// <inheritdoc/>
+    public void ContributeProtectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
+    {
+        ContributeProtectedHeaders(headers);
+    }
+
+    /// <inheritdoc/>
+    public void ContributeUnprotectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
+    {
+        ContributeUnprotectedHeaders(headers);
     }
 }

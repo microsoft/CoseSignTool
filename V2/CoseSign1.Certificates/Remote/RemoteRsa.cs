@@ -4,7 +4,7 @@
 namespace CoseSign1.Certificates.Remote;
 
 using System.Diagnostics.CodeAnalysis;
-using CoseSign1.Abstractions;
+using Cose.Abstractions;
 
 /// <summary>
 /// RSA implementation that delegates signing operations to a remote service.

@@ -6,6 +6,7 @@ namespace CoseSign1.Factories.Direct;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using CommunityToolkit.HighPerformance.Buffers;
+using Cose.Abstractions;
 using CoseSign1.Abstractions;
 using CoseSign1.Abstractions.Transparency;
 using CoseSign1.Factories.Exceptions;
@@ -616,14 +617,14 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
     /// <summary>
     /// Creates a list of header contributors with ContentTypeHeaderContributor first.
     /// </summary>
-    private static List<IHeaderContributor> CreateHeaderContributorsList(IReadOnlyList<IHeaderContributor>? additionalContributors)
+    private static List<ICoseSign1HeaderContributor> CreateHeaderContributorsList(IReadOnlyList<ICoseSign1HeaderContributor>? additionalContributors)
     {
         if (additionalContributors == null || additionalContributors.Count == 0)
         {
-            return new List<IHeaderContributor> { ContentTypeContributor };
+            return new List<ICoseSign1HeaderContributor> { ContentTypeContributor };
         }
 
-        var combined = new List<IHeaderContributor>(additionalContributors.Count + 1)
+        var combined = new List<ICoseSign1HeaderContributor>(additionalContributors.Count + 1)
         {
             ContentTypeContributor
         };

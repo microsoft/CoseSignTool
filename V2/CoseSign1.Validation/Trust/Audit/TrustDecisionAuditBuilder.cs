@@ -4,7 +4,6 @@
 namespace CoseSign1.Validation.Trust.Audit;
 
 using System.Diagnostics.CodeAnalysis;
-using CoseSign1.Abstractions;
 using CoseSign1.Validation.Trust;
 using CoseSign1.Validation.Trust.Engine;
 using CoseSign1.Validation.Trust.Subjects;

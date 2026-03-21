@@ -26,7 +26,7 @@ namespace System.Runtime.CompilerServices
     /// <item>
     /// <description>
     /// <c>netstandard2.0</c> does not ship this type, so we provide a minimal definition here.
-    /// Placing it in <c>CoseSign1.Abstractions</c> makes it available to other <c>netstandard2.0</c>
+    /// Placing it in <c>Cose.Abstractions</c> makes it available to other <c>netstandard2.0</c>
     /// projects via a normal project/assembly reference.
     /// </description>
     /// </item>

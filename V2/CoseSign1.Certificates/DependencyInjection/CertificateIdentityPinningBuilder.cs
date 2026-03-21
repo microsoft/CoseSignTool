@@ -3,7 +3,7 @@
 
 namespace CoseSign1.Certificates.Trust;
 
-using CoseSign1.Abstractions;
+using Cose.Abstractions;
 
 /// <summary>
 /// Builder for configuring certificate identity pinning strategies.

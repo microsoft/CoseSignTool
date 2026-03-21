@@ -12,7 +12,6 @@ using CoseSign1.Validation.Interfaces;
 using CoseSign1.Validation.Results;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using CoseSign1.Abstractions;
 
 /// <summary>
 /// Post-signature validator that verifies indirect signature payload hash matches.

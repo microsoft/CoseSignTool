@@ -45,8 +45,8 @@ public static class TransparencyExtensions
         ITransparencyProvider provider,
         CancellationToken cancellationToken = default)
     {
-        CoseSign1.Abstractions.Guard.ThrowIfNull(message);
-        CoseSign1.Abstractions.Guard.ThrowIfNull(provider);
+        Cose.Abstractions.Guard.ThrowIfNull(message);
+        Cose.Abstractions.Guard.ThrowIfNull(provider);
 
         return provider.VerifyTransparencyProofAsync(message, cancellationToken);
     }
@@ -81,8 +81,8 @@ public static class TransparencyExtensions
         IReadOnlyList<ITransparencyProvider> providers,
         CancellationToken cancellationToken = default)
     {
-        CoseSign1.Abstractions.Guard.ThrowIfNull(message);
-        CoseSign1.Abstractions.Guard.ThrowIfNull(providers);
+        Cose.Abstractions.Guard.ThrowIfNull(message);
+        Cose.Abstractions.Guard.ThrowIfNull(providers);
 
         var results = new List<TransparencyValidationResult>(providers.Count);
 

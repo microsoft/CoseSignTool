@@ -4,7 +4,7 @@
 namespace CoseSign1.Certificates.Extensions;
 
 using System.Formats.Cbor;
-using CoseSign1.Abstractions;
+using Cose.Abstractions;
 
 /// <summary>
 /// Extensions for the <see cref="CborWriter"/> class.

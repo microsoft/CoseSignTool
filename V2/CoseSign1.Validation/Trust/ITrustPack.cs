@@ -3,9 +3,9 @@
 
 namespace CoseSign1.Validation.Trust;
 
+using CoseSign1.Validation.Interfaces;
 using CoseSign1.Validation.Trust.Engine;
 using CoseSign1.Validation.Trust.Plan;
-using CoseSign1.Validation.Interfaces;
 
 /// <summary>
 /// A trust pack contributes both fact production and secure-by-default trust plan fragments.

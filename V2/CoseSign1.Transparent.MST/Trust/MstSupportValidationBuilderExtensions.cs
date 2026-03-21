@@ -3,9 +3,9 @@
 
 namespace Microsoft.Extensions.DependencyInjection;
 
+using Cose.Abstractions;
 using CoseSign1.Transparent.MST;
 using CoseSign1.Transparent.MST.Trust;
-using CoseSign1.Abstractions;
 using CoseSign1.Validation.DependencyInjection;
 using CoseSign1.Validation.Interfaces;
 using CoseSign1.Validation.Trust;

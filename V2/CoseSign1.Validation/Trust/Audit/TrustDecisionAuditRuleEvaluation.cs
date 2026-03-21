@@ -2,9 +2,6 @@
 // Licensed under the MIT License.
 
 namespace CoseSign1.Validation.Trust.Audit;
-
-using CoseSign1.Abstractions;
-
 /// <summary>
 /// A single rule evaluation event.
 /// </summary>

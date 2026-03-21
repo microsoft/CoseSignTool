@@ -4,7 +4,7 @@
 namespace CoseSign1.Certificates.ChainBuilders;
 
 using System.Diagnostics.CodeAnalysis;
-using CoseSign1.Abstractions;
+using Cose.Abstractions;
 using Microsoft.Extensions.Logging.Abstractions;
 
 /// <summary>
@@ -131,7 +131,7 @@ public sealed class ExplicitCertificateChainBuilder : ICertificateChainBuilder, 
     /// 3. Validating that only certificates from the provided set are in the resulting chain (if certificates were explicitly provided)
     /// The provided certificates can be in any order; X509ChainBuilder will correctly order them.
     /// </remarks>
-        /// <exception cref="ObjectDisposedException">Thrown when this instance has been disposed.</exception>
+    /// <exception cref="ObjectDisposedException">Thrown when this instance has been disposed.</exception>
     public bool Build(X509Certificate2 certificate)
     {
         Guard.ThrowIfDisposed(Disposed, this);

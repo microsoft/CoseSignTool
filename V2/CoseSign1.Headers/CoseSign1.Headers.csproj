@@ -18,6 +18,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\CoseSign1.Abstractions\CoseSign1.Abstractions.csproj" />
+    <ProjectReference Include="..\Cose.Headers\Cose.Headers.csproj" />
   </ItemGroup>
 
   <!--Files to include in the package-->

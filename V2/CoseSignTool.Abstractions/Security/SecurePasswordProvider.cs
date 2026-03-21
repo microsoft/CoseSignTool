@@ -3,10 +3,9 @@
 
 namespace CoseSignTool.Abstractions.Security;
 
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using System.Security;
-using System.Diagnostics.CodeAnalysis;
-using CoseSign1.Abstractions;
 using CoseSignTool.Abstractions.IO;
 
 /// <summary>

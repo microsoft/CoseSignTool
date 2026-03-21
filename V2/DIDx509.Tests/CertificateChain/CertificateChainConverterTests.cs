@@ -3,9 +3,9 @@
 
 namespace DIDx509.Tests.CertificateChain;
 
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using System.Reflection;
 using CoseSign1.Tests.Common;
 using DIDx509.CertificateChain;
 
@@ -1007,13 +1007,13 @@ public class CertificateChainConverterTests
         // Arrange - Create cert with Fulcio issuer extension (OID: 1.3.6.1.4.1.57264.1.1)
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=Test", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
-        
+
         // Add Fulcio issuer extension with a simple value
         var fulcioOid = new Oid("1.3.6.1.4.1.57264.1.1");
         var fulcioValue = System.Text.Encoding.UTF8.GetBytes("https://accounts.google.com");
         var fulcioExt = new X509Extension(fulcioOid, fulcioValue, false);
         req.CertificateExtensions.Add(fulcioExt);
-        
+
         using var cert1 = req.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1));
 
         var req2 = new CertificateRequest("CN=Root", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -1033,7 +1033,7 @@ public class CertificateChainConverterTests
         // Arrange - Create cert with Fulcio issuer extension with ASN.1 encoding
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=Test", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
-        
+
         // Add Fulcio issuer extension with ASN.1 tag and length prefix
         var fulcioOid = new Oid("1.3.6.1.4.1.57264.1.1");
         var issuerValue = System.Text.Encoding.UTF8.GetBytes("https://example.com");
@@ -1042,10 +1042,10 @@ public class CertificateChainConverterTests
         asn1Value[0] = 0x0C; // UTF8String tag
         asn1Value[1] = (byte)issuerValue.Length;
         Buffer.BlockCopy(issuerValue, 0, asn1Value, 2, issuerValue.Length);
-        
+
         var fulcioExt = new X509Extension(fulcioOid, asn1Value, false);
         req.CertificateExtensions.Add(fulcioExt);
-        
+
         using var cert1 = req.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1));
 
         var req2 = new CertificateRequest("CN=Root", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -1065,13 +1065,13 @@ public class CertificateChainConverterTests
         // Arrange - Create cert with malformed Fulcio extension
         using var rsa = RSA.Create(2048);
         var req = new CertificateRequest("CN=Test", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
-        
+
         // Add Fulcio issuer extension with invalid/empty data
         var fulcioOid = new Oid("1.3.6.1.4.1.57264.1.1");
         var emptyValue = Array.Empty<byte>();
         var fulcioExt = new X509Extension(fulcioOid, emptyValue, false);
         req.CertificateExtensions.Add(fulcioExt);
-        
+
         using var cert1 = req.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(1));
 
         var req2 = new CertificateRequest("CN=Root", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -1107,7 +1107,7 @@ public class CertificateChainConverterTests
         bool hasCN = attrs.Keys.Any(k => k.Equals("CN", StringComparison.OrdinalIgnoreCase));
         bool hasO = attrs.Keys.Any(k => k.Equals("O", StringComparison.OrdinalIgnoreCase));
         bool hasC = attrs.Keys.Any(k => k.Equals("C", StringComparison.OrdinalIgnoreCase));
-        
+
         Assert.That(hasCN, Is.True);
         Assert.That(hasO, Is.True);
         Assert.That(hasC, Is.True);

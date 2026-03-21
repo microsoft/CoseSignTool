@@ -4,7 +4,7 @@
 namespace CoseSign1.Certificates.Trust.Facts;
 
 using System.Security.Cryptography.X509Certificates;
-using CoseSign1.Abstractions;
+using Cose.Abstractions;
 using CoseSign1.Validation.Trust.Facts;
 
 /// <summary>

@@ -917,7 +917,7 @@ public class AzureKeyVaultSigningServiceTests
             mockCredential.Object,
             wrapper);
 
-        var mockContributor = new Mock<IHeaderContributor>();
+        var mockContributor = new Mock<ICoseSign1HeaderContributor>();
         var context = new SigningContext("test"u8.ToArray(), "text/plain", [mockContributor.Object]);
 
         // Act

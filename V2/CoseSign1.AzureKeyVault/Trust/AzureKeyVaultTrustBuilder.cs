@@ -3,7 +3,7 @@
 
 namespace CoseSign1.AzureKeyVault.Trust;
 
-using CoseSign1.Abstractions;
+using Cose.Abstractions;
 
 /// <summary>
 /// Builder for configuring the Azure Key Vault trust pack.

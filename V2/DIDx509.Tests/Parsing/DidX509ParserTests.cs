@@ -3,8 +3,8 @@
 
 namespace DIDx509.Tests.Parsing;
 
-using DIDx509.Parsing;
 using System.Reflection;
+using DIDx509.Parsing;
 
 [TestFixture]
 public class DidX509ParserTests

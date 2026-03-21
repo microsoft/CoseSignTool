@@ -1,0 +1,467 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+namespace Cose.Headers;
+
+using System;
+using System.Diagnostics;
+using System.Security.Cryptography.Cose;
+using Cose.Abstractions;
+
+/// <summary>
+/// Specifies where CWT claims should be placed in COSE headers.
+/// </summary>
+public enum CwtClaimsHeaderPlacement
+{
+    /// <summary>
+    /// Add CWT claims to protected headers only (default, recommended for SCITT compliance).
+    /// </summary>
+    ProtectedOnly,
+
+    /// <summary>
+    /// Add CWT claims to unprotected headers only (not recommended for SCITT).
+    /// </summary>
+    UnprotectedOnly,
+
+    /// <summary>
+    /// Add CWT claims to both protected and unprotected headers.
+    /// </summary>
+    Both
+}
+
+/// <summary>
+/// A strongly-typed implementation of <see cref="ICoseHeaderContributor"/> for managing CWT (CBOR Web Token) Claims
+/// in COSE messages. This class enables customization of CWT claims in the protected header (label 15)
+/// as required by SCITT (Supply Chain Integrity, Transparency, and Trust) specifications.
+/// </summary>
+/// <remarks>
+/// <para>
+/// This contributor adds CWT Claims to the protected headers as a CBOR map under label 15 (per RFC 9597).
+/// CWT Claims are defined in RFC 8392 and include standard claims such as issuer (iss),
+/// subject (sub), audience (aud), and timestamp claims (iat, nbf, exp).
+/// </para>
+/// <para>
+/// For SCITT compliance, the issuer and subject claims are typically required at minimum.
+/// The iat (Issued At) and nbf (Not Before) claims are automatically populated with the current
+/// Unix timestamp when any claim is set, unless explicitly provided.
+/// See: https://ietf-wg-scitt.github.io/draft-ietf-scitt-architecture/
+/// </para>
+/// <para>
+/// This is the generic COSE version. For COSE Sign1-specific extensions that require signing context,
+/// see the CoseSign1.Headers version.
+/// </para>
+/// </remarks>
+public class CwtClaimsHeaderContributor : ICoseHeaderContributor
+{
+    private readonly CwtClaims Claims;
+    private readonly CwtClaimsHeaderPlacement HeaderPlacement;
+    private readonly CoseHeaderLabel CustomHeaderLabel;
+    private readonly bool AutoPopulateTimestamps;
+
+    /// <summary>
+    /// Gets the issuer claim value if set, otherwise null.
+    /// </summary>
+    public string? Issuer => Claims.Issuer;
+
+    /// <summary>
+    /// Gets the subject claim value if set, otherwise null.
+    /// </summary>
+    public string? Subject => Claims.Subject;
+
+    /// <summary>
+    /// Gets the audience claim value if set, otherwise null.
+    /// </summary>
+    public string? Audience => Claims.Audience;
+
+    /// <summary>
+    /// Gets the expiration time claim value if set, otherwise null.
+    /// </summary>
+    public DateTimeOffset? ExpirationTime => Claims.ExpirationTime;
+
+    /// <summary>
+    /// Gets the not before claim value if set, otherwise null.
+    /// </summary>
+    public DateTimeOffset? NotBefore => Claims.NotBefore;
+
+    /// <summary>
+    /// Gets the issued at claim value if set, otherwise null.
+    /// </summary>
+    public DateTimeOffset? IssuedAt => Claims.IssuedAt;
+
+    /// <summary>
+    /// Gets the CWT ID claim value if set, otherwise null.
+    /// </summary>
+    public byte[]? CWTID => Claims.CwtId;
+
+    /// <summary>
+    /// Gets the merge strategy for handling conflicts when headers already exist.
+    /// Uses Replace strategy to allow user-provided claims to override defaults.
+    /// </summary>
+    public HeaderMergeStrategy MergeStrategy => HeaderMergeStrategy.Replace;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CwtClaimsHeaderContributor"/> class with no claims.
+    /// </summary>
+    /// <param name="headerPlacement">Specifies where to place the CWT claims (protected, unprotected, or both). Default is protected only.</param>
+    /// <param name="customHeaderLabel">Optional custom header label to use instead of the default CWT Claims label (15).</param>
+    /// <param name="autoPopulateTimestamps">If true (default), automatically populates iat and nbf claims with current time if not set.</param>
+    public CwtClaimsHeaderContributor(
+        CwtClaimsHeaderPlacement headerPlacement = CwtClaimsHeaderPlacement.ProtectedOnly,
+        CoseHeaderLabel? customHeaderLabel = null,
+        bool autoPopulateTimestamps = true)
+    {
+        Claims = new CwtClaims();
+        HeaderPlacement = headerPlacement;
+        CustomHeaderLabel = customHeaderLabel ?? CWTClaimsHeaderLabels.CWTClaims;
+        AutoPopulateTimestamps = autoPopulateTimestamps;
+        Trace.TraceInformation(ClassStrings.TraceInitializedWithNoClaimsFormat, headerPlacement, CustomHeaderLabel);
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CwtClaimsHeaderContributor"/> class with the specified claims.
+    /// </summary>
+    /// <param name="claims">A CwtClaims object containing the initial claims.</param>
+    /// <param name="headerPlacement">Specifies where to place the CWT claims (protected, unprotected, or both). Default is protected only.</param>
+    /// <param name="customHeaderLabel">Optional custom header label to use instead of the default CWT Claims label (15).</param>
+    /// <param name="autoPopulateTimestamps">If true (default), automatically populates iat and nbf claims with current time if not set.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="claims"/> is null.</exception>
+    public CwtClaimsHeaderContributor(
+        CwtClaims claims,
+        CwtClaimsHeaderPlacement headerPlacement = CwtClaimsHeaderPlacement.ProtectedOnly,
+        CoseHeaderLabel? customHeaderLabel = null,
+        bool autoPopulateTimestamps = true)
+    {
+        Guard.ThrowIfNull(claims);
+
+        Claims = new CwtClaims(claims);
+        HeaderPlacement = headerPlacement;
+        CustomHeaderLabel = customHeaderLabel ?? CWTClaimsHeaderLabels.CWTClaims;
+        AutoPopulateTimestamps = autoPopulateTimestamps;
+        Trace.TraceInformation(ClassStrings.TraceInitializedWithClaimsFormat, headerPlacement, CustomHeaderLabel);
+    }
+
+    /// <summary>
+    /// Sets the issuer (iss) claim.
+    /// </summary>
+    /// <param name="issuer">The issuer string. Must not be null or empty.</param>
+    /// <returns>The current instance for method chaining.</returns>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="issuer"/> is null or whitespace.</exception>
+    public CwtClaimsHeaderContributor SetIssuer(string issuer)
+    {
+        Guard.ThrowIfNullOrWhiteSpace(issuer, ClassStrings.ErrorIssuerCannotBeNullOrWhitespace, nameof(issuer));
+
+        Claims.Issuer = issuer;
+        Trace.TraceInformation(ClassStrings.TraceSetIssuerFormat, issuer);
+        return this;
+    }
+
+    /// <summary>
+    /// Sets the subject (sub) claim.
+    /// </summary>
+    /// <param name="subject">The subject string. Must not be null or empty.</param>
+    /// <returns>The current instance for method chaining.</returns>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="subject"/> is null or whitespace.</exception>
+    public CwtClaimsHeaderContributor SetSubject(string subject)
+    {
+        Guard.ThrowIfNullOrWhiteSpace(subject, ClassStrings.ErrorSubjectCannotBeNullOrWhitespace, nameof(subject));
+
+        Claims.Subject = subject;
+        Trace.TraceInformation(ClassStrings.TraceSetSubjectFormat, subject);
+        return this;
+    }
+
+    /// <summary>
+    /// Sets the audience (aud) claim.
+    /// </summary>
+    /// <param name="audience">The audience string. Must not be null or empty.</param>
+    /// <returns>The current instance for method chaining.</returns>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="audience"/> is null or whitespace.</exception>
+    public CwtClaimsHeaderContributor SetAudience(string audience)
+    {
+        Guard.ThrowIfNullOrWhiteSpace(audience, ClassStrings.ErrorAudienceCannotBeNullOrWhitespace, nameof(audience));
+
+        Claims.Audience = audience;
+        Trace.TraceInformation(ClassStrings.TraceSetAudienceFormat, audience);
+        return this;
+    }
+
+    /// <summary>
+    /// Sets the expiration time (exp) claim from a DateTimeOffset.
+    /// </summary>
+    /// <param name="expirationTime">The expiration time as a DateTimeOffset.</param>
+    /// <returns>The current instance for method chaining.</returns>
+    public CwtClaimsHeaderContributor SetExpirationTime(DateTimeOffset expirationTime)
+    {
+        Claims.ExpirationTime = expirationTime;
+        Trace.TraceInformation(ClassStrings.TraceSetExpirationTimeFormat, expirationTime.ToUnixTimeSeconds());
+        return this;
+    }
+
+    /// <summary>
+    /// Sets the not before (nbf) claim from a DateTimeOffset.
+    /// </summary>
+    /// <param name="notBefore">The not before time as a DateTimeOffset.</param>
+    /// <returns>The current instance for method chaining.</returns>
+    public CwtClaimsHeaderContributor SetNotBefore(DateTimeOffset notBefore)
+    {
+        Claims.NotBefore = notBefore;
+        Trace.TraceInformation(ClassStrings.TraceSetNotBeforeTimeFormat, notBefore.ToUnixTimeSeconds());
+        return this;
+    }
+
+    /// <summary>
+    /// Sets the issued at (iat) claim from a DateTimeOffset.
+    /// </summary>
+    /// <param name="issuedAt">The issued at time as a DateTimeOffset.</param>
+    /// <returns>The current instance for method chaining.</returns>
+    public CwtClaimsHeaderContributor SetIssuedAt(DateTimeOffset issuedAt)
+    {
+        Claims.IssuedAt = issuedAt;
+        Trace.TraceInformation(ClassStrings.TraceSetIssuedAtTimeFormat, issuedAt.ToUnixTimeSeconds());
+        return this;
+    }
+
+    /// <summary>
+    /// Sets the CWT ID (cti) claim.
+    /// </summary>
+    /// <param name="cwtId">The CWT ID as a byte array. Must not be null or empty.</param>
+    /// <returns>The current instance for method chaining.</returns>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="cwtId"/> is null or empty.</exception>
+    public CwtClaimsHeaderContributor SetCWTID(byte[] cwtId)
+    {
+        if (cwtId == null || cwtId.Length == 0)
+        {
+            throw new ArgumentException(ClassStrings.ErrorCwtIdCannotBeNullOrEmpty, nameof(cwtId));
+        }
+
+        Claims.CwtId = cwtId;
+        Trace.TraceInformation(ClassStrings.TraceSetCwtIdFormat, cwtId.Length);
+        return this;
+    }
+
+    /// <summary>
+    /// Sets a custom claim with the specified label and value.
+    /// </summary>
+    /// <param name="label">The claim label (integer key).</param>
+    /// <param name="value">The claim value (must be a supported type: string, long, int, byte[], bool, double).</param>
+    /// <returns>The current instance for method chaining.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="value"/> is null.</exception>
+    public CwtClaimsHeaderContributor SetCustomClaim(int label, object value)
+    {
+        Guard.ThrowIfNull(value);
+
+        Claims.CustomClaims[label] = value;
+        Trace.TraceInformation(ClassStrings.TraceSetCustomClaimFormat, label, value.GetType().Name);
+        return this;
+    }
+
+    /// <summary>
+    /// Sets timestamp claims (iat, nbf, exp) in one call for convenience.
+    /// </summary>
+    /// <param name="issuedAt">The issued at time. If null, will be auto-populated if autoPopulateTimestamps is enabled.</param>
+    /// <param name="notBefore">The not before time. If null, will be auto-populated if autoPopulateTimestamps is enabled.</param>
+    /// <param name="expirationTime">The expiration time. Optional.</param>
+    /// <returns>The current instance for method chaining.</returns>
+    public CwtClaimsHeaderContributor WithTimestamps(
+        DateTimeOffset? issuedAt = null,
+        DateTimeOffset? notBefore = null,
+        DateTimeOffset? expirationTime = null)
+    {
+        if (issuedAt.HasValue)
+        {
+            Claims.IssuedAt = issuedAt.Value;
+            Trace.TraceInformation(ClassStrings.TraceSetIssuedAtTimeFormat, issuedAt.Value.ToUnixTimeSeconds());
+        }
+
+        if (notBefore.HasValue)
+        {
+            Claims.NotBefore = notBefore.Value;
+            Trace.TraceInformation(ClassStrings.TraceSetNotBeforeTimeFormat, notBefore.Value.ToUnixTimeSeconds());
+        }
+
+        if (expirationTime.HasValue)
+        {
+            Claims.ExpirationTime = expirationTime.Value;
+            Trace.TraceInformation(ClassStrings.TraceSetExpirationTimeFormat, expirationTime.Value.ToUnixTimeSeconds());
+        }
+
+        return this;
+    }
+
+    /// <summary>
+    /// Sets the audience claim if provided.
+    /// </summary>
+    /// <param name="audience">The audience string, or null to skip setting.</param>
+    /// <returns>The current instance for method chaining.</returns>
+    public CwtClaimsHeaderContributor WithAudience(string? audience)
+    {
+        if (!string.IsNullOrWhiteSpace(audience))
+        {
+            Claims.Audience = audience;
+            Trace.TraceInformation(ClassStrings.TraceSetAudienceFormat, audience);
+        }
+
+        return this;
+    }
+
+    /// <summary>
+    /// Sets the CWT ID claim if provided.
+    /// </summary>
+    /// <param name="cwtId">The CWT ID byte array, or null to skip setting.</param>
+    /// <returns>The current instance for method chaining.</returns>
+    public CwtClaimsHeaderContributor WithCwtId(byte[]? cwtId)
+    {
+        if (cwtId != null && cwtId.Length > 0)
+        {
+            Claims.CwtId = cwtId;
+            Trace.TraceInformation(ClassStrings.TraceSetCwtIdFormat, cwtId.Length);
+        }
+
+        return this;
+    }
+
+    /// <summary>
+    /// Configures this contributor to use protected headers only (recommended for SCITT).
+    /// This method returns a new instance with the updated placement.
+    /// </summary>
+    /// <returns>A new CwtClaimsHeaderContributor configured for protected headers.</returns>
+    public CwtClaimsHeaderContributor UseProtectedHeaders()
+    {
+        if (HeaderPlacement == CwtClaimsHeaderPlacement.ProtectedOnly)
+        {
+            return this; // Already configured correctly
+        }
+
+        return new CwtClaimsHeaderContributor(
+            Claims,
+            CwtClaimsHeaderPlacement.ProtectedOnly,
+            CustomHeaderLabel,
+            AutoPopulateTimestamps);
+    }
+
+    /// <summary>
+    /// Configures this contributor to use unprotected headers only.
+    /// This method returns a new instance with the updated placement.
+    /// </summary>
+    /// <returns>A new CwtClaimsHeaderContributor configured for unprotected headers.</returns>
+    public CwtClaimsHeaderContributor UseUnprotectedHeaders()
+    {
+        if (HeaderPlacement == CwtClaimsHeaderPlacement.UnprotectedOnly)
+        {
+            return this; // Already configured correctly
+        }
+
+        return new CwtClaimsHeaderContributor(
+            Claims,
+            CwtClaimsHeaderPlacement.UnprotectedOnly,
+            CustomHeaderLabel,
+            AutoPopulateTimestamps);
+    }
+
+    /// <summary>
+    /// Configures this contributor to use both protected and unprotected headers.
+    /// This method returns a new instance with the updated placement.
+    /// </summary>
+    /// <returns>A new CwtClaimsHeaderContributor configured for both header types.</returns>
+    public CwtClaimsHeaderContributor UseBothHeaders()
+    {
+        if (HeaderPlacement == CwtClaimsHeaderPlacement.Both)
+        {
+            return this; // Already configured correctly
+        }
+
+        return new CwtClaimsHeaderContributor(
+            Claims,
+            CwtClaimsHeaderPlacement.Both,
+            CustomHeaderLabel,
+            AutoPopulateTimestamps);
+    }
+
+    /// <inheritdoc/>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="headers"/> is null.</exception>
+    public virtual void ContributeProtectedHeaders(CoseHeaderMap headers)
+    {
+        Guard.ThrowIfNull(headers);
+
+        // Skip if this placement doesn't include protected headers
+        if (HeaderPlacement == CwtClaimsHeaderPlacement.UnprotectedOnly)
+        {
+            Trace.TraceInformation(ClassStrings.TraceSkippingProtectedHeadersUnprotectedOnly);
+            return;
+        }
+
+        ContributeToHeaders(headers);
+    }
+
+    /// <inheritdoc/>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="headers"/> is null.</exception>
+    public virtual void ContributeUnprotectedHeaders(CoseHeaderMap headers)
+    {
+        Guard.ThrowIfNull(headers);
+
+        // Skip if this placement doesn't include unprotected headers
+        if (HeaderPlacement == CwtClaimsHeaderPlacement.ProtectedOnly)
+        {
+            Trace.TraceInformation(ClassStrings.TraceSkippingUnprotectedHeadersProtectedOnly);
+            return;
+        }
+
+        ContributeToHeaders(headers);
+    }
+
+    /// <summary>
+    /// Contributes CWT claims to the given header map.
+    /// </summary>
+    /// <param name="headers">The header map to contribute to.</param>
+    protected virtual void ContributeToHeaders(CoseHeaderMap headers)
+    {
+        // Get existing claims if any
+        headers.TryGetCwtClaims(out CwtClaims? existingClaims, CustomHeaderLabel);
+
+        // Build final claims with auto-population
+        CwtClaims finalClaims = BuildFinalClaims();
+
+        // Merge with existing if present (user claims win)
+        if (existingClaims != null)
+        {
+            Trace.TraceInformation(ClassStrings.TraceMergingWithExistingClaims);
+            finalClaims = existingClaims.Merge(finalClaims);
+        }
+
+        // Only set if we have non-default claims
+        if (!finalClaims.IsDefault())
+        {
+            headers.SetCwtClaims(finalClaims, CustomHeaderLabel);
+            Trace.TraceInformation(ClassStrings.TraceAddedClaimsToHeaders);
+        }
+        else
+        {
+            Trace.TraceWarning(ClassStrings.TraceNoClaimsToAdd);
+        }
+    }
+
+    private CwtClaims BuildFinalClaims()
+    {
+        var claims = new CwtClaims(Claims);
+
+        // Auto-populate iat (issued at) and nbf (not before) if enabled and not already set
+        if (AutoPopulateTimestamps && !claims.IsDefault())
+        {
+            DateTimeOffset currentTime = DateTimeOffset.UtcNow;
+
+            if (!claims.IssuedAt.HasValue)
+            {
+                claims.IssuedAt = currentTime;
+                Trace.TraceInformation(ClassStrings.TraceAutoPopulatedIssuedAtFormat, currentTime.ToUnixTimeSeconds());
+            }
+
+            if (!claims.NotBefore.HasValue)
+            {
+                claims.NotBefore = currentTime;
+                Trace.TraceInformation(ClassStrings.TraceAutoPopulatedNotBeforeFormat, currentTime.ToUnixTimeSeconds());
+            }
+        }
+
+        return claims;
+    }
+}

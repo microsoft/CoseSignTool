@@ -4,7 +4,6 @@
 namespace CoseSign1.Validation.Trust.Engine;
 
 using System.Security.Cryptography.Cose;
-using CoseSign1.Abstractions;
 using CoseSign1.Validation.Trust.Plan;
 using CoseSign1.Validation.Trust.Subjects;
 using Microsoft.Extensions.Caching.Memory;

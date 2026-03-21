@@ -3,7 +3,6 @@
 
 namespace CoseSign1.Validation.Trust.Facts;
 
-using CoseSign1.Abstractions;
 using CoseSign1.Validation.Trust.Subjects;
 
 /// <summary>

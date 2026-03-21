@@ -4,8 +4,8 @@
 namespace CoseSign1.Validation.Tests;
 
 using CoseSign1.Abstractions;
-using CoseSign1.Validation.Interfaces;
 using CoseSign1.Validation;
+using CoseSign1.Validation.Interfaces;
 using Moq;
 
 /// <summary>

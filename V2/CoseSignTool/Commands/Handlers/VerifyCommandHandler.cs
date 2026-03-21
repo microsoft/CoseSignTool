@@ -179,7 +179,7 @@ public class VerifyCommandHandler
             {
                 if (!File.Exists(signaturePath))
                 {
-                    Formatter.WriteError(string.Format(ClassStrings.ErrorSignatureNotFound, signaturePath));;
+                    Formatter.WriteError(string.Format(ClassStrings.ErrorSignatureNotFound, signaturePath)); ;
                     return Task.FromResult((int)ExitCode.FileNotFound);
                 }
 
@@ -217,7 +217,7 @@ public class VerifyCommandHandler
             // Check for PayloadHashAlg header (label 258) to identify indirect signatures
             bool hasEmbeddedPayload = message.Content.HasValue && message.Content.Value.Length > 0;
             bool isIndirectSignature = IsIndirectSignature(message);
-            
+
             string signatureType;
             if (isIndirectSignature)
             {
@@ -231,14 +231,14 @@ public class VerifyCommandHandler
             {
                 signatureType = ClassStrings.ValueDetached;
             }
-            
+
             Formatter.WriteKeyValue(ClassStrings.KeyPayload, signatureType);
-            
+
             if (payloadFile != null)
             {
                 Formatter.WriteKeyValue(ClassStrings.KeyPayloadFile, payloadFile.FullName);
             }
-            
+
             if (signatureOnly)
             {
                 Formatter.WriteKeyValue(ClassStrings.KeySignatureOnly, ClassStrings.ValueYes);

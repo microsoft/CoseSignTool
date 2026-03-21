@@ -4,6 +4,7 @@
 namespace CoseSign1.Headers.Tests;
 
 using System.Security.Cryptography.Cose;
+using Cose.Abstractions;
 using CoseSign1.Abstractions;
 using Moq;
 

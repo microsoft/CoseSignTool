@@ -54,12 +54,12 @@ public class CwtClaimsRegressionTests
 
             // Verify issuer is a DID:x509 (auto-generated from certificate)
             Assert.That(claims!.Issuer, Is.Not.Null.And.Not.Empty, "Issuer must be present");
-            Assert.That(claims.Issuer, Does.StartWith("did:x509:"), 
+            Assert.That(claims.Issuer, Does.StartWith("did:x509:"),
                 "Default issuer should be a DID:x509 identifier derived from the certificate chain");
 
             // Verify subject has default value
             Assert.That(claims.Subject, Is.Not.Null.And.Not.Empty, "Subject must be present");
-            Assert.That(claims.Subject, Is.EqualTo("unknown.intent"), 
+            Assert.That(claims.Subject, Is.EqualTo("unknown.intent"),
                 "Default subject should be 'unknown.intent'");
 
             // Verify timestamps are present
@@ -113,11 +113,11 @@ public class CwtClaimsRegressionTests
             Assert.That(claims, Is.Not.Null);
 
             // Verify custom subject is used
-            Assert.That(claims!.Subject, Is.EqualTo(customSubject), 
+            Assert.That(claims!.Subject, Is.EqualTo(customSubject),
                 "Custom subject should override the default");
 
             // Verify issuer is still auto-generated DID:x509
-            Assert.That(claims.Issuer, Does.StartWith("did:x509:"), 
+            Assert.That(claims.Issuer, Does.StartWith("did:x509:"),
                 "Issuer should still be auto-generated DID:x509 when only subject is customized");
         }
         finally
@@ -167,7 +167,7 @@ public class CwtClaimsRegressionTests
             Assert.That(claims, Is.Not.Null);
 
             // Verify custom issuer is used
-            Assert.That(claims!.Issuer, Is.EqualTo(customIssuer), 
+            Assert.That(claims!.Issuer, Is.EqualTo(customIssuer),
                 "Custom issuer should override the default DID:x509");
 
             // Note: When --issuer is specified without --cwt-subject, the contributor
@@ -269,7 +269,7 @@ public class CwtClaimsRegressionTests
 
             // Verify NO CWT claims are present
             var hasCwtClaims = message.ProtectedHeaders.TryGetCwtClaims(out var claims);
-            Assert.That(hasCwtClaims, Is.False, 
+            Assert.That(hasCwtClaims, Is.False,
                 "--no-scitt should prevent automatic CWT claims generation");
         }
         finally
@@ -315,12 +315,12 @@ public class CwtClaimsRegressionTests
 
             // CWT claims should be present because we explicitly specified --issuer
             var hasCwtClaims = message.ProtectedHeaders.TryGetCwtClaims(out var claims);
-            Assert.That(hasCwtClaims, Is.True, 
+            Assert.That(hasCwtClaims, Is.True,
                 "CWT claims should be present when --issuer is specified, even with --no-scitt");
             Assert.That(claims, Is.Not.Null);
 
             // Verify only the custom issuer is used (no auto-generated DID:x509)
-            Assert.That(claims!.Issuer, Is.EqualTo(customIssuer), 
+            Assert.That(claims!.Issuer, Is.EqualTo(customIssuer),
                 "Custom issuer should be used");
         }
         finally
@@ -364,9 +364,9 @@ public class CwtClaimsRegressionTests
             var message = CoseSign1Message.DecodeSign1(signatureBytes);
 
             var hasCwtClaims = message.ProtectedHeaders.TryGetCwtClaims(out var claims);
-            Assert.That(hasCwtClaims, Is.True, 
+            Assert.That(hasCwtClaims, Is.True,
                 "CWT claims must be present for indirect signatures (SCITT compliance)");
-            Assert.That(claims!.Issuer, Does.StartWith("did:x509:"), 
+            Assert.That(claims!.Issuer, Does.StartWith("did:x509:"),
                 "Indirect signatures should have DID:x509 issuer by default");
         }
         finally
@@ -410,9 +410,9 @@ public class CwtClaimsRegressionTests
             var message = CoseSign1Message.DecodeSign1(signatureBytes);
 
             var hasCwtClaims = message.ProtectedHeaders.TryGetCwtClaims(out var claims);
-            Assert.That(hasCwtClaims, Is.True, 
+            Assert.That(hasCwtClaims, Is.True,
                 "CWT claims must be present for embedded signatures");
-            Assert.That(claims!.Issuer, Does.StartWith("did:x509:"), 
+            Assert.That(claims!.Issuer, Does.StartWith("did:x509:"),
                 "Embedded signatures should have DID:x509 issuer by default");
         }
         finally
@@ -456,9 +456,9 @@ public class CwtClaimsRegressionTests
             var message = CoseSign1Message.DecodeSign1(signatureBytes);
 
             var hasCwtClaims = message.ProtectedHeaders.TryGetCwtClaims(out var claims);
-            Assert.That(hasCwtClaims, Is.True, 
+            Assert.That(hasCwtClaims, Is.True,
                 "CWT claims must be present for detached signatures");
-            Assert.That(claims!.Issuer, Does.StartWith("did:x509:"), 
+            Assert.That(claims!.Issuer, Does.StartWith("did:x509:"),
                 "Detached signatures should have DID:x509 issuer by default");
         }
         finally
@@ -505,14 +505,14 @@ public class CwtClaimsRegressionTests
 
             // DID:x509 format should be: did:x509:0:sha256:<hash>::subject:<subject-parts>
             var issuer = claims!.Issuer!;
-            Assert.That(issuer, Does.StartWith("did:x509:0:sha256:"), 
+            Assert.That(issuer, Does.StartWith("did:x509:0:sha256:"),
                 "DID:x509 should use sha256 hash algorithm");
-            Assert.That(issuer, Does.Contain("::subject:"), 
+            Assert.That(issuer, Does.Contain("::subject:"),
                 "DID:x509 should contain subject policy");
-            
+
             // The ephemeral cert has CN=CoseSignTool Test Signer, O=Test Organization
             // URL-encoded in the DID would be something like CN:CoseSignTool%20Test%20Signer
-            Assert.That(issuer, Does.Contain("CN:"), 
+            Assert.That(issuer, Does.Contain("CN:"),
                 "DID:x509 subject should contain CN (Common Name)");
         }
         finally
@@ -561,16 +561,16 @@ public class CwtClaimsRegressionTests
 
             // IssuedAt should be close to now
             Assert.That(claims!.IssuedAt, Is.Not.Null);
-            Assert.That(claims.IssuedAt!.Value, Is.GreaterThanOrEqualTo(beforeSigning), 
+            Assert.That(claims.IssuedAt!.Value, Is.GreaterThanOrEqualTo(beforeSigning),
                 "IssuedAt should not be before signing started");
-            Assert.That(claims.IssuedAt.Value, Is.LessThanOrEqualTo(afterSigning), 
+            Assert.That(claims.IssuedAt.Value, Is.LessThanOrEqualTo(afterSigning),
                 "IssuedAt should not be after signing finished");
 
             // NotBefore should be close to now (typically equal to IssuedAt)
             Assert.That(claims.NotBefore, Is.Not.Null);
-            Assert.That(claims.NotBefore!.Value, Is.GreaterThanOrEqualTo(beforeSigning), 
+            Assert.That(claims.NotBefore!.Value, Is.GreaterThanOrEqualTo(beforeSigning),
                 "NotBefore should not be before signing started");
-            Assert.That(claims.NotBefore.Value, Is.LessThanOrEqualTo(afterSigning), 
+            Assert.That(claims.NotBefore.Value, Is.LessThanOrEqualTo(afterSigning),
                 "NotBefore should not be after signing finished");
         }
         finally

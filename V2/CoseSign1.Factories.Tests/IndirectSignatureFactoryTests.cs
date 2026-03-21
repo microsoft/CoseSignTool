@@ -3,10 +3,12 @@
 
 namespace CoseSign1.Factories.Tests;
 
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
-using System.Reflection;
 using System.Text;
+using Cose.Abstractions;
+using CoseSign1.Abstractions;
 using CoseSign1.Abstractions.Transparency;
 using CoseSign1.Factories.Direct;
 using CoseSign1.Factories.Exceptions;
@@ -122,7 +124,7 @@ public class IndirectSignatureFactoryTests
         var factory = new IndirectSignatureFactory(mockSigningService.Object);
         var options = new IndirectSignatureOptions
         {
-            AdditionalHeaderContributors = new List<IHeaderContributor> { new NoOpHeaderContributor() }
+            AdditionalHeaderContributors = new List<ICoseSign1HeaderContributor> { new NoOpHeaderContributor() }
         };
 
         // Act
@@ -477,8 +479,8 @@ public class IndirectSignatureFactoryTests
         // Arrange
         var payload = Encoding.UTF8.GetBytes("Test payload");
         var contentType = "application/json";
-        var additionalContributor = new Mock<IHeaderContributor>().Object;
-        var contributors = new List<IHeaderContributor> { additionalContributor };
+        var additionalContributor = new Mock<ICoseSign1HeaderContributor>().Object;
+        var contributors = new List<ICoseSign1HeaderContributor> { additionalContributor };
 
         var mockSigningService = CreateMockSigningService();
         var mockCoseSigner = CreateMockCoseSigner();
@@ -528,7 +530,7 @@ public class IndirectSignatureFactoryTests
         // Use CatchAsync + InstanceOf to allow derived types
         var caughtException = Assert.CatchAsync<OperationCanceledException>(async () =>
             await factory.CreateCoseSign1MessageBytesAsync(stream, contentType, cancellationToken: cts.Token));
-        
+
         Assert.That(caughtException, Is.InstanceOf<OperationCanceledException>());
     }
     [Test]
@@ -951,9 +953,17 @@ public class IndirectSignatureFactoryTests
         return new CoseSigner(rsa, RSASignaturePadding.Pss, HashAlgorithmName.SHA256);
     }
 
-    private sealed class NoOpHeaderContributor : IHeaderContributor
+    private sealed class NoOpHeaderContributor : ICoseSign1HeaderContributor
     {
         public HeaderMergeStrategy MergeStrategy => HeaderMergeStrategy.Fail;
+
+        public void ContributeProtectedHeaders(CoseHeaderMap headers)
+        {
+        }
+
+        public void ContributeUnprotectedHeaders(CoseHeaderMap headers)
+        {
+        }
 
         public void ContributeProtectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
         {

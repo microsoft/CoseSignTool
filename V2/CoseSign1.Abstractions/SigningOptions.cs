@@ -13,7 +13,7 @@ public class SigningOptions
     /// Gets or sets additional header contributors to apply for this specific operation.
     /// Applied after the signing service's required contributors.
     /// </summary>
-    public IReadOnlyList<IHeaderContributor>? AdditionalHeaderContributors { get; set; }
+    public IReadOnlyList<ICoseSign1HeaderContributor>? AdditionalHeaderContributors { get; set; }
 
     /// <summary>
     /// Gets or sets additional context for custom header contributors.

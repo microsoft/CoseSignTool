@@ -4,11 +4,11 @@
 namespace CoseSign1.Transparent.MST.Trust;
 
 using System.Diagnostics.CodeAnalysis;
-using System.Reflection;
-using Azure.Security.CodeTransparency;
-using CoseSign1.Abstractions;
-using System.Text.Json;
 using System.Linq;
+using System.Reflection;
+using System.Text.Json;
+using Azure.Security.CodeTransparency;
+using Cose.Abstractions;
 
 internal static class MstCodeTransparencyOptions
 {

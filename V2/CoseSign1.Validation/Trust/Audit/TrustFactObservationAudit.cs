@@ -4,7 +4,6 @@
 namespace CoseSign1.Validation.Trust.Audit;
 
 using System.Diagnostics.CodeAnalysis;
-using CoseSign1.Abstractions;
 
 [ExcludeFromCodeCoverage]
 internal sealed class TrustFactObservationAudit

@@ -628,7 +628,7 @@ internal class MockSigningService : ISigningService<SigningOptions>
     public void Dispose() { }
 }
 
-internal class MockSigningKeyProvider: ISigningKeyProvider
+internal class MockSigningKeyProvider : ISigningKeyProvider
 {
     private readonly X509Certificate2 Certificate;
     private readonly bool IsRemoteField;

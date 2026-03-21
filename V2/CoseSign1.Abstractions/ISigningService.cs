@@ -20,7 +20,7 @@ public interface ISigningService<out TSigningOptions> : IDisposable
     /// Process:
     /// 1. Gets ISigningKey via GetSigningKey(context)
     /// 2. Gets CoseKey from ISigningKey.GetCoseKey()
-    /// 3. Builds headers using IHeaderContributors (with ISigningKey context)
+    /// 3. Builds headers using ICoseSign1HeaderContributors (with ISigningKey context)
     /// 4. Creates and returns CoseSigner with CoseKey + headers
     /// </summary>
     /// <param name="context">The signing context (payload info, custom headers, etc.)</param>

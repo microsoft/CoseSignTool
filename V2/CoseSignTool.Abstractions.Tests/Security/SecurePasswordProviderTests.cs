@@ -602,7 +602,7 @@ public class SecurePasswordProviderTests
 
         // Arrange
         Environment.SetEnvironmentVariable(SecurePasswordProvider.DefaultPfxPasswordEnvVar, null);
-        
+
         var keyPresses = new Queue<ConsoleKeyInfo>(new[]
         {
             new ConsoleKeyInfo('p', ConsoleKey.P, false, false, false),
@@ -630,7 +630,7 @@ public class SecurePasswordProviderTests
         // Arrange
         Environment.SetEnvironmentVariable(SecurePasswordProvider.DefaultPfxPasswordEnvVar, null);
         var nonExistentFile = Path.Combine(Path.GetTempPath(), $"nonexistent_{Guid.NewGuid()}.txt");
-        
+
         var keyPresses = new Queue<ConsoleKeyInfo>(new[]
         {
             new ConsoleKeyInfo('x', ConsoleKey.X, false, false, false),

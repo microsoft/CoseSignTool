@@ -429,7 +429,7 @@ public class SigningCommandBuilder
             var pluginOptions = ExtractPluginOptions(parseResult, context.ParseResult.CommandResult.Command);
 
             // Create CWT claims header contributor if issuer or subject specified
-            IHeaderContributor? cwtContributor = null;
+            ICoseSign1HeaderContributor? cwtContributor = null;
             if (!string.IsNullOrEmpty(issuer) || !string.IsNullOrEmpty(cwtSubject))
             {
                 var claims = new CwtClaims
@@ -694,7 +694,7 @@ public class SigningCommandBuilder
         Stream payloadStream,
         string contentType,
         bool embedPayload,
-        IHeaderContributor? cwtContributor,
+        ICoseSign1HeaderContributor? cwtContributor,
         bool disableAutoScitt,
         CancellationToken cancellationToken)
     {
@@ -716,7 +716,7 @@ public class SigningCommandBuilder
         {
             EmbedPayload = embedPayload,
             AdditionalHeaderContributors = cwtContributor != null
-                ? new List<IHeaderContributor> { cwtContributor }
+                ? new List<ICoseSign1HeaderContributor> { cwtContributor }
                 : null,
             AdditionalContext = additionalContext.Count > 0 ? additionalContext : null
         };
@@ -728,7 +728,7 @@ public class SigningCommandBuilder
         ISigningService<CoseSign1.Abstractions.SigningOptions> signingService,
         Stream payloadStream,
         string contentType,
-        IHeaderContributor? cwtContributor,
+        ICoseSign1HeaderContributor? cwtContributor,
         bool disableAutoScitt,
         string? payloadLocation,
         CancellationToken cancellationToken)
@@ -751,7 +751,7 @@ public class SigningCommandBuilder
         {
             // Indirect signatures are always detached (payload not embedded, only hash is signed)
             AdditionalHeaderContributors = cwtContributor != null
-                ? new List<IHeaderContributor> { cwtContributor }
+                ? new List<ICoseSign1HeaderContributor> { cwtContributor }
                 : null,
             AdditionalContext = additionalContext.Count > 0 ? additionalContext : null,
             PayloadLocation = payloadLocation

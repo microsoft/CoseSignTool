@@ -7,7 +7,6 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography.Cose;
-using CoseSign1.Abstractions;
 using CoseSign1.Validation.Trust.Plan;
 using CoseSign1.Validation.Trust.Subjects;
 using Microsoft.Extensions.Caching.Memory;

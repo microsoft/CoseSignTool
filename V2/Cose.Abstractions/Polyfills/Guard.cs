@@ -35,7 +35,7 @@
 //    - On netstandard2.0, we provide equivalent functionality
 //
 // ============================================================================
-namespace CoseSign1.Abstractions
+namespace Cose.Abstractions
 {
     using System;
     using System.Diagnostics.CodeAnalysis;

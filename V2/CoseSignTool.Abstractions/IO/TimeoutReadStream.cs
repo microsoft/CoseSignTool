@@ -2,9 +2,6 @@
 // Licensed under the MIT License.
 
 namespace CoseSignTool.Abstractions.IO;
-
-using CoseSign1.Abstractions;
-
 /// <summary>
 /// A read-only stream wrapper that implements a timeout for initial data availability.
 /// If no data is received within the specified timeout, reads will return 0 bytes (EOF).

@@ -187,9 +187,9 @@ public class V1CompatibilityTests
         // Act & Assert - V1 UnitTestSignatureWithCRL.cose is an indirect signature (no embedded content)
         // The Content property will be null for indirect/detached signatures
         bool hasEmbeddedContent = message.Content.HasValue;
-        
+
         TestContext.Out.WriteLine($"Has embedded content: {hasEmbeddedContent}");
-        
+
         // Indirect signatures don't embed the full payload - they embed a hash envelope
         // So we just check that we can access the content property
         Assert.That(message, Is.Not.Null, "Message should be valid regardless of content type");
@@ -212,7 +212,7 @@ public class V1CompatibilityTests
 
         // Act & Assert - Protected headers
         Assert.That(message.ProtectedHeaders, Is.Not.Null, "Should have protected headers");
-        
+
         TestContext.Out.WriteLine("Protected Headers:");
         foreach (var kvp in message.ProtectedHeaders)
         {
@@ -221,7 +221,7 @@ public class V1CompatibilityTests
 
         // Act & Assert - Unprotected headers (typically contain certificate chain)
         Assert.That(message.UnprotectedHeaders, Is.Not.Null, "Should have unprotected headers");
-        
+
         TestContext.Out.WriteLine("Unprotected Headers:");
         foreach (var kvp in message.UnprotectedHeaders)
         {

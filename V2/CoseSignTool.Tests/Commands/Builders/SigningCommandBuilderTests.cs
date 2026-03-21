@@ -62,7 +62,7 @@ public class SigningCommandBuilderTests
         }
     }
 
-    private sealed class TestSigningCommandProvider: ISigningCommandProvider
+    private sealed class TestSigningCommandProvider : ISigningCommandProvider
     {
         private readonly Option<string> _modeOption = new("--mode", getDefaultValue: () => "success");
 

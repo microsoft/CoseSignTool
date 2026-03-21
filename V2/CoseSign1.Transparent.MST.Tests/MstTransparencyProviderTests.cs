@@ -717,13 +717,13 @@ public class MstTransparencyProviderTests
         messageWriter.WriteTag(CoseSign1Tag);
         messageWriter.WriteStartArray(4);
         messageWriter.WriteByteString(protectedBytes);
-        
+
         // Write unprotected headers map directly
         messageWriter.WriteStartMap(1);
         messageWriter.WriteInt32(394);
         messageWriter.WriteByteString(receiptBytes);
         messageWriter.WriteEndMap();
-        
+
         messageWriter.WriteByteString(payload);
         messageWriter.WriteByteString(signature);
         messageWriter.WriteEndArray();

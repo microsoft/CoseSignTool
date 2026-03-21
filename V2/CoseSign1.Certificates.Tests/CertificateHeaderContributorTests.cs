@@ -4,6 +4,7 @@
 namespace CoseSign1.Certificates.Tests;
 
 using System.Formats.Cbor;
+using Cose.Abstractions;
 using CoseSign1.Abstractions;
 using CoseSign1.Certificates.Interfaces;
 

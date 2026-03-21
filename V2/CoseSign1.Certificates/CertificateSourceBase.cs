@@ -3,7 +3,7 @@
 
 namespace CoseSign1.Certificates;
 
-using CoseSign1.Abstractions;
+using Cose.Abstractions;
 using CoseSign1.Certificates.ChainBuilders;
 using Microsoft.Extensions.Logging.Abstractions;
 

@@ -25,7 +25,7 @@ public class SigningOptionsTests
     {
         // Arrange
         var options = new SigningOptions();
-        var contributors = new List<IHeaderContributor>().AsReadOnly();
+        var contributors = new List<ICoseSign1HeaderContributor>().AsReadOnly();
 
         // Act
         options.AdditionalHeaderContributors = contributors;
@@ -96,7 +96,7 @@ public class SigningOptionsTests
         // Arrange & Act
         var options = new SigningOptions
         {
-            AdditionalHeaderContributors = new List<IHeaderContributor>().AsReadOnly(),
+            AdditionalHeaderContributors = new List<ICoseSign1HeaderContributor>().AsReadOnly(),
             AdditionalContext = new Dictionary<string, object> { ["test"] = 123 },
             AdditionalData = new byte[] { 9, 8, 7 },
             DisableTransparency = true,

@@ -3,7 +3,7 @@
 
 namespace Microsoft.Extensions.DependencyInjection;
 
-using CoseSign1.Abstractions;
+using Cose.Abstractions;
 using CoseSign1.Certificates.ChainBuilders;
 using CoseSign1.Certificates.Interfaces;
 using Microsoft.Extensions.DependencyInjection.Extensions;

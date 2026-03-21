@@ -7,7 +7,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography.Cose;
 using System.Text;
 using System.Text.RegularExpressions;
-using CoseSign1.Abstractions;
+using Cose.Abstractions;
 using CoseSign1.Validation.Interfaces;
 using CoseSign1.Validation.Trust;
 using CoseSign1.Validation.Trust.Engine;

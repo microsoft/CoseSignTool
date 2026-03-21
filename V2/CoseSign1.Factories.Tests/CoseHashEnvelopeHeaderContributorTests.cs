@@ -5,6 +5,8 @@ namespace CoseSign1.Factories.Tests;
 
 using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
+using Cose.Abstractions;
+using CoseSign1.Abstractions;
 using CoseSign1.Factories.Indirect;
 using Moq;
 

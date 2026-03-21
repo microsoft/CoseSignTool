@@ -6,3 +6,4 @@ global using System.Collections.Generic;
 global using System.Diagnostics.CodeAnalysis;
 global using System.Security.Cryptography;
 global using System.Security.Cryptography.Cose;
+global using Cose.Abstractions;

@@ -12,8 +12,8 @@ namespace CoseSign1.Validation.Trust.Facts;
 /// </remarks>
 public interface ITrustFact
 {
-	/// <summary>
-	/// Gets the policy scope this fact is intended for.
-	/// </summary>
-	TrustFactScope Scope { get; }
+    /// <summary>
+    /// Gets the policy scope this fact is intended for.
+    /// </summary>
+    TrustFactScope Scope { get; }
 }

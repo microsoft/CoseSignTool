@@ -4,6 +4,7 @@
 namespace Microsoft.Extensions.DependencyInjection;
 
 using System.Linq;
+using Cose.Abstractions;
 using CoseSign1.Abstractions;
 using CoseSign1.Abstractions.Transparency;
 using CoseSign1.Factories;

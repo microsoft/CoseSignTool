@@ -13,15 +13,15 @@ using CoseSign1.Abstractions;
 using CoseSign1.Certificates;
 using CoseSign1.Certificates.ChainBuilders;
 using CoseSign1.Factories.Direct;
-using CoseSign1.Tests.Common;
 using CoseSign1.Factories.Indirect;
+using CoseSign1.Tests.Common;
 using CoseSign1.Validation.DependencyInjection;
 using CoseSign1.Validation.Interfaces;
 using CoseSign1.Validation.Results;
 using CoseSign1.Validation.Trust;
-using CoseSignTool.Local.Plugin;
 using CoseSignTool.Abstractions;
 using CoseSignTool.Commands.Handlers;
+using CoseSignTool.Local.Plugin;
 using CoseSignTool.Output;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -510,7 +510,7 @@ public class VerifyCommandHandlerTests
 
         var stringWriter = new StringWriter();
         var formatter = new TextOutputFormatter(output: stringWriter, error: stringWriter);
-        
+
         // Use X509VerificationProvider to resolve signing key from x5chain
         var x509Provider = new X509VerificationProvider();
         var handler = TestConsole.CreateVerifyCommandHandler(formatter, new[] { x509Provider });
@@ -1254,10 +1254,10 @@ public class VerifyCommandHandlerTests
         var mockProvider = new MockVerificationProvider(isActivated: true, validationPasses: true, includeKeyResolver: false);
         // Include X509VerificationProvider to resolve the actual signing key
         var x509Provider = new X509VerificationProvider();
-        var handler = TestConsole.CreateVerifyCommandHandler(formatter, new IVerificationProvider[] 
-        { 
+        var handler = TestConsole.CreateVerifyCommandHandler(formatter, new IVerificationProvider[]
+        {
             x509Provider,
-            mockProvider 
+            mockProvider
         });
 
         try
@@ -1312,10 +1312,10 @@ public class VerifyCommandHandlerTests
         // Use X509VerificationProvider for key resolution plus NullMetadataVerificationProvider for metadata
         var x509Provider = new X509VerificationProvider();
         var nullMetadataProvider = new NullMetadataVerificationProvider();
-        var handler = TestConsole.CreateVerifyCommandHandler(formatter, new IVerificationProvider[] 
-        { 
+        var handler = TestConsole.CreateVerifyCommandHandler(formatter, new IVerificationProvider[]
+        {
             x509Provider,
-            nullMetadataProvider 
+            nullMetadataProvider
         });
 
         try
@@ -2098,7 +2098,7 @@ public class VerifyCommandHandlerTests
 
         public IReadOnlyCollection<Type> FactTypes => new[] { typeof(MockTrustFact) };
 
-    public CoseSign1.Validation.Interfaces.ISigningKeyResolver? SigningKeyResolver => null;
+        public CoseSign1.Validation.Interfaces.ISigningKeyResolver? SigningKeyResolver => null;
 
         public CoseSign1.Validation.Trust.Plan.TrustPlanDefaults GetDefaults()
         {
@@ -2354,4 +2354,3 @@ public class VerifyCommandHandlerTests
 
     #endregion
 }
-

@@ -3,7 +3,6 @@
 
 namespace Microsoft.Extensions.DependencyInjection;
 
-using CoseSign1.Abstractions;
 using CoseSign1.Validation.DependencyInjection;
 using CoseSign1.Validation.Trust.Facts.Producers;
 

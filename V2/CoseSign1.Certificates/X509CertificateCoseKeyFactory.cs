@@ -4,7 +4,7 @@
 namespace CoseSign1.Certificates;
 
 using System.Diagnostics.CodeAnalysis;
-using CoseSign1.Abstractions;
+using Cose.Abstractions;
 
 /// <summary>
 /// Factory for creating <see cref="CoseKey"/> instances from X509 certificates.

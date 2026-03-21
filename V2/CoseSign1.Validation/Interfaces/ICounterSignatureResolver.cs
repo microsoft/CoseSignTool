@@ -4,7 +4,6 @@
 namespace CoseSign1.Validation.Interfaces;
 
 using System.Security.Cryptography.Cose;
-using CoseSign1.Abstractions;
 
 /// <summary>
 /// Resolves counter-signatures from a COSE Sign1 message.

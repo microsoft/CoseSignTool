@@ -8,7 +8,7 @@ using System.Security.Cryptography;
 using Azure.Core;
 using Azure.Security.KeyVault.Keys;
 using Azure.Security.KeyVault.Keys.Cryptography;
-using CoseSign1.Abstractions;
+using Cose.Abstractions;
 
 /// <summary>
 /// Wraps an Azure Key Vault CryptographyClient to provide remote signing operations.

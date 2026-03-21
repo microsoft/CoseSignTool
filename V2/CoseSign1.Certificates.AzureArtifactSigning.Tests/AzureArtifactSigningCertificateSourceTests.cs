@@ -28,13 +28,13 @@ public class AzureArtifactSigningCertificateSourceTests
     #region Constructor Tests
 
     [Test]
-        public void Constructor_WithNullSignContext_ThrowsArgumentNullException()
+    public void Constructor_WithNullSignContext_ThrowsArgumentNullException()
     {
         // Note: The implementation calls CreateAzureChainBuilder before null check,
         // which causes a NullReferenceException rather than ArgumentNullException
         // Act & Assert
-            Assert.Throws<ArgumentNullException>(() =>
-            new AzureArtifactSigningCertificateSource(null!));
+        Assert.Throws<ArgumentNullException>(() =>
+        new AzureArtifactSigningCertificateSource(null!));
     }
 
     [Test]

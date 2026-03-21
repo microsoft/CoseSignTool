@@ -4,6 +4,7 @@
 namespace CoseSign1.Factories;
 
 using System.Collections.Concurrent;
+using Cose.Abstractions;
 using CoseSign1.Abstractions;
 using CoseSign1.Abstractions.Transparency;
 using CoseSign1.Factories.Direct;
@@ -235,5 +236,3 @@ public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactoryRouter
         }
     }
 }
-
-

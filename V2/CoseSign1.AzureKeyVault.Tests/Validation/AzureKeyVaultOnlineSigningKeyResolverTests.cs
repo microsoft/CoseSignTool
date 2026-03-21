@@ -108,7 +108,7 @@ public class AzureKeyVaultOnlineSigningKeyResolverTests
         {
             Assert.That(message.VerifyEmbedded(result.SigningKey!.GetCoseKey()), Is.True);
         }
-     }
+    }
 
     [Test]
     public async Task ResolveAsync_WithVaultMismatch_ReturnsFailure()

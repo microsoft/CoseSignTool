@@ -3,12 +3,12 @@
 
 namespace CoseSign1.Factories.Tests;
 
+using System.Security.Cryptography.Cose;
 using CoseSign1.Abstractions;
 using CoseSign1.Abstractions.Transparency;
 using CoseSign1.Factories;
 using CoseSign1.Factories.Direct;
 using CoseSign1.Factories.Indirect;
-using System.Security.Cryptography.Cose;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 

@@ -19,7 +19,7 @@ public class ISigningKeyTests
 
         // Assert
         Assert.That(type.IsInterface, Is.True, "ISigningKey should be an interface");
-        
+
         // ISigningKey should only have GetCoseKey - no Metadata or SigningService
         Assert.That(type.GetProperty("Metadata"), Is.Null, "ISigningKey should NOT have Metadata property (use ISigningServiceKey)");
         Assert.That(type.GetProperty("SigningService"), Is.Null, "ISigningKey should NOT have SigningService property (use ISigningServiceKey)");
@@ -93,7 +93,7 @@ public class ISigningKeyTests
     {
         // Arrange & Act
         var type = typeof(ISigningServiceKey);
-        
+
         // ISigningServiceKey inherits from ISigningKey
         var inheritsFromISigningKey = typeof(ISigningKey).IsAssignableFrom(type);
 
@@ -104,7 +104,7 @@ public class ISigningKeyTests
         // Assert
         Assert.That(inheritsFromISigningKey, Is.True, "ISigningServiceKey should inherit from ISigningKey");
         Assert.That(hasISigningKeyInHierarchy, Is.True, "ISigningServiceKey should have ISigningKey in its interface hierarchy");
-        
+
         // Verify the method exists on the base interface
         var getCoseKeyMethod = typeof(ISigningKey).GetMethod(nameof(ISigningKey.GetCoseKey));
         Assert.That(getCoseKeyMethod, Is.Not.Null, "ISigningKey should have GetCoseKey method");

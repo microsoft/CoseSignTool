@@ -4,6 +4,8 @@
 namespace CoseSign1.Certificates;
 
 using System.Diagnostics.CodeAnalysis;
+using Cose.Abstractions;
+using CoseSign1.Abstractions;
 using CoseSign1.Certificates.Extensions;
 using CoseSign1.Certificates.Local;
 using CoseSign1.Certificates.Remote;

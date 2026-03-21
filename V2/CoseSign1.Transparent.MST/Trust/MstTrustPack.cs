@@ -4,7 +4,7 @@
 namespace CoseSign1.Transparent.MST.Trust;
 
 using System.Diagnostics.CodeAnalysis;
-using CoseSign1.Abstractions;
+using Cose.Abstractions;
 using CoseSign1.Transparent.MST;
 using CoseSign1.Transparent.MST.Extensions;
 using CoseSign1.Validation.Trust;

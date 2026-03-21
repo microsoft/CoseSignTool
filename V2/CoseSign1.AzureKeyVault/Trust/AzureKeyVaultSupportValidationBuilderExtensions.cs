@@ -3,7 +3,7 @@
 
 namespace Microsoft.Extensions.DependencyInjection;
 
-using CoseSign1.Abstractions;
+using Cose.Abstractions;
 using CoseSign1.AzureKeyVault.Trust;
 using CoseSign1.AzureKeyVault.Validation;
 using CoseSign1.Validation.DependencyInjection;

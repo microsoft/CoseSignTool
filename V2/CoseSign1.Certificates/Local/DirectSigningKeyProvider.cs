@@ -4,7 +4,7 @@
 namespace CoseSign1.Certificates.Local;
 
 using System.Diagnostics.CodeAnalysis;
-using CoseSign1.Abstractions;
+using Cose.Abstractions;
 
 /// <summary>
 /// Signing key provider that uses X509Certificate2 private keys directly.

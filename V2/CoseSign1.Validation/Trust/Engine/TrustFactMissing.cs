@@ -2,9 +2,6 @@
 // Licensed under the MIT License.
 
 namespace CoseSign1.Validation.Trust.Engine;
-
-using CoseSign1.Abstractions;
-
 /// <summary>
 /// Represents why a fact could not be produced.
 /// </summary>

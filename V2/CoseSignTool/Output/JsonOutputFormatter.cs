@@ -3,8 +3,8 @@
 
 namespace CoseSignTool.Output;
 
-using System.Text.Json;
 using System.Diagnostics.CodeAnalysis;
+using System.Text.Json;
 
 /// <summary>
 /// JSON-based output formatter.

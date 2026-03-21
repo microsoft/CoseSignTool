@@ -3,10 +3,11 @@
 
 namespace CoseSign1.AzureKeyVault;
 
-using System.Formats.Cbor;
 using System.Diagnostics.CodeAnalysis;
+using System.Formats.Cbor;
 using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
+using Cose.Abstractions;
 using CoseSign1.Abstractions;
 
 /// <summary>
@@ -39,7 +40,7 @@ using CoseSign1.Abstractions;
 /// Set <see cref="UseProtectedHeader"/> to true if you need the public key in protected headers.
 /// </para>
 /// </remarks>
-public sealed class CoseKeyHeaderContributor : IHeaderContributor
+public sealed class CoseKeyHeaderContributor : ICoseSign1HeaderContributor
 {
     [ExcludeFromCodeCoverage]
     internal static class ClassStrings
@@ -221,7 +222,7 @@ public sealed class CoseKeyHeaderContributor : IHeaderContributor
     public HeaderMergeStrategy MergeStrategy => HeaderMergeStrategy.Replace;
 
     /// <inheritdoc/>
-    public void ContributeProtectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
+    public void ContributeProtectedHeaders(CoseHeaderMap headers)
     {
         if (UseProtectedHeader)
         {
@@ -230,12 +231,24 @@ public sealed class CoseKeyHeaderContributor : IHeaderContributor
     }
 
     /// <inheritdoc/>
-    public void ContributeUnprotectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
+    public void ContributeUnprotectedHeaders(CoseHeaderMap headers)
     {
         if (!UseProtectedHeader)
         {
             AddCoseKeyHeader(headers);
         }
+    }
+
+    /// <inheritdoc/>
+    public void ContributeProtectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
+    {
+        ContributeProtectedHeaders(headers);
+    }
+
+    /// <inheritdoc/>
+    public void ContributeUnprotectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
+    {
+        ContributeUnprotectedHeaders(headers);
     }
 
     private void AddCoseKeyHeader(CoseHeaderMap headers)

@@ -5,8 +5,8 @@ namespace DIDx509.Parsing;
 
 using System;
 using System.Collections.Generic;
-using DIDx509.Models;
 using System.Diagnostics.CodeAnalysis;
+using DIDx509.Models;
 
 /// <summary>
 /// Parses DID:X509 identifiers according to the specification.
@@ -60,9 +60,9 @@ public static class DidX509Parser
     public static DidX509ParsedIdentifier Parse(string did)
     {
         if (string.IsNullOrWhiteSpace(did))
-            {
-                throw new ArgumentException(ClassStrings.ErrorDidCannotBeNullOrEmpty, nameof(did));
-            }
+        {
+            throw new ArgumentException(ClassStrings.ErrorDidCannotBeNullOrEmpty, nameof(did));
+        }
 
         // Expected format: did:x509:0:sha256:fingerprint::policy1:value1::policy2:value2...
         if (!did.StartsWith(DidX509Constants.DidPrefix + DidX509Constants.ValueSeparator, StringComparison.OrdinalIgnoreCase))

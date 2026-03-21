@@ -74,14 +74,14 @@ public class AzureKeyVaultPlugin : IPlugin
     private static IEnumerable<ISigningMaterialProvider> GetSigningMaterialProviders()
     {
         // AKV key-only root.
-            yield return new AkvSigningMaterialProvider(
-                providerId: ClassStrings.ProviderIdAkvKey,
-                rootId: AkvSigningRootProvider.ClassStrings.RootId,
-                providerDisplayName: ClassStrings.ProviderDisplayNameAkvKey,
-                providerHelpSummary: ClassStrings.ProviderHelpSummaryAkvKey,
-                commandName: AzureKeyVaultKeyCommandProvider.ClassStrings.CommandNameValue,
-                priority: 10,
-                aliases: [ClassStrings.MaterialAliasKey]);
+        yield return new AkvSigningMaterialProvider(
+            providerId: ClassStrings.ProviderIdAkvKey,
+            rootId: AkvSigningRootProvider.ClassStrings.RootId,
+            providerDisplayName: ClassStrings.ProviderDisplayNameAkvKey,
+            providerHelpSummary: ClassStrings.ProviderHelpSummaryAkvKey,
+            commandName: AzureKeyVaultKeyCommandProvider.ClassStrings.CommandNameValue,
+            priority: 10,
+            aliases: [ClassStrings.MaterialAliasKey]);
     }
 
     private static IEnumerable<ICertificateSigningMaterialProvider> GetCertificateSigningMaterialProviders()

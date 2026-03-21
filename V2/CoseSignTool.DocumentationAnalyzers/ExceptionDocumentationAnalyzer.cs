@@ -119,7 +119,7 @@ public sealed class ExceptionDocumentationAnalyzer : DiagnosticAnalyzer
         });
     }
 
-        // NOTE: Operation-based analysis is in AnalyzeOperationBlock.
+    // NOTE: Operation-based analysis is in AnalyzeOperationBlock.
 
     private static HashSet<string> GetDocumentedExceptionTypes(ISymbol symbol, CancellationToken cancellationToken)
     {

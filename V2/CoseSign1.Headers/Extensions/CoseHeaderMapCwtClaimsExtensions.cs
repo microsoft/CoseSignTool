@@ -5,7 +5,7 @@ namespace CoseSign1.Headers.Extensions;
 
 using System;
 using System.Security.Cryptography.Cose;
-using CoseSign1.Abstractions;
+using Cose.Abstractions;
 
 /// <summary>
 /// Extension methods for working with CWT Claims in COSE headers.

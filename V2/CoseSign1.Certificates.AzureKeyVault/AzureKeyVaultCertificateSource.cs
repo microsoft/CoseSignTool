@@ -3,13 +3,13 @@
 
 namespace CoseSign1.Certificates.AzureKeyVault;
 
+using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
-using System.Diagnostics.CodeAnalysis;
 using Azure.Security.KeyVault.Certificates;
-using Azure.Security.KeyVault.Keys;
 using Azure.Security.KeyVault.Secrets;
-using CoseSign1.Abstractions;
+using Azure.Security.KeyVault.Keys;
+using Cose.Abstractions;
 using CoseSign1.AzureKeyVault.Common;
 using CoseSign1.Certificates.Remote;
 

@@ -3,19 +3,19 @@
 
 namespace CoseSign1.Certificates.Tests.Trust;
 
-using System.Text;
 using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
 using System.Security.Cryptography.X509Certificates;
-using CoseSign1.Factories.Direct;
+using System.Text;
+using CoseSign1.Certificates.Trust;
 using CoseSign1.Certificates.Trust.Facts;
 using CoseSign1.Certificates.Trust.Facts.Producers;
-using CoseSign1.Certificates.Trust;
+using CoseSign1.Factories.Direct;
+using CoseSign1.Tests.Common;
 using CoseSign1.Validation.Trust.Engine;
 using CoseSign1.Validation.Trust.Ids;
 using CoseSign1.Validation.Trust.Plan;
 using CoseSign1.Validation.Trust.Subjects;
-using CoseSign1.Tests.Common;
 using Microsoft.Extensions.Caching.Memory;
 
 [TestFixture]
@@ -81,7 +81,7 @@ public class CertificateTrustFactProducersTests
 
         var typed = (ITrustFactSet<X509SigningCertificateIdentityFact>)result;
         Assert.That(typed.Count, Is.EqualTo(1));
-            Assert.That(typed.Values[0].CertificateThumbprint, Is.EqualTo(signingCertificate.GetCertHashString()));
+        Assert.That(typed.Values[0].CertificateThumbprint, Is.EqualTo(signingCertificate.GetCertHashString()));
         Assert.That(typed.Values[0].Subject, Is.EqualTo(signingCertificate.Subject));
         Assert.That(typed.Values[0].Issuer, Is.EqualTo(signingCertificate.Issuer));
     }
@@ -102,8 +102,8 @@ public class CertificateTrustFactProducersTests
         Assert.That(result, Is.InstanceOf<ITrustFactSet<X509SigningCertificateEkuFact>>());
 
         var typed = (ITrustFactSet<X509SigningCertificateEkuFact>)result;
-            Assert.That(typed.Values, Has.Some.Matches<X509SigningCertificateEkuFact>(f => f.OidValue == ekuOid));
-            Assert.That(typed.Values, Has.Some.Matches<X509SigningCertificateEkuFact>(f => f.CertificateThumbprint == signingCertificate.GetCertHashString()));
+        Assert.That(typed.Values, Has.Some.Matches<X509SigningCertificateEkuFact>(f => f.OidValue == ekuOid));
+        Assert.That(typed.Values, Has.Some.Matches<X509SigningCertificateEkuFact>(f => f.CertificateThumbprint == signingCertificate.GetCertHashString()));
     }
 
     [Test]
@@ -123,7 +123,7 @@ public class CertificateTrustFactProducersTests
 
         var typed = (ITrustFactSet<X509X5ChainCertificateIdentityFact>)result;
         Assert.That(typed.Count, Is.EqualTo(chain.Count));
-            Assert.That(typed.Values[0].CertificateThumbprint, Is.EqualTo(chain[0].GetCertHashString()));
+        Assert.That(typed.Values[0].CertificateThumbprint, Is.EqualTo(chain[0].GetCertHashString()));
     }
 
     [Test]

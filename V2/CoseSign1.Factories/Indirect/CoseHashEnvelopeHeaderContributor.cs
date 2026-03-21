@@ -6,6 +6,7 @@ namespace CoseSign1.Factories.Indirect;
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
+using Cose.Abstractions;
 using CoseSign1.Abstractions;
 
 /// <summary>
@@ -13,7 +14,7 @@ using CoseSign1.Abstractions;
 /// Adds protected headers: PayloadHashAlg (258), PreimageContentType (259), and optionally PayloadLocation (260).
 /// Removes content-type header (label 3) per RFC requirements.
 /// </summary>
-public sealed class CoseHashEnvelopeHeaderContributor : IHeaderContributor
+public sealed class CoseHashEnvelopeHeaderContributor : ICoseSign1HeaderContributor
 {
     [ExcludeFromCodeCoverage]
     internal static class ClassStrings
@@ -84,9 +85,8 @@ public sealed class CoseHashEnvelopeHeaderContributor : IHeaderContributor
     /// Per RFC: Label 3 (content_type) MUST NOT be present when using hash envelope format.
     /// </summary>
     /// <param name="headers">The header map to contribute headers to.</param>
-    /// <param name="context">The header contribution context.</param>
     /// <exception cref="NotSupportedException">Thrown when the configured hash algorithm is not supported.</exception>
-    public void ContributeProtectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
+    public void ContributeProtectedHeaders(CoseHeaderMap headers)
     {
         // Remove content type header (label 3) if present
         // Label 3 is easily confused with label 259 (PreimageContentType)
@@ -155,8 +155,7 @@ public sealed class CoseHashEnvelopeHeaderContributor : IHeaderContributor
     /// Ensures no content-type header in unprotected headers.
     /// </summary>
     /// <param name="headers">The header map to contribute headers to.</param>
-    /// <param name="context">The header contribution context.</param>
-    public void ContributeUnprotectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
+    public void ContributeUnprotectedHeaders(CoseHeaderMap headers)
     {
         // Remove content-type header (label 3) if present
         // Per RFC: Label 3 (content_type) MUST NOT be present in protected or unprotected headers
@@ -164,5 +163,17 @@ public sealed class CoseHashEnvelopeHeaderContributor : IHeaderContributor
         {
             headers.Remove(CoseHeaderLabel.ContentType);
         }
+    }
+
+    /// <inheritdoc/>
+    public void ContributeProtectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
+    {
+        ContributeProtectedHeaders(headers);
+    }
+
+    /// <inheritdoc/>
+    public void ContributeUnprotectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
+    {
+        ContributeUnprotectedHeaders(headers);
     }
 }

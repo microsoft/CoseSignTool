@@ -3,7 +3,6 @@
 
 namespace CoseSign1.Validation.DependencyInjection;
 
-using CoseSign1.Abstractions;
 using CoseSign1.Validation.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;

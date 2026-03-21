@@ -3,7 +3,6 @@
 
 namespace CoseSign1.Validation.DependencyInjection;
 
-using CoseSign1.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
 
 internal sealed class CoseValidationBuilder : ICoseValidationBuilder

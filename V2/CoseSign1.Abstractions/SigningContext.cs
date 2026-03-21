@@ -32,7 +32,7 @@ public class SigningContext
     public SigningContext(
         Stream payloadStream,
         string contentType,
-        IReadOnlyList<IHeaderContributor>? additionalHeaderContributors = null,
+        IReadOnlyList<ICoseSign1HeaderContributor>? additionalHeaderContributors = null,
         IDictionary<string, object>? additionalContext = null)
     {
         Guard.ThrowIfNull(payloadStream);
@@ -56,7 +56,7 @@ public class SigningContext
     public SigningContext(
         ReadOnlyMemory<byte> payloadBytes,
         string contentType,
-        IReadOnlyList<IHeaderContributor>? additionalHeaderContributors = null,
+        IReadOnlyList<ICoseSign1HeaderContributor>? additionalHeaderContributors = null,
         IDictionary<string, object>? additionalContext = null)
     {
         PayloadBytesField = payloadBytes;
@@ -100,7 +100,7 @@ public class SigningContext
     /// Applied after the signing service's required contributors.
     /// </summary>
     /// <value>Additional header contributors to apply for this specific operation, or <see langword="null"/>.</value>
-    public IReadOnlyList<IHeaderContributor>? AdditionalHeaderContributors { get; }
+    public IReadOnlyList<ICoseSign1HeaderContributor>? AdditionalHeaderContributors { get; }
 
     /// <summary>
     /// Gets additional context for custom header contributors.

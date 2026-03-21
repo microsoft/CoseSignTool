@@ -10,9 +10,9 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using CoseSign1.Factories.Indirect;
 using CoseSign1.Headers;
 using CoseSign1.Headers.Extensions;
-using CoseSign1.Factories.Indirect;
 using CoseSign1.Tests.Common;
 using CoseSignTool.Inspection;
 using CoseSignTool.Output;
@@ -937,7 +937,7 @@ public class CoseInspectionServiceTests
         var shortValue = CoseHeaderValue.FromEncodedValue(new byte[] { 0x01, 0x02, 0x03 });
         var longValue = CoseHeaderValue.FromEncodedValue(new byte[60]);
         Assert.That((string)formatHeaderValue!.Invoke(null, [shortValue])!, Does.Contain("bytes"));
-        Assert.That((string)formatHeaderValue!.Invoke(null, [longValue])!, Does.Contain("[") );
+        Assert.That((string)formatHeaderValue!.Invoke(null, [longValue])!, Does.Contain("["));
 
         // Decode a few special headers
         var hashHeader = CoseHeaderValue.FromEncodedValue(CborValue(w => w.WriteInt32(-16)).EncodedValue.Span);
@@ -2946,9 +2946,9 @@ public class CoseInspectionServiceTests
             // Assert - should succeed but warn that payload can't be extracted
             Assert.That(result, Is.EqualTo((int)ExitCode.Success));
             var combinedOutput = stdoutWriter.ToString() + stderrWriter.ToString();
-            Assert.That(combinedOutput.Contains("Cannot") || 
-                       combinedOutput.Contains("Detached") || 
-                       !File.Exists(tempExtract), 
+            Assert.That(combinedOutput.Contains("Cannot") ||
+                       combinedOutput.Contains("Detached") ||
+                       !File.Exists(tempExtract),
                        Is.True,
                        "Should warn about detached signature or not create extract file");
         }
@@ -3540,4 +3540,3 @@ public class CoseInspectionServiceTests
         Assert.That(sw.ToString(), Does.Contain("PS512"));
     }
 }
-

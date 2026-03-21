@@ -4,18 +4,37 @@
 namespace CoseSign1.Factories.Direct;
 
 using System.Security.Cryptography.Cose;
+using Cose.Abstractions;
 using CoseSign1.Abstractions;
 
 /// <summary>
 /// Header contributor that adds the content-type header (label 3) to protected headers.
 /// This is a mandatory header for direct COSE Sign1 messages.
 /// </summary>
-public sealed class ContentTypeHeaderContributor : IHeaderContributor
+public sealed class ContentTypeHeaderContributor : ICoseSign1HeaderContributor
 {
     /// <summary>
     /// Gets the merge strategy. Uses Replace to allow overriding existing content-type headers.
     /// </summary>
     public HeaderMergeStrategy MergeStrategy => HeaderMergeStrategy.Replace;
+
+    /// <inheritdoc/>
+    /// <remarks>
+    /// No-op without signing context. Content-type requires signing context.
+    /// </remarks>
+    public void ContributeProtectedHeaders(CoseHeaderMap headers)
+    {
+        // Content-type requires signing context for the content type value
+    }
+
+    /// <inheritdoc/>
+    /// <remarks>
+    /// No-op without signing context.
+    /// </remarks>
+    public void ContributeUnprotectedHeaders(CoseHeaderMap headers)
+    {
+        // No unprotected headers for content-type
+    }
 
     /// <summary>
     /// Contributes the content-type header to protected headers.

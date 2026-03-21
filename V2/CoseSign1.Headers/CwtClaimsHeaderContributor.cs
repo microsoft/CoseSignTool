@@ -6,6 +6,7 @@ namespace CoseSign1.Headers;
 using System;
 using System.Diagnostics;
 using System.Security.Cryptography.Cose;
+using Cose.Abstractions;
 using CoseSign1.Abstractions;
 using CoseSign1.Headers.Extensions;
 
@@ -31,7 +32,7 @@ public enum CwtClaimsHeaderPlacement
 }
 
 /// <summary>
-/// A strongly-typed implementation of <see cref="IHeaderContributor"/> for managing CWT (CBOR Web Token) Claims
+/// A strongly-typed implementation of <see cref="ICoseSign1HeaderContributor"/> for managing CWT (CBOR Web Token) Claims
 /// in COSE Sign1 messages. This class enables customization of CWT claims in the protected header (label 15)
 /// as required by SCITT (Supply Chain Integrity, Transparency, and Trust) specifications.
 /// </summary>
@@ -48,7 +49,7 @@ public enum CwtClaimsHeaderPlacement
 /// See: https://ietf-wg-scitt.github.io/draft-ietf-scitt-architecture/
 /// </para>
 /// </remarks>
-public class CwtClaimsHeaderContributor : IHeaderContributor
+public class CwtClaimsHeaderContributor : ICoseSign1HeaderContributor
 {
     private readonly CwtClaims Claims;
     private readonly CwtClaimsHeaderPlacement HeaderPlacement;
@@ -376,7 +377,7 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
 
     /// <inheritdoc/>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="headers"/> is null.</exception>
-    public void ContributeProtectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
+    public void ContributeProtectedHeaders(CoseHeaderMap headers)
     {
         Guard.ThrowIfNull(headers);
 
@@ -392,7 +393,7 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
 
     /// <inheritdoc/>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="headers"/> is null.</exception>
-    public void ContributeUnprotectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
+    public void ContributeUnprotectedHeaders(CoseHeaderMap headers)
     {
         Guard.ThrowIfNull(headers);
 
@@ -404,6 +405,20 @@ public class CwtClaimsHeaderContributor : IHeaderContributor
         }
 
         ContributeToHeaders(headers);
+    }
+
+    /// <inheritdoc/>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="headers"/> is null.</exception>
+    public void ContributeProtectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
+    {
+        ContributeProtectedHeaders(headers);
+    }
+
+    /// <inheritdoc/>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="headers"/> is null.</exception>
+    public void ContributeUnprotectedHeaders(CoseHeaderMap headers, HeaderContributorContext context)
+    {
+        ContributeUnprotectedHeaders(headers);
     }
 
     private void ContributeToHeaders(CoseHeaderMap headers)

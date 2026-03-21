@@ -3,9 +3,9 @@
 
 namespace CoseSign1.Validation.Tests;
 
+using System.Security.Cryptography.Cose;
 using CoseSign1.Abstractions;
 using CoseSign1.Validation.Interfaces;
-using System.Security.Cryptography.Cose;
 
 public sealed class CounterSignatureResolutionResultTests
 {

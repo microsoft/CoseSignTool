@@ -552,11 +552,11 @@ public class RemoteCertificateSourceTests
         public int GetKeySizePublic() => GetKeySize();
         public RSA GetRemoteRsaPublic() => GetRemoteRsa();
         public ECDsa GetRemoteECDsaPublic() => GetRemoteECDsa();
-    #if NET10_0_OR_GREATER
-    #pragma warning disable SYSLIB5006 // ML-DSA APIs are preview
+#if NET10_0_OR_GREATER
+#pragma warning disable SYSLIB5006 // ML-DSA APIs are preview
         public MLDsa GetRemoteMLDsaPublic() => GetRemoteMLDsa();
-    #pragma warning restore SYSLIB5006
-    #endif
+#pragma warning restore SYSLIB5006
+#endif
 
         protected override void Dispose(bool disposing)
         {

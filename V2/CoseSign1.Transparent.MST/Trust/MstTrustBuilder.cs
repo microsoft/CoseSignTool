@@ -4,7 +4,7 @@
 namespace CoseSign1.Transparent.MST.Trust;
 
 using System.Diagnostics.CodeAnalysis;
-using CoseSign1.Abstractions;
+using Cose.Abstractions;
 
 /// <summary>
 /// Builder for configuring MST trust-pack registrations.

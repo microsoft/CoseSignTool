@@ -158,8 +158,8 @@ public class DirectSignatureFactoryTests
         var mockSigningService = CreateMockSigningService();
         var payload = Encoding.UTF8.GetBytes("Test payload");
         var contentType = "application/json";
-        var additionalContributor = new Mock<IHeaderContributor>().Object;
-        var contributors = new List<IHeaderContributor> { additionalContributor };
+        var additionalContributor = new Mock<ICoseSign1HeaderContributor>().Object;
+        var contributors = new List<ICoseSign1HeaderContributor> { additionalContributor };
 
         var mockCoseSigner = CreateMockCoseSigner();
         SigningContext? capturedContext = null;

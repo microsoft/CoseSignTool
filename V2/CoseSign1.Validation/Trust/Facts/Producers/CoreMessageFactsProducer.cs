@@ -5,14 +5,13 @@ namespace CoseSign1.Validation.Trust.Facts.Producers;
 
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography.Cose;
-using CoseSign1.Abstractions;
-using Microsoft.Extensions.Caching.Memory;
 using CoseSign1.Validation.Interfaces;
 using CoseSign1.Validation.Trust.Engine;
 using CoseSign1.Validation.Trust.Ids;
 using CoseSign1.Validation.Trust.Plan;
 using CoseSign1.Validation.Trust.Rules;
 using CoseSign1.Validation.Trust.Subjects;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 

@@ -9,7 +9,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
 using Azure;
 using Azure.Security.CodeTransparency;
-using CoseSign1.Abstractions;
+using Cose.Abstractions;
 using CoseSign1.Abstractions.Transparency;
 using CoseSign1.Transparent.MST.Extensions;
 

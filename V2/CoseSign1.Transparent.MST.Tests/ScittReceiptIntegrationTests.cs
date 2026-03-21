@@ -8,11 +8,11 @@ using CoseSign1.Transparent.MST.Extensions;
 using CoseSign1.Transparent.MST.Trust;
 using CoseSign1.Validation;
 using CoseSign1.Validation.Interfaces;
+using CoseSign1.Validation.Trust;
 using CoseSign1.Validation.Trust.Engine;
 using CoseSign1.Validation.Trust.Ids;
 using CoseSign1.Validation.Trust.Plan;
 using CoseSign1.Validation.Trust.Subjects;
-using CoseSign1.Validation.Trust;
 using Microsoft.Extensions.DependencyInjection;
 
 [TestFixture]

@@ -4,6 +4,7 @@
 namespace CoseSign1.Certificates.ChainBuilders;
 
 using System.Diagnostics.CodeAnalysis;
+using Cose.Abstractions;
 using Microsoft.Extensions.Logging.Abstractions;
 
 /// <summary>

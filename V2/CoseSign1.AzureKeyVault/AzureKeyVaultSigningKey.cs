@@ -7,6 +7,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
 using Azure.Security.KeyVault.Keys;
+using Cose.Abstractions;
 using CoseSign1.Abstractions;
 using CoseSign1.AzureKeyVault.Common;
 

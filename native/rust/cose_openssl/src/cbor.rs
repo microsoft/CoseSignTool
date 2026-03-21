@@ -43,8 +43,8 @@ pub enum CborValue {
 impl CborValue {
     /// Parse CBOR bytes into an owned `CborValue`.
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, String> {
-        let (item, remainder) = cbor_nondet_parse(None, false, bytes)
-            .ok_or("Failed to parse CBOR bytes")?;
+        let (item, remainder) =
+            cbor_nondet_parse(None, false, bytes).ok_or("Failed to parse CBOR bytes")?;
         if !remainder.is_empty() {
             return Err(format!(
                 "Trailing bytes: {} unconsumed byte(s)",
@@ -77,20 +77,22 @@ impl CborValue {
                 let (kind, raw) = Self::i64_to_det_int(*v);
                 Ok(cbor_det_mk_int64(kind, raw))
             }
-            CborValue::Simple(v) => cbor_det_mk_simple_value(*v)
-                .ok_or("Failed to make CBOR simple value".to_string()),
-            CborValue::ByteString(b) => cbor_det_mk_byte_string(b)
-                .ok_or("Failed to make CBOR byte string".to_string()),
-            CborValue::TextString(s) => cbor_det_mk_text_string(s)
-                .ok_or("Failed to make CBOR text string".to_string()),
+            CborValue::Simple(v) => {
+                cbor_det_mk_simple_value(*v).ok_or("Failed to make CBOR simple value".to_string())
+            }
+            CborValue::ByteString(b) => {
+                cbor_det_mk_byte_string(b).ok_or("Failed to make CBOR byte string".to_string())
+            }
+            CborValue::TextString(s) => {
+                cbor_det_mk_text_string(s).ok_or("Failed to make CBOR text string".to_string())
+            }
             CborValue::Array(children) => {
                 let raw_children: Vec<CborDet<'a>> = children
                     .iter()
                     .map(|c| c.to_raw(items, entries))
                     .collect::<Result<_, _>>()?;
                 let slice = items.alloc_extend(raw_children);
-                cbor_det_mk_array(slice)
-                    .ok_or("Failed to build CBOR array".to_string())
+                cbor_det_mk_array(slice).ok_or("Failed to build CBOR array".to_string())
             }
             CborValue::Map(map_entries) => {
                 let raw: Vec<CborDetMapEntry<'a>> = map_entries
@@ -103,8 +105,7 @@ impl CborValue {
                     })
                     .collect::<Result<_, String>>()?;
                 let slice = entries.alloc_extend(raw);
-                cbor_det_mk_map(slice)
-                    .ok_or("Failed to build CBOR map".to_string())
+                cbor_det_mk_map(slice).ok_or("Failed to build CBOR map".to_string())
             }
             CborValue::Tagged { tag, payload } => {
                 let inner = payload.to_raw(items, entries)?;
@@ -120,9 +121,7 @@ impl CborValue {
             CborValue::Array(items) => items
                 .get(index)
                 .ok_or_else(|| format!("Index {index} out of bounds")),
-            other => {
-                Err(format!("Expected Array, got {:?}", other.type_name()))
-            }
+            other => Err(format!("Expected Array, got {:?}", other.type_name())),
         }
     }
 
@@ -156,22 +155,16 @@ impl CborValue {
     }
 
     /// Iterate over array elements. Returns an error if not an array.
-    pub fn iter_array(
-        &self,
-    ) -> Result<std::slice::Iter<'_, CborValue>, String> {
+    pub fn iter_array(&self) -> Result<std::slice::Iter<'_, CborValue>, String> {
         match self {
             CborValue::Array(items) => Ok(items.iter()),
-            other => {
-                Err(format!("Expected Array, got {:?}", other.type_name()))
-            }
+            other => Err(format!("Expected Array, got {:?}", other.type_name())),
         }
     }
 
     /// Iterate over map entries as `(key, value)` pairs.
     /// Returns an error if not a map.
-    pub fn iter_map(
-        &self,
-    ) -> Result<impl Iterator<Item = (&CborValue, &CborValue)>, String> {
+    pub fn iter_map(&self) -> Result<impl Iterator<Item = (&CborValue, &CborValue)>, String> {
         match self {
             CborValue::Map(entries) => Ok(entries.iter().map(|(k, v)| (k, v))),
             other => Err(format!("Expected Map, got {:?}", other.type_name())),
@@ -184,9 +177,7 @@ impl CborValue {
         match self {
             CborValue::Array(items) => Ok(items.len()),
             CborValue::Map(entries) => Ok(entries.len()),
-            other => {
-                Err(format!("len() not applicable to {:?}", other.type_name()))
-            }
+            other => Err(format!("len() not applicable to {:?}", other.type_name())),
         }
     }
 
@@ -210,13 +201,11 @@ impl CborValue {
         }
     }
 
-    fn nondet_int_to_i64(
-        kind: CborNondetIntKind,
-        value: u64,
-    ) -> Result<i64, String> {
+    fn nondet_int_to_i64(kind: CborNondetIntKind, value: u64) -> Result<i64, String> {
         match kind {
-            CborNondetIntKind::UInt64 => i64::try_from(value)
-                .map_err(|_| format!("CBOR uint {value} exceeds i64 range")),
+            CborNondetIntKind::UInt64 => {
+                i64::try_from(value).map_err(|_| format!("CBOR uint {value} exceeds i64 range"))
+            }
             CborNondetIntKind::NegInt64 => {
                 // CBOR negative: actual = -(value + 1)
                 // Compute as u64 first then reinterpret, to avoid overflow.
@@ -235,9 +224,7 @@ impl CborValue {
                 Ok(CborValue::Int(Self::nondet_int_to_i64(kind, value)?))
             }
             CborNondetView::SimpleValue { _0: v } => Ok(CborValue::Simple(v)),
-            CborNondetView::ByteString { payload } => {
-                Ok(CborValue::ByteString(payload.to_vec()))
-            }
+            CborNondetView::ByteString { payload } => Ok(CborValue::ByteString(payload.to_vec())),
             CborNondetView::TextString { payload } => {
                 Ok(CborValue::TextString(payload.to_string()))
             }
@@ -245,16 +232,14 @@ impl CborValue {
                 let len = cbor_nondet_get_array_length(arr);
                 let mut items = Vec::with_capacity(len as usize);
                 for i in 0..len {
-                    let child = cbor_nondet_get_array_item(arr, i)
-                        .ok_or("Failed to get array item")?;
+                    let child =
+                        cbor_nondet_get_array_item(arr, i).ok_or("Failed to get array item")?;
                     items.push(Self::from_raw(child)?);
                 }
                 Ok(CborValue::Array(items))
             }
             CborNondetView::Map { _0: map } => {
-                let mut entries = Vec::with_capacity(
-                    cbor_nondet_get_map_length(map) as usize,
-                );
+                let mut entries = Vec::with_capacity(cbor_nondet_get_map_length(map) as usize);
                 for entry in map {
                     let k = Self::from_raw(cbor_nondet_map_entry_key(entry))?;
                     let v = Self::from_raw(cbor_nondet_map_entry_value(entry))?;
@@ -274,11 +259,9 @@ impl CborValue {
 }
 
 fn serialize_det(item: CborDet) -> Result<Vec<u8>, String> {
-    let sz = cbor_det_size(item, usize::MAX)
-        .ok_or("Failed to estimate CBOR serialization size")?;
+    let sz = cbor_det_size(item, usize::MAX).ok_or("Failed to estimate CBOR serialization size")?;
     let mut buf = vec![0u8; sz];
-    let written =
-        cbor_det_serialize(item, &mut buf).ok_or("Failed to serialize CBOR")?;
+    let written = cbor_det_serialize(item, &mut buf).ok_or("Failed to serialize CBOR")?;
     if sz != written {
         return Err(format!(
             "CBOR serialize mismatch: written {written} != expected {sz}"
@@ -298,14 +281,15 @@ pub fn serialize_array(items: &[CborSlice<'_>]) -> Result<Vec<u8>, String> {
     let mut raw: Vec<CborDet<'_>> = items
         .iter()
         .map(|item| match item {
-            CborSlice::TextStr(s) => cbor_det_mk_text_string(s)
-                .ok_or("Failed to make CBOR text string".to_string()),
-            CborSlice::ByteStr(b) => cbor_det_mk_byte_string(b)
-                .ok_or("Failed to make CBOR byte string".to_string()),
+            CborSlice::TextStr(s) => {
+                cbor_det_mk_text_string(s).ok_or("Failed to make CBOR text string".to_string())
+            }
+            CborSlice::ByteStr(b) => {
+                cbor_det_mk_byte_string(b).ok_or("Failed to make CBOR byte string".to_string())
+            }
         })
         .collect::<Result<_, _>>()?;
-    let array = cbor_det_mk_array(&mut raw)
-        .ok_or("Failed to build CBOR array".to_string())?;
+    let array = cbor_det_mk_array(&mut raw).ok_or("Failed to build CBOR array".to_string())?;
     serialize_det(array)
 }
 
@@ -496,9 +480,7 @@ mod tests {
                     CborValue::Int(1),
                     CborValue::Tagged {
                         tag: 99,
-                        payload: Box::new(CborValue::TextString(
-                            "nested".into(),
-                        )),
+                        payload: Box::new(CborValue::TextString("nested".into())),
                     },
                 ),
                 (
@@ -514,8 +496,7 @@ mod tests {
 
     #[test]
     fn array_at_item() {
-        let arr =
-            CborValue::Array(vec![CborValue::Int(10), CborValue::Int(20)]);
+        let arr = CborValue::Array(vec![CborValue::Int(10), CborValue::Int(20)]);
         assert_eq!(arr.array_at(0).unwrap(), &CborValue::Int(10));
         assert_eq!(arr.array_at(1).unwrap(), &CborValue::Int(20));
         assert!(arr.array_at(2).is_err());
@@ -629,8 +610,7 @@ mod tests {
 
     #[test]
     fn debug_format() {
-        let val =
-            CborValue::Array(vec![CborValue::Int(42), CborValue::Int(-7)]);
+        let val = CborValue::Array(vec![CborValue::Int(42), CborValue::Int(-7)]);
         let s = format!("{:?}", val);
         assert!(s.contains("Int(42)"));
         assert!(s.contains("Int(-7)"));

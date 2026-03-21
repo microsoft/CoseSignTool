@@ -1,0 +1,31 @@
+[package]
+name = "cose_sign1_primitives_ffi"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+rust-version = "1.70"
+description = "C/C++ FFI projections for cose_sign1_primitives types and message verification"
+
+[lib]
+# rlib is required for integration tests under tests/ to link against this crate.
+crate-type = ["cdylib", "staticlib", "rlib"]
+test = false
+
+[dependencies]
+cose_sign1_primitives = { path = ".." }
+cbor_primitives = { path = "../../../cbor" }
+
+# CBOR provider — exactly one must be enabled (default: EverParse)
+cbor_primitives_everparse = { path = "../../../cbor/everparse", optional = true }
+
+libc = "0.2"
+
+[features]
+default = ["cbor-everparse"]
+cbor-everparse = ["dep:cbor_primitives_everparse"]
+
+[dev-dependencies]
+
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }

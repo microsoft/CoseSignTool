@@ -1,0 +1,29 @@
+[package]
+name = "cose_sign1_crypto_openssl_ffi"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+rust-version = "1.70"
+description = "C/C++ FFI projections for OpenSSL crypto provider"
+
+[lib]
+crate-type = ["cdylib", "staticlib", "rlib"]
+test = false
+
+[dependencies]
+cose_sign1_crypto_openssl = { path = ".." }
+crypto_primitives = { path = "../.." }
+anyhow = { workspace = true }
+
+# CBOR provider — exactly one must be enabled (default: EverParse)
+cbor_primitives_everparse = { path = "../../../cbor/everparse", optional = true }
+
+[features]
+default = ["cbor-everparse"]
+cbor-everparse = ["dep:cbor_primitives_everparse", "cose_sign1_crypto_openssl/cbor-everparse"]
+
+[dev-dependencies]
+openssl = { workspace = true }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }

@@ -17,19 +17,9 @@ pub fn verify_with_md(
     verify_with_ctx(&ctx, sig, msg)
 }
 
-fn verify_with_ctx(
-    ctx: &EvpMdContext<VerifyOp>,
-    sig: &[u8],
-    msg: &[u8],
-) -> Result<bool, String> {
+fn verify_with_ctx(ctx: &EvpMdContext<VerifyOp>, sig: &[u8], msg: &[u8]) -> Result<bool, String> {
     unsafe {
-        let res = ossl::EVP_DigestVerify(
-            ctx.ctx,
-            sig.as_ptr(),
-            sig.len(),
-            msg.as_ptr(),
-            msg.len(),
-        );
+        let res = ossl::EVP_DigestVerify(ctx.ctx, sig.as_ptr(), sig.len(), msg.as_ptr(), msg.len());
 
         match res {
             1 => Ok(true),

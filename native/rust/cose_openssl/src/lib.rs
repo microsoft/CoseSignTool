@@ -1,3 +1,13 @@
+// Partner-contributed crate — allow certain clippy lints to avoid
+// modifying upstream code unnecessarily.
+#![allow(
+    clippy::mut_from_ref,
+    clippy::len_without_is_empty,
+    clippy::useless_format,
+    clippy::needless_pass_by_ref_mut,
+    clippy::unnecessary_mut_passed
+)]
+
 mod cbor;
 mod cose;
 mod ossl_wrappers;

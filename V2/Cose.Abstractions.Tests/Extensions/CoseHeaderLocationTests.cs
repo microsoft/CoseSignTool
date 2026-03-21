@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-namespace CoseSign1.Abstractions.Tests.Extensions;
+namespace Cose.Abstractions.Tests.Extensions;
 
 using System.Security.Cryptography.Cose;
 

@@ -49,7 +49,7 @@ impl ErrorInner {
         let code = match err {
             CoseSign1Error::CborError(_) => FFI_ERR_PARSE_FAILED,
             CoseSign1Error::KeyError(_) => FFI_ERR_VERIFY_FAILED,
-            CoseSign1Error::PayloadError(_) => FFI_ERR_PAYLOAD_MISSING,
+            CoseSign1Error::PayloadError(_) => FFI_ERR_INVALID_ARGUMENT,
             CoseSign1Error::InvalidMessage(_) => FFI_ERR_PARSE_FAILED,
             CoseSign1Error::PayloadMissing => FFI_ERR_PAYLOAD_MISSING,
             CoseSign1Error::SignatureMismatch => FFI_ERR_VERIFY_FAILED,
@@ -74,8 +74,9 @@ impl ErrorInner {
 ///
 /// # Safety
 ///
-/// The handle must be valid and non-null.
-pub unsafe fn handle_to_inner(handle: *const CoseSign1ErrorHandle) -> Option<&'static ErrorInner> {
+/// The handle must be valid and non-null, and must remain valid for the
+/// lifetime `'a` of the returned reference.
+pub unsafe fn handle_to_inner<'a>(handle: *const CoseSign1ErrorHandle) -> Option<&'a ErrorInner> {
     if handle.is_null() {
         return None;
     }

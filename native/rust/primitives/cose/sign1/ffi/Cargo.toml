@@ -7,7 +7,7 @@ rust-version = "1.70"
 description = "C/C++ FFI projections for cose_sign1_primitives types and message verification"
 
 [lib]
-crate-type = ["cdylib", "staticlib", "rlib"]
+crate-type = ["cdylib", "staticlib"]
 test = false
 
 [dependencies]

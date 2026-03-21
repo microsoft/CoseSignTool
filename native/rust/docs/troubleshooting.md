@@ -24,6 +24,6 @@ Streaming `Sig_structure` construction is only used when:
 - message payload is detached (payload is `nil`)
 - you provided `Payload::Streaming`
 - the payload provider returns a correct `size()`
-- `size() > LARGE_STREAM_THRESHOLD`
+- `size() > LARGE_PAYLOAD_THRESHOLD`
 
 Also, to avoid buffering, your `CoseKey` should override `verify_reader`.

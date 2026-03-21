@@ -1,89 +1,77 @@
 # cose_sign1_primitives
 
-Core types and traits for CoseSign1 signing and verification with pluggable CBOR.
+Core types and traits for CoseSign1 signing and verification with a zero-copy, streaming-first architecture.
 
 ## Overview
 
 This crate provides the foundational types for working with COSE_Sign1 messages
-as defined in [RFC 9052](https://www.rfc-editor.org/rfc/rfc9052). It is designed
-to be minimal with only `cbor_primitives` as a dependency, making it suitable
-for constrained environments.
+as defined in [RFC 9052](https://www.rfc-editor.org/rfc/rfc9052). It depends on
+`cose_primitives` and `crypto_primitives` and uses a compile-time-selected CBOR
+provider (enabled via feature flags) — callers do **not** pass a provider at
+runtime.
 
-**Important**: This library is generic over `CborProvider` and does not include
-a default CBOR implementation. Callers must provide their own `CborProvider`
-implementation (such as `cbor_primitives_everparse::EverParseCborProvider`) to all
-encoding and decoding functions.
+**Default feature**: `cbor-everparse` — uses `cbor_primitives_everparse` as the
+CBOR backend.
 
 ## Features
 
-- **CoseKey trait** - Abstraction for signing/verification keys
-- **CoseHeaderMap** - Protected and unprotected header handling  
-- **CoseSign1Message** - Parse and verify COSE_Sign1 messages
-- **CoseSign1Builder** - Fluent API for creating messages
-- **Sig_structure** - RFC 9052 compliant signature structure construction
-- **Streaming support** - Handle large payloads without full memory load via `SizedRead`
+- **CoseSign1Message** — Parse and verify COSE_Sign1 messages (buffered or streamed)
+- **CoseSign1Builder** — Fluent API for creating signed messages
+- **CoseHeaderMap** / **CoseHeaderLabel** / **CoseHeaderValue** — Protected and unprotected header handling  
+- **Sig_structure** — RFC 9052 compliant signature structure construction
+- **Streaming support** — Handle large payloads without full memory load via `StreamingPayload`
 
 ## Design Philosophy
 
 This crate intentionally has minimal dependencies:
 
-- Only `cbor_primitives` as a dependency (no `thiserror`, no `once_cell`)
-- Manual `std::error::Error` implementations
-- Uses `std::sync::OnceLock` (stable since Rust 1.70) instead of `once_cell`
+- Uses `cose_primitives` for shared COSE types and `crypto_primitives` for key traits
+- No `thiserror`, no `once_cell`
+- Uses `std::sync::OnceLock` (stable since Rust 1.70) for lazy header parsing
+- Compile-time CBOR provider selection keeps the API clean
 
-This keeps the crate dependency-free for customers who need minimal footprint.
+This keeps the crate lightweight for customers who need minimal footprint.
 
 ## Usage
 
 ```rust
-use cbor_primitives::CborProvider;
-use cbor_primitives_everparse::EverParseCborProvider;
-use cosesign1_primitives::{
-    CoseSign1Builder, CoseSign1Message, CoseHeaderMap, CoseKey,
-    algorithms,
+use cose_sign1_primitives::{
+    CoseSign1Builder, CoseSign1Message, CoseHeaderMap, algorithms,
 };
-
-// Callers must provide a concrete CborProvider implementation
-let provider = EverParseCborProvider;
 
 // Create protected headers
 let mut protected = CoseHeaderMap::new();
 protected.set_alg(algorithms::ES256);
 
-// Sign a message
+// Sign a message (provider is selected at compile time)
 let message_bytes = CoseSign1Builder::new()
     .protected(protected)
-    .sign(&provider, &signing_key, b"payload")?;
+    .sign(&signer, b"payload")?;
 
 // Parse and verify
-let message = CoseSign1Message::parse(provider, &message_bytes)?;
-let valid = message.verify(&verification_key, None)?;
+let message = CoseSign1Message::parse(&message_bytes)?;
+let valid = message.verify(&verifier, None, None)?;
 ```
 
 ## Key Components
 
-### CoseKey Trait
+### CoseSign1Builder
 
-The `CoseKey` trait abstracts over different key types. All sign/verify methods
-include `external_aad` because it's part of the Sig_structure:
+Fluent builder for creating COSE_Sign1 messages. Supports both in-memory
+(`sign`) and streaming (`sign_streaming`) payloads:
 
 ```rust
-pub trait CoseKey: Send + Sync {
-    fn sign(
-        &self,
-        protected_header_bytes: &[u8],
-        payload: &[u8],
-        external_aad: Option<&[u8]>,
-    ) -> Result<Vec<u8>, CoseKeyError>;
-    
-    fn verify(
-        &self,
-        protected_header_bytes: &[u8],
-        payload: &[u8],
-        external_aad: Option<&[u8]>,
-        signature: &[u8],
-    ) -> Result<bool, CoseKeyError>;
-}
+// In-memory signing
+let bytes = CoseSign1Builder::new()
+    .protected(headers)
+    .detached(false)
+    .sign(&signer, payload)?;
+
+// Streaming signing (avoids loading large payloads into memory)
+let bytes = CoseSign1Builder::new()
+    .protected(headers)
+    .detached(true)
+    .sign_streaming(&signer, Arc::new(file_payload))?;
 ```
 
 ### Sig_structure
@@ -116,100 +104,44 @@ bstr content: <1MB of actual payload bytes>
 This creates a problem for streaming: you need to know the total length before
 you can start writing the CBOR encoding.
 
-### Why Rust's `Read` Doesn't Include Length
+### The Solution: `StreamingPayload` Trait
 
-Rust's standard `Read` trait intentionally doesn't include a `len()` method because:
-
-- **Many streams have unknown length** - network sockets, pipes, stdin, compressed data
-- **`Seek::stream_len()` mutates** - it requires `&mut self` since it seeks to end and back
-- **Length is context-dependent** - a `File` knows its length via `metadata()`, but wrapping
-  it in `BufReader` loses that information
-
-### The Solution: `SizedRead` Trait
-
-We provide the `SizedRead` trait that combines `Read` with a required `len()` method:
+We provide the `StreamingPayload` trait that combines `open()` with a required
+`size()` method:
 
 ```rust
-pub trait SizedRead: Read {
-    /// Returns the total number of bytes in this stream.
-    fn len(&self) -> Result<u64, std::io::Error>;
+pub trait StreamingPayload: Send + Sync {
+    /// Returns the total number of bytes in this payload.
+    fn size(&self) -> u64;
+    /// Opens a reader for the payload content.
+    fn open(&self) -> Result<Box<dyn Read>, PayloadOpenError>;
 }
 ```
 
 ### Built-in Implementations
 
-`SizedRead` is automatically implemented for common types:
-
 | Type | How Length is Determined |
 |------|--------------------------|
-| `std::fs::File` | `metadata().len()` |
-| `std::io::Cursor<T>` | `get_ref().as_ref().len()` |
-| `&[u8]` | slice `.len()` |
+| `MemoryPayload` | `Arc<[u8]>` length |
+| `FilePayload` | `metadata().len()` |
 
 ### Wrapping Unknown Streams
 
 For streams where you know the length externally (e.g., HTTP Content-Length header):
 
 ```rust
-use cose_sign1_primitives::{SizedReader, sized_from_reader};
+use cose_sign1_primitives::SizedReader;
 
 // HTTP response with known Content-Length
 let body = response.into_reader();
 let content_length = response.content_length().unwrap();
-let payload = sized_from_reader(body, content_length);
-// or equivalently:
 let payload = SizedReader::new(body, content_length);
 ```
 
-### Streaming Hash Functions
+### Payload Size Threshold
 
-Once you have a `SizedRead`, use the streaming functions:
-
-```rust
-use sha2::{Sha256, Digest};
-use cose_sign1_primitives::{hash_sig_structure_streaming, open_sized_file};
-
-// Open a file (File implements SizedRead via metadata)
-let payload = open_sized_file("large_payload.bin")?;
-
-// Hash the Sig_structure in 64KB chunks - never loads full payload into memory
-let hasher = hash_sig_structure_streaming(
-    &cbor_provider,
-    Sha256::new(),
-    protected_header_bytes,
-    None,  // external_aad
-    payload,
-)?;
-
-let hash: [u8; 32] = hasher.finalize().into();
-// Now sign the hash with your key
-```
-
-### Convenience Functions
-
-| Function | Purpose |
-|----------|---------|
-| `open_sized_file(path)` | Open a file as `SizedRead` |
-| `sized_from_reader(r, len)` | Wrap any `Read` with known length |
-| `sized_from_bytes(bytes)` | Wrap `Vec<u8>` / `&[u8]` as `Cursor` |
-| `hash_sig_structure_streaming(...)` | Hash Sig_structure in chunks (64KB default) |
-| `hash_sig_structure_streaming_chunked(...)` | Same with custom chunk size |
-| `stream_sig_structure(...)` | Write complete Sig_structure to any `Write` |
-
-### IntoSizedRead Trait
-
-For ergonomic conversions, use the `IntoSizedRead` trait:
-
-```rust
-use cose_sign1_primitives::IntoSizedRead;
-use std::fs::File;
-
-// File already implements SizedRead, so this is a no-op wrapper
-let payload = File::open("payload.bin")?.into_sized()?;
-
-// Vec<u8> converts to Cursor<Vec<u8>>
-let payload = my_bytes.into_sized()?;
-```
+Payloads larger than `LARGE_PAYLOAD_THRESHOLD` bytes (85 KB) should use the
+streaming APIs to avoid loading the entire content into memory.
 
 ## License
 

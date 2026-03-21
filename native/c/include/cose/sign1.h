@@ -6,7 +6,7 @@
  * @brief C API for COSE_Sign1 message parsing, inspection, and verification.
  *
  * This header provides low-level primitives for COSE_Sign1 messages as defined
- * in RFC 9338. It includes `<cose/cose.h>` automatically.
+ * in RFC 9052 (with algorithms specified in RFC 9053). It includes `<cose/cose.h>` automatically.
  *
  * ## Error Handling
  *
@@ -43,12 +43,13 @@ extern "C" {
 
 #define COSE_SIGN1_OK                       0
 #define COSE_SIGN1_ERR_NULL_POINTER        -1
-#define COSE_SIGN1_ERR_INVALID_ARGUMENT    -2
-#define COSE_SIGN1_ERR_PANIC               -3
-#define COSE_SIGN1_ERR_PARSE_FAILED        -4
-#define COSE_SIGN1_ERR_VERIFY_FAILED       -5
-#define COSE_SIGN1_ERR_PAYLOAD_MISSING     -6
-#define COSE_SIGN1_ERR_HEADER_NOT_FOUND    -7
+#define COSE_SIGN1_ERR_PARSE_FAILED        -2
+#define COSE_SIGN1_ERR_VERIFY_FAILED       -3
+#define COSE_SIGN1_ERR_PAYLOAD_MISSING     -4
+#define COSE_SIGN1_ERR_INVALID_ARGUMENT    -5
+#define COSE_SIGN1_ERR_HEADER_NOT_FOUND    -6
+/* -99 is intentionally non-sequential to distinguish panics from normal API errors */
+#define COSE_SIGN1_ERR_PANIC               -99
 
 /* ========================================================================== */
 /* Opaque handle types – Sign1-specific                                       */

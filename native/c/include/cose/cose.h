@@ -144,8 +144,8 @@ int32_t cose_headermap_get_bytes(
 /**
  * @brief Look up a text-string header value by integer label.
  *
- * Returns a newly-allocated UTF-8 string. Caller must free with
- * `cose_sign1_string_free()` (primitives layer) or `cose_string_free()`.
+ * Returns a newly-allocated UTF-8 string. Caller must free the result with
+ * `cose_string_free()`.
  *
  * @param headers  Header map.
  * @param label    Integer label.

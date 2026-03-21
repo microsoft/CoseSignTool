@@ -57,10 +57,11 @@ pub(crate) struct HeaderMapInner {
 ///
 /// # Safety
 ///
-/// The handle must be valid and non-null.
-pub(crate) unsafe fn message_handle_to_inner(
+/// The handle must be valid and non-null, and must remain valid for the
+/// lifetime `'a` of the returned reference.
+pub(crate) unsafe fn message_handle_to_inner<'a>(
     handle: *const CoseSign1MessageHandle,
-) -> Option<&'static MessageInner> {
+) -> Option<&'a MessageInner> {
     if handle.is_null() {
         return None;
     }
@@ -81,10 +82,11 @@ pub(crate) fn message_inner_to_handle(inner: MessageInner) -> *mut CoseSign1Mess
 ///
 /// # Safety
 ///
-/// The handle must be valid and non-null.
-pub(crate) unsafe fn key_handle_to_inner(
+/// The handle must be valid and non-null, and must remain valid for the
+/// lifetime `'a` of the returned reference.
+pub(crate) unsafe fn key_handle_to_inner<'a>(
     handle: *const CoseKeyHandle,
-) -> Option<&'static KeyInner> {
+) -> Option<&'a KeyInner> {
     if handle.is_null() {
         return None;
     }
@@ -105,10 +107,11 @@ pub(crate) fn key_inner_to_handle(inner: KeyInner) -> *mut CoseKeyHandle {
 ///
 /// # Safety
 ///
-/// The handle must be valid and non-null.
-pub(crate) unsafe fn headermap_handle_to_inner(
+/// The handle must be valid and non-null, and must remain valid for the
+/// lifetime `'a` of the returned reference.
+pub(crate) unsafe fn headermap_handle_to_inner<'a>(
     handle: *const CoseHeaderMapHandle,
-) -> Option<&'static HeaderMapInner> {
+) -> Option<&'a HeaderMapInner> {
     if handle.is_null() {
         return None;
     }

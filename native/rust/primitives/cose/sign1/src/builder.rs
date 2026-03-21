@@ -12,7 +12,7 @@ use cbor_primitives::{CborEncoder, CborProvider};
 use crypto_primitives::CryptoSigner;
 
 use crate::algorithms::COSE_SIGN1_TAG;
-use crate::error::{CoseKeyError, CoseSign1Error};
+use crate::error::{CoseKeyError, CoseSign1Error, PayloadError};
 use crate::headers::CoseHeaderMap;
 use crate::payload::StreamingPayload;
 use crate::provider::cbor_provider;
@@ -144,21 +144,42 @@ impl CoseSign1Builder {
             if self.detached {
                 // Detached: stream through signer only, no need to retain payload.
                 let mut buf = vec![0u8; 65536];
+                let mut bytes_read: u64 = 0;
                 loop {
                     let n = std::io::Read::read(reader.as_mut(), &mut buf)
                         .map_err(|e| CoseSign1Error::IoError(e.to_string()))?;
                     if n == 0 {
                         break;
                     }
+                    bytes_read += n as u64;
                     ctx.update(&buf[..n]).map_err(CoseKeyError::from)?;
+                }
+                if bytes_read != payload_len {
+                    return Err(CoseSign1Error::PayloadError(PayloadError::LengthMismatch {
+                        expected: payload_len,
+                        actual: bytes_read,
+                    }));
                 }
                 (ctx.finalize().map_err(CoseKeyError::from)?, None)
             } else {
                 // Embedded: read payload into embed buffer, sign from same buffer.
                 // Single allocation, zero extra copies — signer reads what we already own.
-                let mut embed_buf = Vec::with_capacity(payload_len as usize);
+                let capacity = usize::try_from(payload_len).map_err(|_| {
+                    // Payload exceeds addressable memory on this platform (usize::MAX bytes).
+                    CoseSign1Error::PayloadTooLargeForEmbedding(
+                        payload_len,
+                        usize::MAX as u64,
+                    )
+                })?;
+                let mut embed_buf = Vec::with_capacity(capacity);
                 std::io::Read::read_to_end(reader.as_mut(), &mut embed_buf)
                     .map_err(|e| CoseSign1Error::IoError(e.to_string()))?;
+                if embed_buf.len() as u64 != payload_len {
+                    return Err(CoseSign1Error::PayloadError(PayloadError::LengthMismatch {
+                        expected: payload_len,
+                        actual: embed_buf.len() as u64,
+                    }));
+                }
                 // Feed the owned buffer to the signer in one call.
                 ctx.update(&embed_buf).map_err(CoseKeyError::from)?;
                 (ctx.finalize().map_err(CoseKeyError::from)?, Some(embed_buf))

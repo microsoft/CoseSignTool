@@ -61,7 +61,7 @@ jobs:
   build:
     name: dotnet-${{matrix.os}}${{matrix.runtime_id && format('-{0}', matrix.runtime_id) || ''}}
     needs: [ detect-changes ]
-    if: ${{ needs.detect-changes.outputs.dotnet == 'true' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.dotnet == 'true' }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -120,7 +120,7 @@ jobs:
   native-rust:
     name: native-rust
     needs: [ detect-changes ]
-    if: ${{ needs.detect-changes.outputs.native == 'true' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.native == 'true' }}
     runs-on: windows-latest
     env:
       VCPKG_ROOT: C:\vcpkg
@@ -183,7 +183,7 @@ jobs:
   native-c-cpp:
     name: native-c-cpp
     needs: [ detect-changes ]
-    if: ${{ needs.detect-changes.outputs.native == 'true' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.native == 'true' }}
     runs-on: windows-latest
     env:
       VCPKG_ROOT: C:\vcpkg

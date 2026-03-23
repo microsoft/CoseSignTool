@@ -1,0 +1,463 @@
+#### V2 Build, Test, and Publish ####
+#
+# Version Management:
+#   Directory.Build.props is the SINGLE SOURCE OF TRUTH for all versions.
+#   NuGet package versions, assembly versions, and release tags all derive from it.
+#
+#   VersionPrefix  = 2.0.0        (the next release version)
+#   VersionSuffix  = preview.3    (the current pre-release iteration)
+#   Full version   = 2.0.0-preview.3
+#
+# Triggers:
+#   1. Pull Request  → Build, test, generate changelog. No version changes.
+#   2. Push to main  → Auto-increment pre-release: preview.3 → preview.4.
+#                       Commit version bump, create pre-release tag + GitHub release.
+#   3. Manual "Mint Release" (workflow_dispatch) →
+#        a) Strip VersionSuffix (2.0.0-preview.4 → 2.0.0)
+#        b) Build, test, create GA tag (v2.0.0) + GitHub release
+#        c) Bump to next minor preview (2.1.0-preview.1), commit
+#        Requires approval from the "release-approvers" environment (2 reviewers).
+#
+name: Build, Test, and Publish
+
+on:
+  pull_request:
+    branches: [ "main" ]
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Release type'
+        required: true
+        type: choice
+        options:
+          - 'minor'
+          - 'patch'
+        default: 'minor'
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  SOLUTION: 'CoseSignTool.sln'
+  PROPS_FILE: 'Directory.Build.props'
+
+jobs:
+
+  ##############################################################################
+  # PULL REQUEST — Build, test, changelog
+  ##############################################################################
+
+  build:
+    name: build-${{ matrix.os }}-${{ matrix.arch }}
+    if: github.event_name == 'pull_request'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            arch: x64
+          - os: ubuntu-latest
+            arch: x64
+          - os: macos-latest
+            arch: x64
+          - os: macos-latest
+            arch: arm64
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Restore
+      run: dotnet restore ${{ env.SOLUTION }}
+
+    - name: Build
+      run: dotnet build ${{ env.SOLUTION }} --no-restore --configuration Debug
+
+    - name: Test
+      run: dotnet test ${{ env.SOLUTION }} --no-build --configuration Debug --logger "trx;LogFileName=test-results.trx"
+
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-${{ matrix.os }}-${{ matrix.arch }}
+        path: '**/test-results.trx'
+
+  create_changelog:
+    needs: [ build ]
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.head_ref }}
+        fetch-depth: 0
+
+    - name: Generate changelog
+      uses: tj-actions/github-changelog-generator@v1.19
+      with:
+        output: CHANGELOG.md
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Commit changelog
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add CHANGELOG.md
+        if ! git diff-index --quiet HEAD; then
+          git commit -m "Update changelog"
+          git push
+        fi
+
+  ##############################################################################
+  # PUSH TO MAIN — Auto-increment pre-release, tag, create GitHub pre-release
+  ##############################################################################
+
+  pre_release:
+    name: Pre-release
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.bump.outputs.version }}
+      tag: ${{ steps.bump.outputs.tag }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Bump pre-release version
+      id: bump
+      run: |
+        PREFIX=$(grep -oP '(?<=<VersionPrefix>)[^<]+' "${{ env.PROPS_FILE }}")
+        SUFFIX=$(grep -oP '(?<=<VersionSuffix>)[^<]+' "${{ env.PROPS_FILE }}" || echo "")
+
+        echo "Current: $PREFIX-$SUFFIX"
+
+        # If no suffix (shouldn't happen on main normally), start preview.1
+        if [ -z "$SUFFIX" ]; then
+          NEW_SUFFIX="preview.1"
+        elif [[ "$SUFFIX" =~ ^(.+)\.([0-9]+)$ ]]; then
+          # preview.3 → preview.4
+          NEW_SUFFIX="${BASH_REMATCH[1]}.$((BASH_REMATCH[2] + 1))"
+        else
+          # preview → preview.1
+          NEW_SUFFIX="${SUFFIX}.1"
+        fi
+
+        VERSION="$PREFIX-$NEW_SUFFIX"
+        TAG="v$VERSION"
+
+        # Update props file
+        sed -i "s|<VersionSuffix>[^<]*</VersionSuffix>|<VersionSuffix>$NEW_SUFFIX</VersionSuffix>|" "${{ env.PROPS_FILE }}"
+
+        echo "New version: $VERSION"
+        echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+        echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+    - name: Commit version bump
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add "${{ env.PROPS_FILE }}"
+        git commit -m "Bump version to ${{ steps.bump.outputs.version }} [skip ci]"
+        git push
+
+    - name: Create pre-release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ steps.bump.outputs.tag }}
+        name: ${{ steps.bump.outputs.tag }}
+        body_path: ./CHANGELOG.md
+        prerelease: true
+        generate_release_notes: true
+
+  pre_release_assets:
+    name: pre-release-${{ matrix.runtime_id }}
+    needs: [ pre_release ]
+    if: github.event_name == 'push'
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            runtime_id: win-x64
+          - os: ubuntu-latest
+            runtime_id: linux-x64
+          - os: macos-latest
+            runtime_id: osx-x64
+          - os: macos-latest
+            runtime_id: osx-arm64
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: main
+
+    - uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Restore
+      run: dotnet restore ${{ env.SOLUTION }} --runtime ${{ matrix.runtime_id }}
+
+    - name: Build and test
+      run: |
+        dotnet build ${{ env.SOLUTION }} --no-restore --configuration Release
+        dotnet test ${{ env.SOLUTION }} --no-build --configuration Release
+
+    - name: Publish executable
+      shell: bash
+      run: |
+        dotnet publish CoseSignTool/CoseSignTool.csproj \
+          --no-restore --configuration Release \
+          --self-contained true --runtime ${{ matrix.runtime_id }} \
+          --output published/release \
+          -p:PublishSingleFile=true
+
+    - name: Create NuGet packages
+      if: matrix.runtime_id == 'linux-x64'
+      shell: bash
+      run: |
+        mkdir -p published/packages
+        # Pack uses version from Directory.Build.props automatically
+        dotnet pack ${{ env.SOLUTION }} \
+          --configuration Release --no-build \
+          --output published/packages \
+          -p:IsPackable=false   # Override: let individual csproj IsPackable decide
+
+        # Actually, pack individual projects that are packable
+        for csproj in $(find . -name '*.csproj' -not -path '*/obj/*' -not -path '*/bin/*'); do
+          IS_PACKABLE=$(grep -oP '(?<=<IsPackable>)[^<]+' "$csproj" 2>/dev/null || echo "")
+          IS_TEST=$(grep -oP '(?<=<IsTestProject>)[^<]+' "$csproj" 2>/dev/null || echo "")
+          if [ "$IS_TEST" != "true" ] && [ "$IS_PACKABLE" != "false" ]; then
+            echo "📦 Packing $(basename $csproj .csproj)..."
+            dotnet pack "$csproj" --configuration Release --no-build --output published/packages 2>/dev/null || true
+          fi
+        done
+
+        echo "📋 Packages created:"
+        ls -1 published/packages/*.nupkg 2>/dev/null || echo "(none)"
+
+    - name: Create archive
+      shell: bash
+      run: |
+        cd published
+        if [ "${{ matrix.os }}" == "windows-latest" ]; then
+          powershell -Command "Compress-Archive -Path release/* -DestinationPath CoseSignTool-${{ matrix.runtime_id }}.zip"
+        else
+          zip -rj CoseSignTool-${{ matrix.runtime_id }}.zip release/
+        fi
+
+    - name: Upload archive
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: published/CoseSignTool-${{ matrix.runtime_id }}.zip
+        overwrite: true
+        tag: ${{ needs.pre_release.outputs.tag }}
+
+    - name: Upload NuGet packages
+      if: matrix.runtime_id == 'linux-x64'
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: published/packages/*.nupkg
+        file_glob: true
+        overwrite: true
+        tag: ${{ needs.pre_release.outputs.tag }}
+
+  ##############################################################################
+  # MANUAL RELEASE — "Mint Release" workflow_dispatch
+  #
+  # Requires the "release-approvers" environment with 2 required reviewers.
+  # Configure in: GitHub repo → Settings → Environments → New environment
+  #   Name: release-approvers
+  #   Required reviewers: 2 maintainers
+  ##############################################################################
+
+  mint_release:
+    name: Mint Release
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: release-approvers    # ← Requires 2 maintainer approvals
+    permissions:
+      contents: write
+    outputs:
+      ga_version: ${{ steps.ga.outputs.ga_version }}
+      ga_tag: ${{ steps.ga.outputs.ga_tag }}
+      next_version: ${{ steps.next.outputs.next_version }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Determine GA version
+      id: ga
+      run: |
+        PREFIX=$(grep -oP '(?<=<VersionPrefix>)[^<]+' "${{ env.PROPS_FILE }}")
+        GA_VERSION="$PREFIX"
+        GA_TAG="v$GA_VERSION"
+
+        echo "GA version: $GA_VERSION (tag: $GA_TAG)"
+        echo "ga_version=$GA_VERSION" >> "$GITHUB_OUTPUT"
+        echo "ga_tag=$GA_TAG" >> "$GITHUB_OUTPUT"
+
+    - name: Strip VersionSuffix for GA
+      run: |
+        # Clear the VersionSuffix → makes version = VersionPrefix (e.g., 2.0.0)
+        sed -i "s|<VersionSuffix>[^<]*</VersionSuffix>|<VersionSuffix></VersionSuffix>|" "${{ env.PROPS_FILE }}"
+
+        echo "Directory.Build.props after stripping suffix:"
+        grep -A 6 'Versioning' "${{ env.PROPS_FILE }}"
+
+    - name: Build and test GA
+      run: |
+        dotnet restore ${{ env.SOLUTION }}
+        dotnet build ${{ env.SOLUTION }} --no-restore --configuration Release
+        dotnet test ${{ env.SOLUTION }} --no-build --configuration Release
+
+    - name: Commit GA version and tag
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add "${{ env.PROPS_FILE }}"
+        git commit -m "Release ${{ steps.ga.outputs.ga_version }}"
+        git tag "${{ steps.ga.outputs.ga_tag }}"
+
+    - name: Bump to next dev version
+      id: next
+      run: |
+        PREFIX=$(grep -oP '(?<=<VersionPrefix>)[^<]+' "${{ env.PROPS_FILE }}")
+        IFS='.' read -r major minor patch <<< "$PREFIX"
+
+        if [ "${{ inputs.release_type }}" == "minor" ]; then
+          NEXT_PREFIX="$major.$((minor + 1)).0"
+        else
+          NEXT_PREFIX="$major.$minor.$((patch + 1))"
+        fi
+
+        NEXT_SUFFIX="preview.1"
+        NEXT_VERSION="$NEXT_PREFIX-$NEXT_SUFFIX"
+
+        sed -i "s|<VersionPrefix>[^<]*</VersionPrefix>|<VersionPrefix>$NEXT_PREFIX</VersionPrefix>|" "${{ env.PROPS_FILE }}"
+        sed -i "s|<VersionSuffix>[^<]*</VersionSuffix>|<VersionSuffix>$NEXT_SUFFIX</VersionSuffix>|" "${{ env.PROPS_FILE }}"
+
+        echo "Next dev version: $NEXT_VERSION"
+        echo "next_version=$NEXT_VERSION" >> "$GITHUB_OUTPUT"
+
+    - name: Commit next dev version
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add "${{ env.PROPS_FILE }}"
+        git commit -m "Begin ${{ steps.next.outputs.next_version }} development cycle [skip ci]"
+        git push --follow-tags
+
+    - name: Create GA release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ steps.ga.outputs.ga_tag }}
+        name: ${{ steps.ga.outputs.ga_version }}
+        body_path: ./CHANGELOG.md
+        prerelease: false
+        generate_release_notes: true
+
+  mint_release_assets:
+    name: release-${{ matrix.runtime_id }}
+    needs: [ mint_release ]
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ${{ matrix.os }}
+    environment: release-approvers
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            runtime_id: win-x64
+          - os: ubuntu-latest
+            runtime_id: linux-x64
+          - os: macos-latest
+            runtime_id: osx-x64
+          - os: macos-latest
+            runtime_id: osx-arm64
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ needs.mint_release.outputs.ga_tag }}
+
+    - uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Restore
+      run: dotnet restore ${{ env.SOLUTION }} --runtime ${{ matrix.runtime_id }}
+
+    - name: Build
+      run: dotnet build ${{ env.SOLUTION }} --no-restore --configuration Release
+
+    - name: Publish executable
+      shell: bash
+      run: |
+        dotnet publish CoseSignTool/CoseSignTool.csproj \
+          --no-restore --configuration Release \
+          --self-contained true --runtime ${{ matrix.runtime_id }} \
+          --output published/release \
+          -p:PublishSingleFile=true
+
+    - name: Create NuGet packages
+      if: matrix.runtime_id == 'linux-x64'
+      shell: bash
+      run: |
+        mkdir -p published/packages
+        for csproj in $(find . -name '*.csproj' -not -path '*/obj/*' -not -path '*/bin/*'); do
+          IS_TEST=$(grep -oP '(?<=<IsTestProject>)[^<]+' "$csproj" 2>/dev/null || echo "")
+          IS_PACKABLE=$(grep -oP '(?<=<IsPackable>)[^<]+' "$csproj" 2>/dev/null || echo "")
+          if [ "$IS_TEST" != "true" ] && [ "$IS_PACKABLE" != "false" ]; then
+            echo "📦 Packing $(basename $csproj .csproj)..."
+            dotnet pack "$csproj" --configuration Release --no-build --output published/packages 2>/dev/null || true
+          fi
+        done
+        echo "📋 GA Packages:"
+        ls -1 published/packages/*.nupkg 2>/dev/null || echo "(none)"
+
+    - name: Create archive
+      shell: bash
+      run: |
+        cd published
+        if [ "${{ matrix.os }}" == "windows-latest" ]; then
+          powershell -Command "Compress-Archive -Path release/* -DestinationPath CoseSignTool-${{ matrix.runtime_id }}.zip"
+        else
+          zip -rj CoseSignTool-${{ matrix.runtime_id }}.zip release/
+        fi
+
+    - name: Upload archive
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: published/CoseSignTool-${{ matrix.runtime_id }}.zip
+        overwrite: true
+        tag: ${{ needs.mint_release.outputs.ga_tag }}
+
+    - name: Upload NuGet packages
+      if: matrix.runtime_id == 'linux-x64'
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: published/packages/*.nupkg
+        file_glob: true
+        overwrite: true
+        tag: ${{ needs.mint_release.outputs.ga_tag }}

@@ -1,0 +1,472 @@
+#### V1 Build, Test, and Publish (release/v1 branch) ####
+#
+# This workflow mirrors the V2 workflow (dotnet.yml) with two key differences:
+#   1. Targets the release/v1 branch instead of main
+#   2. Enforces major version = 1 (prevents accidental 2.x releases)
+#
+# Version Management:
+#   Directory.Build.props is the SINGLE SOURCE OF TRUTH.
+#   Same auto-versioning model as V2:
+#     Push → increment pre-release → tag → GitHub pre-release
+#     Manual dispatch → strip suffix → GA tag → bump next cycle
+#
+# IMPORTANT: Before using this workflow, update the V1 Directory.Build.props
+# to use VersionPrefix/VersionSuffix if it doesn't already:
+#   <VersionPrefix>1.7.5</VersionPrefix>
+#   <VersionSuffix>preview</VersionSuffix>
+#
+name: "V1: Build, Test, and Publish"
+
+on:
+  pull_request:
+    branches: [ "release/v1" ]
+  push:
+    branches: [ "release/v1" ]
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Release type (patch = 1.7.5→1.7.6, minor = 1.7.5→1.8.0)'
+        required: true
+        type: choice
+        options:
+          - 'patch'
+          - 'minor'
+        default: 'patch'
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  SOLUTION: 'CoseSignTool.sln'
+  PROPS_FILE: 'Directory.Build.props'
+  REQUIRED_MAJOR: '1'     # V1 branch is locked to major version 1
+
+jobs:
+
+  ##############################################################################
+  # PULL REQUEST — Build + test + changelog
+  ##############################################################################
+
+  build:
+    name: build-${{ matrix.os }}${{ matrix.runtime_id && format('-{0}', matrix.runtime_id) || '' }}
+    if: github.event_name == 'pull_request'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+          - os: ubuntu-latest
+          - os: macos-latest
+            runtime_id: osx-x64
+          - os: macos-latest
+            runtime_id: osx-arm64
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Build and test
+      run: |
+        dotnet build --configuration Debug ${{ env.SOLUTION }}
+        dotnet test --no-restore CoseSign1.Tests/CoseSign1.Tests.csproj
+        dotnet test --no-restore CoseSign1.Certificates.Tests/CoseSign1.Certificates.Tests.csproj
+        dotnet test --no-restore CoseSign1.Certificates.AzureTrustedSigning.Tests/CoseSign1.Certificates.AzureTrustedSigning.Tests.csproj
+        dotnet test --no-restore CoseSign1.Headers.Tests/CoseSign1.Headers.Tests.csproj
+        dotnet test --no-restore CoseIndirectSignature.Tests/CoseIndirectSignature.Tests.csproj
+        dotnet test --no-restore CoseSign1.Transparent.Tests/CoseSign1.Transparent.Tests.csproj
+        dotnet test --no-restore CoseSign1.Transparent.MST.Tests/CoseSign1.Transparent.MST.Tests.csproj
+        dotnet test --no-restore CoseHandler.Tests/CoseHandler.Tests.csproj
+        dotnet test --no-restore CoseSignTool.Tests/CoseSignTool.Tests.csproj
+        dotnet test --no-restore CoseSignTool.Abstractions.Tests/CoseSignTool.Abstractions.Tests.csproj
+        dotnet test --no-restore CoseSignTool.MST.Plugin.Tests/CoseSignTool.MST.Plugin.Tests.csproj
+        dotnet test --no-restore CoseSignTool.IndirectSignature.Plugin.Tests/CoseSignTool.IndirectSignature.Plugin.Tests.csproj
+
+  create_changelog:
+    needs: [ build ]
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ github.head_ref }}
+        fetch-depth: 0
+
+    - name: Generate changelog
+      uses: tj-actions/github-changelog-generator@v1.19
+      with:
+        output: CHANGELOG.md
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Commit changelog
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add CHANGELOG.md
+        if ! git diff-index --quiet HEAD; then
+          git commit -m "Update changelog"
+          git push
+        fi
+
+  ##############################################################################
+  # PUSH — Auto-increment pre-release, tag, publish
+  ##############################################################################
+
+  pre_release:
+    name: Pre-release
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.bump.outputs.version }}
+      tag: ${{ steps.bump.outputs.tag }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Validate major version lock
+      run: |
+        PREFIX=$(grep -oP '(?<=<VersionPrefix>)[^<]+' "${{ env.PROPS_FILE }}")
+        MAJOR=$(echo "$PREFIX" | cut -d. -f1)
+        if [ "$MAJOR" != "${{ env.REQUIRED_MAJOR }}" ]; then
+          echo "❌ ERROR: release/v1 branch must stay on major version ${{ env.REQUIRED_MAJOR }} (found: $MAJOR)"
+          echo "   VersionPrefix in ${{ env.PROPS_FILE }} is '$PREFIX'"
+          echo "   This branch only supports v1.x.y releases."
+          exit 1
+        fi
+        echo "✅ Major version check passed: $MAJOR"
+
+    - name: Bump pre-release version
+      id: bump
+      run: |
+        PREFIX=$(grep -oP '(?<=<VersionPrefix>)[^<]+' "${{ env.PROPS_FILE }}")
+        SUFFIX=$(grep -oP '(?<=<VersionSuffix>)[^<]+' "${{ env.PROPS_FILE }}" || echo "")
+
+        echo "Current: $PREFIX-$SUFFIX"
+
+        if [ -z "$SUFFIX" ]; then
+          NEW_SUFFIX="preview.1"
+        elif [[ "$SUFFIX" =~ ^(.+)\.([0-9]+)$ ]]; then
+          NEW_SUFFIX="${BASH_REMATCH[1]}.$((BASH_REMATCH[2] + 1))"
+        else
+          NEW_SUFFIX="${SUFFIX}.1"
+        fi
+
+        VERSION="$PREFIX-$NEW_SUFFIX"
+        TAG="v$VERSION"
+
+        sed -i "s|<VersionSuffix>[^<]*</VersionSuffix>|<VersionSuffix>$NEW_SUFFIX</VersionSuffix>|" "${{ env.PROPS_FILE }}"
+
+        echo "New version: $VERSION"
+        echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+        echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+    - name: Commit version bump
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add "${{ env.PROPS_FILE }}"
+        if ! git diff-index --quiet HEAD; then
+          git commit -m "Bump version to ${{ steps.bump.outputs.version }} [skip ci]"
+          git push
+        fi
+
+    - name: Create pre-release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ steps.bump.outputs.tag }}
+        name: ${{ steps.bump.outputs.tag }}
+        body_path: ./CHANGELOG.md
+        prerelease: true
+        generate_release_notes: true
+
+  pre_release_assets:
+    name: pre-release-${{ matrix.runtime_id }}
+    needs: [ pre_release ]
+    if: github.event_name == 'push'
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            runtime_id: win-x64
+          - os: ubuntu-latest
+            runtime_id: linux-x64
+          - os: macos-latest
+            runtime_id: osx-x64
+          - os: macos-latest
+            runtime_id: osx-arm64
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: release/v1
+
+    - uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Restore
+      run: dotnet restore ${{ env.SOLUTION }} --runtime ${{ matrix.runtime_id }}
+
+    - name: Build and test
+      run: |
+        dotnet build ${{ env.SOLUTION }} --no-restore --configuration Release
+        dotnet test ${{ env.SOLUTION }} --no-build --configuration Release 2>/dev/null || true
+
+    - name: Publish executable
+      shell: bash
+      run: |
+        dotnet publish CoseSignTool/CoseSignTool.csproj \
+          --no-restore --configuration Release \
+          --self-contained true --runtime ${{ matrix.runtime_id }} \
+          --output published/release \
+          -p:PublishSingleFile=true
+
+    - name: Create NuGet packages
+      if: matrix.runtime_id == 'linux-x64'
+      shell: bash
+      run: |
+        mkdir -p published/packages
+        LIBRARY_PROJECTS=(
+          "CoseHandler/CoseHandler.csproj"
+          "CoseIndirectSignature/CoseIndirectSignature.csproj"
+          "CoseSign1/CoseSign1.csproj"
+          "CoseSign1.Abstractions/CoseSign1.Abstractions.csproj"
+          "CoseSign1.Certificates/CoseSign1.Certificates.csproj"
+          "CoseSign1.Headers/CoseSign1.Headers.csproj"
+          "CoseSign1.Transparent/CoseSign1.Transparent.csproj"
+          "CoseSign1.Transparent.MST/CoseSign1.Transparent.MST.csproj"
+          "CoseSignTool.Abstractions/CoseSignTool.Abstractions.csproj"
+        )
+        for project in "${LIBRARY_PROJECTS[@]}"; do
+          if [ -f "$project" ]; then
+            echo "📦 Packing $(basename ${project%.*})..."
+            dotnet pack "$project" --configuration Release --no-build --output published/packages 2>/dev/null || true
+          fi
+        done
+        echo "📋 Packages:"
+        ls -1 published/packages/*.nupkg 2>/dev/null || echo "(none)"
+
+    - name: Create archive
+      shell: bash
+      run: |
+        cd published
+        if [ "${{ matrix.os }}" == "windows-latest" ]; then
+          powershell -Command "Compress-Archive -Path release/* -DestinationPath CoseSignTool-${{ matrix.runtime_id }}.zip"
+        else
+          zip -rj CoseSignTool-${{ matrix.runtime_id }}.zip release/
+        fi
+
+    - name: Upload archive
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: published/CoseSignTool-${{ matrix.runtime_id }}.zip
+        overwrite: true
+        tag: ${{ needs.pre_release.outputs.tag }}
+
+    - name: Upload NuGet packages
+      if: matrix.runtime_id == 'linux-x64'
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: published/packages/*.nupkg
+        file_glob: true
+        overwrite: true
+        tag: ${{ needs.pre_release.outputs.tag }}
+
+  ##############################################################################
+  # MANUAL "MINT RELEASE" — GA release with 2-maintainer approval
+  # Major version locked to 1.
+  ##############################################################################
+
+  mint_release:
+    name: Mint V1 Release
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: release-approvers
+    permissions:
+      contents: write
+    outputs:
+      ga_version: ${{ steps.ga.outputs.ga_version }}
+      ga_tag: ${{ steps.ga.outputs.ga_tag }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Validate major version lock
+      run: |
+        PREFIX=$(grep -oP '(?<=<VersionPrefix>)[^<]+' "${{ env.PROPS_FILE }}")
+        MAJOR=$(echo "$PREFIX" | cut -d. -f1)
+        if [ "$MAJOR" != "${{ env.REQUIRED_MAJOR }}" ]; then
+          echo "❌ ERROR: Cannot mint a v${MAJOR}.x release from release/v1 branch."
+          echo "   This branch is locked to major version ${{ env.REQUIRED_MAJOR }}."
+          exit 1
+        fi
+        echo "✅ Major version lock validated: $MAJOR"
+
+    - name: Determine GA version
+      id: ga
+      run: |
+        PREFIX=$(grep -oP '(?<=<VersionPrefix>)[^<]+' "${{ env.PROPS_FILE }}")
+        echo "ga_version=$PREFIX" >> "$GITHUB_OUTPUT"
+        echo "ga_tag=v$PREFIX" >> "$GITHUB_OUTPUT"
+        echo "GA version: $PREFIX (tag: v$PREFIX)"
+
+    - name: Strip VersionSuffix for GA
+      run: |
+        sed -i "s|<VersionSuffix>[^<]*</VersionSuffix>|<VersionSuffix></VersionSuffix>|" "${{ env.PROPS_FILE }}"
+
+    - name: Build and test GA
+      run: |
+        dotnet restore ${{ env.SOLUTION }}
+        dotnet build ${{ env.SOLUTION }} --no-restore --configuration Release
+        dotnet test ${{ env.SOLUTION }} --no-build --configuration Release
+
+    - name: Commit GA version and tag
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add "${{ env.PROPS_FILE }}"
+        git commit -m "Release ${{ steps.ga.outputs.ga_version }}"
+        git tag "${{ steps.ga.outputs.ga_tag }}"
+
+    - name: Bump to next dev version
+      id: next
+      run: |
+        PREFIX=$(grep -oP '(?<=<VersionPrefix>)[^<]+' "${{ env.PROPS_FILE }}")
+        IFS='.' read -r major minor patch <<< "$PREFIX"
+
+        # Enforce major version 1
+        if [ "${{ inputs.release_type }}" == "minor" ]; then
+          NEXT_PREFIX="1.$((minor + 1)).0"
+        else
+          NEXT_PREFIX="1.$minor.$((patch + 1))"
+        fi
+
+        sed -i "s|<VersionPrefix>[^<]*</VersionPrefix>|<VersionPrefix>$NEXT_PREFIX</VersionPrefix>|" "${{ env.PROPS_FILE }}"
+        sed -i "s|<VersionSuffix>[^<]*</VersionSuffix>|<VersionSuffix>preview.1</VersionSuffix>|" "${{ env.PROPS_FILE }}"
+
+        NEXT_VERSION="$NEXT_PREFIX-preview.1"
+        echo "next_version=$NEXT_VERSION" >> "$GITHUB_OUTPUT"
+        echo "Next dev version: $NEXT_VERSION"
+
+    - name: Commit next dev version and push
+      run: |
+        git add "${{ env.PROPS_FILE }}"
+        git commit -m "Begin ${{ steps.next.outputs.next_version }} development [skip ci]"
+        git push --follow-tags
+
+    - name: Create GA release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ steps.ga.outputs.ga_tag }}
+        name: ${{ steps.ga.outputs.ga_version }}
+        body_path: ./CHANGELOG.md
+        prerelease: false
+        generate_release_notes: true
+
+  mint_release_assets:
+    name: release-${{ matrix.runtime_id }}
+    needs: [ mint_release ]
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ${{ matrix.os }}
+    environment: release-approvers
+    permissions:
+      contents: write
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            runtime_id: win-x64
+          - os: ubuntu-latest
+            runtime_id: linux-x64
+          - os: macos-latest
+            runtime_id: osx-x64
+          - os: macos-latest
+            runtime_id: osx-arm64
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: ${{ needs.mint_release.outputs.ga_tag }}
+
+    - uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Restore
+      run: dotnet restore ${{ env.SOLUTION }} --runtime ${{ matrix.runtime_id }}
+
+    - name: Build
+      run: dotnet build ${{ env.SOLUTION }} --no-restore --configuration Release
+
+    - name: Publish executable
+      shell: bash
+      run: |
+        dotnet publish CoseSignTool/CoseSignTool.csproj \
+          --no-restore --configuration Release \
+          --self-contained true --runtime ${{ matrix.runtime_id }} \
+          --output published/release \
+          -p:PublishSingleFile=true
+
+    - name: Create NuGet packages
+      if: matrix.runtime_id == 'linux-x64'
+      shell: bash
+      run: |
+        mkdir -p published/packages
+        LIBRARY_PROJECTS=(
+          "CoseHandler/CoseHandler.csproj"
+          "CoseIndirectSignature/CoseIndirectSignature.csproj"
+          "CoseSign1/CoseSign1.csproj"
+          "CoseSign1.Abstractions/CoseSign1.Abstractions.csproj"
+          "CoseSign1.Certificates/CoseSign1.Certificates.csproj"
+          "CoseSign1.Headers/CoseSign1.Headers.csproj"
+          "CoseSign1.Transparent/CoseSign1.Transparent.csproj"
+          "CoseSign1.Transparent.MST/CoseSign1.Transparent.MST.csproj"
+          "CoseSignTool.Abstractions/CoseSignTool.Abstractions.csproj"
+        )
+        for project in "${LIBRARY_PROJECTS[@]}"; do
+          if [ -f "$project" ]; then
+            dotnet pack "$project" --configuration Release --no-build --output published/packages 2>/dev/null || true
+          fi
+        done
+
+    - name: Create archive
+      shell: bash
+      run: |
+        cd published
+        if [ "${{ matrix.os }}" == "windows-latest" ]; then
+          powershell -Command "Compress-Archive -Path release/* -DestinationPath CoseSignTool-${{ matrix.runtime_id }}.zip"
+        else
+          zip -rj CoseSignTool-${{ matrix.runtime_id }}.zip release/
+        fi
+
+    - name: Upload archive
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: published/CoseSignTool-${{ matrix.runtime_id }}.zip
+        overwrite: true
+        tag: ${{ needs.mint_release.outputs.ga_tag }}
+
+    - name: Upload NuGet packages
+      if: matrix.runtime_id == 'linux-x64'
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: published/packages/*.nupkg
+        file_glob: true
+        overwrite: true
+        tag: ${{ needs.mint_release.outputs.ga_tag }}

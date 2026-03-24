@@ -556,7 +556,7 @@ The MST service has specific timing characteristics:
 ```csharp
 // Apply both tuning strategies
 var options = new CodeTransparencyClientOptions();
-options.ConfigureTransactionNotCachedRetry(
+options.ConfigureMstPerformanceOptimizations(
     retryDelay: TimeSpan.FromMilliseconds(100),
     maxRetries: 8);
 

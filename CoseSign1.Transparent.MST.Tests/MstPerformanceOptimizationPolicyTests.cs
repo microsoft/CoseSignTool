@@ -13,7 +13,7 @@ using CoseSign1.Transparent.MST;
 
 [TestFixture]
 [Parallelizable(ParallelScope.All)]
-public class MstTransactionNotCachedPolicyTests
+public class MstPerformanceOptimizationPolicyTests
 {
     #region Constructor Tests
 
@@ -21,11 +21,11 @@ public class MstTransactionNotCachedPolicyTests
     public void Constructor_DefaultValues_SetsExpectedDefaults()
     {
         // Act
-        var policy = new MstTransactionNotCachedPolicy();
+        var policy = new MstPerformanceOptimizationPolicy();
 
         // Assert — verify defaults are accessible via the public constants
-        Assert.That(MstTransactionNotCachedPolicy.DefaultRetryDelay, Is.EqualTo(TimeSpan.FromMilliseconds(250)));
-        Assert.That(MstTransactionNotCachedPolicy.DefaultMaxRetries, Is.EqualTo(8));
+        Assert.That(MstPerformanceOptimizationPolicy.DefaultRetryDelay, Is.EqualTo(TimeSpan.FromMilliseconds(250)));
+        Assert.That(MstPerformanceOptimizationPolicy.DefaultMaxRetries, Is.EqualTo(8));
         Assert.That(policy, Is.Not.Null);
     }
 
@@ -33,33 +33,33 @@ public class MstTransactionNotCachedPolicyTests
     public void Constructor_CustomValues_DoesNotThrow()
     {
         // Act & Assert
-        Assert.DoesNotThrow(() => new MstTransactionNotCachedPolicy(TimeSpan.FromSeconds(1), 3));
+        Assert.DoesNotThrow(() => new MstPerformanceOptimizationPolicy(TimeSpan.FromSeconds(1), 3));
     }
 
     [Test]
     public void Constructor_ZeroDelay_DoesNotThrow()
     {
-        Assert.DoesNotThrow(() => new MstTransactionNotCachedPolicy(TimeSpan.Zero, 5));
+        Assert.DoesNotThrow(() => new MstPerformanceOptimizationPolicy(TimeSpan.Zero, 5));
     }
 
     [Test]
     public void Constructor_ZeroRetries_DoesNotThrow()
     {
-        Assert.DoesNotThrow(() => new MstTransactionNotCachedPolicy(TimeSpan.FromMilliseconds(100), 0));
+        Assert.DoesNotThrow(() => new MstPerformanceOptimizationPolicy(TimeSpan.FromMilliseconds(100), 0));
     }
 
     [Test]
     public void Constructor_NegativeDelay_ThrowsArgumentOutOfRange()
     {
         Assert.Throws<ArgumentOutOfRangeException>(() =>
-            new MstTransactionNotCachedPolicy(TimeSpan.FromMilliseconds(-1), 3));
+            new MstPerformanceOptimizationPolicy(TimeSpan.FromMilliseconds(-1), 3));
     }
 
     [Test]
     public void Constructor_NegativeRetries_ThrowsArgumentOutOfRange()
     {
         Assert.Throws<ArgumentOutOfRangeException>(() =>
-            new MstTransactionNotCachedPolicy(TimeSpan.FromMilliseconds(100), -1));
+            new MstPerformanceOptimizationPolicy(TimeSpan.FromMilliseconds(100), -1));
     }
 
     #endregion
@@ -77,7 +77,7 @@ public class MstTransactionNotCachedPolicyTests
             return CreateTransactionNotCachedResponse();
         });
 
-        var pipeline = CreatePipeline(transport, new MstTransactionNotCachedPolicy(TimeSpan.FromMilliseconds(1), 3));
+        var pipeline = CreatePipeline(transport, new MstPerformanceOptimizationPolicy(TimeSpan.FromMilliseconds(1), 3));
         var message = CreateHttpMessage(pipeline, RequestMethod.Post, "https://mst.example.com/entries/1.234");
 
         // Act
@@ -99,7 +99,7 @@ public class MstTransactionNotCachedPolicyTests
             return CreateTransactionNotCachedResponse();
         });
 
-        var pipeline = CreatePipeline(transport, new MstTransactionNotCachedPolicy(TimeSpan.FromMilliseconds(1), 3));
+        var pipeline = CreatePipeline(transport, new MstPerformanceOptimizationPolicy(TimeSpan.FromMilliseconds(1), 3));
         var message = CreateHttpMessage(pipeline, RequestMethod.Get, "https://mst.example.com/operations/abc");
 
         // Act
@@ -120,7 +120,7 @@ public class MstTransactionNotCachedPolicyTests
             return new MockResponse(200);
         });
 
-        var pipeline = CreatePipeline(transport, new MstTransactionNotCachedPolicy(TimeSpan.FromMilliseconds(1), 3));
+        var pipeline = CreatePipeline(transport, new MstPerformanceOptimizationPolicy(TimeSpan.FromMilliseconds(1), 3));
         var message = CreateHttpMessage(pipeline, RequestMethod.Get, "https://mst.example.com/entries/1.234");
 
         // Act
@@ -132,9 +132,10 @@ public class MstTransactionNotCachedPolicyTests
     }
 
     [Test]
-    public async Task ProcessAsync_503WithoutCborBody_DoesNotRetry()
+    public async Task ProcessAsync_503WithoutCborBody_StillRetries()
     {
         // Arrange — 503 with empty body (no CBOR problem details)
+        // With simplified policy, we retry ANY 503 on /entries/ (no CBOR parsing)
         int callCount = 0;
         var transport = MockTransport.FromMessageCallback(msg =>
         {
@@ -142,20 +143,21 @@ public class MstTransactionNotCachedPolicyTests
             return new MockResponse(503);
         });
 
-        var pipeline = CreatePipeline(transport, new MstTransactionNotCachedPolicy(TimeSpan.FromMilliseconds(1), 3));
+        var pipeline = CreatePipeline(transport, new MstPerformanceOptimizationPolicy(TimeSpan.FromMilliseconds(1), 3));
         var message = CreateHttpMessage(pipeline, RequestMethod.Get, "https://mst.example.com/entries/1.234");
 
         // Act
         await pipeline.SendAsync(message, CancellationToken.None);
 
-        // Assert — only 1 call (no TransactionNotCached in body)
-        Assert.That(callCount, Is.EqualTo(1));
+        // Assert — 4 calls (1 initial + 3 retries) since we retry any 503 on /entries/
+        Assert.That(callCount, Is.EqualTo(4));
     }
 
     [Test]
-    public async Task ProcessAsync_503WithDifferentCborError_DoesNotRetry()
+    public async Task ProcessAsync_503WithDifferentCborError_StillRetries()
     {
         // Arrange — 503 with CBOR body containing a different error
+        // With simplified policy, we retry ANY 503 on /entries/ (no CBOR parsing)
         int callCount = 0;
         var transport = MockTransport.FromMessageCallback(msg =>
         {
@@ -165,14 +167,14 @@ public class MstTransactionNotCachedPolicyTests
             return response;
         });
 
-        var pipeline = CreatePipeline(transport, new MstTransactionNotCachedPolicy(TimeSpan.FromMilliseconds(1), 3));
+        var pipeline = CreatePipeline(transport, new MstPerformanceOptimizationPolicy(TimeSpan.FromMilliseconds(1), 3));
         var message = CreateHttpMessage(pipeline, RequestMethod.Get, "https://mst.example.com/entries/1.234");
 
         // Act
         await pipeline.SendAsync(message, CancellationToken.None);
 
-        // Assert — only 1 call (not TransactionNotCached)
-        Assert.That(callCount, Is.EqualTo(1));
+        // Assert — 4 calls (1 initial + 3 retries) since we retry any 503 on /entries/
+        Assert.That(callCount, Is.EqualTo(4));
     }
 
     #endregion
@@ -194,7 +196,7 @@ public class MstTransactionNotCachedPolicyTests
             return new MockResponse(200);
         });
 
-        var pipeline = CreatePipeline(transport, new MstTransactionNotCachedPolicy(TimeSpan.FromMilliseconds(1), 5));
+        var pipeline = CreatePipeline(transport, new MstPerformanceOptimizationPolicy(TimeSpan.FromMilliseconds(1), 5));
         var message = CreateHttpMessage(pipeline, RequestMethod.Get, "https://mst.example.com/entries/1.234");
 
         // Act
@@ -217,7 +219,7 @@ public class MstTransactionNotCachedPolicyTests
         });
 
         int maxRetries = 3;
-        var pipeline = CreatePipeline(transport, new MstTransactionNotCachedPolicy(TimeSpan.FromMilliseconds(1), maxRetries));
+        var pipeline = CreatePipeline(transport, new MstPerformanceOptimizationPolicy(TimeSpan.FromMilliseconds(1), maxRetries));
         var message = CreateHttpMessage(pipeline, RequestMethod.Get, "https://mst.example.com/entries/1.234");
 
         // Act
@@ -239,7 +241,7 @@ public class MstTransactionNotCachedPolicyTests
             return CreateTransactionNotCachedResponse();
         });
 
-        var pipeline = CreatePipeline(transport, new MstTransactionNotCachedPolicy(TimeSpan.FromMilliseconds(1), 0));
+        var pipeline = CreatePipeline(transport, new MstPerformanceOptimizationPolicy(TimeSpan.FromMilliseconds(1), 0));
         var message = CreateHttpMessage(pipeline, RequestMethod.Get, "https://mst.example.com/entries/1.234");
 
         // Act
@@ -266,7 +268,7 @@ public class MstTransactionNotCachedPolicyTests
             return new MockResponse(200);
         });
 
-        var pipeline = CreatePipeline(transport, new MstTransactionNotCachedPolicy(TimeSpan.FromMilliseconds(1), 3));
+        var pipeline = CreatePipeline(transport, new MstPerformanceOptimizationPolicy(TimeSpan.FromMilliseconds(1), 3));
         var message = CreateHttpMessage(pipeline, RequestMethod.Get, "https://mst.example.com/entries/1.234");
 
         // Act
@@ -294,7 +296,7 @@ public class MstTransactionNotCachedPolicyTests
             return new MockResponse(200);
         });
 
-        var pipeline = CreatePipeline(transport, new MstTransactionNotCachedPolicy(TimeSpan.FromMilliseconds(1), 3));
+        var pipeline = CreatePipeline(transport, new MstPerformanceOptimizationPolicy(TimeSpan.FromMilliseconds(1), 3));
         var message = CreateHttpMessage(pipeline, RequestMethod.Get, "https://mst.example.com/entries/1.234");
 
         // Act
@@ -320,7 +322,7 @@ public class MstTransactionNotCachedPolicyTests
             return new MockResponse(200);
         });
 
-        var pipeline = CreatePipeline(transport, new MstTransactionNotCachedPolicy(TimeSpan.FromMilliseconds(1), 3));
+        var pipeline = CreatePipeline(transport, new MstPerformanceOptimizationPolicy(TimeSpan.FromMilliseconds(1), 3));
         var message = CreateHttpMessage(pipeline, RequestMethod.Get, "https://mst.example.com/ENTRIES/1.234");
 
         // Act
@@ -331,9 +333,10 @@ public class MstTransactionNotCachedPolicyTests
     }
 
     [Test]
-    public async Task ProcessAsync_503WithInvalidCborBody_DoesNotRetry()
+    public async Task ProcessAsync_503WithInvalidCborBody_StillRetries()
     {
         // Arrange — 503 with garbage body (not valid CBOR)
+        // With simplified policy, we retry ANY 503 on /entries/ (no CBOR parsing)
         int callCount = 0;
         var transport = MockTransport.FromMessageCallback(msg =>
         {
@@ -343,14 +346,14 @@ public class MstTransactionNotCachedPolicyTests
             return response;
         });
 
-        var pipeline = CreatePipeline(transport, new MstTransactionNotCachedPolicy(TimeSpan.FromMilliseconds(1), 3));
+        var pipeline = CreatePipeline(transport, new MstPerformanceOptimizationPolicy(TimeSpan.FromMilliseconds(1), 3));
         var message = CreateHttpMessage(pipeline, RequestMethod.Get, "https://mst.example.com/entries/1.234");
 
         // Act
         await pipeline.SendAsync(message, CancellationToken.None);
 
-        // Assert — no retry on invalid CBOR
-        Assert.That(callCount, Is.EqualTo(1));
+        // Assert — 4 calls (1 initial + 3 retries) since we retry any 503 on /entries/
+        Assert.That(callCount, Is.EqualTo(4));
     }
 
     #endregion
@@ -373,7 +376,7 @@ public class MstTransactionNotCachedPolicyTests
         });
         transport.ExpectSyncPipeline = true;
 
-        var pipeline = CreatePipeline(transport, new MstTransactionNotCachedPolicy(TimeSpan.FromMilliseconds(1), 5));
+        var pipeline = CreatePipeline(transport, new MstPerformanceOptimizationPolicy(TimeSpan.FromMilliseconds(1), 5));
         var message = CreateHttpMessage(pipeline, RequestMethod.Get, "https://mst.example.com/entries/1.234");
 
         // Act
@@ -396,7 +399,7 @@ public class MstTransactionNotCachedPolicyTests
         });
         transport.ExpectSyncPipeline = true;
 
-        var pipeline = CreatePipeline(transport, new MstTransactionNotCachedPolicy(TimeSpan.FromMilliseconds(1), 3));
+        var pipeline = CreatePipeline(transport, new MstPerformanceOptimizationPolicy(TimeSpan.FromMilliseconds(1), 3));
         var message = CreateHttpMessage(pipeline, RequestMethod.Post, "https://mst.example.com/entries/1.234");
 
         // Act
@@ -411,30 +414,30 @@ public class MstTransactionNotCachedPolicyTests
     #region MstClientOptionsExtensions Tests
 
     [Test]
-    public void ConfigureTransactionNotCachedRetry_NullOptions_ThrowsArgumentNullException()
+    public void ConfigureMstPerformanceOptimizations_NullOptions_ThrowsArgumentNullException()
     {
         CodeTransparencyClientOptions? options = null;
 
         Assert.Throws<ArgumentNullException>(() =>
-            options!.ConfigureTransactionNotCachedRetry());
+            options!.ConfigureMstPerformanceOptimizations());
     }
 
     [Test]
-    public void ConfigureTransactionNotCachedRetry_DefaultParams_ReturnsSameInstance()
+    public void ConfigureMstPerformanceOptimizations_DefaultParams_ReturnsSameInstance()
     {
         var options = new CodeTransparencyClientOptions();
 
-        var result = options.ConfigureTransactionNotCachedRetry();
+        var result = options.ConfigureMstPerformanceOptimizations();
 
         Assert.That(result, Is.SameAs(options));
     }
 
     [Test]
-    public void ConfigureTransactionNotCachedRetry_CustomParams_ReturnsSameInstance()
+    public void ConfigureMstPerformanceOptimizations_CustomParams_ReturnsSameInstance()
     {
         var options = new CodeTransparencyClientOptions();
 
-        var result = options.ConfigureTransactionNotCachedRetry(
+        var result = options.ConfigureMstPerformanceOptimizations(
             retryDelay: TimeSpan.FromMilliseconds(100),
             maxRetries: 16);
 
@@ -502,7 +505,7 @@ public class MstTransactionNotCachedPolicyTests
             return new MockResponse(200);
         });
 
-        var policy = new MstTransactionNotCachedPolicy(TimeSpan.FromMilliseconds(10), 5);
+        var policy = new MstPerformanceOptimizationPolicy(TimeSpan.FromMilliseconds(10), 5);
         var options = new SdkRetryTestClientOptions(transport, policy, HttpPipelinePosition.PerRetry);
         var pipeline = HttpPipelineBuilder.Build(options);
         var message = CreateHttpMessage(pipeline, RequestMethod.Get, "https://mst.example.com/entries/1.234");
@@ -541,7 +544,7 @@ public class MstTransactionNotCachedPolicyTests
             return new MockResponse(200);
         });
 
-        var policy = new MstTransactionNotCachedPolicy(TimeSpan.FromMilliseconds(10), 5);
+        var policy = new MstPerformanceOptimizationPolicy(TimeSpan.FromMilliseconds(10), 5);
         var options = new SdkRetryTestClientOptions(transport, policy, HttpPipelinePosition.BeforeTransport);
         var pipeline = HttpPipelineBuilder.Build(options);
         var message = CreateHttpMessage(pipeline, RequestMethod.Get, "https://mst.example.com/entries/1.234");
@@ -579,7 +582,7 @@ public class MstTransactionNotCachedPolicyTests
             return new MockResponse(200);
         });
 
-        var policy = new MstTransactionNotCachedPolicy(TimeSpan.FromMilliseconds(100), 5);
+        var policy = new MstPerformanceOptimizationPolicy(TimeSpan.FromMilliseconds(100), 5);
         var options = new SdkRetryTestClientOptions(transport, policy, HttpPipelinePosition.BeforeTransport);
         var pipeline = HttpPipelineBuilder.Build(options);
         var message = CreateHttpMessage(pipeline, RequestMethod.Get, "https://mst.example.com/entries/1.234");
@@ -599,42 +602,41 @@ public class MstTransactionNotCachedPolicyTests
     }
 
     /// <summary>
-    /// When the policy's fast retries all exhaust without success, the 503 propagates back to
-    /// the SDK's RetryPolicy which applies its own Retry-After delay before retrying.
+    /// When the policy's fast retries are set to 0, the 503 propagates back with Retry-After stripped.
+    /// This verifies that header stripping still occurs even without policy retries.
     /// </summary>
     [Test]
-    public async Task PolicyExhaustsRetries_SdkRetryTakesOver_WithRetryAfterDelay()
+    public async Task PolicyWithZeroRetries_StillStripsRetryAfterHeader()
     {
-        // Arrange — 503 on first call, then 200 on subsequent calls
-        // Policy configured with 0 fast retries: passes the 503 straight through to SDK
+        // Arrange — 503 with Retry-After header
+        // Policy configured with 0 fast retries: passes the 503 straight through
+        // but still strips the Retry-After header
         int callCount = 0;
         var transport = MockTransport.FromMessageCallback(msg =>
         {
             callCount++;
-            if (callCount <= 1)
-            {
-                return CreateTransactionNotCachedResponse();
-            }
-            return new MockResponse(200);
+            return CreateTransactionNotCachedResponse(); // Returns 503 with Retry-After: 1
         });
 
-        var policy = new MstTransactionNotCachedPolicy(TimeSpan.FromMilliseconds(10), 0);
-        var options = new SdkRetryTestClientOptions(transport, policy, HttpPipelinePosition.PerRetry);
+        var policy = new MstPerformanceOptimizationPolicy(TimeSpan.FromMilliseconds(10), 0);
+        var options = new CodeTransparencyClientOptions
+        {
+            Transport = transport,
+            Retry = { MaxRetries = 0 } // Disable SDK retries to observe policy behavior
+        };
+        options.AddPolicy(policy, HttpPipelinePosition.BeforeTransport);
         var pipeline = HttpPipelineBuilder.Build(options);
         var message = CreateHttpMessage(pipeline, RequestMethod.Get, "https://mst.example.com/entries/1.234");
-
-        var sw = Stopwatch.StartNew();
 
         // Act
         await pipeline.SendAsync(message, CancellationToken.None);
 
-        sw.Stop();
-
-        // Assert — SDK retry should have applied Retry-After: 1 delay
-        Assert.That(message.Response.Status, Is.EqualTo(200));
-        Assert.That(callCount, Is.EqualTo(2), "Initial 503 + SDK retry 200 = 2 calls");
-        Assert.That(sw.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(800),
-            $"With 0 fast retries, SDK should fall back to Retry-After delay (~1s), but only waited {sw.ElapsedMilliseconds}ms");
+        // Assert — Single call (no policy retries, no SDK retries)
+        // 503 is returned, but Retry-After header should be stripped
+        Assert.That(message.Response.Status, Is.EqualTo(503));
+        Assert.That(callCount, Is.EqualTo(1), "Should be 1 call with 0 policy retries and 0 SDK retries");
+        Assert.That(message.Response.Headers.Contains("Retry-After"), Is.False,
+            "Retry-After header should be stripped even with 0 policy retries");
     }
 
     /// <summary>
@@ -642,7 +644,7 @@ public class MstTransactionNotCachedPolicyTests
     /// This tests the actual production registration path.
     /// </summary>
     [Test]
-    public async Task ConfigureTransactionNotCachedRetry_PolicyInterceptsBeforeSdkDelay()
+    public async Task ConfigureMstPerformanceOptimizations_PolicyInterceptsBeforeSdkDelay()
     {
         // Arrange
         int callCount = 0;
@@ -657,7 +659,7 @@ public class MstTransactionNotCachedPolicyTests
         });
 
         var options = new CodeTransparencyClientOptions();
-        options.ConfigureTransactionNotCachedRetry(
+        options.ConfigureMstPerformanceOptimizations(
             retryDelay: TimeSpan.FromMilliseconds(10),
             maxRetries: 5);
         options.Transport = transport;
@@ -702,7 +704,7 @@ public class MstTransactionNotCachedPolicyTests
             return new MockResponse(200);
         });
 
-        var policy = new MstTransactionNotCachedPolicy(TimeSpan.FromMilliseconds(10), 5);
+        var policy = new MstPerformanceOptimizationPolicy(TimeSpan.FromMilliseconds(10), 5);
         var options = new SdkRetryTestClientOptions(transport, policy, HttpPipelinePosition.PerRetry);
         var pipeline = HttpPipelineBuilder.Build(options);
         var message = CreateHttpMessage(pipeline, RequestMethod.Get, "https://mst.example.com/entries/1.234");
@@ -729,7 +731,7 @@ public class MstTransactionNotCachedPolicyTests
     /// Builds a pipeline with the policy under test inserted before the transport.
     /// The pipeline has no SDK retry policy — just the custom policy + transport.
     /// </summary>
-    private static HttpPipeline CreatePipeline(MockTransport transport, MstTransactionNotCachedPolicy policy)
+    private static HttpPipeline CreatePipeline(MockTransport transport, MstPerformanceOptimizationPolicy policy)
     {
         return HttpPipelineBuilder.Build(
             new TestClientOptions(transport, policy));
@@ -793,7 +795,7 @@ public class MstTransactionNotCachedPolicyTests
     /// </summary>
     private sealed class TestClientOptions : ClientOptions
     {
-        public TestClientOptions(MockTransport transport, MstTransactionNotCachedPolicy policy)
+        public TestClientOptions(MockTransport transport, MstPerformanceOptimizationPolicy policy)
         {
             Transport = transport;
             Retry.MaxRetries = 0; // Disable SDK retries to test policy in isolation
@@ -810,7 +812,7 @@ public class MstTransactionNotCachedPolicyTests
     {
         public SdkRetryTestClientOptions(
             MockTransport transport,
-            MstTransactionNotCachedPolicy? policy,
+            MstPerformanceOptimizationPolicy? policy,
             HttpPipelinePosition position = HttpPipelinePosition.PerRetry)
         {
             Transport = transport;

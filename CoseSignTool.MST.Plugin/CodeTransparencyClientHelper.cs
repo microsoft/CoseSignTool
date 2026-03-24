@@ -26,7 +26,7 @@ internal static class CodeTransparencyClientHelper
     {
         Uri uri = new Uri(endpoint);
         CodeTransparencyClientOptions clientOptions = new CodeTransparencyClientOptions();
-        clientOptions.ConfigureTransactionNotCachedRetry();
+        clientOptions.ConfigureMstPerformanceOptimizations();
 
         // Use the specified environment variable name or default to MST_TOKEN
         string envVarName = tokenEnvVarName ?? "MST_TOKEN";

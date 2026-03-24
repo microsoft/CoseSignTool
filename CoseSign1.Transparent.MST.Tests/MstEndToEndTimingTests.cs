@@ -190,7 +190,7 @@ public class MstEndToEndTimingTests
     /// Simulates the full scenario:
     /// - LRO completes after 400ms
     /// - GetEntryStatementAsync returns 503 on first 2 calls, success on 3rd
-    /// - WITHOUT the MstTransactionNotCachedPolicy
+    /// - WITHOUT the MstPerformanceOptimizationPolicy
     /// 
     /// This should show the 3-second behavior due to SDK's Retry-After: 1 delay.
     /// </summary>
@@ -243,7 +243,7 @@ public class MstEndToEndTimingTests
     }
 
     /// <summary>
-    /// Same scenario but WITH the MstTransactionNotCachedPolicy.
+    /// Same scenario but WITH the MstPerformanceOptimizationPolicy.
     /// Should resolve much faster due to aggressive fast retries.
     /// </summary>
     [Test]
@@ -272,7 +272,7 @@ public class MstEndToEndTimingTests
             Retry = { MaxRetries = 5, Delay = TimeSpan.FromMilliseconds(10) }
         };
         // Add the fast retry policy with 100ms interval
-        options.ConfigureTransactionNotCachedRetry(
+        options.ConfigureMstPerformanceOptimizations(
             retryDelay: TimeSpan.FromMilliseconds(100),
             maxRetries: 8);
 
@@ -323,7 +323,7 @@ public class MstEndToEndTimingTests
             Transport = transport,
             Retry = { MaxRetries = 5, Delay = TimeSpan.FromMilliseconds(10) }
         };
-        options.ConfigureTransactionNotCachedRetry(
+        options.ConfigureMstPerformanceOptimizations(
             retryDelay: TimeSpan.FromMilliseconds(50),
             maxRetries: 8);
 
@@ -812,7 +812,7 @@ public class MstEndToEndTimingTests
     /// <summary>
     /// True integration test with BOTH tuning strategies applied:
     /// 1. Aggressive LRO polling (100ms fixed interval)
-    /// 2. Fast TransactionNotCached retries (100ms via MstTransactionNotCachedPolicy)
+    /// 2. Fast TransactionNotCached retries (100ms via MstPerformanceOptimizationPolicy)
     /// 
     /// Expected: ~600-800ms total (down from ~3 seconds)
     /// </summary>
@@ -850,7 +850,7 @@ public class MstEndToEndTimingTests
             Retry = { MaxRetries = 5, Delay = TimeSpan.FromMilliseconds(10) }
         };
         // Add fast retry policy (100ms instead of 1s Retry-After)
-        options.ConfigureTransactionNotCachedRetry(
+        options.ConfigureMstPerformanceOptimizations(
             retryDelay: TimeSpan.FromMilliseconds(100),
             maxRetries: 8);
 
@@ -924,7 +924,7 @@ public class MstEndToEndTimingTests
             Transport = transport,
             Retry = { MaxRetries = 5, Delay = TimeSpan.FromMilliseconds(10) }
         };
-        options.ConfigureTransactionNotCachedRetry(
+        options.ConfigureMstPerformanceOptimizations(
             retryDelay: TimeSpan.FromMilliseconds(50),
             maxRetries: 8);
 
@@ -1035,7 +1035,7 @@ public class MstEndToEndTimingTests
                 Retry = { MaxRetries = 5, Delay = TimeSpan.FromMilliseconds(10) }
             };
             // Pipeline policy WITH fast retry (user's current fix)
-            options.ConfigureTransactionNotCachedRetry(TimeSpan.FromMilliseconds(100), 8);
+            options.ConfigureMstPerformanceOptimizations(TimeSpan.FromMilliseconds(100), 8);
             var pipeline = HttpPipelineBuilder.Build(options);
             var mockOperation = CreateTimedOperation(lroReadyTime, () => lroPollCount++);
 
@@ -1076,7 +1076,7 @@ public class MstEndToEndTimingTests
                 Transport = transport,
                 Retry = { MaxRetries = 5, Delay = TimeSpan.FromMilliseconds(10) }
             };
-            options.ConfigureTransactionNotCachedRetry(TimeSpan.FromMilliseconds(100), 8);
+            options.ConfigureMstPerformanceOptimizations(TimeSpan.FromMilliseconds(100), 8);
             var pipeline = HttpPipelineBuilder.Build(options);
             var mockOperation = CreateTimedOperation(lroReadyTime, () => lroPollCount++);
 
@@ -1116,7 +1116,7 @@ public class MstEndToEndTimingTests
                 Transport = transport,
                 Retry = { MaxRetries = 5, Delay = TimeSpan.FromMilliseconds(10) }
             };
-            options.ConfigureTransactionNotCachedRetry(TimeSpan.FromMilliseconds(50), 8);
+            options.ConfigureMstPerformanceOptimizations(TimeSpan.FromMilliseconds(50), 8);
             var pipeline = HttpPipelineBuilder.Build(options);
             var mockOperation = CreateTimedOperation(lroReadyTime, () => lroPollCount++);
 
@@ -1240,7 +1240,7 @@ public class MstEndToEndTimingTests
                 Transport = transport,
                 Retry = { MaxRetries = 5, Delay = TimeSpan.FromMilliseconds(10) }
             };
-            options.ConfigureTransactionNotCachedRetry(TimeSpan.FromMilliseconds(100), 8);
+            options.ConfigureMstPerformanceOptimizations(TimeSpan.FromMilliseconds(100), 8);
             var pipeline = HttpPipelineBuilder.Build(options);
             var mockOperation = CreateTimedOperation(lroReadyTime, () => lroPollCount++);
 
@@ -1281,7 +1281,7 @@ public class MstEndToEndTimingTests
                 Transport = transport,
                 Retry = { MaxRetries = 5, Delay = TimeSpan.FromMilliseconds(10) }
             };
-            options.ConfigureTransactionNotCachedRetry(TimeSpan.FromMilliseconds(100), 8);
+            options.ConfigureMstPerformanceOptimizations(TimeSpan.FromMilliseconds(100), 8);
             var pipeline = HttpPipelineBuilder.Build(options);
             var mockOperation = CreateTimedOperation(lroReadyTime, () => lroPollCount++);
 
@@ -1382,6 +1382,287 @@ public class MstEndToEndTimingTests
         // Tuned should always be close to actual LRO time
         Assert.That(results[1].TotalMs, Is.LessThan(lroCompletionTimeMs + 350),
             $"Tuned LRO should complete within 350ms of actual time. Got {results[1].TotalMs}ms for {lroCompletionTimeMs}ms LRO");
+    }
+
+    #endregion
+
+    #region Retry-After Header Stripping Tests
+
+    /// <summary>
+    /// Verifies that the policy strips Retry-After headers from 503 /entries/ responses.
+    /// Without header stripping, SDK would wait 1 second per retry.
+    /// </summary>
+    [Test]
+    public async Task RetryAfterStripping_Entries503_HeaderIsStripped()
+    {
+        // Arrange
+        int callCount = 0;
+        bool retryAfterWasPresentOnOriginal = false;
+        bool retryAfterWasPresentAfterPolicy = false;
+
+        var transport = MockTransport.FromMessageCallback(msg =>
+        {
+            string uri = msg.Request.Uri.ToUri().AbsoluteUri;
+            if (msg.Request.Method == RequestMethod.Get && uri.Contains("/entries/"))
+            {
+                callCount++;
+                if (callCount <= 2)
+                {
+                    var response = new MockResponse(503);
+                    response.AddHeader("Retry-After", "1");
+                    response.SetContent(CreateCborProblemDetailsBytes("TransactionNotCached"));
+                    retryAfterWasPresentOnOriginal = response.Headers.Contains("Retry-After");
+                    return response;
+                }
+                var successResponse = new MockResponse(200);
+                successResponse.SetContent(CreateMessageWithReceipt().Encode());
+                return successResponse;
+            }
+            return new MockResponse(200);
+        });
+
+        // Configure with our policy (fast retries + header stripping)
+        var policy = new MstPerformanceOptimizationPolicy(TimeSpan.FromMilliseconds(50), 8);
+        var options = new CodeTransparencyClientOptions
+        {
+            Transport = transport,
+            Retry = { MaxRetries = 0 } // Disable SDK retries so we can observe policy behavior
+        };
+        options.AddPolicy(policy, HttpPipelinePosition.BeforeTransport);
+        var pipeline = HttpPipelineBuilder.Build(options);
+
+        var sw = Stopwatch.StartNew();
+
+        // Act
+        var message = CreateGetEntryMessage(pipeline, "https://mst.example.com/entries/test-entry-123");
+        await pipeline.SendAsync(message, CancellationToken.None);
+
+        sw.Stop();
+
+        // Check if Retry-After is present after policy processed the response
+        retryAfterWasPresentAfterPolicy = message.Response.Headers.Contains("Retry-After");
+
+        // Assert
+        Console.WriteLine($"[Entries 503 Header Strip] Duration: {sw.ElapsedMilliseconds}ms, " +
+            $"Calls: {callCount}, Retry-After present on original: {retryAfterWasPresentOnOriginal}, " +
+            $"Retry-After present after policy: {retryAfterWasPresentAfterPolicy}");
+
+        Assert.That(retryAfterWasPresentOnOriginal, Is.True, "Original response should have Retry-After header");
+        Assert.That(retryAfterWasPresentAfterPolicy, Is.False, "Policy should strip Retry-After header from final response");
+        Assert.That(message.Response.Status, Is.EqualTo(200), "Final response should be success");
+        Assert.That(callCount, Is.EqualTo(3), "Should make 3 calls (2 failures + 1 success)");
+        Assert.That(sw.ElapsedMilliseconds, Is.LessThan(500), "With 50ms retries, should complete in <500ms");
+    }
+
+    /// <summary>
+    /// Verifies that the policy strips Retry-After headers from /operations/ responses.
+    /// This enables our configured LRO polling interval to be used.
+    /// </summary>
+    [Test]
+    public async Task RetryAfterStripping_Operations_HeaderIsStripped()
+    {
+        // Arrange
+        int callCount = 0;
+        bool retryAfterWasPresentOnOriginal = false;
+        bool retryAfterWasPresentAfterPolicy = false;
+
+        var transport = MockTransport.FromMessageCallback(msg =>
+        {
+            string uri = msg.Request.Uri.ToUri().AbsoluteUri;
+            if (uri.Contains("/operations/"))
+            {
+                callCount++;
+                var response = new MockResponse(200);
+                response.AddHeader("Retry-After", "1");
+                response.SetContent("{}");
+                retryAfterWasPresentOnOriginal = response.Headers.Contains("Retry-After");
+                return response;
+            }
+            return new MockResponse(200);
+        });
+
+        // Configure with our policy
+        var policy = new MstPerformanceOptimizationPolicy(TimeSpan.FromMilliseconds(50), 8);
+        var options = new CodeTransparencyClientOptions
+        {
+            Transport = transport,
+            Retry = { MaxRetries = 0 }
+        };
+        options.AddPolicy(policy, HttpPipelinePosition.BeforeTransport);
+        var pipeline = HttpPipelineBuilder.Build(options);
+
+        // Act
+        var message = pipeline.CreateMessage();
+        message.Request.Method = RequestMethod.Get;
+        message.Request.Uri.Reset(new Uri("https://mst.example.com/operations/test-op-123"));
+        await pipeline.SendAsync(message, CancellationToken.None);
+
+        // Check if Retry-After is present after policy processed the response
+        retryAfterWasPresentAfterPolicy = message.Response.Headers.Contains("Retry-After");
+
+        // Assert
+        Console.WriteLine($"[Operations Header Strip] Calls: {callCount}, " +
+            $"Retry-After present on original: {retryAfterWasPresentOnOriginal}, " +
+            $"Retry-After present after policy: {retryAfterWasPresentAfterPolicy}");
+
+        Assert.That(retryAfterWasPresentOnOriginal, Is.True, "Original response should have Retry-After header");
+        Assert.That(retryAfterWasPresentAfterPolicy, Is.False, "Policy should strip Retry-After header from operations response");
+        Assert.That(callCount, Is.EqualTo(1), "Should make 1 call (operations don't retry, just strip header)");
+    }
+
+    /// <summary>
+    /// Demonstrates the timing difference with and without the policy.
+    /// Without policy: SDK respects Retry-After: 1 → ~3 seconds
+    /// With policy: Headers stripped, fast retries → ~600ms
+    /// </summary>
+    [Test]
+    public async Task RetryAfterStripping_TimingComparison_WithAndWithoutPolicy()
+    {
+        var results = new List<(string Config, long DurationMs, int CallCount)>();
+
+        // Scenario 1: WITHOUT policy - SDK respects Retry-After: 1
+        {
+            int callCount = 0;
+            var transport = MockTransport.FromMessageCallback(msg =>
+            {
+                string uri = msg.Request.Uri.ToUri().AbsoluteUri;
+                if (msg.Request.Method == RequestMethod.Get && uri.Contains("/entries/"))
+                {
+                    callCount++;
+                    if (callCount <= 2)
+                    {
+                        var response = new MockResponse(503);
+                        response.AddHeader("Retry-After", "1");
+                        response.SetContent(CreateCborProblemDetailsBytes("TransactionNotCached"));
+                        return response;
+                    }
+                    var successResponse = new MockResponse(200);
+                    successResponse.SetContent(CreateMessageWithReceipt().Encode());
+                    return successResponse;
+                }
+                return new MockResponse(200);
+            });
+
+            // NO policy - SDK will use default retry behavior respecting Retry-After
+            var options = new CodeTransparencyClientOptions
+            {
+                Transport = transport,
+                Retry = { MaxRetries = 5, Delay = TimeSpan.FromMilliseconds(100) }
+            };
+            var pipeline = HttpPipelineBuilder.Build(options);
+
+            var sw = Stopwatch.StartNew();
+            var message = CreateGetEntryMessage(pipeline, "https://mst.example.com/entries/test-entry-123");
+            await pipeline.SendAsync(message, CancellationToken.None);
+            sw.Stop();
+
+            results.Add(("Without Policy", sw.ElapsedMilliseconds, callCount));
+        }
+
+        // Scenario 2: WITH policy - Headers stripped, fast retries
+        {
+            int callCount = 0;
+            var transport = MockTransport.FromMessageCallback(msg =>
+            {
+                string uri = msg.Request.Uri.ToUri().AbsoluteUri;
+                if (msg.Request.Method == RequestMethod.Get && uri.Contains("/entries/"))
+                {
+                    callCount++;
+                    if (callCount <= 2)
+                    {
+                        var response = new MockResponse(503);
+                        response.AddHeader("Retry-After", "1");
+                        response.SetContent(CreateCborProblemDetailsBytes("TransactionNotCached"));
+                        return response;
+                    }
+                    var successResponse = new MockResponse(200);
+                    successResponse.SetContent(CreateMessageWithReceipt().Encode());
+                    return successResponse;
+                }
+                return new MockResponse(200);
+            });
+
+            // WITH policy - fast retries + header stripping
+            var policy = new MstPerformanceOptimizationPolicy(TimeSpan.FromMilliseconds(100), 8);
+            var options = new CodeTransparencyClientOptions
+            {
+                Transport = transport,
+                Retry = { MaxRetries = 5, Delay = TimeSpan.FromMilliseconds(100) }
+            };
+            options.AddPolicy(policy, HttpPipelinePosition.BeforeTransport);
+            var pipeline = HttpPipelineBuilder.Build(options);
+
+            var sw = Stopwatch.StartNew();
+            var message = CreateGetEntryMessage(pipeline, "https://mst.example.com/entries/test-entry-123");
+            await pipeline.SendAsync(message, CancellationToken.None);
+            sw.Stop();
+
+            results.Add(("With Policy", sw.ElapsedMilliseconds, callCount));
+        }
+
+        // Output comparison
+        Console.WriteLine("\n=== RETRY-AFTER STRIPPING TIMING COMPARISON ===");
+        Console.WriteLine($"{"Configuration",-20} {"Duration",-15} {"Calls",-10}");
+        Console.WriteLine(new string('-', 45));
+
+        foreach (var r in results)
+        {
+            Console.WriteLine($"{r.Config,-20} {r.DurationMs + "ms",-15} {r.CallCount,-10}");
+        }
+
+        double speedup = (double)results[0].DurationMs / results[1].DurationMs;
+        Console.WriteLine($"\nSpeedup: {speedup:F1}x (saved {results[0].DurationMs - results[1].DurationMs}ms)");
+
+        // Assertions
+        // Without policy: SDK should respect Retry-After: 1, so ~2+ seconds for 2 retries
+        Assert.That(results[0].DurationMs, Is.GreaterThanOrEqualTo(1800),
+            $"Without policy, should take >=1.8s due to Retry-After: 1 headers. Got {results[0].DurationMs}ms");
+
+        // With policy: Fast retries (~100ms each), so ~200-400ms
+        Assert.That(results[1].DurationMs, Is.LessThan(600),
+            $"With policy, should complete in <600ms. Got {results[1].DurationMs}ms");
+
+        // Speedup should be significant
+        Assert.That(speedup, Is.GreaterThan(3.0),
+            $"Policy should provide >3x speedup. Got {speedup:F1}x");
+    }
+
+    /// <summary>
+    /// Verifies that non-entries/operations requests are NOT modified by the policy.
+    /// </summary>
+    [Test]
+    public async Task RetryAfterStripping_OtherEndpoints_NotModified()
+    {
+        // Arrange
+        var transport = MockTransport.FromMessageCallback(msg =>
+        {
+            var response = new MockResponse(200);
+            response.AddHeader("Retry-After", "1");
+            response.SetContent("{}");
+            return response;
+        });
+
+        // Configure with our policy
+        var policy = new MstPerformanceOptimizationPolicy(TimeSpan.FromMilliseconds(50), 8);
+        var options = new CodeTransparencyClientOptions
+        {
+            Transport = transport,
+            Retry = { MaxRetries = 0 }
+        };
+        options.AddPolicy(policy, HttpPipelinePosition.BeforeTransport);
+        var pipeline = HttpPipelineBuilder.Build(options);
+
+        // Act - call a different endpoint (not /entries/ or /operations/)
+        var message = pipeline.CreateMessage();
+        message.Request.Method = RequestMethod.Get;
+        message.Request.Uri.Reset(new Uri("https://mst.example.com/other/endpoint"));
+        await pipeline.SendAsync(message, CancellationToken.None);
+
+        // Assert - Retry-After should NOT be stripped
+        bool hasRetryAfter = message.Response.Headers.Contains("Retry-After");
+        Console.WriteLine($"[Other Endpoint] Retry-After present: {hasRetryAfter}");
+
+        Assert.That(hasRetryAfter, Is.True, "Policy should NOT modify responses for other endpoints");
     }
 
     #endregion

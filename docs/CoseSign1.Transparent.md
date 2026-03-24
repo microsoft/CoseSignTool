@@ -302,27 +302,28 @@ catch (InvalidOperationException ex)
 }
 ```
 
-### TransactionNotCached Fast Retry Policy
+### MST Performance Optimization Policy
 
 The MST service returns HTTP 503 with `Retry-After: 1` when a newly registered entry hasn't
-propagated yet (`TransactionNotCached`). The entry typically becomes available in well under
-1 second, but the Azure SDK's default retry respects the server's 1-second `Retry-After` header.
+propagated yet. The entry typically becomes available in well under 1 second, but the Azure
+SDK's default retry respects the server's 1-second `Retry-After` header. Additionally, LRO
+polling responses include `Retry-After` headers that override client-configured polling intervals.
 
-The `MstTransactionNotCachedPolicy` solves this by performing its own fast retry loop
-(250 ms intervals, up to 8 retries ≈ 2 seconds) that only targets this specific error.
-All other requests pass through untouched.
+The `MstPerformanceOptimizationPolicy` addresses these issues by:
+1. Performing fast retries for 503 responses on `/entries/` endpoints (250 ms intervals, up to 8 retries)
+2. Stripping `Retry-After` headers from `/entries/` and `/operations/` responses so the SDK uses client-configured timing
 
 #### <u>Enabling the Policy via Extension Method</u>
 ```csharp
 var options = new CodeTransparencyClientOptions();
-options.ConfigureTransactionNotCachedRetry();  // 250ms × 8 retries (default)
+options.ConfigureMstPerformanceOptimizations();  // 250ms × 8 retries (default)
 var client = new CodeTransparencyClient(endpoint, credential, options);
 ```
 
 #### <u>Custom Retry Settings</u>
 ```csharp
 var options = new CodeTransparencyClientOptions();
-options.ConfigureTransactionNotCachedRetry(
+options.ConfigureMstPerformanceOptimizations(
     retryDelay: TimeSpan.FromMilliseconds(100),  // faster polling
     maxRetries: 16);                              // longer window
 ```
@@ -333,18 +334,19 @@ using Azure.Core.Pipeline;
 
 var options = new CodeTransparencyClientOptions();
 options.AddPolicy(
-    new MstTransactionNotCachedPolicy(TimeSpan.FromMilliseconds(200), 10),
+    new MstPerformanceOptimizationPolicy(TimeSpan.FromMilliseconds(200), 10),
     HttpPipelinePosition.BeforeTransport);
 ```
 
 > **Important:** Use `HttpPipelinePosition.BeforeTransport` (not `PerRetry`). This places the
 > policy directly adjacent to the transport layer, inside the SDK's retry loop, ensuring it
 > intercepts 503 responses before any library-added per-retry policies can interfere. The
-> extension method `ConfigureTransactionNotCachedRetry` handles this automatically.
+> extension method `ConfigureMstPerformanceOptimizations` handles this automatically.
 
 > This policy does **not** affect the SDK's global `RetryOptions`. The fast retry loop runs
-> entirely within the policy and only targets HTTP 503 responses to `GET /entries/` requests
-> containing a `TransactionNotCached` CBOR error code.
+> entirely within the policy and targets HTTP 503 responses on `/entries/` endpoints. Additionally,
+> it strips `Retry-After` headers from `/entries/` and `/operations/` responses to enable
+> client-controlled timing instead of server-dictated delays.
 
 ### Polling Options
 

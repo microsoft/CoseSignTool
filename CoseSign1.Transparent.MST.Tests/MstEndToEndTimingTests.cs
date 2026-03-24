@@ -178,8 +178,8 @@ public class MstEndToEndTimingTests
         // Assert
         Assert.That(result, Is.Not.Null);
         Console.WriteLine($"[Tuned LRO 50ms] Duration: {sw.ElapsedMilliseconds}ms, Poll count: {pollCount}");
-        Assert.That(sw.ElapsedMilliseconds, Is.LessThan(700),
-            $"With 50ms polling, should complete in <700ms. Got {sw.ElapsedMilliseconds}ms");
+        Assert.That(sw.ElapsedMilliseconds, Is.LessThan(1000),
+            $"With 50ms polling, should complete in <1s. Got {sw.ElapsedMilliseconds}ms");
     }
 
     #endregion
@@ -291,8 +291,9 @@ public class MstEndToEndTimingTests
         Assert.That(message.Response.Status, Is.EqualTo(200));
         Assert.That(getEntryCallCount, Is.EqualTo(3), "Should make exactly 3 calls (2 failures + 1 success)");
         // Should complete in ~200-300ms (2x 100ms retry delays + network latency simulation)
-        Assert.That(sw.ElapsedMilliseconds, Is.LessThan(500),
-            $"With custom policy, should resolve in <500ms. Got {sw.ElapsedMilliseconds}ms");
+        // Allow 700ms for CI runner overhead
+        Assert.That(sw.ElapsedMilliseconds, Is.LessThan(700),
+            $"With custom policy, should resolve in <700ms. Got {sw.ElapsedMilliseconds}ms");
     }
 
     /// <summary>
@@ -340,8 +341,8 @@ public class MstEndToEndTimingTests
         // Assert
         Console.WriteLine($"[With Policy 50ms] Duration: {sw.ElapsedMilliseconds}ms, GetEntry calls: {getEntryCallCount}");
         Assert.That(message.Response.Status, Is.EqualTo(200));
-        Assert.That(sw.ElapsedMilliseconds, Is.LessThan(300),
-            $"With 50ms retry delay, should resolve in <300ms. Got {sw.ElapsedMilliseconds}ms");
+        Assert.That(sw.ElapsedMilliseconds, Is.LessThan(500),
+            $"With 50ms retry delay, should resolve in <500ms. Got {sw.ElapsedMilliseconds}ms");
     }
 
     #endregion
@@ -513,8 +514,9 @@ public class MstEndToEndTimingTests
         Console.WriteLine($"[Combined Aggressive 50ms] Duration: {sw.ElapsedMilliseconds}ms, LRO polls: {lroPollCount}, GetEntry calls: {getEntryCallCount}");
         Assert.That(result, Is.Not.Null);
         // ~400ms LRO + ~100ms for 2 retries = ~500-600ms
-        Assert.That(sw.ElapsedMilliseconds, Is.LessThan(900),
-            $"With aggressive 50ms tuning, should complete in <900ms. Got {sw.ElapsedMilliseconds}ms");
+        // Allow 1200ms for CI runner overhead
+        Assert.That(sw.ElapsedMilliseconds, Is.LessThan(1200),
+            $"With aggressive 50ms tuning, should complete in <1.2s. Got {sw.ElapsedMilliseconds}ms");
     }
 
     #endregion

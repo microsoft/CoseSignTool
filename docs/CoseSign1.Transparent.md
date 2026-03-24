@@ -311,7 +311,7 @@ polling responses include `Retry-After` headers that override client-configured 
 
 The `MstPerformanceOptimizationPolicy` addresses these issues by:
 1. Performing fast retries for 503 responses on `/entries/` endpoints (250 ms intervals, up to 8 retries)
-2. Stripping `Retry-After` headers from `/entries/` and `/operations/` responses so the SDK uses client-configured timing
+2. Stripping all retry-related headers (`Retry-After`, `retry-after-ms`, `x-ms-retry-after-ms`) from `/entries/` and `/operations/` responses so the SDK uses client-configured timing
 
 #### <u>Enabling the Policy via Extension Method</u>
 ```csharp
@@ -345,8 +345,9 @@ options.AddPolicy(
 
 > This policy does **not** affect the SDK's global `RetryOptions`. The fast retry loop runs
 > entirely within the policy and targets HTTP 503 responses on `/entries/` endpoints. Additionally,
-> it strips `Retry-After` headers from `/entries/` and `/operations/` responses to enable
-> client-controlled timing instead of server-dictated delays.
+> it strips all retry-related headers (`Retry-After`, `retry-after-ms`, `x-ms-retry-after-ms`)
+> from `/entries/` and `/operations/` responses to enable client-controlled timing instead of
+> server-dictated delays.
 
 ### Polling Options
 

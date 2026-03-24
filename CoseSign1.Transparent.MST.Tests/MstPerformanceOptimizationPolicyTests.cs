@@ -640,6 +640,84 @@ public class MstPerformanceOptimizationPolicyTests
     }
 
     /// <summary>
+    /// Verifies that all three Azure SDK Retry-After header variations are stripped.
+    /// The SDK checks: Retry-After (standard), retry-after-ms, and x-ms-retry-after-ms.
+    /// </summary>
+    [TestCase("Retry-After", "1", Description = "Standard HTTP header (seconds)")]
+    [TestCase("retry-after-ms", "1000", Description = "Azure SDK specific (milliseconds)")]
+    [TestCase("x-ms-retry-after-ms", "1000", Description = "Azure SDK specific with x-ms prefix")]
+    public async Task PolicyStrips_AllRetryAfterHeaderVariations(string headerName, string headerValue)
+    {
+        // Arrange — 503 with the specified retry header
+        var transport = MockTransport.FromMessageCallback(msg =>
+        {
+            var response = new MockResponse(503);
+            response.AddHeader(headerName, headerValue);
+            response.AddHeader("Content-Type", "application/problem+cbor");
+            return response;
+        });
+
+        var policy = new MstPerformanceOptimizationPolicy(TimeSpan.FromMilliseconds(10), 0);
+        var options = new CodeTransparencyClientOptions
+        {
+            Transport = transport,
+            Retry = { MaxRetries = 0 }
+        };
+        options.AddPolicy(policy, HttpPipelinePosition.BeforeTransport);
+        var pipeline = HttpPipelineBuilder.Build(options);
+        var message = CreateHttpMessage(pipeline, RequestMethod.Get, "https://mst.example.com/entries/1.234");
+
+        // Act
+        await pipeline.SendAsync(message, CancellationToken.None);
+
+        // Assert — Header should be stripped
+        Assert.That(message.Response.Headers.Contains(headerName), Is.False,
+            $"{headerName} header should be stripped by the policy");
+    }
+
+    /// <summary>
+    /// Verifies that when multiple retry headers are present, all are stripped.
+    /// </summary>
+    [Test]
+    public async Task PolicyStrips_AllRetryAfterHeaders_WhenMultiplePresent()
+    {
+        // Arrange — 503 with all three retry headers
+        var transport = MockTransport.FromMessageCallback(msg =>
+        {
+            var response = new MockResponse(503);
+            response.AddHeader("Retry-After", "1");
+            response.AddHeader("retry-after-ms", "1000");
+            response.AddHeader("x-ms-retry-after-ms", "1000");
+            response.AddHeader("Content-Type", "application/problem+cbor");
+            return response;
+        });
+
+        var policy = new MstPerformanceOptimizationPolicy(TimeSpan.FromMilliseconds(10), 0);
+        var options = new CodeTransparencyClientOptions
+        {
+            Transport = transport,
+            Retry = { MaxRetries = 0 }
+        };
+        options.AddPolicy(policy, HttpPipelinePosition.BeforeTransport);
+        var pipeline = HttpPipelineBuilder.Build(options);
+        var message = CreateHttpMessage(pipeline, RequestMethod.Get, "https://mst.example.com/entries/1.234");
+
+        // Act
+        await pipeline.SendAsync(message, CancellationToken.None);
+
+        // Assert — All retry headers should be stripped
+        Assert.Multiple(() =>
+        {
+            Assert.That(message.Response.Headers.Contains("Retry-After"), Is.False,
+                "Retry-After header should be stripped");
+            Assert.That(message.Response.Headers.Contains("retry-after-ms"), Is.False,
+                "retry-after-ms header should be stripped");
+            Assert.That(message.Response.Headers.Contains("x-ms-retry-after-ms"), Is.False,
+                "x-ms-retry-after-ms header should be stripped");
+        });
+    }
+
+    /// <summary>
     /// Validates the extension method's registered position intercepts before SDK delay.
     /// This tests the actual production registration path.
     /// </summary>

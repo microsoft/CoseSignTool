@@ -16,8 +16,9 @@ public static class MstClientOptionsExtensions
 {
     /// <summary>
     /// Adds the <see cref="MstPerformanceOptimizationPolicy"/> to the client options pipeline,
-    /// enabling fast retries for 503 responses and stripping <c>Retry-After</c> headers
-    /// for improved MST client performance.
+    /// enabling fast retries for 503 responses and stripping retry-related headers
+    /// (<c>Retry-After</c>, <c>retry-after-ms</c>, <c>x-ms-retry-after-ms</c>) for improved
+    /// MST client performance.
     /// </summary>
     /// <param name="options">The <see cref="CodeTransparencyClientOptions"/> to configure.</param>
     /// <param name="retryDelay">
@@ -33,8 +34,9 @@ public static class MstClientOptionsExtensions
     /// <para>
     /// This method does <b>not</b> modify the SDK's global <see cref="Azure.Core.RetryOptions"/>
     /// on the client options. The policy performs fast retries for HTTP 503 responses on
-    /// <c>/entries/</c> endpoints and strips <c>Retry-After</c> headers from both <c>/entries/</c>
-    /// and <c>/operations/</c> responses. All other API calls pass through unchanged.
+    /// <c>/entries/</c> endpoints and strips all retry-related headers (<c>Retry-After</c>,
+    /// <c>retry-after-ms</c>, <c>x-ms-retry-after-ms</c>) from both <c>/entries/</c> and
+    /// <c>/operations/</c> responses. All other API calls pass through unchanged.
     /// </para>
     ///
     /// <para>

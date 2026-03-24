@@ -33,16 +33,17 @@ using Azure.Core.Pipeline;
 /// <list type="number">
 /// <item>Intercepts 503 responses on <c>/entries/</c> endpoints and performs fast retries
 /// (default: 250 ms intervals, up to 8 retries ≈ 2 seconds).</item>
-/// <item>Strips <c>Retry-After</c> headers from all responses to <c>/entries/</c> and
-/// <c>/operations/</c> endpoints so the SDK uses client-configured delays instead.</item>
+/// <item>Strips all retry-related headers (<c>Retry-After</c>, <c>retry-after-ms</c>,
+/// <c>x-ms-retry-after-ms</c>) from responses to <c>/entries/</c> and <c>/operations/</c>
+/// endpoints so the SDK uses client-configured delays instead.</item>
 /// </list>
 /// </para>
 ///
 /// <para>
 /// <b>Scope:</b> Only HTTP 503 responses to <c>GET</c> requests whose URI path contains
-/// <c>/entries/</c> are retried by this policy. <c>Retry-After</c> header stripping applies
-/// to both <c>/entries/</c> and <c>/operations/</c> endpoints. All other requests pass
-/// through unchanged.
+/// <c>/entries/</c> are retried by this policy. Retry header stripping (<c>Retry-After</c>,
+/// <c>retry-after-ms</c>, <c>x-ms-retry-after-ms</c>) applies to both <c>/entries/</c> and
+/// <c>/operations/</c> endpoints. All other requests pass through unchanged.
 /// </para>
 ///
 /// <para>
@@ -81,7 +82,17 @@ public class MstPerformanceOptimizationPolicy : HttpPipelinePolicy
     private const int ServiceUnavailableStatusCode = 503;
     private const string EntriesPathSegment = "/entries/";
     private const string OperationsPathSegment = "/operations/";
-    private const string RetryAfterHeader = "Retry-After";
+
+    /// <summary>
+    /// The set of retry-related headers that the Azure SDK checks for delay information.
+    /// All three must be stripped to ensure the SDK uses client-configured timing.
+    /// </summary>
+    private static readonly string[] RetryAfterHeaders =
+    [
+        "Retry-After",        // Standard HTTP header (seconds or HTTP-date)
+        "retry-after-ms",     // Azure SDK specific (milliseconds)
+        "x-ms-retry-after-ms" // Azure SDK specific with x-ms prefix (milliseconds)
+    ];
 
     private readonly TimeSpan _retryDelay;
     private readonly int _maxRetries;
@@ -200,18 +211,35 @@ public class MstPerformanceOptimizationPolicy : HttpPipelinePolicy
     }
 
     /// <summary>
-    /// Strips the <c>Retry-After</c> header from the response by wrapping it in a filtering response.
+    /// Strips all retry-related headers from the response by wrapping it in a filtering response.
+    /// This includes <c>Retry-After</c>, <c>retry-after-ms</c>, and <c>x-ms-retry-after-ms</c>.
     /// </summary>
     private static void StripRetryAfterHeader(HttpMessage message)
     {
         Response? response = message.Response;
-        if (response == null || !response.Headers.Contains(RetryAfterHeader))
+        if (response == null)
         {
             return;
         }
 
-        // Wrap the response in a HeaderFilteringResponse that excludes Retry-After.
-        message.Response = new HeaderFilteringResponse(response, RetryAfterHeader);
+        // Check if any retry-related header is present
+        bool hasRetryHeader = false;
+        foreach (string header in RetryAfterHeaders)
+        {
+            if (response.Headers.Contains(header))
+            {
+                hasRetryHeader = true;
+                break;
+            }
+        }
+
+        if (!hasRetryHeader)
+        {
+            return;
+        }
+
+        // Wrap the response in a HeaderFilteringResponse that excludes all retry headers.
+        message.Response = new HeaderFilteringResponse(response, RetryAfterHeaders);
     }
 
     /// <summary>

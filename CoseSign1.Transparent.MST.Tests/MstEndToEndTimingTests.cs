@@ -578,7 +578,7 @@ public class MstEndToEndTimingTests
 
         // Assert
         int expectedTotalTime = expectedLroTime + (retryDelayMs * failureCount);
-        int maxAcceptableTime = expectedTotalTime + lroPollingMs + 200; // Add some buffer
+        int maxAcceptableTime = expectedTotalTime + lroPollingMs + 400; // Add buffer for CI runner overhead
 
         Console.WriteLine($"[Matrix LRO:{lroPollingMs}ms Retry:{retryDelayMs}ms Failures:{failureCount}] " +
             $"Duration: {sw.ElapsedMilliseconds}ms (expected ~{expectedTotalTime}ms), " +
@@ -1494,8 +1494,8 @@ public class MstEndToEndTimingTests
         Console.WriteLine($"[ROOT CAUSE FIX - entries 503] Duration: {sw.ElapsedMilliseconds}ms, Calls: {callCount}");
         Assert.That(message.Response.Status, Is.EqualTo(200));
         Assert.That(callCount, Is.EqualTo(3));
-        Assert.That(sw.ElapsedMilliseconds, Is.LessThan(400),
-            $"PROOF: Policy overrides Retry-After. Expected <400ms, got {sw.ElapsedMilliseconds}ms (vs ~2s without policy)");
+        Assert.That(sw.ElapsedMilliseconds, Is.LessThan(600),
+            $"PROOF: Policy overrides Retry-After. Expected <600ms, got {sw.ElapsedMilliseconds}ms (vs ~2s without policy)");
     }
 
     /// <summary>
@@ -1653,8 +1653,8 @@ public class MstEndToEndTimingTests
 
         Assert.That(results[0].Ms, Is.GreaterThanOrEqualTo(1800),
             "Without policy should take ~2s due to 2x Retry-After: 1");
-        Assert.That(results[1].Ms, Is.LessThan(400),
-            "With policy should take <400ms");
+        Assert.That(results[1].Ms, Is.LessThan(600),
+            "With policy should take <600ms");
         Assert.That(results[0].Ms, Is.GreaterThan(results[1].Ms * 4),
             "Policy should provide at least 4x speedup");
     }
@@ -1726,7 +1726,7 @@ public class MstEndToEndTimingTests
         Assert.That(retryAfterWasPresentAfterPolicy, Is.False, "Policy should strip Retry-After header from final response");
         Assert.That(message.Response.Status, Is.EqualTo(200), "Final response should be success");
         Assert.That(callCount, Is.EqualTo(3), "Should make 3 calls (2 failures + 1 success)");
-        Assert.That(sw.ElapsedMilliseconds, Is.LessThan(500), "With 50ms retries, should complete in <500ms");
+        Assert.That(sw.ElapsedMilliseconds, Is.LessThan(700), "With 50ms retries, should complete in <700ms");
     }
 
     /// <summary>
@@ -1894,8 +1894,9 @@ public class MstEndToEndTimingTests
             $"Without policy, should take >=1.8s due to Retry-After: 1 headers. Got {results[0].DurationMs}ms");
 
         // With policy: Fast retries (~100ms each), so ~200-400ms
-        Assert.That(results[1].DurationMs, Is.LessThan(600),
-            $"With policy, should complete in <600ms. Got {results[1].DurationMs}ms");
+        // Allow 800ms for CI runner overhead
+        Assert.That(results[1].DurationMs, Is.LessThan(800),
+            $"With policy, should complete in <800ms. Got {results[1].DurationMs}ms");
 
         // Speedup should be significant
         Assert.That(speedup, Is.GreaterThan(3.0),

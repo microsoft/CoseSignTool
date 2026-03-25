@@ -5,6 +5,7 @@ namespace CoseSign1.Transparent.MST;
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -79,9 +80,16 @@ public class MstPerformanceOptimizationPolicy : HttpPipelinePolicy
     /// </summary>
     public const int DefaultMaxRetries = 8;
 
+    /// <summary>
+    /// The name of the <see cref="ActivitySource"/> used by this policy for distributed tracing.
+    /// </summary>
+    public const string ActivitySourceName = "CoseSign1.Transparent.MST.PerformanceOptimizationPolicy";
+
     private const int ServiceUnavailableStatusCode = 503;
     private const string EntriesPathSegment = "/entries/";
     private const string OperationsPathSegment = "/operations/";
+
+    private static readonly ActivitySource PolicyActivitySource = new(ActivitySourceName);
 
     /// <summary>
     /// The set of retry-related headers that the Azure SDK checks for delay information.
@@ -168,13 +176,28 @@ public class MstPerformanceOptimizationPolicy : HttpPipelinePolicy
             return;
         }
 
-        // 503 on /entries/ - perform fast retries.
+        // 503 on /entries/ - perform fast retries with tracing.
+        string? requestUri = message.Request.Uri?.ToUri()?.AbsoluteUri;
+        using Activity? retryActivity = PolicyActivitySource.StartActivity(
+            "MstPerformanceOptimization.AcceleratedRetry",
+            ActivityKind.Internal);
+
+        retryActivity?.SetTag("mst.policy.initial_status", 503);
+        retryActivity?.SetTag("mst.policy.max_retries", _maxRetries);
+        retryActivity?.SetTag("mst.policy.retry_delay_ms", _retryDelay.TotalMilliseconds);
+        retryActivity?.SetTag("http.url", requestUri);
+
         // Note: Reusing HttpMessage for retries is safe here because:
         // 1. We only retry GET requests (no request body to rewind)
         // 2. ProcessNext replaces message.Response with a fresh response
         // This matches how Azure SDK's RetryPolicy handles retries internally.
         for (int attempt = 0; attempt < _maxRetries; attempt++)
         {
+            using Activity? attemptActivity = PolicyActivitySource.StartActivity(
+                "MstPerformanceOptimization.RetryAttempt",
+                ActivityKind.Internal);
+            attemptActivity?.SetTag("mst.policy.attempt", attempt + 1);
+
             if (isAsync)
             {
                 await Task.Delay(_retryDelay, message.CancellationToken).ConfigureAwait(false);
@@ -197,16 +220,27 @@ public class MstPerformanceOptimizationPolicy : HttpPipelinePolicy
                 ProcessNext(message, pipeline);
             }
 
+            int responseStatus = message.Response?.Status ?? 0;
+            attemptActivity?.SetTag("http.status_code", responseStatus);
+
             if (!IsEntriesServiceUnavailableResponse(message))
             {
                 // Success or different error - strip Retry-After and return.
+                attemptActivity?.SetTag("mst.policy.result", "resolved");
+                retryActivity?.SetTag("mst.policy.resolved_at_attempt", attempt + 1);
+                retryActivity?.SetTag("mst.policy.final_status", responseStatus);
                 StripRetryAfterHeader(message);
                 return;
             }
+
+            attemptActivity?.SetTag("mst.policy.result", "still_503");
         }
 
         // All fast retries exhausted — strip Retry-After before returning the final 503.
         // This prevents the SDK's RetryPolicy from waiting the server-specified delay.
+        retryActivity?.SetTag("mst.policy.resolved_at_attempt", 0);
+        retryActivity?.SetTag("mst.policy.final_status", 503);
+        retryActivity?.SetTag("mst.policy.result", "exhausted");
         StripRetryAfterHeader(message);
     }
 

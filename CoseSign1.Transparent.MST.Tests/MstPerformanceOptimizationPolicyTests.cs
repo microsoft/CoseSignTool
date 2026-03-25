@@ -3,6 +3,7 @@
 
 namespace CoseSign1.Transparent.MST.Tests;
 
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Formats.Cbor;
 using Azure.Core;
@@ -866,6 +867,269 @@ public class MstPerformanceOptimizationPolicyTests
                 AddPolicy(policy, position);
             }
         }
+    }
+
+    #endregion
+
+    #region ActivitySource Tracing Tests
+
+    /// <summary>
+    /// Verifies that the policy emits an AcceleratedRetry activity with child RetryAttempt
+    /// activities when it intercepts a 503 on /entries/ and resolves on the 2nd attempt.
+    /// </summary>
+    [Test]
+    public async Task ActivitySource_503Resolved_EmitsRetryActivityWithAttempts()
+    {
+        // Arrange
+        int callCount = 0;
+        var transport = MockTransport.FromMessageCallback(msg =>
+        {
+            callCount++;
+            if (callCount <= 1)
+            {
+                var response = new MockResponse(503);
+                response.AddHeader("Retry-After", "1");
+                return response;
+            }
+            return new MockResponse(200);
+        });
+
+        var policy = new MstPerformanceOptimizationPolicy(TimeSpan.FromMilliseconds(10), 5);
+        var options = new TestClientOptions(transport, policy);
+        HttpPipeline pipeline = HttpPipelineBuilder.Build(options);
+
+        ConcurrentBag<Activity> collectedActivities = new();
+        using ActivityListener listener = new()
+        {
+            ShouldListenTo = source => source.Name == MstPerformanceOptimizationPolicy.ActivitySourceName,
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
+            ActivityStopped = activity => collectedActivities.Add(activity)
+        };
+        ActivitySource.AddActivityListener(listener);
+
+        HttpMessage message = CreateHttpMessage(pipeline, RequestMethod.Get, "https://mst.example.com/entries/test-id/statement");
+
+        // Act
+        await pipeline.SendAsync(message, CancellationToken.None);
+
+        // Assert
+        Assert.That(message.Response.Status, Is.EqualTo(200));
+        Assert.That(callCount, Is.EqualTo(2));
+
+        List<Activity> activities = collectedActivities.ToList();
+        Activity? retryActivity = activities.Find(a => a.OperationName == "MstPerformanceOptimization.AcceleratedRetry"
+            && (int?)a.GetTagItem("mst.policy.final_status") == 200
+            && (int?)a.GetTagItem("mst.policy.max_retries") == 5
+            && (int?)a.GetTagItem("mst.policy.resolved_at_attempt") == 1);
+        Assert.That(retryActivity, Is.Not.Null, "Should emit an AcceleratedRetry activity");
+        Assert.That(retryActivity!.GetTagItem("mst.policy.initial_status"), Is.EqualTo(503));
+        Assert.That(retryActivity.GetTagItem("mst.policy.resolved_at_attempt"), Is.EqualTo(1));
+        Assert.That(retryActivity.GetTagItem("mst.policy.max_retries"), Is.EqualTo(5));
+        Assert.That(retryActivity.GetTagItem("mst.policy.retry_delay_ms"), Is.EqualTo(10.0));
+        Assert.That(retryActivity.GetTagItem("http.url"), Does.Contain("/entries/"));
+
+        ActivityTraceId traceId = retryActivity.TraceId;
+        List<Activity> attemptActivities = activities.FindAll(a =>
+            a.OperationName == "MstPerformanceOptimization.RetryAttempt" && a.TraceId == traceId);
+        Assert.That(attemptActivities, Has.Count.EqualTo(1), "Should have 1 retry attempt (resolved on first retry)");
+        Assert.That(attemptActivities[0].GetTagItem("mst.policy.attempt"), Is.EqualTo(1));
+        Assert.That(attemptActivities[0].GetTagItem("http.status_code"), Is.EqualTo(200));
+        Assert.That(attemptActivities[0].GetTagItem("mst.policy.result"), Is.EqualTo("resolved"));
+    }
+
+    /// <summary>
+    /// Verifies that multiple retry attempts emit individual child activities with correct tags.
+    /// </summary>
+    [Test]
+    public async Task ActivitySource_MultipleRetries_EmitsActivityPerAttempt()
+    {
+        // Arrange
+        int callCount = 0;
+        var transport = MockTransport.FromMessageCallback(msg =>
+        {
+            callCount++;
+            if (callCount <= 3)
+            {
+                var response = new MockResponse(503);
+                response.AddHeader("Retry-After", "1");
+                return response;
+            }
+            return new MockResponse(200);
+        });
+
+        var policy = new MstPerformanceOptimizationPolicy(TimeSpan.FromMilliseconds(10), 5);
+        var options = new TestClientOptions(transport, policy);
+        HttpPipeline pipeline = HttpPipelineBuilder.Build(options);
+
+        ConcurrentBag<Activity> collectedActivities = new();
+        using ActivityListener listener = new()
+        {
+            ShouldListenTo = source => source.Name == MstPerformanceOptimizationPolicy.ActivitySourceName,
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
+            ActivityStopped = activity => collectedActivities.Add(activity)
+        };
+        ActivitySource.AddActivityListener(listener);
+
+        HttpMessage message = CreateHttpMessage(pipeline, RequestMethod.Get, "https://mst.example.com/entries/test-id/statement");
+
+        // Act
+        await pipeline.SendAsync(message, CancellationToken.None);
+
+        // Assert
+        Assert.That(message.Response.Status, Is.EqualTo(200));
+        Assert.That(callCount, Is.EqualTo(4));
+
+        List<Activity> activities = collectedActivities.ToList();
+        Activity? retryActivity = activities.Find(a => a.OperationName == "MstPerformanceOptimization.AcceleratedRetry"
+            && (int?)a.GetTagItem("mst.policy.final_status") == 200
+            && (int?)a.GetTagItem("mst.policy.resolved_at_attempt") == 3);
+        Assert.That(retryActivity, Is.Not.Null);
+
+        ActivityTraceId traceId = retryActivity!.TraceId;
+        List<Activity> attemptActivities = activities
+            .FindAll(a => a.OperationName == "MstPerformanceOptimization.RetryAttempt" && a.TraceId == traceId)
+            .OrderBy(a => (int?)a.GetTagItem("mst.policy.attempt") ?? 0)
+            .ToList();
+        Assert.That(attemptActivities, Has.Count.EqualTo(3), "Should have 3 retry attempts");
+
+        Assert.That(attemptActivities[0].GetTagItem("mst.policy.attempt"), Is.EqualTo(1));
+        Assert.That(attemptActivities[0].GetTagItem("mst.policy.result"), Is.EqualTo("still_503"));
+        Assert.That(attemptActivities[0].GetTagItem("http.status_code"), Is.EqualTo(503));
+
+        Assert.That(attemptActivities[1].GetTagItem("mst.policy.attempt"), Is.EqualTo(2));
+        Assert.That(attemptActivities[1].GetTagItem("mst.policy.result"), Is.EqualTo("still_503"));
+
+        Assert.That(attemptActivities[2].GetTagItem("mst.policy.attempt"), Is.EqualTo(3));
+        Assert.That(attemptActivities[2].GetTagItem("mst.policy.result"), Is.EqualTo("resolved"));
+        Assert.That(attemptActivities[2].GetTagItem("http.status_code"), Is.EqualTo(200));
+    }
+
+    /// <summary>
+    /// Verifies that when all retries are exhausted, the parent activity reports "exhausted".
+    /// </summary>
+    [Test]
+    public async Task ActivitySource_RetriesExhausted_EmitsExhaustedActivity()
+    {
+        // Arrange
+        var transport = MockTransport.FromMessageCallback(msg =>
+        {
+            var response = new MockResponse(503);
+            response.AddHeader("Retry-After", "1");
+            return response;
+        });
+
+        var policy = new MstPerformanceOptimizationPolicy(TimeSpan.FromMilliseconds(10), 3);
+        var options = new TestClientOptions(transport, policy);
+        HttpPipeline pipeline = HttpPipelineBuilder.Build(options);
+
+        ConcurrentBag<Activity> collectedActivities = new();
+        using ActivityListener listener = new()
+        {
+            ShouldListenTo = source => source.Name == MstPerformanceOptimizationPolicy.ActivitySourceName,
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
+            ActivityStopped = activity => collectedActivities.Add(activity)
+        };
+        ActivitySource.AddActivityListener(listener);
+
+        HttpMessage message = CreateHttpMessage(pipeline, RequestMethod.Get, "https://mst.example.com/entries/test-id/statement");
+
+        // Act
+        await pipeline.SendAsync(message, CancellationToken.None);
+
+        // Assert
+        Assert.That(message.Response.Status, Is.EqualTo(503));
+
+        List<Activity> activities = collectedActivities.ToList();
+        Activity? retryActivity = activities.Find(a => a.OperationName == "MstPerformanceOptimization.AcceleratedRetry"
+            && (string?)a.GetTagItem("mst.policy.result") == "exhausted");
+        Assert.That(retryActivity, Is.Not.Null);
+        Assert.That(retryActivity!.GetTagItem("mst.policy.resolved_at_attempt"), Is.EqualTo(0));
+        Assert.That(retryActivity.GetTagItem("mst.policy.final_status"), Is.EqualTo(503));
+
+        ActivityTraceId traceId = retryActivity.TraceId;
+        List<Activity> attemptActivities = activities.FindAll(a =>
+            a.OperationName == "MstPerformanceOptimization.RetryAttempt" && a.TraceId == traceId);
+        Assert.That(attemptActivities, Has.Count.EqualTo(3), "Should have 3 retry attempts (all exhausted)");
+        Assert.That(attemptActivities.TrueForAll(a => (string?)a.GetTagItem("mst.policy.result") == "still_503"), Is.True);
+    }
+
+    /// <summary>
+    /// Verifies that no activities are emitted for non-503 responses or non-/entries/ paths.
+    /// </summary>
+    [Test]
+    public async Task ActivitySource_Non503Response_NoActivitiesEmitted()
+    {
+        // Arrange
+        var transport = MockTransport.FromMessageCallback(msg => new MockResponse(200));
+
+        var policy = new MstPerformanceOptimizationPolicy(TimeSpan.FromMilliseconds(10), 3);
+        var options = new TestClientOptions(transport, policy);
+        HttpPipeline pipeline = HttpPipelineBuilder.Build(options);
+
+        ConcurrentBag<Activity> collectedActivities = new();
+        using ActivityListener listener = new()
+        {
+            ShouldListenTo = source => source.Name == MstPerformanceOptimizationPolicy.ActivitySourceName,
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
+            ActivityStopped = activity => collectedActivities.Add(activity)
+        };
+        ActivitySource.AddActivityListener(listener);
+
+        HttpMessage message = CreateHttpMessage(pipeline, RequestMethod.Get, "https://mst.example.com/entries/test-id/statement");
+
+        // Act
+        await pipeline.SendAsync(message, CancellationToken.None);
+
+        // Assert
+        Assert.That(message.Response.Status, Is.EqualTo(200));
+        Assert.That(collectedActivities, Is.Empty, "No activities should be emitted for 200 responses");
+    }
+
+    /// <summary>
+    /// Verifies that operations responses (LRO polling) do not emit retry activities.
+    /// </summary>
+    [Test]
+    public async Task ActivitySource_OperationsPath_NoRetryActivitiesEmitted()
+    {
+        // Arrange
+        var transport = MockTransport.FromMessageCallback(msg =>
+        {
+            var response = new MockResponse(202);
+            response.AddHeader("Retry-After", "1");
+            return response;
+        });
+
+        var policy = new MstPerformanceOptimizationPolicy(TimeSpan.FromMilliseconds(10), 3);
+        var options = new TestClientOptions(transport, policy);
+        HttpPipeline pipeline = HttpPipelineBuilder.Build(options);
+
+        ConcurrentBag<Activity> collectedActivities = new();
+        using ActivityListener listener = new()
+        {
+            ShouldListenTo = source => source.Name == MstPerformanceOptimizationPolicy.ActivitySourceName,
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
+            ActivityStopped = activity => collectedActivities.Add(activity)
+        };
+        ActivitySource.AddActivityListener(listener);
+
+        HttpMessage message = CreateHttpMessage(pipeline, RequestMethod.Get, "https://mst.example.com/operations/op-123");
+
+        // Act
+        await pipeline.SendAsync(message, CancellationToken.None);
+
+        // Assert
+        Assert.That(collectedActivities, Is.Empty, "No retry activities for /operations/ paths");
+    }
+
+    /// <summary>
+    /// Verifies the <see cref="MstPerformanceOptimizationPolicy.ActivitySourceName"/> constant
+    /// matches the actual ActivitySource name used.
+    /// </summary>
+    [Test]
+    public void ActivitySourceName_IsCorrectValue()
+    {
+        Assert.That(MstPerformanceOptimizationPolicy.ActivitySourceName,
+            Is.EqualTo("CoseSign1.Transparent.MST.PerformanceOptimizationPolicy"));
     }
 
     #endregion

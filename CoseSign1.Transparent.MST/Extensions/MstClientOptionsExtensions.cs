@@ -65,7 +65,7 @@ public static class MstClientOptionsExtensions
             retryDelay ?? MstPerformanceOptimizationPolicy.DefaultRetryDelay,
             maxRetries ?? MstPerformanceOptimizationPolicy.DefaultMaxRetries);
 
-        options.AddPolicy(policy, HttpPipelinePosition.BeforeTransport);
+        options.AddPolicy(policy, HttpPipelinePosition.PerRetry);
         return options;
     }
 }

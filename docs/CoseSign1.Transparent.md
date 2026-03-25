@@ -335,13 +335,13 @@ using Azure.Core.Pipeline;
 var options = new CodeTransparencyClientOptions();
 options.AddPolicy(
     new MstPerformanceOptimizationPolicy(TimeSpan.FromMilliseconds(200), 10),
-    HttpPipelinePosition.BeforeTransport);
+    HttpPipelinePosition.PerRetry);
 ```
 
-> **Important:** Use `HttpPipelinePosition.BeforeTransport` (not `PerRetry`). This places the
-> policy directly adjacent to the transport layer, inside the SDK's retry loop, ensuring it
-> intercepts 503 responses before any library-added per-retry policies can interfere. The
-> extension method `ConfigureMstPerformanceOptimizations` handles this automatically.
+> **Important:** Use `HttpPipelinePosition.PerRetry` so the policy runs inside the SDK's retry
+> loop and above the tracing layer (`RequestActivityPolicy`). This ensures fast retries are
+> visible in distributed traces (e.g., OpenTelemetry / Aspire). The extension method
+> `ConfigureMstPerformanceOptimizations` handles this automatically.
 
 > This policy does **not** affect the SDK's global `RetryOptions`. The fast retry loop runs
 > entirely within the policy and targets HTTP 503 responses on `/entries/` endpoints. Additionally,

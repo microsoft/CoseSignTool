@@ -526,44 +526,6 @@ public class MstPerformanceOptimizationPolicyTests
     }
 
     /// <summary>
-    /// Tests the policy at BeforeTransport position as an alternative to PerRetry.
-    /// BeforeTransport places the policy closest to the transport, inside the retry loop.
-    /// </summary>
-    [Test]
-    public async Task PolicyAtBeforeTransport_FastRetryResolvesBeforeSdkRetryAfterDelay()
-    {
-        // Arrange
-        int callCount = 0;
-        var transport = MockTransport.FromMessageCallback(msg =>
-        {
-            callCount++;
-            if (callCount == 1)
-            {
-                return CreateTransactionNotCachedResponse();
-            }
-            return new MockResponse(200);
-        });
-
-        var policy = new MstPerformanceOptimizationPolicy(TimeSpan.FromMilliseconds(10), 5);
-        var options = new SdkRetryTestClientOptions(transport, policy, HttpPipelinePosition.BeforeTransport);
-        var pipeline = HttpPipelineBuilder.Build(options);
-        var message = CreateHttpMessage(pipeline, RequestMethod.Get, "https://mst.example.com/entries/1.234");
-
-        var sw = Stopwatch.StartNew();
-
-        // Act
-        await pipeline.SendAsync(message, CancellationToken.None);
-
-        sw.Stop();
-
-        // Assert
-        Assert.That(message.Response.Status, Is.EqualTo(200), "Fast retry should succeed");
-        Assert.That(callCount, Is.EqualTo(2), "Should be 2 transport calls (initial 503 + 1 fast retry 200)");
-        Assert.That(sw.ElapsedMilliseconds, Is.LessThan(500),
-            $"Fast retry at BeforeTransport should resolve in <500ms, but took {sw.ElapsedMilliseconds}ms.");
-    }
-
-    /// <summary>
     /// With a 100 ms retry delay the fast retry should still resolve well under 500 ms,
     /// demonstrating that tighter intervals pull latency down further.
     /// </summary>
@@ -583,7 +545,7 @@ public class MstPerformanceOptimizationPolicyTests
         });
 
         var policy = new MstPerformanceOptimizationPolicy(TimeSpan.FromMilliseconds(100), 5);
-        var options = new SdkRetryTestClientOptions(transport, policy, HttpPipelinePosition.BeforeTransport);
+        var options = new SdkRetryTestClientOptions(transport, policy, HttpPipelinePosition.PerRetry);
         var pipeline = HttpPipelineBuilder.Build(options);
         var message = CreateHttpMessage(pipeline, RequestMethod.Get, "https://mst.example.com/entries/1.234");
 
@@ -624,7 +586,7 @@ public class MstPerformanceOptimizationPolicyTests
             Transport = transport,
             Retry = { MaxRetries = 0 } // Disable SDK retries to observe policy behavior
         };
-        options.AddPolicy(policy, HttpPipelinePosition.BeforeTransport);
+        options.AddPolicy(policy, HttpPipelinePosition.PerRetry);
         var pipeline = HttpPipelineBuilder.Build(options);
         var message = CreateHttpMessage(pipeline, RequestMethod.Get, "https://mst.example.com/entries/1.234");
 
@@ -663,7 +625,7 @@ public class MstPerformanceOptimizationPolicyTests
             Transport = transport,
             Retry = { MaxRetries = 0 }
         };
-        options.AddPolicy(policy, HttpPipelinePosition.BeforeTransport);
+        options.AddPolicy(policy, HttpPipelinePosition.PerRetry);
         var pipeline = HttpPipelineBuilder.Build(options);
         var message = CreateHttpMessage(pipeline, RequestMethod.Get, "https://mst.example.com/entries/1.234");
 
@@ -698,7 +660,7 @@ public class MstPerformanceOptimizationPolicyTests
             Transport = transport,
             Retry = { MaxRetries = 0 }
         };
-        options.AddPolicy(policy, HttpPipelinePosition.BeforeTransport);
+        options.AddPolicy(policy, HttpPipelinePosition.PerRetry);
         var pipeline = HttpPipelineBuilder.Build(options);
         var message = CreateHttpMessage(pipeline, RequestMethod.Get, "https://mst.example.com/entries/1.234");
 
@@ -806,7 +768,7 @@ public class MstPerformanceOptimizationPolicyTests
     #region Test Helpers
 
     /// <summary>
-    /// Builds a pipeline with the policy under test inserted before the transport.
+    /// Builds a pipeline with the policy under test at PerRetry position.
     /// The pipeline has no SDK retry policy — just the custom policy + transport.
     /// </summary>
     private static HttpPipeline CreatePipeline(MockTransport transport, MstPerformanceOptimizationPolicy policy)
@@ -877,7 +839,7 @@ public class MstPerformanceOptimizationPolicyTests
         {
             Transport = transport;
             Retry.MaxRetries = 0; // Disable SDK retries to test policy in isolation
-            AddPolicy(policy, HttpPipelinePosition.BeforeTransport);
+            AddPolicy(policy, HttpPipelinePosition.PerRetry);
         }
     }
 

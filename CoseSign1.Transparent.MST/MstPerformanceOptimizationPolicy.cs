@@ -48,16 +48,16 @@ using Azure.Core.Pipeline;
 ///
 /// <para>
 /// <b>Pipeline position:</b> Register this policy in the
-/// <see cref="HttpPipelinePosition.BeforeTransport"/> position so it runs inside the SDK's
-/// retry loop, directly adjacent to the transport layer. This ensures the policy
-/// intercepts responses before any library-added per-retry policies can process them.
+/// <see cref="HttpPipelinePosition.PerRetry"/> position so it runs inside the SDK's
+/// retry loop and above the tracing layer (<c>RequestActivityPolicy</c>). This ensures
+/// fast retries are visible in distributed traces (e.g., OpenTelemetry / Aspire).
 /// </para>
 ///
 /// <para>
 /// <b>Usage:</b>
 /// <code>
 /// var options = new CodeTransparencyClientOptions();
-/// options.AddPolicy(new MstPerformanceOptimizationPolicy(), HttpPipelinePosition.BeforeTransport);
+/// options.AddPolicy(new MstPerformanceOptimizationPolicy(), HttpPipelinePosition.PerRetry);
 /// var client = new CodeTransparencyClient(endpoint, credential, options);
 /// </code>
 /// Or use the convenience extension:

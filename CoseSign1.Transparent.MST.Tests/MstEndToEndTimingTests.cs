@@ -1482,7 +1482,7 @@ public class MstEndToEndTimingTests
             Transport = transport,
             Retry = { MaxRetries = 5, Delay = TimeSpan.FromMilliseconds(1) }
         };
-        options.AddPolicy(policy, HttpPipelinePosition.BeforeTransport);
+        options.AddPolicy(policy, HttpPipelinePosition.PerRetry);
         var pipeline = HttpPipelineBuilder.Build(options);
         var message = CreateGetEntryMessage(pipeline, "https://mst.example.com/entries/1.234");
 
@@ -1540,7 +1540,7 @@ public class MstEndToEndTimingTests
             Transport = transport,
             Retry = { MaxRetries = 0 } // Disable retries, we're testing LRO polling
         };
-        options.AddPolicy(policy, HttpPipelinePosition.BeforeTransport);
+        options.AddPolicy(policy, HttpPipelinePosition.PerRetry);
         var pipeline = HttpPipelineBuilder.Build(options);
 
         // Act - simulate a single LRO poll request
@@ -1635,7 +1635,7 @@ public class MstEndToEndTimingTests
             var policy = new MstPerformanceOptimizationPolicy(TimeSpan.FromMilliseconds(50), 8);
             var options = new CodeTransparencyClientOptions { Transport = transport };
             options.Retry.MaxRetries = 5;
-            options.AddPolicy(policy, HttpPipelinePosition.BeforeTransport);
+            options.AddPolicy(policy, HttpPipelinePosition.PerRetry);
             var pipeline = HttpPipelineBuilder.Build(options);
 
             var sw = Stopwatch.StartNew();
@@ -1703,7 +1703,7 @@ public class MstEndToEndTimingTests
             Transport = transport,
             Retry = { MaxRetries = 0 } // Disable SDK retries so we can observe policy behavior
         };
-        options.AddPolicy(policy, HttpPipelinePosition.BeforeTransport);
+        options.AddPolicy(policy, HttpPipelinePosition.PerRetry);
         var pipeline = HttpPipelineBuilder.Build(options);
 
         var sw = Stopwatch.StartNew();
@@ -1763,7 +1763,7 @@ public class MstEndToEndTimingTests
             Transport = transport,
             Retry = { MaxRetries = 0 }
         };
-        options.AddPolicy(policy, HttpPipelinePosition.BeforeTransport);
+        options.AddPolicy(policy, HttpPipelinePosition.PerRetry);
         var pipeline = HttpPipelineBuilder.Build(options);
 
         // Act
@@ -1864,7 +1864,7 @@ public class MstEndToEndTimingTests
                 Transport = transport,
                 Retry = { MaxRetries = 5, Delay = TimeSpan.FromMilliseconds(100) }
             };
-            options.AddPolicy(policy, HttpPipelinePosition.BeforeTransport);
+            options.AddPolicy(policy, HttpPipelinePosition.PerRetry);
             var pipeline = HttpPipelineBuilder.Build(options);
 
             var sw = Stopwatch.StartNew();
@@ -1925,7 +1925,7 @@ public class MstEndToEndTimingTests
             Transport = transport,
             Retry = { MaxRetries = 0 }
         };
-        options.AddPolicy(policy, HttpPipelinePosition.BeforeTransport);
+        options.AddPolicy(policy, HttpPipelinePosition.PerRetry);
         var pipeline = HttpPipelineBuilder.Build(options);
 
         // Act - call a different endpoint (not /entries/ or /operations/)

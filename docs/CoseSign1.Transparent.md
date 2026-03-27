@@ -83,6 +83,7 @@ public class TransparencyExample
 
 #### <u>Example: Creating a Transparent Message with Polling Options</u>
 ```csharp
+using Azure.Core;
 using Azure.Security.CodeTransparency;
 using CoseSign1.Transparent;
 using CoseSign1.Transparent.Extensions;
@@ -90,13 +91,21 @@ using CoseSign1.Transparent.MST;
 
 public class TransparencyWithPollingExample
 {
-    public async Task CreateTransparentMessageWithPolling(CodeTransparencyClient client)
+    public async Task CreateTransparentMessageWithPolling(Uri endpoint, AzureKeyCredential credential)
     {
         CoseSign1Message message = new CoseSign1Message { Content = new byte[] { 1, 2, 3 } };
 
+        // Configure client options with pipeline policy for fast /entries/ retries
+        var clientOptions = new CodeTransparencyClientOptions();
+        clientOptions.ConfigureMstPerformanceOptimizations();
+
+        // Create client WITH configured options (pipeline is frozen at construction)
+        var client = new CodeTransparencyClient(endpoint, credential, clientOptions);
+
+        // Use DelayStrategy (not PollingInterval) for sub-second LRO polling
         var pollingOptions = new MstPollingOptions
         {
-            PollingInterval = TimeSpan.FromMilliseconds(250)
+            DelayStrategy = DelayStrategy.CreateFixedDelayStrategy(TimeSpan.FromMilliseconds(100))
         };
 
         // Extension method with polling options — no extra 'using' needed
@@ -302,23 +311,72 @@ catch (InvalidOperationException ex)
 }
 ```
 
-### MST Performance Optimization Policy
+### MST Performance Optimization
 
-The MST service returns HTTP 503 with `Retry-After: 1` when a newly registered entry hasn't
-propagated yet. The entry typically becomes available in well under 1 second, but the Azure
-SDK's default retry respects the server's 1-second `Retry-After` header. Additionally, LRO
-polling responses include `Retry-After` headers that override client-configured polling intervals.
+The Azure Code Transparency Service has two default behaviors that introduce unnecessary
+1-second delays. Without optimization, each signing operation can take **2–3 seconds longer**
+than necessary:
 
-The `MstPerformanceOptimizationPolicy` addresses these issues by:
-1. Performing fast retries for 503 responses on `/entries/` endpoints (250 ms intervals, up to 8 retries)
-2. Stripping all retry-related headers (`Retry-After`, `retry-after-ms`, `x-ms-retry-after-ms`) from `/entries/` and `/operations/` responses so the SDK uses client-configured timing
+| Delay Source | Default Behavior | Impact |
+|---|---|---|
+| **LRO polling** | Azure SDK's `Operation<T>.WaitForCompletionAsync` uses an internal `FixedDelayWithNoJitterStrategy` that clamps any interval to `Max(suggestedDelay, 1 second)`, and the server returns `Retry-After: 1` headers that override client-configured intervals. | ~1 second per poll instead of ~100 ms |
+| **Entry retrieval** | `GetEntryStatementAsync` returns HTTP 503 with `Retry-After: 1` when the entry hasn't propagated yet (typically available in < 100 ms). The SDK's default `RetryPolicy` respects this header and waits 1 second before retrying. | ~1 second delay on entry fetch |
 
-#### <u>Enabling the Policy via Extension Method</u>
+#### <u>⚡ Best Practice: Configure Both Optimizations Together</u>
+
+To achieve optimal performance, you **must** configure both:
+1. A custom `DelayStrategy` on `MstPollingOptions` to bypass the SDK's 1-second LRO polling floor
+2. The `MstPerformanceOptimizationPolicy` on `CodeTransparencyClientOptions` to fast-retry 503 responses
+
+> **Critical:** The `CodeTransparencyClientOptions` with the policy must be passed to the
+> `CodeTransparencyClient` constructor — that is when the HTTP pipeline is built. Adding the
+> policy to options *after* the client is constructed has no effect on that client's pipeline.
+
 ```csharp
-var options = new CodeTransparencyClientOptions();
-options.ConfigureMstPerformanceOptimizations();  // 250ms × 8 retries (default)
-var client = new CodeTransparencyClient(endpoint, credential, options);
+using Azure.Core;
+using Azure.Security.CodeTransparency;
+using CoseSign1.Transparent.MST;
+
+// 1. Configure client options with the performance optimization pipeline policy
+var clientOptions = new CodeTransparencyClientOptions();
+clientOptions.ConfigureMstPerformanceOptimizations();  // fast-retries 503s on /entries/
+
+// 2. Create the client WITH the configured options (pipeline is built here)
+var client = new CodeTransparencyClient(endpoint, credential, clientOptions);
+
+// 3. Configure polling options with a custom DelayStrategy for fast LRO polling
+var pollingOptions = new MstPollingOptions
+{
+    DelayStrategy = DelayStrategy.CreateFixedDelayStrategy(TimeSpan.FromMilliseconds(100))
+};
+
+// 4. Create the transparency service with both the client and options
+var service = new MstTransparencyService(
+    client,
+    verificationOptions,
+    clientOptions,      // used by VerifyTransparentStatement (static method creates new clients)
+    pollingOptions);
+
+// Now both MakeTransparentAsync and VerifyTransparencyAsync are optimized
+CoseSign1Message result = await service.MakeTransparentAsync(message);
 ```
+
+> **Without these optimizations:** A typical signing + entry retrieval takes ~3.5 seconds.
+> **With both optimizations:** The same operation completes in ~1.0–1.5 seconds.
+
+#### <u>What Each Optimization Does</u>
+
+**`MstPollingOptions.DelayStrategy`** — Controls LRO polling interval:
+- The Azure SDK's internal delay strategy enforces a 1-second floor on polling intervals
+- Using `DelayStrategy.CreateFixedDelayStrategy(TimeSpan.FromMilliseconds(100))` bypasses this
+  by passing the strategy directly to `Operation<T>.WaitForCompletionAsync(DelayStrategy, ...)`
+- This takes precedence over `PollingInterval` if both are set
+
+**`ConfigureMstPerformanceOptimizations()`** — Adds a pipeline policy that:
+- Intercepts HTTP 503 responses on `/entries/` endpoints and retries at 250 ms intervals
+  (up to 8 retries ≈ 2 seconds) before the SDK's `RetryPolicy` sees the error
+- Strips `Retry-After`, `retry-after-ms`, and `x-ms-retry-after-ms` headers from both
+  `/entries/` and `/operations/` responses to prevent the SDK from overriding client timing
 
 #### <u>Custom Retry Settings</u>
 ```csharp
@@ -343,18 +401,41 @@ options.AddPolicy(
 > visible in distributed traces (e.g., OpenTelemetry / Aspire). The extension method
 > `ConfigureMstPerformanceOptimizations` handles this automatically.
 
-> This policy does **not** affect the SDK's global `RetryOptions`. The fast retry loop runs
-> entirely within the policy and targets HTTP 503 responses on `/entries/` endpoints. Additionally,
-> it strips all retry-related headers (`Retry-After`, `retry-after-ms`, `x-ms-retry-after-ms`)
-> from `/entries/` and `/operations/` responses to enable client-controlled timing instead of
-> server-dictated delays.
+#### <u>Diagnostic Tracing</u>
+
+The policy emits `System.Diagnostics.Activity` spans via an `ActivitySource` named
+`CoseSign1.Transparent.MST.PerformanceOptimizationPolicy`. When an OpenTelemetry collector
+or Aspire dashboard is configured, you will see:
+
+- **`MstPerformanceOptimization.Evaluate`** — emitted for every request through the policy,
+  with tags showing the URL, method, status code, and action taken
+- **`MstPerformanceOptimization.AcceleratedRetry`** — emitted when a 503 triggers the fast
+  retry loop, with tags for attempt count, delay, and final status
+- **`MstPerformanceOptimization.RetryAttempt`** — emitted per retry attempt within the loop
 
 ### Polling Options
 
 The `MstPollingOptions` class controls how `MstTransparencyService` polls for completed
 receipt registrations after `CreateEntryAsync`.
 
-#### <u>Fixed Interval Polling</u>
+> **Important:** Use `DelayStrategy` (not `PollingInterval`) for sub-second polling.
+> The Azure SDK's internal `FixedDelayWithNoJitterStrategy` clamps any interval to
+> `Max(suggestedDelay, 1 second)`, making `PollingInterval` values below 1 second ineffective.
+> `DelayStrategy` bypasses this by passing directly to
+> `Operation<T>.WaitForCompletionAsync(DelayStrategy, CancellationToken)`.
+
+#### <u>Recommended: Fixed Delay Strategy (sub-second polling)</u>
+```csharp
+using Azure.Core;
+
+var pollingOptions = new MstPollingOptions
+{
+    DelayStrategy = DelayStrategy.CreateFixedDelayStrategy(TimeSpan.FromMilliseconds(100))
+};
+var service = new MstTransparencyService(client, pollingOptions);
+```
+
+#### <u>Fixed Interval Polling (1 second minimum)</u>
 ```csharp
 var pollingOptions = new MstPollingOptions
 {

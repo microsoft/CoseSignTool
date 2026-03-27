@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Azure;
@@ -273,15 +274,7 @@ public class MstPerformanceOptimizationPolicy : HttpPipelinePolicy
         }
 
         // Check if any retry-related header is present
-        bool hasRetryHeader = false;
-        foreach (string header in RetryAfterHeaders)
-        {
-            if (response.Headers.Contains(header))
-            {
-                hasRetryHeader = true;
-                break;
-            }
-        }
+        bool hasRetryHeader = RetryAfterHeaders.Any(header => response.Headers.Contains(header));
 
         if (!hasRetryHeader)
         {
@@ -420,12 +413,6 @@ internal sealed class HeaderFilteringResponse : Response
     /// <inheritdoc/>
     protected override IEnumerable<HttpHeader> EnumerateHeaders()
     {
-        foreach (HttpHeader header in _inner.Headers)
-        {
-            if (!_excludedHeaders.Contains(header.Name))
-            {
-                yield return header;
-            }
-        }
+        return _inner.Headers.Where(header => !_excludedHeaders.Contains(header.Name));
     }
 }

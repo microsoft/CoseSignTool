@@ -940,6 +940,51 @@ public class MstPerformanceOptimizationPolicyTests
 
     #region ActivitySource Tracing Tests
 
+    private static readonly ActivitySource TestActivitySource = new("MstPerformanceOptimizationPolicyTests");
+
+    // Ensure TestActivitySource activities are always sampled
+    private static readonly ActivityListener TestParentListener = CreateTestParentListener();
+    private static ActivityListener CreateTestParentListener()
+    {
+        ActivityListener listener = new()
+        {
+            ShouldListenTo = source => source.Name == "MstPerformanceOptimizationPolicyTests",
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded
+        };
+        ActivitySource.AddActivityListener(listener);
+        return listener;
+    }
+
+    [OneTimeTearDown]
+    public void CleanupActivitySourceResources()
+    {
+        TestParentListener.Dispose();
+        TestActivitySource.Dispose();
+    }
+
+    private static (ActivityListener Listener, ConcurrentBag<Activity> Activities) CreateScopedActivityCollector(Activity parentActivity)
+    {
+        ActivityTraceId traceId = parentActivity.TraceId;
+        ConcurrentBag<Activity> collected = new();
+        ActivityListener listener = new()
+        {
+            ShouldListenTo = source => source.Name == MstPerformanceOptimizationPolicy.ActivitySourceName,
+            Sample = (ref ActivityCreationOptions<ActivityContext> options) =>
+                options.Parent.TraceId == traceId
+                    ? ActivitySamplingResult.AllDataAndRecorded
+                    : ActivitySamplingResult.None,
+            ActivityStopped = activity =>
+            {
+                if (activity.TraceId == traceId)
+                {
+                    collected.Add(activity);
+                }
+            }
+        };
+        ActivitySource.AddActivityListener(listener);
+        return (listener, collected);
+    }
+
     /// <summary>
     /// Verifies that the policy emits an AcceleratedRetry activity with child RetryAttempt
     /// activities when it intercepts a 503 on /entries/ and resolves on the 2nd attempt.
@@ -948,6 +993,9 @@ public class MstPerformanceOptimizationPolicyTests
     public async Task ActivitySource_503Resolved_EmitsRetryActivityWithAttempts()
     {
         // Arrange
+        using Activity parentActivity = TestActivitySource.StartActivity("Test.503Resolved")!;
+        (ActivityListener scopedListener, ConcurrentBag<Activity> collectedActivities) = CreateScopedActivityCollector(parentActivity);
+
         int callCount = 0;
         var transport = MockTransport.FromMessageCallback(msg =>
         {
@@ -965,15 +1013,6 @@ public class MstPerformanceOptimizationPolicyTests
         var options = new TestClientOptions(transport, policy);
         HttpPipeline pipeline = HttpPipelineBuilder.Build(options);
 
-        ConcurrentBag<Activity> collectedActivities = new();
-        using ActivityListener listener = new()
-        {
-            ShouldListenTo = source => source.Name == MstPerformanceOptimizationPolicy.ActivitySourceName,
-            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
-            ActivityStopped = activity => collectedActivities.Add(activity)
-        };
-        ActivitySource.AddActivityListener(listener);
-
         HttpMessage message = CreateHttpMessage(pipeline, RequestMethod.Get, "https://mst.example.com/entries/test-id/statement");
 
         // Act
@@ -984,24 +1023,23 @@ public class MstPerformanceOptimizationPolicyTests
         Assert.That(callCount, Is.EqualTo(2));
 
         List<Activity> activities = collectedActivities.ToList();
-        Activity? retryActivity = activities.Find(a => a.OperationName == "MstPerformanceOptimization.AcceleratedRetry"
-            && (int?)a.GetTagItem("mst.policy.final_status") == 200
-            && (int?)a.GetTagItem("mst.policy.max_retries") == 5
-            && (int?)a.GetTagItem("mst.policy.resolved_at_attempt") == 1);
+        Activity? retryActivity = activities.Find(a => a.OperationName == "MstPerformanceOptimization.AcceleratedRetry");
         Assert.That(retryActivity, Is.Not.Null, "Should emit an AcceleratedRetry activity");
         Assert.That(retryActivity!.GetTagItem("mst.policy.initial_status"), Is.EqualTo(503));
         Assert.That(retryActivity.GetTagItem("mst.policy.resolved_at_attempt"), Is.EqualTo(1));
         Assert.That(retryActivity.GetTagItem("mst.policy.max_retries"), Is.EqualTo(5));
         Assert.That(retryActivity.GetTagItem("mst.policy.retry_delay_ms"), Is.EqualTo(10.0));
         Assert.That(retryActivity.GetTagItem("http.url"), Does.Contain("/entries/"));
+        Assert.That(retryActivity.GetTagItem("mst.policy.final_status"), Is.EqualTo(200));
 
-        ActivityTraceId traceId = retryActivity.TraceId;
         List<Activity> attemptActivities = activities.FindAll(a =>
-            a.OperationName == "MstPerformanceOptimization.RetryAttempt" && a.TraceId == traceId);
+            a.OperationName == "MstPerformanceOptimization.RetryAttempt");
         Assert.That(attemptActivities, Has.Count.EqualTo(1), "Should have 1 retry attempt (resolved on first retry)");
         Assert.That(attemptActivities[0].GetTagItem("mst.policy.attempt"), Is.EqualTo(1));
         Assert.That(attemptActivities[0].GetTagItem("http.status_code"), Is.EqualTo(200));
         Assert.That(attemptActivities[0].GetTagItem("mst.policy.result"), Is.EqualTo("resolved"));
+
+        scopedListener.Dispose();
     }
 
     /// <summary>
@@ -1011,6 +1049,9 @@ public class MstPerformanceOptimizationPolicyTests
     public async Task ActivitySource_MultipleRetries_EmitsActivityPerAttempt()
     {
         // Arrange
+        using Activity parentActivity = TestActivitySource.StartActivity("Test.MultipleRetries")!;
+        (ActivityListener scopedListener, ConcurrentBag<Activity> collectedActivities) = CreateScopedActivityCollector(parentActivity);
+
         int callCount = 0;
         var transport = MockTransport.FromMessageCallback(msg =>
         {
@@ -1028,15 +1069,6 @@ public class MstPerformanceOptimizationPolicyTests
         var options = new TestClientOptions(transport, policy);
         HttpPipeline pipeline = HttpPipelineBuilder.Build(options);
 
-        ConcurrentBag<Activity> collectedActivities = new();
-        using ActivityListener listener = new()
-        {
-            ShouldListenTo = source => source.Name == MstPerformanceOptimizationPolicy.ActivitySourceName,
-            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
-            ActivityStopped = activity => collectedActivities.Add(activity)
-        };
-        ActivitySource.AddActivityListener(listener);
-
         HttpMessage message = CreateHttpMessage(pipeline, RequestMethod.Get, "https://mst.example.com/entries/test-id/statement");
 
         // Act
@@ -1047,14 +1079,11 @@ public class MstPerformanceOptimizationPolicyTests
         Assert.That(callCount, Is.EqualTo(4));
 
         List<Activity> activities = collectedActivities.ToList();
-        Activity? retryActivity = activities.Find(a => a.OperationName == "MstPerformanceOptimization.AcceleratedRetry"
-            && (int?)a.GetTagItem("mst.policy.final_status") == 200
-            && (int?)a.GetTagItem("mst.policy.resolved_at_attempt") == 3);
+        Activity? retryActivity = activities.Find(a => a.OperationName == "MstPerformanceOptimization.AcceleratedRetry");
         Assert.That(retryActivity, Is.Not.Null);
 
-        ActivityTraceId traceId = retryActivity!.TraceId;
         List<Activity> attemptActivities = activities
-            .FindAll(a => a.OperationName == "MstPerformanceOptimization.RetryAttempt" && a.TraceId == traceId)
+            .FindAll(a => a.OperationName == "MstPerformanceOptimization.RetryAttempt")
             .OrderBy(a => (int?)a.GetTagItem("mst.policy.attempt") ?? 0)
             .ToList();
         Assert.That(attemptActivities, Has.Count.EqualTo(3), "Should have 3 retry attempts");
@@ -1069,6 +1098,8 @@ public class MstPerformanceOptimizationPolicyTests
         Assert.That(attemptActivities[2].GetTagItem("mst.policy.attempt"), Is.EqualTo(3));
         Assert.That(attemptActivities[2].GetTagItem("mst.policy.result"), Is.EqualTo("resolved"));
         Assert.That(attemptActivities[2].GetTagItem("http.status_code"), Is.EqualTo(200));
+
+        scopedListener.Dispose();
     }
 
     /// <summary>
@@ -1078,6 +1109,9 @@ public class MstPerformanceOptimizationPolicyTests
     public async Task ActivitySource_RetriesExhausted_EmitsExhaustedActivity()
     {
         // Arrange
+        using Activity parentActivity = TestActivitySource.StartActivity("Test.RetriesExhausted")!;
+        (ActivityListener scopedListener, ConcurrentBag<Activity> collectedActivities) = CreateScopedActivityCollector(parentActivity);
+
         var transport = MockTransport.FromMessageCallback(msg =>
         {
             var response = new MockResponse(503);
@@ -1089,15 +1123,6 @@ public class MstPerformanceOptimizationPolicyTests
         var options = new TestClientOptions(transport, policy);
         HttpPipeline pipeline = HttpPipelineBuilder.Build(options);
 
-        ConcurrentBag<Activity> collectedActivities = new();
-        using ActivityListener listener = new()
-        {
-            ShouldListenTo = source => source.Name == MstPerformanceOptimizationPolicy.ActivitySourceName,
-            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
-            ActivityStopped = activity => collectedActivities.Add(activity)
-        };
-        ActivitySource.AddActivityListener(listener);
-
         HttpMessage message = CreateHttpMessage(pipeline, RequestMethod.Get, "https://mst.example.com/entries/test-id/statement");
 
         // Act
@@ -1107,17 +1132,18 @@ public class MstPerformanceOptimizationPolicyTests
         Assert.That(message.Response.Status, Is.EqualTo(503));
 
         List<Activity> activities = collectedActivities.ToList();
-        Activity? retryActivity = activities.Find(a => a.OperationName == "MstPerformanceOptimization.AcceleratedRetry"
-            && (string?)a.GetTagItem("mst.policy.result") == "exhausted");
+        Activity? retryActivity = activities.Find(a => a.OperationName == "MstPerformanceOptimization.AcceleratedRetry");
         Assert.That(retryActivity, Is.Not.Null);
-        Assert.That(retryActivity!.GetTagItem("mst.policy.resolved_at_attempt"), Is.EqualTo(0));
+        Assert.That(retryActivity!.GetTagItem("mst.policy.result"), Is.EqualTo("exhausted"));
+        Assert.That(retryActivity.GetTagItem("mst.policy.resolved_at_attempt"), Is.EqualTo(0));
         Assert.That(retryActivity.GetTagItem("mst.policy.final_status"), Is.EqualTo(503));
 
-        ActivityTraceId traceId = retryActivity.TraceId;
         List<Activity> attemptActivities = activities.FindAll(a =>
-            a.OperationName == "MstPerformanceOptimization.RetryAttempt" && a.TraceId == traceId);
+            a.OperationName == "MstPerformanceOptimization.RetryAttempt");
         Assert.That(attemptActivities, Has.Count.EqualTo(3), "Should have 3 retry attempts (all exhausted)");
         Assert.That(attemptActivities.TrueForAll(a => (string?)a.GetTagItem("mst.policy.result") == "still_503"), Is.True);
+
+        scopedListener.Dispose();
     }
 
     /// <summary>
@@ -1127,20 +1153,14 @@ public class MstPerformanceOptimizationPolicyTests
     public async Task ActivitySource_Non503Response_NoActivitiesEmitted()
     {
         // Arrange
+        using Activity parentActivity = TestActivitySource.StartActivity("Test.Non503Response")!;
+        (ActivityListener scopedListener, ConcurrentBag<Activity> collectedActivities) = CreateScopedActivityCollector(parentActivity);
+
         var transport = MockTransport.FromMessageCallback(msg => new MockResponse(200));
 
         var policy = new MstPerformanceOptimizationPolicy(TimeSpan.FromMilliseconds(10), 3);
         var options = new TestClientOptions(transport, policy);
         HttpPipeline pipeline = HttpPipelineBuilder.Build(options);
-
-        ConcurrentBag<Activity> collectedActivities = new();
-        using ActivityListener listener = new()
-        {
-            ShouldListenTo = source => source.Name == MstPerformanceOptimizationPolicy.ActivitySourceName,
-            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
-            ActivityStopped = activity => collectedActivities.Add(activity)
-        };
-        ActivitySource.AddActivityListener(listener);
 
         HttpMessage message = CreateHttpMessage(pipeline, RequestMethod.Get, "https://mst.example.com/entries/test-id/statement");
 
@@ -1151,15 +1171,16 @@ public class MstPerformanceOptimizationPolicyTests
         Assert.That(message.Response.Status, Is.EqualTo(200));
         List<Activity> activities = collectedActivities.ToList();
         Activity? evalActivity = activities.Find(a =>
-            a.OperationName == "MstPerformanceOptimization.Evaluate"
-            && (string?)a.GetTagItem("mst.policy.action") == "passthrough"
-            && (int?)a.GetTagItem("http.response.status_code") == 200);
+            a.OperationName == "MstPerformanceOptimization.Evaluate");
         Assert.That(evalActivity, Is.Not.Null, "Should emit an Evaluate activity");
+        Assert.That(evalActivity!.GetTagItem("mst.policy.action"), Is.EqualTo("passthrough"));
+        Assert.That(evalActivity.GetTagItem("http.response.status_code"), Is.EqualTo(200));
 
         List<Activity> retryActivities = activities
-            .FindAll(a => a.OperationName == "MstPerformanceOptimization.AcceleratedRetry"
-                && a.TraceId == evalActivity!.TraceId);
+            .FindAll(a => a.OperationName == "MstPerformanceOptimization.AcceleratedRetry");
         Assert.That(retryActivities, Is.Empty, "No retry activities should be emitted for 200 responses");
+
+        scopedListener.Dispose();
     }
 
     /// <summary>
@@ -1169,6 +1190,9 @@ public class MstPerformanceOptimizationPolicyTests
     public async Task ActivitySource_OperationsPath_NoRetryActivitiesEmitted()
     {
         // Arrange
+        using Activity parentActivity = TestActivitySource.StartActivity("Test.OperationsPath")!;
+        (ActivityListener scopedListener, ConcurrentBag<Activity> collectedActivities) = CreateScopedActivityCollector(parentActivity);
+
         var transport = MockTransport.FromMessageCallback(msg =>
         {
             var response = new MockResponse(202);
@@ -1180,33 +1204,24 @@ public class MstPerformanceOptimizationPolicyTests
         var options = new TestClientOptions(transport, policy);
         HttpPipeline pipeline = HttpPipelineBuilder.Build(options);
 
-        ConcurrentBag<Activity> collectedActivities = new();
-        using ActivityListener listener = new()
-        {
-            ShouldListenTo = source => source.Name == MstPerformanceOptimizationPolicy.ActivitySourceName,
-            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
-            ActivityStopped = activity => collectedActivities.Add(activity)
-        };
-        ActivitySource.AddActivityListener(listener);
-
         HttpMessage message = CreateHttpMessage(pipeline, RequestMethod.Get, "https://mst.example.com/operations/op-123");
 
         // Act
         await pipeline.SendAsync(message, CancellationToken.None);
 
-        // Assert - find the Evaluate activity for THIS test's /operations/ path
+        // Assert
         List<Activity> activities = collectedActivities.ToList();
         Activity? evalActivity = activities.Find(a =>
-            a.OperationName == "MstPerformanceOptimization.Evaluate"
-            && (bool?)a.GetTagItem("mst.policy.is_operations") == true);
+            a.OperationName == "MstPerformanceOptimization.Evaluate");
         Assert.That(evalActivity, Is.Not.Null, "Should emit an Evaluate activity for /operations/");
         Assert.That(evalActivity!.GetTagItem("mst.policy.action"), Is.EqualTo("strip_operations_headers"));
+        Assert.That(evalActivity.GetTagItem("mst.policy.is_operations"), Is.EqualTo(true));
 
-        // No AcceleratedRetry activities should share this trace
         List<Activity> retryActivities = activities
-            .FindAll(a => a.OperationName == "MstPerformanceOptimization.AcceleratedRetry"
-                && a.TraceId == evalActivity.TraceId);
+            .FindAll(a => a.OperationName == "MstPerformanceOptimization.AcceleratedRetry");
         Assert.That(retryActivities, Is.Empty, "No retry activities for /operations/ paths");
+
+        scopedListener.Dispose();
     }
 
     /// <summary>

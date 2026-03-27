@@ -871,6 +871,73 @@ public class MstPerformanceOptimizationPolicyTests
 
     #endregion
 
+    #region Diagnostic Pipeline Tests
+
+    /// <summary>
+    /// Diagnostic test using real CodeTransparencyClientOptions with SDK retries enabled
+    /// to verify our policy intercepts 503 before RetryPolicy applies its delay.
+    /// </summary>
+    [Test]
+    public async Task Diagnostic_RealSdkOptions_PolicyInterceptsBeforeRetryPolicy()
+    {
+        // Arrange - replicate exact production setup
+        int transportCallCount = 0;
+        var transport = MockTransport.FromMessageCallback(msg =>
+        {
+            transportCallCount++;
+            string uri = msg.Request.Uri.ToUri().AbsoluteUri;
+            Console.WriteLine($"  [Transport] Call #{transportCallCount}: {msg.Request.Method} {uri}");
+
+            if (msg.Request.Method == RequestMethod.Get && uri.Contains("/entries/"))
+            {
+                if (transportCallCount == 1)
+                {
+                    Console.WriteLine($"  [Transport] Returning 503 with Retry-After:1");
+                    var response = new MockResponse(503);
+                    response.AddHeader("Retry-After", "1");
+                    return response;
+                }
+                Console.WriteLine($"  [Transport] Returning 200");
+                return new MockResponse(200);
+            }
+            return new MockResponse(200);
+        });
+
+        // Use REAL CodeTransparencyClientOptions (not TestClientOptions)
+        var options = new CodeTransparencyClientOptions
+        {
+            Transport = transport,
+        };
+        options.ConfigureMstPerformanceOptimizations(
+            retryDelay: TimeSpan.FromMilliseconds(50),
+            maxRetries: 8);
+
+        HttpPipeline pipeline = HttpPipelineBuilder.Build(options);
+        HttpMessage message = pipeline.CreateMessage();
+        message.Request.Method = RequestMethod.Get;
+        message.Request.Uri.Reset(new Uri(
+            "https://esrp-cts-dev.confidential-ledger.azure.com/entries/702.1048242/statement?api-version=2025-01-31-preview"));
+
+        Console.WriteLine("[Test] Sending request through pipeline...");
+        Stopwatch sw = Stopwatch.StartNew();
+
+        // Act
+        await pipeline.SendAsync(message, CancellationToken.None);
+
+        sw.Stop();
+        Console.WriteLine($"[Test] Completed in {sw.ElapsedMilliseconds}ms, Status: {message.Response.Status}");
+        Console.WriteLine($"[Test] Transport was called {transportCallCount} times");
+
+        // Assert
+        Assert.That(message.Response.Status, Is.EqualTo(200));
+        // If our policy works: ~50ms delay. If SDK RetryPolicy handles it: ~800ms+
+        Assert.That(sw.ElapsedMilliseconds, Is.LessThan(500),
+            $"Policy should intercept 503 and retry in ~50ms, not wait for SDK retry (~800ms). Took {sw.ElapsedMilliseconds}ms");
+        Assert.That(transportCallCount, Is.EqualTo(2), "Transport should be called exactly twice (503, then 200)");
+    }
+
+    #endregion
+
     #region ActivitySource Tracing Tests
 
     /// <summary>
@@ -1082,7 +1149,17 @@ public class MstPerformanceOptimizationPolicyTests
 
         // Assert
         Assert.That(message.Response.Status, Is.EqualTo(200));
-        Assert.That(collectedActivities, Is.Empty, "No activities should be emitted for 200 responses");
+        List<Activity> activities = collectedActivities.ToList();
+        Activity? evalActivity = activities.Find(a =>
+            a.OperationName == "MstPerformanceOptimization.Evaluate"
+            && (string?)a.GetTagItem("mst.policy.action") == "passthrough"
+            && (int?)a.GetTagItem("http.response.status_code") == 200);
+        Assert.That(evalActivity, Is.Not.Null, "Should emit an Evaluate activity");
+
+        List<Activity> retryActivities = activities
+            .FindAll(a => a.OperationName == "MstPerformanceOptimization.AcceleratedRetry"
+                && a.TraceId == evalActivity!.TraceId);
+        Assert.That(retryActivities, Is.Empty, "No retry activities should be emitted for 200 responses");
     }
 
     /// <summary>
@@ -1117,8 +1194,19 @@ public class MstPerformanceOptimizationPolicyTests
         // Act
         await pipeline.SendAsync(message, CancellationToken.None);
 
-        // Assert
-        Assert.That(collectedActivities, Is.Empty, "No retry activities for /operations/ paths");
+        // Assert - find the Evaluate activity for THIS test's /operations/ path
+        List<Activity> activities = collectedActivities.ToList();
+        Activity? evalActivity = activities.Find(a =>
+            a.OperationName == "MstPerformanceOptimization.Evaluate"
+            && (bool?)a.GetTagItem("mst.policy.is_operations") == true);
+        Assert.That(evalActivity, Is.Not.Null, "Should emit an Evaluate activity for /operations/");
+        Assert.That(evalActivity!.GetTagItem("mst.policy.action"), Is.EqualTo("strip_operations_headers"));
+
+        // No AcceleratedRetry activities should share this trace
+        List<Activity> retryActivities = activities
+            .FindAll(a => a.OperationName == "MstPerformanceOptimization.AcceleratedRetry"
+                && a.TraceId == evalActivity.TraceId);
+        Assert.That(retryActivities, Is.Empty, "No retry activities for /operations/ paths");
     }
 
     /// <summary>

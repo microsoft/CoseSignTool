@@ -163,9 +163,24 @@ public class MstPerformanceOptimizationPolicy : HttpPipelinePolicy
             ProcessNext(message, pipeline);
         }
 
+        // Emit a diagnostic activity for every response so we can confirm in production
+        // that the policy is being invoked and what it sees.
+        string? requestUri = message.Request.Uri?.ToUri()?.AbsoluteUri;
+        int responseStatus = message.Response?.Status ?? 0;
+        using Activity? evalActivity = PolicyActivitySource.StartActivity(
+            "MstPerformanceOptimization.Evaluate",
+            ActivityKind.Internal);
+        evalActivity?.SetTag("http.url", requestUri);
+        evalActivity?.SetTag("http.request.method", message.Request.Method.ToString());
+        evalActivity?.SetTag("http.response.status_code", responseStatus);
+        evalActivity?.SetTag("mst.policy.is_entries", IsEntriesResponse(message));
+        evalActivity?.SetTag("mst.policy.is_operations", IsOperationsResponse(message));
+        evalActivity?.SetTag("mst.policy.is_503_entries_get", IsEntriesServiceUnavailableResponse(message));
+
         // Strip Retry-After from operations responses (LRO polling) so the SDK uses our configured interval.
         if (IsOperationsResponse(message))
         {
+            evalActivity?.SetTag("mst.policy.action", "strip_operations_headers");
             StripRetryAfterHeader(message);
             return;
         }
@@ -173,11 +188,12 @@ public class MstPerformanceOptimizationPolicy : HttpPipelinePolicy
         // Only process 503 on /entries/ - other responses pass through unchanged.
         if (!IsEntriesServiceUnavailableResponse(message))
         {
+            evalActivity?.SetTag("mst.policy.action", "passthrough");
             return;
         }
 
         // 503 on /entries/ - perform fast retries with tracing.
-        string? requestUri = message.Request.Uri?.ToUri()?.AbsoluteUri;
+        evalActivity?.SetTag("mst.policy.action", "accelerated_retry");
         using Activity? retryActivity = PolicyActivitySource.StartActivity(
             "MstPerformanceOptimization.AcceleratedRetry",
             ActivityKind.Internal);
@@ -220,15 +236,15 @@ public class MstPerformanceOptimizationPolicy : HttpPipelinePolicy
                 ProcessNext(message, pipeline);
             }
 
-            int responseStatus = message.Response?.Status ?? 0;
-            attemptActivity?.SetTag("http.status_code", responseStatus);
+            int attemptStatus = message.Response?.Status ?? 0;
+            attemptActivity?.SetTag("http.status_code", attemptStatus);
 
             if (!IsEntriesServiceUnavailableResponse(message))
             {
                 // Success or different error - strip Retry-After and return.
                 attemptActivity?.SetTag("mst.policy.result", "resolved");
                 retryActivity?.SetTag("mst.policy.resolved_at_attempt", attempt + 1);
-                retryActivity?.SetTag("mst.policy.final_status", responseStatus);
+                retryActivity?.SetTag("mst.policy.final_status", attemptStatus);
                 StripRetryAfterHeader(message);
                 return;
             }

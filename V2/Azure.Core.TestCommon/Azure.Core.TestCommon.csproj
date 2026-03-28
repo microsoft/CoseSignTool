@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Curated subset of Azure.Core.TestFramework for testing Azure SDK clients.
+    Source: https://github.com/Azure/azure-sdk-for-net/tree/main/sdk/core/Azure.Core.TestFramework/src
+    Copied: 2026-03-06 (Azure.Core 1.51.1 era)
+
+    The full upstream framework is not usable as a submodule or NuGet package
+    because it depends on the Azure SDK's internal eng/ build system and
+    internal-only packages. This project contains only the mock types needed
+    for unit testing (MockResponse, MockTransport, MockRequest, etc.).
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <!-- Third-party Azure SDK source files — suppress all custom analyzers and code style -->
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+    <EnableNETAnalyzers>false</EnableNETAnalyzers>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);IDE0073;CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Azure.Core" />
+  </ItemGroup>
+
+  <!-- Override Directory.Build.props: remove custom analyzers and StyleCop from this third-party project -->
+  <ItemGroup>
+    <PackageReference Remove="StyleCop.Analyzers" />
+    <ProjectReference Remove="$(MSBuildThisFileDirectory)CoseSignTool.DocumentationAnalyzers\CoseSignTool.DocumentationAnalyzers.csproj" />
+  </ItemGroup>
+
+</Project>

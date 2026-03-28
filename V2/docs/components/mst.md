@@ -204,6 +204,67 @@ var validator = scope.ServiceProvider
     .Create();
 ```
 
+## Performance Optimization
+
+### TransactionNotCached Fast Retry
+
+The Azure Code Transparency Service returns HTTP 503 with a `Retry-After: 1` header when a newly
+registered entry has not yet propagated to the serving node. The Azure SDK respects this header,
+causing unnecessary 1-second delays per retry. The `MstPerformanceOptimizationPolicy` solves this
+by performing fast retries (default: 250 ms × 8 attempts ≈ 2 seconds) and stripping all
+`Retry-After` headers from `/entries/` and `/operations/` responses.
+
+#### Quick Setup
+
+```csharp
+using Azure.Security.CodeTransparency;
+
+var options = new CodeTransparencyClientOptions();
+options.ConfigureMstPerformanceOptimizations();  // default: 250 ms delay, 8 retries
+var client = new CodeTransparencyClient(endpoint, credential, options);
+```
+
+#### Custom Timing
+
+```csharp
+options.ConfigureMstPerformanceOptimizations(
+    retryDelay: TimeSpan.FromMilliseconds(100),  // faster retries
+    maxRetries: 16);                              // longer window
+```
+
+#### Manual Registration
+
+```csharp
+var policy = new MstPerformanceOptimizationPolicy(
+    TimeSpan.FromMilliseconds(100), maxRetries: 8);
+options.AddPolicy(policy, HttpPipelinePosition.PerRetry);
+```
+
+#### Observability
+
+The policy emits `System.Diagnostics.Activity` spans under the source name
+`CoseSign1.Transparent.MST.PerformanceOptimizationPolicy`. Activities include:
+
+| Activity | Emitted when |
+|---|---|
+| `MstPerformanceOptimization.Evaluate` | Every response (tags: action, status, url) |
+| `MstPerformanceOptimization.AcceleratedRetry` | 503 on `/entries/` triggers fast retry |
+| `MstPerformanceOptimization.RetryAttempt` | Each individual retry attempt |
+
+### LRO Polling Optimization
+
+For long-running operations (CreateEntry), configure aggressive polling via `MstPollingOptions`:
+
+```csharp
+var pollingOptions = new MstPollingOptions
+{
+    DelayStrategy = DelayStrategy.CreateFixedDelayStrategy(TimeSpan.FromMilliseconds(100))
+};
+```
+
+Combining both optimizations typically reduces end-to-end transparency registration
+from ~3 seconds to ~600 ms.
+
 ## Security Considerations
 
 - **Trust** - Ensure you trust the MST service endpoint

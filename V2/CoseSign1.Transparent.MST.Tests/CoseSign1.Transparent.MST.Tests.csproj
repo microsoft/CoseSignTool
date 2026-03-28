@@ -9,15 +9,18 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Azure.Core" />
     <PackageReference Include="coverlet.collector" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="Moq" />
     <PackageReference Include="NUnit" />
     <PackageReference Include="NUnit.Analyzers" />
     <PackageReference Include="NUnit3TestAdapter" />
+    <PackageReference Include="System.Formats.Cbor" />
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Azure.Core.TestCommon\Azure.Core.TestCommon.csproj" />
     <ProjectReference Include="..\CoseSign1.Transparent.MST\CoseSign1.Transparent.MST.csproj" />
     <ProjectReference Include="..\CoseSign1.Tests.Common\CoseSign1.Tests.Common.csproj" />
   </ItemGroup>

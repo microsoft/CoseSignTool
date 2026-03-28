@@ -1,0 +1,6 @@
+# This project contains code copied from Azure SDK and should not be modified
+# to conform to the project's coding standards.
+[*.cs]
+dotnet_analyzer_diagnostic.severity = none
+dotnet_diagnostic.IDE0005.severity = none
+dotnet_diagnostic.IDE0065.severity = none

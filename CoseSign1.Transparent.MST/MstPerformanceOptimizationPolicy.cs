@@ -238,7 +238,7 @@ public class MstPerformanceOptimizationPolicy : HttpPipelinePolicy
             }
 
             int attemptStatus = message.Response?.Status ?? 0;
-            attemptActivity?.SetTag("http.status_code", attemptStatus);
+            attemptActivity?.SetTag("http.response.status_code", attemptStatus);
 
             if (!IsEntriesServiceUnavailableResponse(message))
             {

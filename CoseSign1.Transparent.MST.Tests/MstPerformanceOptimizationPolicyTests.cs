@@ -1036,7 +1036,7 @@ public class MstPerformanceOptimizationPolicyTests
             a.OperationName == "MstPerformanceOptimization.RetryAttempt");
         Assert.That(attemptActivities, Has.Count.EqualTo(1), "Should have 1 retry attempt (resolved on first retry)");
         Assert.That(attemptActivities[0].GetTagItem("mst.policy.attempt"), Is.EqualTo(1));
-        Assert.That(attemptActivities[0].GetTagItem("http.status_code"), Is.EqualTo(200));
+        Assert.That(attemptActivities[0].GetTagItem("http.response.status_code"), Is.EqualTo(200));
         Assert.That(attemptActivities[0].GetTagItem("mst.policy.result"), Is.EqualTo("resolved"));
 
         scopedListener.Dispose();
@@ -1090,14 +1090,14 @@ public class MstPerformanceOptimizationPolicyTests
 
         Assert.That(attemptActivities[0].GetTagItem("mst.policy.attempt"), Is.EqualTo(1));
         Assert.That(attemptActivities[0].GetTagItem("mst.policy.result"), Is.EqualTo("still_503"));
-        Assert.That(attemptActivities[0].GetTagItem("http.status_code"), Is.EqualTo(503));
+        Assert.That(attemptActivities[0].GetTagItem("http.response.status_code"), Is.EqualTo(503));
 
         Assert.That(attemptActivities[1].GetTagItem("mst.policy.attempt"), Is.EqualTo(2));
         Assert.That(attemptActivities[1].GetTagItem("mst.policy.result"), Is.EqualTo("still_503"));
 
         Assert.That(attemptActivities[2].GetTagItem("mst.policy.attempt"), Is.EqualTo(3));
         Assert.That(attemptActivities[2].GetTagItem("mst.policy.result"), Is.EqualTo("resolved"));
-        Assert.That(attemptActivities[2].GetTagItem("http.status_code"), Is.EqualTo(200));
+        Assert.That(attemptActivities[2].GetTagItem("http.response.status_code"), Is.EqualTo(200));
 
         scopedListener.Dispose();
     }

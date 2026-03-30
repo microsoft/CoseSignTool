@@ -53,15 +53,14 @@ jobs:
             - 'Directory.Packages.props'
             - 'Nuget.config'
             - 'global.json'
-            - '.github/workflows/dotnet.yml'
 
   #### PULL REQUEST EVENTS ####
 
   # Build and test the code.
   build:
-    name: build-${{matrix.os}}${{matrix.runtime_id && format('-{0}', matrix.runtime_id) || ''}}
+    name: dotnet-build
     needs: [ detect-changes ]
-    if: ${{ (github.event_name == 'pull_request' && needs.detect-changes.outputs.dotnet == 'true') || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.detect-changes.outputs.dotnet == 'true' }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -120,7 +119,7 @@ jobs:
   native-rust:
     name: native-rust
     needs: [ detect-changes ]
-    if: ${{ (github.event_name == 'pull_request' && needs.detect-changes.outputs.native == 'true') || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.detect-changes.outputs.native == 'true' }}
     runs-on: windows-latest
     env:
       VCPKG_ROOT: C:\vcpkg
@@ -129,15 +128,30 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Cache vcpkg packages
+      uses: actions/cache@v4
+      with:
+        path: C:\vcpkg\installed
+        key: vcpkg-openssl-x64-windows-v1
+
     - name: Install OpenSSL via vcpkg
       shell: pwsh
       run: |
-        & "$env:VCPKG_ROOT\vcpkg" install openssl:x64-windows
+        if (Test-Path "$env:VCPKG_ROOT\installed\x64-windows\lib\libssl.lib") {
+          Write-Host "OpenSSL already cached" -ForegroundColor Green
+        } else {
+          & "$env:VCPKG_ROOT\vcpkg" install openssl:x64-windows
+        }
 
     - name: Setup Rust (stable)
       uses: dtolnay/rust-toolchain@stable
       with:
         components: clippy, rustfmt
+
+    - name: Cache Rust build artifacts
+      uses: Swatinem/rust-cache@v2
+      with:
+        workspaces: native/rust -> target
 
     - name: Rust format check
       shell: pwsh
@@ -155,9 +169,20 @@ jobs:
       with:
         components: llvm-tools-preview
 
+    - name: Cache cargo-llvm-cov
+      uses: actions/cache@v4
+      with:
+        path: ~/.cargo/bin/cargo-llvm-cov*
+        key: cargo-llvm-cov-${{ runner.os }}
+
     - name: Install cargo-llvm-cov
       shell: pwsh
-      run: cargo install cargo-llvm-cov --locked
+      run: |
+        if (Get-Command cargo-llvm-cov -ErrorAction SilentlyContinue) {
+          Write-Host "cargo-llvm-cov already cached" -ForegroundColor Green
+        } else {
+          cargo install cargo-llvm-cov --locked
+        }
 
     - name: Build Rust workspace
       shell: pwsh
@@ -183,7 +208,7 @@ jobs:
   native-c-cpp:
     name: native-c-cpp
     needs: [ detect-changes ]
-    if: ${{ (github.event_name == 'pull_request' && needs.detect-changes.outputs.native == 'true') || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.detect-changes.outputs.native == 'true' }}
     runs-on: windows-latest
     env:
       VCPKG_ROOT: C:\vcpkg
@@ -192,13 +217,28 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Cache vcpkg packages
+      uses: actions/cache@v4
+      with:
+        path: C:\vcpkg\installed
+        key: vcpkg-openssl-x64-windows-v1
+
     - name: Install OpenSSL via vcpkg
       shell: pwsh
       run: |
-        & "$env:VCPKG_ROOT\vcpkg" install openssl:x64-windows
+        if (Test-Path "$env:VCPKG_ROOT\installed\x64-windows\lib\libssl.lib") {
+          Write-Host "OpenSSL already cached" -ForegroundColor Green
+        } else {
+          & "$env:VCPKG_ROOT\vcpkg" install openssl:x64-windows
+        }
 
     - name: Setup Rust (stable)
       uses: dtolnay/rust-toolchain@stable
+
+    - name: Cache Rust build artifacts
+      uses: Swatinem/rust-cache@v2
+      with:
+        workspaces: native/rust -> target
 
     - name: Install OpenCppCoverage
       shell: pwsh

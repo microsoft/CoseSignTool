@@ -3,7 +3,7 @@
 
 //! Simple coverage tests for ValidationResult helper methods and defaults.
 
-use cose_sign1_validation::fluent::{ValidationResult, ValidationResultKind, ValidationFailure};
+use cose_sign1_validation::fluent::{ValidationFailure, ValidationResult, ValidationResultKind};
 use std::collections::BTreeMap;
 
 #[test]
@@ -26,7 +26,7 @@ fn test_validation_failure_default() {
 fn test_validation_result_success_with_metadata() {
     let mut metadata = BTreeMap::new();
     metadata.insert("key".to_string(), "value".to_string());
-    
+
     let result = ValidationResult::success("test-validator", Some(metadata.clone()));
     assert_eq!(result.kind, ValidationResultKind::Success);
     assert_eq!(result.validator_name, "test-validator");
@@ -49,7 +49,7 @@ fn test_validation_result_not_applicable_with_reason() {
     assert_eq!(result.kind, ValidationResultKind::NotApplicable);
     assert_eq!(result.validator_name, "test-validator");
     assert!(result.failures.is_empty());
-    
+
     // Should have reason in metadata
     let reason = result.metadata.get(ValidationResult::METADATA_REASON_KEY);
     assert_eq!(reason, Some(&"no certificates".to_string()));
@@ -61,7 +61,7 @@ fn test_validation_result_not_applicable_empty_reason() {
     assert_eq!(result.kind, ValidationResultKind::NotApplicable);
     assert_eq!(result.validator_name, "test-validator");
     assert!(result.failures.is_empty());
-    
+
     // Empty/whitespace reason should not be stored
     assert!(result.metadata.is_empty());
 }
@@ -91,9 +91,9 @@ fn test_validation_result_failure_multiple() {
             property_name: None,
             attempted_value: None,
             exception: None,
-        }
+        },
     ];
-    
+
     let result = ValidationResult::failure("test-validator", failures.clone());
     assert_eq!(result.kind, ValidationResultKind::Failure);
     assert_eq!(result.validator_name, "test-validator");
@@ -103,16 +103,12 @@ fn test_validation_result_failure_multiple() {
 
 #[test]
 fn test_validation_result_failure_message_with_code() {
-    let result = ValidationResult::failure_message(
-        "test-validator", 
-        "test error", 
-        Some("ERR123")
-    );
-    
+    let result = ValidationResult::failure_message("test-validator", "test error", Some("ERR123"));
+
     assert_eq!(result.kind, ValidationResultKind::Failure);
     assert_eq!(result.validator_name, "test-validator");
     assert_eq!(result.failures.len(), 1);
-    
+
     let failure = &result.failures[0];
     assert_eq!(failure.message, "test error");
     assert_eq!(failure.error_code, Some("ERR123".to_string()));
@@ -121,18 +117,14 @@ fn test_validation_result_failure_message_with_code() {
     assert!(failure.exception.is_none());
 }
 
-#[test] 
+#[test]
 fn test_validation_result_failure_message_no_code() {
-    let result = ValidationResult::failure_message(
-        "test-validator",
-        "test error",
-        None
-    );
-    
+    let result = ValidationResult::failure_message("test-validator", "test error", None);
+
     assert_eq!(result.kind, ValidationResultKind::Failure);
     assert_eq!(result.validator_name, "test-validator");
     assert_eq!(result.failures.len(), 1);
-    
+
     let failure = &result.failures[0];
     assert_eq!(failure.message, "test error");
     assert_eq!(failure.error_code, None);
@@ -146,11 +138,11 @@ fn test_validation_result_kind_debug() {
     let kind = ValidationResultKind::Success;
     let debug_str = format!("{:?}", kind);
     assert!(debug_str.contains("Success"));
-    
+
     let kind = ValidationResultKind::Failure;
     let debug_str = format!("{:?}", kind);
     assert!(debug_str.contains("Failure"));
-    
+
     let kind = ValidationResultKind::NotApplicable;
     let debug_str = format!("{:?}", kind);
     assert!(debug_str.contains("NotApplicable"));
@@ -165,7 +157,7 @@ fn test_validation_failure_debug() {
         attempted_value: Some("value".to_string()),
         exception: Some("Exception info".to_string()),
     };
-    
+
     let debug_str = format!("{:?}", failure);
     assert!(debug_str.contains("test message"));
     assert!(debug_str.contains("TEST"));
@@ -187,10 +179,10 @@ fn test_validation_result_debug() {
 fn test_validation_result_is_valid() {
     let success_result = ValidationResult::success("test", None);
     assert!(success_result.is_valid());
-    
+
     let failure_result = ValidationResult::failure_message("test", "error", None);
     assert!(!failure_result.is_valid());
-    
+
     let not_applicable_result = ValidationResult::not_applicable("test", None);
     assert!(!not_applicable_result.is_valid());
 }
@@ -204,7 +196,7 @@ fn test_validation_failure_clone() {
         attempted_value: Some("value".to_string()),
         exception: Some("Exception info".to_string()),
     };
-    
+
     let cloned = failure.clone();
     assert_eq!(failure, cloned);
     assert_eq!(failure.message, cloned.message);

@@ -3,8 +3,12 @@
 
 //! Tests targeting uncovered code paths in `validator.rs` and `fluent.rs`.
 
+use cbor_primitives::{CborEncoder, CborProvider};
+use cbor_primitives_everparse::EverParseCborProvider;
+use cose_sign1_primitives::error::PayloadError;
+use cose_sign1_primitives::sig_structure::SizedRead;
+use cose_sign1_primitives::CoseSign1Message;
 use cose_sign1_validation::fluent::*;
-use cose_sign1_validation_test_utils::SimpleTrustPack;
 use cose_sign1_validation_primitives::{
     error::TrustError,
     evaluation_options::TrustEvaluationOptions,
@@ -18,11 +22,7 @@ use cose_sign1_validation_primitives::{
     subject::TrustSubject,
     TrustDecision,
 };
-use cbor_primitives::{CborEncoder, CborProvider};
-use cbor_primitives_everparse::EverParseCborProvider;
-use cose_sign1_primitives::CoseSign1Message;
-use cose_sign1_primitives::error::PayloadError;
-use cose_sign1_primitives::sig_structure::SizedRead;
+use cose_sign1_validation_test_utils::SimpleTrustPack;
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::io::Cursor;
@@ -68,17 +68,22 @@ fn allow_all_trust_plan() -> CompiledTrustPlan {
 
 struct AlwaysTrueVerifier;
 impl CryptoVerifier for AlwaysTrueVerifier {
-    fn algorithm(&self) -> i64 { -7 }
-    
+    fn algorithm(&self) -> i64 {
+        -7
+    }
+
     fn verify(&self, _data: &[u8], _signature: &[u8]) -> Result<bool, CryptoError> {
         Ok(true)
     }
-    
+
     fn supports_streaming(&self) -> bool {
         true
     }
-    
-    fn verify_init(&self, _signature: &[u8]) -> Result<Box<dyn crypto_primitives::VerifyingContext>, CryptoError> {
+
+    fn verify_init(
+        &self,
+        _signature: &[u8],
+    ) -> Result<Box<dyn crypto_primitives::VerifyingContext>, CryptoError> {
         Ok(Box::new(AlwaysTrueVerifyingContext))
     }
 }
@@ -88,7 +93,7 @@ impl crypto_primitives::VerifyingContext for AlwaysTrueVerifyingContext {
     fn update(&mut self, _chunk: &[u8]) -> Result<(), CryptoError> {
         Ok(())
     }
-    
+
     fn finalize(self: Box<Self>) -> Result<bool, CryptoError> {
         Ok(true)
     }
@@ -97,8 +102,10 @@ impl crypto_primitives::VerifyingContext for AlwaysTrueVerifyingContext {
 /// Verifier that reports algorithm -35, which won't match ES256 (-7).
 struct MismatchAlgVerifier;
 impl CryptoVerifier for MismatchAlgVerifier {
-    fn algorithm(&self) -> i64 { -35 }
-    
+    fn algorithm(&self) -> i64 {
+        -35
+    }
+
     fn verify(&self, _data: &[u8], _signature: &[u8]) -> Result<bool, CryptoError> {
         Ok(true)
     }
@@ -191,7 +198,9 @@ fn validation_result_not_applicable_with_whitespace_only_reason() {
     let r = ValidationResult::not_applicable("na", Some("   "));
     assert_eq!(ValidationResultKind::NotApplicable, r.kind);
     // Whitespace-only reason should not be stored.
-    assert!(!r.metadata.contains_key(ValidationResult::METADATA_REASON_KEY));
+    assert!(!r
+        .metadata
+        .contains_key(ValidationResult::METADATA_REASON_KEY));
 }
 
 #[test]
@@ -199,7 +208,9 @@ fn validation_result_not_applicable_with_valid_reason() {
     let r = ValidationResult::not_applicable("na", Some("skipped"));
     assert_eq!(
         Some("skipped"),
-        r.metadata.get(ValidationResult::METADATA_REASON_KEY).map(|s| s.as_str())
+        r.metadata
+            .get(ValidationResult::METADATA_REASON_KEY)
+            .map(|s| s.as_str())
     );
 }
 
@@ -505,7 +516,7 @@ fn skip_post_signature_validation_skips_stage() {
 #[test]
 fn streaming_signature_with_external_aad() {
     let cose = build_cose_sign1_bytes(None, &encode_protected_alg(-7));
-    
+
     struct LargePayloadProvider;
     impl StreamingPayload for LargePayloadProvider {
         fn size(&self) -> u64 {
@@ -674,11 +685,7 @@ fn trust_plan_builder_inner_and_group_compiles() {
 #[test]
 fn scope_rules_or_branch_starts_new_conjunction() {
     let plan = TrustPlanBuilderInner::new()
-        .for_message(|m| {
-            m.allow_all()
-                .or()
-                .allow_all()
-        })
+        .for_message(|m| m.allow_all().or().allow_all())
         .compile();
 
     let engine = TrustFactEngine::new(vec![]);
@@ -719,7 +726,9 @@ fn scope_rules_require_rule_with_fact_keys() {
     #[derive(Debug, Clone)]
     struct Dummy;
     impl FactProperties for Dummy {
-        fn get_property<'a>(&'a self, _: &str) -> Option<FactValue<'a>> { None }
+        fn get_property<'a>(&'a self, _: &str) -> Option<FactValue<'a>> {
+            None
+        }
     }
 
     let custom_rule: TrustRuleRef = Arc::new(FnRule::new(
@@ -730,9 +739,7 @@ fn scope_rules_require_rule_with_fact_keys() {
     ));
 
     let plan = TrustPlanBuilderInner::new()
-        .for_message(|m| {
-            m.require_rule(custom_rule, vec![FactKey::of::<Dummy>()])
-        })
+        .for_message(|m| m.require_rule(custom_rule, vec![FactKey::of::<Dummy>()]))
         .compile();
 
     let required = plan.required_facts();
@@ -761,9 +768,7 @@ impl FactProperties for OptionalFact {
 fn scope_rules_require_optional_succeeds_when_fact_missing() {
     // No producer for OptionalFact — require_optional should still succeed.
     let plan = TrustPlanBuilderInner::new()
-        .for_message(|m| {
-            m.require_optional::<OptionalFact>(|w| w.r#true(Field::new("present")))
-        })
+        .for_message(|m| m.require_optional::<OptionalFact>(|w| w.r#true(Field::new("present"))))
         .compile();
 
     let engine = TrustFactEngine::new(vec![]);
@@ -798,14 +803,20 @@ impl FactProperties for NumericFact {
 
 struct NumericFactProducer;
 impl TrustFactProducer for NumericFactProducer {
-    fn name(&self) -> &'static str { "numeric" }
+    fn name(&self) -> &'static str {
+        "numeric"
+    }
     fn provides(&self) -> &'static [FactKey] {
         static ONCE: std::sync::OnceLock<Vec<FactKey>> = std::sync::OnceLock::new();
         ONCE.get_or_init(|| vec![FactKey::of::<NumericFact>()])
             .as_slice()
     }
     fn produce(&self, ctx: &mut TrustFactContext<'_>) -> Result<(), TrustError> {
-        ctx.observe(NumericFact { count: 5, level: 3, score: 10 })?;
+        ctx.observe(NumericFact {
+            count: 5,
+            level: 3,
+            score: 10,
+        })?;
         ctx.mark_produced(FactKey::of::<NumericFact>());
         Ok(())
     }
@@ -817,9 +828,7 @@ fn where_usize_eq_predicate() {
     let root = TrustSubject::root("Message", b"seed");
 
     let plan = TrustPlanBuilderInner::new()
-        .for_message(|m| {
-            m.require::<NumericFact>(|w| w.usize_eq(Field::new("count"), 5))
-        })
+        .for_message(|m| m.require::<NumericFact>(|w| w.usize_eq(Field::new("count"), 5)))
         .compile();
 
     let d = plan
@@ -834,9 +843,7 @@ fn where_u32_eq_predicate() {
     let root = TrustSubject::root("Message", b"seed");
 
     let plan = TrustPlanBuilderInner::new()
-        .for_message(|m| {
-            m.require::<NumericFact>(|w| w.u32_eq(Field::new("level"), 3))
-        })
+        .for_message(|m| m.require::<NumericFact>(|w| w.u32_eq(Field::new("level"), 3)))
         .compile();
 
     let d = plan
@@ -851,9 +858,7 @@ fn where_i64_ge_predicate() {
     let root = TrustSubject::root("Message", b"seed");
 
     let plan = TrustPlanBuilderInner::new()
-        .for_message(|m| {
-            m.require::<NumericFact>(|w| w.i64_ge(Field::new("score"), 5))
-        })
+        .for_message(|m| m.require::<NumericFact>(|w| w.i64_ge(Field::new("score"), 5)))
         .compile();
 
     let d = plan
@@ -868,9 +873,7 @@ fn where_i64_le_predicate() {
     let root = TrustSubject::root("Message", b"seed");
 
     let plan = TrustPlanBuilderInner::new()
-        .for_message(|m| {
-            m.require::<NumericFact>(|w| w.i64_le(Field::new("score"), 100))
-        })
+        .for_message(|m| m.require::<NumericFact>(|w| w.i64_le(Field::new("score"), 100)))
         .compile();
 
     let d = plan
@@ -895,7 +898,9 @@ fn where_false_predicate() {
     }
     struct BoolProducer;
     impl TrustFactProducer for BoolProducer {
-        fn name(&self) -> &'static str { "bool" }
+        fn name(&self) -> &'static str {
+            "bool"
+        }
         fn provides(&self) -> &'static [FactKey] {
             static ONCE: std::sync::OnceLock<Vec<FactKey>> = std::sync::OnceLock::new();
             ONCE.get_or_init(|| vec![FactKey::of::<BoolFact>()])
@@ -912,9 +917,7 @@ fn where_false_predicate() {
     let root = TrustSubject::root("Message", b"seed");
 
     let plan = TrustPlanBuilderInner::new()
-        .for_message(|m| {
-            m.require::<BoolFact>(|w| w.r#false(Field::new("flag")))
-        })
+        .for_message(|m| m.require::<BoolFact>(|w| w.r#false(Field::new("flag"))))
         .compile();
 
     let d = plan
@@ -939,14 +942,18 @@ fn where_str_eq_predicate() {
     }
     struct StrProducer;
     impl TrustFactProducer for StrProducer {
-        fn name(&self) -> &'static str { "str" }
+        fn name(&self) -> &'static str {
+            "str"
+        }
         fn provides(&self) -> &'static [FactKey] {
             static ONCE: std::sync::OnceLock<Vec<FactKey>> = std::sync::OnceLock::new();
             ONCE.get_or_init(|| vec![FactKey::of::<StrFact>()])
                 .as_slice()
         }
         fn produce(&self, ctx: &mut TrustFactContext<'_>) -> Result<(), TrustError> {
-            ctx.observe(StrFact { name: "hello".to_string() })?;
+            ctx.observe(StrFact {
+                name: "hello".to_string(),
+            })?;
             ctx.mark_produced(FactKey::of::<StrFact>());
             Ok(())
         }
@@ -956,9 +963,7 @@ fn where_str_eq_predicate() {
     let root = TrustSubject::root("Message", b"seed");
 
     let plan = TrustPlanBuilderInner::new()
-        .for_message(|m| {
-            m.require::<StrFact>(|w| w.str_eq(Field::new("name"), "hello"))
-        })
+        .for_message(|m| m.require::<StrFact>(|w| w.str_eq(Field::new("name"), "hello")))
         .compile();
 
     let d = plan
@@ -973,15 +978,25 @@ fn where_str_eq_predicate() {
 
 struct NoopProducer;
 impl TrustFactProducer for NoopProducer {
-    fn name(&self) -> &'static str { "noop" }
-    fn produce(&self, _: &mut TrustFactContext<'_>) -> Result<(), TrustError> { Ok(()) }
-    fn provides(&self) -> &'static [FactKey] { &[] }
+    fn name(&self) -> &'static str {
+        "noop"
+    }
+    fn produce(&self, _: &mut TrustFactContext<'_>) -> Result<(), TrustError> {
+        Ok(())
+    }
+    fn provides(&self) -> &'static [FactKey] {
+        &[]
+    }
 }
 
 struct NoopPack;
 impl CoseSign1TrustPack for NoopPack {
-    fn name(&self) -> &'static str { "noop" }
-    fn fact_producer(&self) -> Arc<dyn TrustFactProducer> { Arc::new(NoopProducer) }
+    fn name(&self) -> &'static str {
+        "noop"
+    }
+    fn fact_producer(&self) -> Arc<dyn TrustFactProducer> {
+        Arc::new(NoopProducer)
+    }
 }
 
 #[test]
@@ -1025,8 +1040,7 @@ fn compiled_trust_plan_from_parts_roundtrips() {
         .unwrap();
 
     let (inner, original_packs) = plan.into_parts();
-    let rebuilt =
-        CoseSign1CompiledTrustPlan::from_parts(inner, original_packs).unwrap();
+    let rebuilt = CoseSign1CompiledTrustPlan::from_parts(inner, original_packs).unwrap();
     assert_eq!(1, rebuilt.trust_packs().len());
 }
 

@@ -22,7 +22,9 @@ use std::sync::Mutex;
 
 use cose_sign1_validation_primitives::audit::TrustDecisionAuditBuilder;
 use cose_sign1_validation_primitives::error::TrustError;
-use cose_sign1_validation_primitives::fact_properties::{FactProperties, FactValue, FactValueOwned};
+use cose_sign1_validation_primitives::fact_properties::{
+    FactProperties, FactValue, FactValueOwned,
+};
 use cose_sign1_validation_primitives::facts::{
     FactKey, TrustFactContext, TrustFactEngine, TrustFactProducer,
 };
@@ -156,7 +158,9 @@ fn default_num_fact() -> NumFact {
 #[test]
 fn allow_all_returns_trusted() {
     let rule = allow_all("test_allow_all");
-    let engine = make_engine(NumFactProducer { fact: default_num_fact() });
+    let engine = make_engine(NumFactProducer {
+        fact: default_num_fact(),
+    });
     let decision = rule.evaluate(&engine, &subject()).unwrap();
     assert!(decision.is_trusted);
     assert_eq!(rule.name(), "test_allow_all");
@@ -166,7 +170,9 @@ fn allow_all_returns_trusted() {
 fn all_of_all_trusted() {
     let rules = vec![allow_all("r1"), allow_all("r2")];
     let rule = all_of("all_trusted", rules);
-    let engine = make_engine(NumFactProducer { fact: default_num_fact() });
+    let engine = make_engine(NumFactProducer {
+        fact: default_num_fact(),
+    });
     let decision = rule.evaluate(&engine, &subject()).unwrap();
     assert!(decision.is_trusted);
 }
@@ -176,7 +182,9 @@ fn all_of_one_denied() {
     let deny_rule = not("deny", allow_all("inner"));
     let rules = vec![allow_all("r1"), deny_rule];
     let rule = all_of("one_denied", rules);
-    let engine = make_engine(NumFactProducer { fact: default_num_fact() });
+    let engine = make_engine(NumFactProducer {
+        fact: default_num_fact(),
+    });
     let decision = rule.evaluate(&engine, &subject()).unwrap();
     assert!(!decision.is_trusted);
 }
@@ -184,10 +192,15 @@ fn all_of_one_denied() {
 #[test]
 fn any_of_empty_rules_denies() {
     let rule = any_of("empty", vec![]);
-    let engine = make_engine(NumFactProducer { fact: default_num_fact() });
+    let engine = make_engine(NumFactProducer {
+        fact: default_num_fact(),
+    });
     let decision = rule.evaluate(&engine, &subject()).unwrap();
     assert!(!decision.is_trusted);
-    assert!(decision.reasons.iter().any(|r| r.contains("No trust sources")));
+    assert!(decision
+        .reasons
+        .iter()
+        .any(|r| r.contains("No trust sources")));
 }
 
 #[test]
@@ -195,7 +208,9 @@ fn any_of_one_trusted() {
     let deny_rule = not("deny", allow_all("inner"));
     let rules = vec![deny_rule, allow_all("ok")];
     let rule = any_of("one_ok", rules);
-    let engine = make_engine(NumFactProducer { fact: default_num_fact() });
+    let engine = make_engine(NumFactProducer {
+        fact: default_num_fact(),
+    });
     let decision = rule.evaluate(&engine, &subject()).unwrap();
     assert!(decision.is_trusted);
 }
@@ -205,7 +220,9 @@ fn any_of_all_denied() {
     let deny1 = not("d1", allow_all("i1"));
     let deny2 = not("d2", allow_all("i2"));
     let rule = any_of("all_denied", vec![deny1, deny2]);
-    let engine = make_engine(NumFactProducer { fact: default_num_fact() });
+    let engine = make_engine(NumFactProducer {
+        fact: default_num_fact(),
+    });
     let decision = rule.evaluate(&engine, &subject()).unwrap();
     assert!(!decision.is_trusted);
 }
@@ -213,7 +230,9 @@ fn any_of_all_denied() {
 #[test]
 fn not_inverts_trusted_to_denied() {
     let rule = not("negate_allow", allow_all("inner"));
-    let engine = make_engine(NumFactProducer { fact: default_num_fact() });
+    let engine = make_engine(NumFactProducer {
+        fact: default_num_fact(),
+    });
     let decision = rule.evaluate(&engine, &subject()).unwrap();
     assert!(!decision.is_trusted);
     assert!(decision.reasons.iter().any(|r| r.contains("Negated rule")));
@@ -223,7 +242,9 @@ fn not_inverts_trusted_to_denied() {
 fn not_inverts_denied_to_trusted() {
     let deny = not("inner_deny", allow_all("deep"));
     let rule = not("double_neg", deny);
-    let engine = make_engine(NumFactProducer { fact: default_num_fact() });
+    let engine = make_engine(NumFactProducer {
+        fact: default_num_fact(),
+    });
     let decision = rule.evaluate(&engine, &subject()).unwrap();
     assert!(decision.is_trusted);
 }
@@ -231,10 +252,15 @@ fn not_inverts_denied_to_trusted() {
 #[test]
 fn not_with_reason_custom_message() {
     let rule = not_with_reason("custom_negate", allow_all("inner"), "Custom deny reason");
-    let engine = make_engine(NumFactProducer { fact: default_num_fact() });
+    let engine = make_engine(NumFactProducer {
+        fact: default_num_fact(),
+    });
     let decision = rule.evaluate(&engine, &subject()).unwrap();
     assert!(!decision.is_trusted);
-    assert!(decision.reasons.iter().any(|r| r.contains("Custom deny reason")));
+    assert!(decision
+        .reasons
+        .iter()
+        .any(|r| r.contains("Custom deny reason")));
 }
 
 // =========================================================================
@@ -246,7 +272,9 @@ fn audited_rule_records_event() {
     let audit = Arc::new(Mutex::new(TrustDecisionAuditBuilder::default()));
     let inner = allow_all("audited_inner");
     let rule = AuditedRule::new(inner, audit.clone());
-    let engine = make_engine(NumFactProducer { fact: default_num_fact() });
+    let engine = make_engine(NumFactProducer {
+        fact: default_num_fact(),
+    });
     let decision = rule.evaluate(&engine, &subject()).unwrap();
     assert!(decision.is_trusted);
     // The audit builder was pushed to; we just verify it runs without error.
@@ -266,10 +294,16 @@ fn audited_rule_name_delegates() {
 
 #[test]
 fn require_fact_property_eq_i64_match() {
-    let engine = make_engine(NumFactProducer { fact: default_num_fact() });
+    let engine = make_engine(NumFactProducer {
+        fact: default_num_fact(),
+    });
     let rule = require_fact_property_eq::<NumFact, _>(
-        "count_eq", id, FactSelector::first(), "count",
-        FactValueOwned::I64(42), "count mismatch",
+        "count_eq",
+        id,
+        FactSelector::first(),
+        "count",
+        FactValueOwned::I64(42),
+        "count mismatch",
     );
     let decision = rule.evaluate(&engine, &subject()).unwrap();
     assert!(decision.is_trusted);
@@ -277,10 +311,16 @@ fn require_fact_property_eq_i64_match() {
 
 #[test]
 fn require_fact_property_eq_i64_no_match() {
-    let engine = make_engine(NumFactProducer { fact: default_num_fact() });
+    let engine = make_engine(NumFactProducer {
+        fact: default_num_fact(),
+    });
     let rule = require_fact_property_eq::<NumFact, _>(
-        "count_eq", id, FactSelector::first(), "count",
-        FactValueOwned::I64(999), "count mismatch",
+        "count_eq",
+        id,
+        FactSelector::first(),
+        "count",
+        FactValueOwned::I64(999),
+        "count mismatch",
     );
     let decision = rule.evaluate(&engine, &subject()).unwrap();
     assert!(!decision.is_trusted);
@@ -288,10 +328,16 @@ fn require_fact_property_eq_i64_no_match() {
 
 #[test]
 fn require_fact_property_eq_missing_property() {
-    let engine = make_engine(NumFactProducer { fact: default_num_fact() });
+    let engine = make_engine(NumFactProducer {
+        fact: default_num_fact(),
+    });
     let rule = require_fact_property_eq::<NumFact, _>(
-        "missing_prop", id, FactSelector::first(), "nonexistent",
-        FactValueOwned::I64(0), "missing property",
+        "missing_prop",
+        id,
+        FactSelector::first(),
+        "nonexistent",
+        FactValueOwned::I64(0),
+        "missing property",
     );
     let decision = rule.evaluate(&engine, &subject()).unwrap();
     assert!(!decision.is_trusted);
@@ -301,24 +347,38 @@ fn require_fact_property_eq_missing_property() {
 fn require_fact_property_missing_fact_set() {
     let engine = make_engine(MissingFactProducer);
     let rule = require_fact_property_eq::<NumFact, _>(
-        "missing_set", id, FactSelector::first(), "count",
-        FactValueOwned::I64(42), "fact missing",
+        "missing_set",
+        id,
+        FactSelector::first(),
+        "count",
+        FactValueOwned::I64(42),
+        "fact missing",
     );
     let decision = rule.evaluate(&engine, &subject()).unwrap();
     assert!(!decision.is_trusted);
-    assert!(decision.reasons.iter().any(|r| r.contains("fact_unavailable")));
+    assert!(decision
+        .reasons
+        .iter()
+        .any(|r| r.contains("fact_unavailable")));
 }
 
 #[test]
 fn require_fact_property_error_fact_set() {
     let engine = make_engine(ErrorFactProducer);
     let rule = require_fact_property_eq::<NumFact, _>(
-        "error_set", id, FactSelector::first(), "count",
-        FactValueOwned::I64(42), "fact error",
+        "error_set",
+        id,
+        FactSelector::first(),
+        "count",
+        FactValueOwned::I64(42),
+        "fact error",
     );
     let decision = rule.evaluate(&engine, &subject()).unwrap();
     assert!(!decision.is_trusted);
-    assert!(decision.reasons.iter().any(|r| r.contains("producer_error")));
+    assert!(decision
+        .reasons
+        .iter()
+        .any(|r| r.contains("producer_error")));
 }
 
 // =========================================================================
@@ -327,9 +387,15 @@ fn require_fact_property_error_fact_set() {
 
 #[test]
 fn require_fact_property_str_non_empty() {
-    let engine = make_engine(NumFactProducer { fact: default_num_fact() });
+    let engine = make_engine(NumFactProducer {
+        fact: default_num_fact(),
+    });
     let rule = require_fact_str_non_empty::<NumFact, _>(
-        "name_non_empty", id, FactSelector::first(), "name", "name empty",
+        "name_non_empty",
+        id,
+        FactSelector::first(),
+        "name",
+        "name empty",
     );
     let decision = rule.evaluate(&engine, &subject()).unwrap();
     assert!(decision.is_trusted);
@@ -337,9 +403,15 @@ fn require_fact_property_str_non_empty() {
 
 #[test]
 fn require_fact_property_str_non_empty_on_non_str() {
-    let engine = make_engine(NumFactProducer { fact: default_num_fact() });
+    let engine = make_engine(NumFactProducer {
+        fact: default_num_fact(),
+    });
     let rule = require_fact_str_non_empty::<NumFact, _>(
-        "count_non_empty", id, FactSelector::first(), "count", "not a string",
+        "count_non_empty",
+        id,
+        FactSelector::first(),
+        "count",
+        "not a string",
     );
     let decision = rule.evaluate(&engine, &subject()).unwrap();
     assert!(!decision.is_trusted);
@@ -347,9 +419,16 @@ fn require_fact_property_str_non_empty_on_non_str() {
 
 #[test]
 fn require_fact_bool_match() {
-    let engine = make_engine(NumFactProducer { fact: default_num_fact() });
+    let engine = make_engine(NumFactProducer {
+        fact: default_num_fact(),
+    });
     let rule = require_fact_bool::<NumFact, _>(
-        "active_true", id, FactSelector::first(), "active", true, "not active",
+        "active_true",
+        id,
+        FactSelector::first(),
+        "active",
+        true,
+        "not active",
     );
     let decision = rule.evaluate(&engine, &subject()).unwrap();
     assert!(decision.is_trusted);
@@ -357,9 +436,16 @@ fn require_fact_bool_match() {
 
 #[test]
 fn require_fact_bool_mismatch() {
-    let engine = make_engine(NumFactProducer { fact: default_num_fact() });
+    let engine = make_engine(NumFactProducer {
+        fact: default_num_fact(),
+    });
     let rule = require_fact_bool::<NumFact, _>(
-        "active_false", id, FactSelector::first(), "active", false, "expected inactive",
+        "active_false",
+        id,
+        FactSelector::first(),
+        "active",
+        false,
+        "expected inactive",
     );
     let decision = rule.evaluate(&engine, &subject()).unwrap();
     assert!(!decision.is_trusted);
@@ -371,10 +457,11 @@ fn require_fact_bool_mismatch() {
 
 #[test]
 fn require_fact_matches_trusted() {
-    let engine = make_engine(NumFactProducer { fact: default_num_fact() });
-    let rule = require_fact_matches::<NumFact, _>(
-        "match_any", id, FactSelector::first(), "no match",
-    );
+    let engine = make_engine(NumFactProducer {
+        fact: default_num_fact(),
+    });
+    let rule =
+        require_fact_matches::<NumFact, _>("match_any", id, FactSelector::first(), "no match");
     let decision = rule.evaluate(&engine, &subject()).unwrap();
     assert!(decision.is_trusted);
 }
@@ -383,7 +470,10 @@ fn require_fact_matches_trusted() {
 fn require_fact_matches_missing_set() {
     let engine = make_engine(MissingFactProducer);
     let rule = require_fact_matches::<NumFact, _>(
-        "match_missing", id, FactSelector::first(), "fact missing",
+        "match_missing",
+        id,
+        FactSelector::first(),
+        "fact missing",
     );
     let decision = rule.evaluate(&engine, &subject()).unwrap();
     assert!(!decision.is_trusted);
@@ -392,9 +482,8 @@ fn require_fact_matches_missing_set() {
 #[test]
 fn require_fact_matches_error_set() {
     let engine = make_engine(ErrorFactProducer);
-    let rule = require_fact_matches::<NumFact, _>(
-        "match_error", id, FactSelector::first(), "fact error",
-    );
+    let rule =
+        require_fact_matches::<NumFact, _>("match_error", id, FactSelector::first(), "fact error");
     let decision = rule.evaluate(&engine, &subject()).unwrap();
     assert!(!decision.is_trusted);
 }
@@ -407,7 +496,11 @@ fn require_fact_matches_error_set() {
 fn require_fact_matches_with_missing_allow() {
     let engine = make_engine(MissingFactProducer);
     let rule = require_fact_matches_with_missing_behavior::<NumFact, _>(
-        "missing_allow", id, FactSelector::first(), MissingBehavior::Allow, "optional",
+        "missing_allow",
+        id,
+        FactSelector::first(),
+        MissingBehavior::Allow,
+        "optional",
     );
     let decision = rule.evaluate(&engine, &subject()).unwrap();
     assert!(decision.is_trusted);
@@ -417,7 +510,11 @@ fn require_fact_matches_with_missing_allow() {
 fn require_fact_matches_with_missing_deny() {
     let engine = make_engine(MissingFactProducer);
     let rule = require_fact_matches_with_missing_behavior::<NumFact, _>(
-        "missing_deny", id, FactSelector::first(), MissingBehavior::Deny, "required",
+        "missing_deny",
+        id,
+        FactSelector::first(),
+        MissingBehavior::Deny,
+        "required",
     );
     let decision = rule.evaluate(&engine, &subject()).unwrap();
     assert!(!decision.is_trusted);
@@ -425,11 +522,15 @@ fn require_fact_matches_with_missing_deny() {
 
 #[test]
 fn require_fact_matches_with_missing_behavior_no_match_allow() {
-    let engine = make_engine(NumFactProducer { fact: default_num_fact() });
+    let engine = make_engine(NumFactProducer {
+        fact: default_num_fact(),
+    });
     let rule = require_fact_matches_with_missing_behavior::<NumFact, _>(
-        "no_match_allow", id,
+        "no_match_allow",
+        id,
         FactSelector::first().where_bool("active", false),
-        MissingBehavior::Allow, "optional",
+        MissingBehavior::Allow,
+        "optional",
     );
     let decision = rule.evaluate(&engine, &subject()).unwrap();
     assert!(decision.is_trusted);
@@ -437,11 +538,15 @@ fn require_fact_matches_with_missing_behavior_no_match_allow() {
 
 #[test]
 fn require_fact_matches_with_missing_behavior_no_match_deny() {
-    let engine = make_engine(NumFactProducer { fact: default_num_fact() });
+    let engine = make_engine(NumFactProducer {
+        fact: default_num_fact(),
+    });
     let rule = require_fact_matches_with_missing_behavior::<NumFact, _>(
-        "no_match_deny", id,
+        "no_match_deny",
+        id,
         FactSelector::first().where_bool("active", false),
-        MissingBehavior::Deny, "required",
+        MissingBehavior::Deny,
+        "required",
     );
     let decision = rule.evaluate(&engine, &subject()).unwrap();
     assert!(!decision.is_trusted);
@@ -453,10 +558,16 @@ fn require_fact_matches_with_missing_behavior_no_match_deny() {
 
 #[test]
 fn require_fact_property_str_contains() {
-    let engine = make_engine(NumFactProducer { fact: default_num_fact() });
+    let engine = make_engine(NumFactProducer {
+        fact: default_num_fact(),
+    });
     let rule = require_fact_property::<NumFact, _>(
-        "name_contains", id, FactSelector::first(), "name",
-        PropertyPredicate::StrContains("value".to_string()), "no contain",
+        "name_contains",
+        id,
+        FactSelector::first(),
+        "name",
+        PropertyPredicate::StrContains("value".to_string()),
+        "no contain",
     );
     let decision = rule.evaluate(&engine, &subject()).unwrap();
     assert!(decision.is_trusted);
@@ -464,10 +575,16 @@ fn require_fact_property_str_contains() {
 
 #[test]
 fn require_fact_property_str_starts_with() {
-    let engine = make_engine(NumFactProducer { fact: default_num_fact() });
+    let engine = make_engine(NumFactProducer {
+        fact: default_num_fact(),
+    });
     let rule = require_fact_property::<NumFact, _>(
-        "name_starts", id, FactSelector::first(), "name",
-        PropertyPredicate::StrStartsWith("test".to_string()), "no prefix",
+        "name_starts",
+        id,
+        FactSelector::first(),
+        "name",
+        PropertyPredicate::StrStartsWith("test".to_string()),
+        "no prefix",
     );
     let decision = rule.evaluate(&engine, &subject()).unwrap();
     assert!(decision.is_trusted);
@@ -475,10 +592,16 @@ fn require_fact_property_str_starts_with() {
 
 #[test]
 fn require_fact_property_str_ends_with() {
-    let engine = make_engine(NumFactProducer { fact: default_num_fact() });
+    let engine = make_engine(NumFactProducer {
+        fact: default_num_fact(),
+    });
     let rule = require_fact_property::<NumFact, _>(
-        "name_ends", id, FactSelector::first(), "name",
-        PropertyPredicate::StrEndsWith("value".to_string()), "no suffix",
+        "name_ends",
+        id,
+        FactSelector::first(),
+        "name",
+        PropertyPredicate::StrEndsWith("value".to_string()),
+        "no suffix",
     );
     let decision = rule.evaluate(&engine, &subject()).unwrap();
     assert!(decision.is_trusted);
@@ -486,10 +609,16 @@ fn require_fact_property_str_ends_with() {
 
 #[test]
 fn require_fact_property_num_ge_i64() {
-    let engine = make_engine(NumFactProducer { fact: default_num_fact() });
+    let engine = make_engine(NumFactProducer {
+        fact: default_num_fact(),
+    });
     let rule = require_fact_property::<NumFact, _>(
-        "count_ge", id, FactSelector::first(), "count",
-        PropertyPredicate::NumGeI64(40), "too small",
+        "count_ge",
+        id,
+        FactSelector::first(),
+        "count",
+        PropertyPredicate::NumGeI64(40),
+        "too small",
     );
     let decision = rule.evaluate(&engine, &subject()).unwrap();
     assert!(decision.is_trusted);
@@ -497,10 +626,16 @@ fn require_fact_property_num_ge_i64() {
 
 #[test]
 fn require_fact_property_num_le_i64() {
-    let engine = make_engine(NumFactProducer { fact: default_num_fact() });
+    let engine = make_engine(NumFactProducer {
+        fact: default_num_fact(),
+    });
     let rule = require_fact_property::<NumFact, _>(
-        "count_le", id, FactSelector::first(), "count",
-        PropertyPredicate::NumLeI64(100), "too big",
+        "count_le",
+        id,
+        FactSelector::first(),
+        "count",
+        PropertyPredicate::NumLeI64(100),
+        "too big",
     );
     let decision = rule.evaluate(&engine, &subject()).unwrap();
     assert!(decision.is_trusted);
@@ -508,10 +643,16 @@ fn require_fact_property_num_le_i64() {
 
 #[test]
 fn require_fact_property_not_eq() {
-    let engine = make_engine(NumFactProducer { fact: default_num_fact() });
+    let engine = make_engine(NumFactProducer {
+        fact: default_num_fact(),
+    });
     let rule = require_fact_property::<NumFact, _>(
-        "count_ne", id, FactSelector::first(), "count",
-        PropertyPredicate::NotEq(FactValueOwned::I64(999)), "unexpected value",
+        "count_ne",
+        id,
+        FactSelector::first(),
+        "count",
+        PropertyPredicate::NotEq(FactValueOwned::I64(999)),
+        "unexpected value",
     );
     let decision = rule.evaluate(&engine, &subject()).unwrap();
     assert!(decision.is_trusted);
@@ -523,8 +664,7 @@ fn require_fact_property_not_eq() {
 
 #[test]
 fn fact_selector_where_eq_usage() {
-    let _sel = FactSelector::first()
-        .where_eq("name", FactValueOwned::String("test".to_string()));
+    let _sel = FactSelector::first().where_eq("name", FactValueOwned::String("test".to_string()));
 }
 
 #[test]
@@ -544,8 +684,7 @@ fn fact_selector_where_i64_usage() {
 
 #[test]
 fn fact_selector_where_pred_usage() {
-    let _sel = FactSelector::first()
-        .where_pred("name", PropertyPredicate::StrNonEmpty);
+    let _sel = FactSelector::first().where_pred("name", PropertyPredicate::StrNonEmpty);
 }
 
 // =========================================================================

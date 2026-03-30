@@ -52,9 +52,18 @@ fn cwt_claims_get_property_all_some() {
         fact.get_property("aud"),
         Some(FactValue::Str(s)) if s.as_ref() == "my-audience"
     ));
-    assert_eq!(fact.get_property("exp"), Some(FactValue::I64(1_700_000_000)));
-    assert_eq!(fact.get_property("nbf"), Some(FactValue::I64(1_600_000_000)));
-    assert_eq!(fact.get_property("iat"), Some(FactValue::I64(1_650_000_000)));
+    assert_eq!(
+        fact.get_property("exp"),
+        Some(FactValue::I64(1_700_000_000))
+    );
+    assert_eq!(
+        fact.get_property("nbf"),
+        Some(FactValue::I64(1_600_000_000))
+    );
+    assert_eq!(
+        fact.get_property("iat"),
+        Some(FactValue::I64(1_650_000_000))
+    );
 }
 
 /// Exercise `CwtClaimsFact::get_property` with all standard claims set to `None`.
@@ -203,7 +212,9 @@ fn cwt_claims_claim_value_text_present_key() {
         iat: None,
     };
 
-    let raw = fact.claim_value_text("mykey").expect("key should be present");
+    let raw = fact
+        .claim_value_text("mykey")
+        .expect("key should be present");
     use cbor_primitives::CborDecoder;
     let mut d = EverParseCborProvider.decoder(raw.as_bytes());
     assert_eq!(

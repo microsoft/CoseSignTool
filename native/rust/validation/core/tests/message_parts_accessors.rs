@@ -57,12 +57,17 @@ fn accessors_with_embedded_payload() {
 
     // protected_header_bytes: should be non-empty CBOR bytes
     let phdr_bytes = fact.protected_header_bytes();
-    assert!(!phdr_bytes.is_empty(), "protected header bytes must not be empty");
+    assert!(
+        !phdr_bytes.is_empty(),
+        "protected header bytes must not be empty"
+    );
 
     // protected_headers: should contain label 1 (alg)
     let phdr_map = fact.protected_headers();
     assert!(
-        phdr_map.get(&cose_sign1_primitives::CoseHeaderLabel::Int(1)).is_some(),
+        phdr_map
+            .get(&cose_sign1_primitives::CoseHeaderLabel::Int(1))
+            .is_some(),
         "protected headers must contain alg label (1)"
     );
 
@@ -136,7 +141,10 @@ fn claim_value_text_returns_some_for_existing_key() {
     };
 
     let result = fact.claim_value_text("my_claim");
-    assert!(result.is_some(), "claim_value_text should return Some for an existing key");
+    assert!(
+        result.is_some(),
+        "claim_value_text should return Some for an existing key"
+    );
 }
 
 #[test]
@@ -154,5 +162,8 @@ fn claim_value_text_returns_none_for_missing_key() {
     };
 
     let result = fact.claim_value_text("nonexistent");
-    assert!(result.is_none(), "claim_value_text should return None for a missing key");
+    assert!(
+        result.is_none(),
+        "claim_value_text should return None for a missing key"
+    );
 }

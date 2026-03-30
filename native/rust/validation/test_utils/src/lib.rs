@@ -8,9 +8,7 @@
 //! This crate exists to keep the production `cose_sign1_validation` surface focused while still
 //! supporting concise test composition in this repo.
 
-use cose_sign1_validation::fluent::{
-    CoseSign1TrustPack, PostSignatureValidator, CoseKeyResolver,
-};
+use cose_sign1_validation::fluent::{CoseKeyResolver, CoseSign1TrustPack, PostSignatureValidator};
 use cose_sign1_validation_primitives::facts::{FactKey, TrustFactContext, TrustFactProducer};
 use cose_sign1_validation_primitives::plan::CompiledTrustPlan;
 use std::sync::Arc;

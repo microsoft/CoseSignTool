@@ -41,10 +41,22 @@ fn custom_claims_non_float_variants_roundtrip() {
         .with_custom_claim(102, CwtClaimValue::Bytes(vec![1, 2, 3]))
         .with_custom_claim(103, CwtClaimValue::Bool(true));
     let decoded = CwtClaims::from_cbor_bytes(&claims.to_cbor_bytes().unwrap()).unwrap();
-    assert_eq!(decoded.custom_claims.get(&100), Some(&CwtClaimValue::Text("hello".into())));
-    assert_eq!(decoded.custom_claims.get(&101), Some(&CwtClaimValue::Integer(-42)));
-    assert_eq!(decoded.custom_claims.get(&102), Some(&CwtClaimValue::Bytes(vec![1, 2, 3])));
-    assert_eq!(decoded.custom_claims.get(&103), Some(&CwtClaimValue::Bool(true)));
+    assert_eq!(
+        decoded.custom_claims.get(&100),
+        Some(&CwtClaimValue::Text("hello".into()))
+    );
+    assert_eq!(
+        decoded.custom_claims.get(&101),
+        Some(&CwtClaimValue::Integer(-42))
+    );
+    assert_eq!(
+        decoded.custom_claims.get(&102),
+        Some(&CwtClaimValue::Bytes(vec![1, 2, 3]))
+    );
+    assert_eq!(
+        decoded.custom_claims.get(&103),
+        Some(&CwtClaimValue::Bool(true))
+    );
 }
 
 #[test]
@@ -61,13 +73,34 @@ fn multiple_custom_claims_sorted_by_label() {
 #[test]
 fn header_error_display_all_variants() {
     let cases: Vec<(HeaderError, &str)> = vec![
-        (HeaderError::CborEncodingError("enc".into()), "CBOR encoding error: enc"),
-        (HeaderError::CborDecodingError("dec".into()), "CBOR decoding error: dec"),
-        (HeaderError::InvalidClaimType { label: 1, expected: "text".into(), actual: "int".into() },
-         "Invalid CWT claim type for label 1: expected text, got int"),
-        (HeaderError::MissingRequiredClaim("sub".into()), "Missing required claim: sub"),
-        (HeaderError::InvalidTimestamp("bad".into()), "Invalid timestamp value: bad"),
-        (HeaderError::ComplexClaimValue("arr".into()), "Custom claim value too complex: arr"),
+        (
+            HeaderError::CborEncodingError("enc".into()),
+            "CBOR encoding error: enc",
+        ),
+        (
+            HeaderError::CborDecodingError("dec".into()),
+            "CBOR decoding error: dec",
+        ),
+        (
+            HeaderError::InvalidClaimType {
+                label: 1,
+                expected: "text".into(),
+                actual: "int".into(),
+            },
+            "Invalid CWT claim type for label 1: expected text, got int",
+        ),
+        (
+            HeaderError::MissingRequiredClaim("sub".into()),
+            "Missing required claim: sub",
+        ),
+        (
+            HeaderError::InvalidTimestamp("bad".into()),
+            "Invalid timestamp value: bad",
+        ),
+        (
+            HeaderError::ComplexClaimValue("arr".into()),
+            "Custom claim value too complex: arr",
+        ),
     ];
     for (err, expected) in cases {
         assert_eq!(err.to_string(), expected);

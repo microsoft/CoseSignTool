@@ -56,11 +56,8 @@ fn test_signing_service_from_crypto_signer_valid_handle() {
     let mut service: *mut CoseSign1SigningServiceHandle = ptr::null_mut();
     let mut error: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
 
-    let result = impl_signing_service_from_crypto_signer_inner(
-        signer_handle,
-        &mut service,
-        &mut error,
-    );
+    let result =
+        impl_signing_service_from_crypto_signer_inner(signer_handle, &mut service, &mut error);
 
     assert_eq!(result, 0, "Expected FFI_OK (0)");
     assert!(!service.is_null(), "Service handle should not be null");
@@ -80,11 +77,7 @@ fn test_factory_from_crypto_signer_valid_handle() {
     let mut factory: *mut CoseSign1FactoryHandle = ptr::null_mut();
     let mut error: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
 
-    let result = impl_factory_from_crypto_signer_inner(
-        signer_handle,
-        &mut factory,
-        &mut error,
-    );
+    let result = impl_factory_from_crypto_signer_inner(signer_handle, &mut factory, &mut error);
 
     assert_eq!(result, 0, "Expected FFI_OK (0)");
     assert!(!factory.is_null(), "Factory handle should not be null");
@@ -105,11 +98,7 @@ fn test_factory_from_crypto_signer_then_sign_direct() {
     let mut factory: *mut CoseSign1FactoryHandle = ptr::null_mut();
     let mut error: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
 
-    let result = impl_factory_from_crypto_signer_inner(
-        signer_handle,
-        &mut factory,
-        &mut error,
-    );
+    let result = impl_factory_from_crypto_signer_inner(signer_handle, &mut factory, &mut error);
     assert_eq!(result, 0);
     assert!(!factory.is_null());
 
@@ -131,7 +120,10 @@ fn test_factory_from_crypto_signer_then_sign_direct() {
     );
 
     // Expected to fail because SimpleSigningService::verify_signature returns Err
-    assert_ne!(sign_result, 0, "Expected factory sign to fail (verification not supported)");
+    assert_ne!(
+        sign_result, 0,
+        "Expected factory sign to fail (verification not supported)"
+    );
 
     // Clean up
     unsafe {
@@ -150,11 +142,7 @@ fn test_factory_from_crypto_signer_then_sign_indirect() {
     let mut factory: *mut CoseSign1FactoryHandle = ptr::null_mut();
     let mut error: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
 
-    let result = impl_factory_from_crypto_signer_inner(
-        signer_handle,
-        &mut factory,
-        &mut error,
-    );
+    let result = impl_factory_from_crypto_signer_inner(signer_handle, &mut factory, &mut error);
     assert_eq!(result, 0);
 
     let payload = b"indirect test payload";

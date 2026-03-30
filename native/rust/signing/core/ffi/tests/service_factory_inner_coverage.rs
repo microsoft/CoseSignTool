@@ -5,14 +5,13 @@
 //!
 //! These tests target previously uncovered paths in the signing FFI layer.
 
-use cose_sign1_signing_ffi::*;
 use cose_sign1_signing_ffi::error::{
-    CoseSign1SigningErrorHandle, ErrorInner, cose_sign1_signing_error_free,
+    cose_sign1_signing_error_free, CoseSign1SigningErrorHandle, ErrorInner,
 };
 use cose_sign1_signing_ffi::types::{
-    CoseKeyHandle,
-    CoseSign1SigningServiceHandle, CoseSign1FactoryHandle,
+    CoseKeyHandle, CoseSign1FactoryHandle, CoseSign1SigningServiceHandle,
 };
+use cose_sign1_signing_ffi::*;
 use std::ptr;
 
 /// Mock sign callback that produces a deterministic signature.
@@ -69,7 +68,13 @@ fn free_factory(f: *mut CoseSign1FactoryHandle) {
 fn inner_signing_service_create_success() {
     let key_type = std::ffi::CString::new("EC2").unwrap();
     let mut key: *mut CoseKeyHandle = ptr::null_mut();
-    impl_key_from_callback_inner(-7, key_type.as_ptr(), mock_sign_callback, ptr::null_mut(), &mut key);
+    impl_key_from_callback_inner(
+        -7,
+        key_type.as_ptr(),
+        mock_sign_callback,
+        ptr::null_mut(),
+        &mut key,
+    );
     assert!(!key.is_null());
 
     let mut service: *mut CoseSign1SigningServiceHandle = ptr::null_mut();
@@ -87,7 +92,13 @@ fn inner_signing_service_create_success() {
 fn inner_signing_service_create_null_out() {
     let key_type = std::ffi::CString::new("EC2").unwrap();
     let mut key: *mut CoseKeyHandle = ptr::null_mut();
-    impl_key_from_callback_inner(-7, key_type.as_ptr(), mock_sign_callback, ptr::null_mut(), &mut key);
+    impl_key_from_callback_inner(
+        -7,
+        key_type.as_ptr(),
+        mock_sign_callback,
+        ptr::null_mut(),
+        &mut key,
+    );
 
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
     let rc = impl_signing_service_create_inner(key, ptr::null_mut(), &mut err);
@@ -116,7 +127,13 @@ fn inner_signing_service_create_null_key() {
 fn inner_factory_create_success() {
     let key_type = std::ffi::CString::new("EC2").unwrap();
     let mut key: *mut CoseKeyHandle = ptr::null_mut();
-    impl_key_from_callback_inner(-7, key_type.as_ptr(), mock_sign_callback, ptr::null_mut(), &mut key);
+    impl_key_from_callback_inner(
+        -7,
+        key_type.as_ptr(),
+        mock_sign_callback,
+        ptr::null_mut(),
+        &mut key,
+    );
 
     let mut service: *mut CoseSign1SigningServiceHandle = ptr::null_mut();
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
@@ -138,7 +155,13 @@ fn inner_factory_create_success() {
 fn inner_factory_create_null_out() {
     let key_type = std::ffi::CString::new("EC2").unwrap();
     let mut key: *mut CoseKeyHandle = ptr::null_mut();
-    impl_key_from_callback_inner(-7, key_type.as_ptr(), mock_sign_callback, ptr::null_mut(), &mut key);
+    impl_key_from_callback_inner(
+        -7,
+        key_type.as_ptr(),
+        mock_sign_callback,
+        ptr::null_mut(),
+        &mut key,
+    );
 
     let mut service: *mut CoseSign1SigningServiceHandle = ptr::null_mut();
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
@@ -172,7 +195,13 @@ fn inner_factory_create_null_service() {
 fn inner_factory_sign_direct_null_out_bytes() {
     let key_type = std::ffi::CString::new("EC2").unwrap();
     let mut key: *mut CoseKeyHandle = ptr::null_mut();
-    impl_key_from_callback_inner(-7, key_type.as_ptr(), mock_sign_callback, ptr::null_mut(), &mut key);
+    impl_key_from_callback_inner(
+        -7,
+        key_type.as_ptr(),
+        mock_sign_callback,
+        ptr::null_mut(),
+        &mut key,
+    );
 
     let mut service: *mut CoseSign1SigningServiceHandle = ptr::null_mut();
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
@@ -206,7 +235,13 @@ fn inner_factory_sign_direct_null_out_bytes() {
 fn inner_factory_sign_direct_null_out_len() {
     let key_type = std::ffi::CString::new("EC2").unwrap();
     let mut key: *mut CoseKeyHandle = ptr::null_mut();
-    impl_key_from_callback_inner(-7, key_type.as_ptr(), mock_sign_callback, ptr::null_mut(), &mut key);
+    impl_key_from_callback_inner(
+        -7,
+        key_type.as_ptr(),
+        mock_sign_callback,
+        ptr::null_mut(),
+        &mut key,
+    );
 
     let mut service: *mut CoseSign1SigningServiceHandle = ptr::null_mut();
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
@@ -261,7 +296,13 @@ fn inner_factory_sign_direct_null_factory() {
 fn inner_factory_sign_direct_null_content_type() {
     let key_type = std::ffi::CString::new("EC2").unwrap();
     let mut key: *mut CoseKeyHandle = ptr::null_mut();
-    impl_key_from_callback_inner(-7, key_type.as_ptr(), mock_sign_callback, ptr::null_mut(), &mut key);
+    impl_key_from_callback_inner(
+        -7,
+        key_type.as_ptr(),
+        mock_sign_callback,
+        ptr::null_mut(),
+        &mut key,
+    );
 
     let mut service: *mut CoseSign1SigningServiceHandle = ptr::null_mut();
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
@@ -299,7 +340,13 @@ fn inner_factory_sign_direct_null_content_type() {
 fn inner_factory_sign_indirect_null_out_bytes() {
     let key_type = std::ffi::CString::new("EC2").unwrap();
     let mut key: *mut CoseKeyHandle = ptr::null_mut();
-    impl_key_from_callback_inner(-7, key_type.as_ptr(), mock_sign_callback, ptr::null_mut(), &mut key);
+    impl_key_from_callback_inner(
+        -7,
+        key_type.as_ptr(),
+        mock_sign_callback,
+        ptr::null_mut(),
+        &mut key,
+    );
 
     let mut service: *mut CoseSign1SigningServiceHandle = ptr::null_mut();
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
@@ -358,7 +405,13 @@ fn inner_factory_sign_indirect_null_factory() {
 fn inner_factory_sign_direct_file_null_path() {
     let key_type = std::ffi::CString::new("EC2").unwrap();
     let mut key: *mut CoseKeyHandle = ptr::null_mut();
-    impl_key_from_callback_inner(-7, key_type.as_ptr(), mock_sign_callback, ptr::null_mut(), &mut key);
+    impl_key_from_callback_inner(
+        -7,
+        key_type.as_ptr(),
+        mock_sign_callback,
+        ptr::null_mut(),
+        &mut key,
+    );
 
     let mut service: *mut CoseSign1SigningServiceHandle = ptr::null_mut();
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
@@ -411,7 +464,13 @@ fn inner_factory_sign_direct_file_null_factory() {
 fn inner_factory_sign_direct_file_null_content_type() {
     let key_type = std::ffi::CString::new("EC2").unwrap();
     let mut key: *mut CoseKeyHandle = ptr::null_mut();
-    impl_key_from_callback_inner(-7, key_type.as_ptr(), mock_sign_callback, ptr::null_mut(), &mut key);
+    impl_key_from_callback_inner(
+        -7,
+        key_type.as_ptr(),
+        mock_sign_callback,
+        ptr::null_mut(),
+        &mut key,
+    );
 
     let mut service: *mut CoseSign1SigningServiceHandle = ptr::null_mut();
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
@@ -448,7 +507,13 @@ fn inner_factory_sign_direct_file_null_content_type() {
 fn inner_factory_sign_indirect_file_null_path() {
     let key_type = std::ffi::CString::new("EC2").unwrap();
     let mut key: *mut CoseKeyHandle = ptr::null_mut();
-    impl_key_from_callback_inner(-7, key_type.as_ptr(), mock_sign_callback, ptr::null_mut(), &mut key);
+    impl_key_from_callback_inner(
+        -7,
+        key_type.as_ptr(),
+        mock_sign_callback,
+        ptr::null_mut(),
+        &mut key,
+    );
 
     let mut service: *mut CoseSign1SigningServiceHandle = ptr::null_mut();
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
@@ -512,8 +577,10 @@ fn error_inner_from_cose_error_cbor() {
 
 #[test]
 fn error_inner_from_cose_error_key() {
-    use cose_sign1_primitives::{CoseSign1Error, CoseKeyError, CryptoError};
-    let err = CoseSign1Error::KeyError(CoseKeyError::Crypto(CryptoError::SigningFailed("err".into())));
+    use cose_sign1_primitives::{CoseKeyError, CoseSign1Error, CryptoError};
+    let err = CoseSign1Error::KeyError(CoseKeyError::Crypto(CryptoError::SigningFailed(
+        "err".into(),
+    )));
     let inner = ErrorInner::from_cose_error(&err);
     assert!(inner.code < 0);
     assert!(!inner.message.is_empty());
@@ -560,7 +627,7 @@ fn error_inner_new_and_null_pointer() {
     let inner = ErrorInner::new("test error", -42);
     assert_eq!(inner.message, "test error");
     assert_eq!(inner.code, -42);
-    
+
     let null_err = ErrorInner::null_pointer("param");
     assert!(null_err.message.contains("param"));
     assert!(null_err.code < 0);
@@ -580,11 +647,8 @@ fn handle_to_inner_null() {
 #[test]
 fn inner_signing_service_from_crypto_signer_null_out() {
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
-    let rc = impl_signing_service_from_crypto_signer_inner(
-        ptr::null_mut(),
-        ptr::null_mut(),
-        &mut err,
-    );
+    let rc =
+        impl_signing_service_from_crypto_signer_inner(ptr::null_mut(), ptr::null_mut(), &mut err);
     assert!(rc < 0);
     free_error(err);
 }
@@ -593,11 +657,7 @@ fn inner_signing_service_from_crypto_signer_null_out() {
 fn inner_signing_service_from_crypto_signer_null_signer() {
     let mut service: *mut CoseSign1SigningServiceHandle = ptr::null_mut();
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
-    let rc = impl_signing_service_from_crypto_signer_inner(
-        ptr::null_mut(),
-        &mut service,
-        &mut err,
-    );
+    let rc = impl_signing_service_from_crypto_signer_inner(ptr::null_mut(), &mut service, &mut err);
     assert!(rc < 0);
     free_error(err);
 }
@@ -609,11 +669,7 @@ fn inner_signing_service_from_crypto_signer_null_signer() {
 #[test]
 fn inner_factory_from_crypto_signer_null_out() {
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
-    let rc = impl_factory_from_crypto_signer_inner(
-        ptr::null_mut(),
-        ptr::null_mut(),
-        &mut err,
-    );
+    let rc = impl_factory_from_crypto_signer_inner(ptr::null_mut(), ptr::null_mut(), &mut err);
     assert!(rc < 0);
     free_error(err);
 }
@@ -622,11 +678,7 @@ fn inner_factory_from_crypto_signer_null_out() {
 fn inner_factory_from_crypto_signer_null_signer() {
     let mut factory: *mut CoseSign1FactoryHandle = ptr::null_mut();
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
-    let rc = impl_factory_from_crypto_signer_inner(
-        ptr::null_mut(),
-        &mut factory,
-        &mut err,
-    );
+    let rc = impl_factory_from_crypto_signer_inner(ptr::null_mut(), &mut factory, &mut err);
     assert!(rc < 0);
     free_error(err);
 }
@@ -644,23 +696,19 @@ unsafe extern "C" fn mock_streaming_callback(
     let counter_ptr = user_data as *mut usize;
     let counter = unsafe { *counter_ptr };
     let payload = b"streaming payload data";
-    
+
     if counter >= payload.len() {
         return 0; // EOF
     }
-    
+
     let remaining = payload.len() - counter;
     let to_copy = std::cmp::min(remaining, buffer_len);
-    
+
     unsafe {
-        std::ptr::copy_nonoverlapping(
-            payload.as_ptr().add(counter),
-            buffer,
-            to_copy,
-        );
+        std::ptr::copy_nonoverlapping(payload.as_ptr().add(counter), buffer, to_copy);
         *counter_ptr = counter + to_copy;
     }
-    
+
     to_copy as i64
 }
 
@@ -668,7 +716,13 @@ unsafe extern "C" fn mock_streaming_callback(
 fn inner_factory_sign_direct_streaming_null_out_bytes() {
     let key_type = std::ffi::CString::new("EC2").unwrap();
     let mut key: *mut CoseKeyHandle = ptr::null_mut();
-    impl_key_from_callback_inner(-7, key_type.as_ptr(), mock_sign_callback, ptr::null_mut(), &mut key);
+    impl_key_from_callback_inner(
+        -7,
+        key_type.as_ptr(),
+        mock_sign_callback,
+        ptr::null_mut(),
+        &mut key,
+    );
 
     let mut service: *mut CoseSign1SigningServiceHandle = ptr::null_mut();
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
@@ -725,7 +779,13 @@ fn inner_factory_sign_direct_streaming_null_factory() {
 fn inner_factory_sign_direct_streaming_null_content_type() {
     let key_type = std::ffi::CString::new("EC2").unwrap();
     let mut key: *mut CoseKeyHandle = ptr::null_mut();
-    impl_key_from_callback_inner(-7, key_type.as_ptr(), mock_sign_callback, ptr::null_mut(), &mut key);
+    impl_key_from_callback_inner(
+        -7,
+        key_type.as_ptr(),
+        mock_sign_callback,
+        ptr::null_mut(),
+        &mut key,
+    );
 
     let mut service: *mut CoseSign1SigningServiceHandle = ptr::null_mut();
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
@@ -760,7 +820,13 @@ fn inner_factory_sign_direct_streaming_null_content_type() {
 fn inner_factory_sign_indirect_streaming_null_out_bytes() {
     let key_type = std::ffi::CString::new("EC2").unwrap();
     let mut key: *mut CoseKeyHandle = ptr::null_mut();
-    impl_key_from_callback_inner(-7, key_type.as_ptr(), mock_sign_callback, ptr::null_mut(), &mut key);
+    impl_key_from_callback_inner(
+        -7,
+        key_type.as_ptr(),
+        mock_sign_callback,
+        ptr::null_mut(),
+        &mut key,
+    );
 
     let mut service: *mut CoseSign1SigningServiceHandle = ptr::null_mut();
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
@@ -817,7 +883,13 @@ fn inner_factory_sign_indirect_streaming_null_factory() {
 fn inner_factory_sign_indirect_streaming_null_content_type() {
     let key_type = std::ffi::CString::new("EC2").unwrap();
     let mut key: *mut CoseKeyHandle = ptr::null_mut();
-    impl_key_from_callback_inner(-7, key_type.as_ptr(), mock_sign_callback, ptr::null_mut(), &mut key);
+    impl_key_from_callback_inner(
+        -7,
+        key_type.as_ptr(),
+        mock_sign_callback,
+        ptr::null_mut(),
+        &mut key,
+    );
 
     let mut service: *mut CoseSign1SigningServiceHandle = ptr::null_mut();
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();

@@ -12,9 +12,9 @@ use cbor_primitives::{CborEncoder, CborProvider};
 use cbor_primitives_everparse::EverParseCborProvider;
 use cose_sign1_primitives::{CoseHeaderLabel, CoseHeaderValue, CoseSign1Message};
 use cose_sign1_validation::fluent::*;
-use cose_sign1_validation_test_utils::SimpleTrustPack;
 use cose_sign1_validation_primitives::facts::{TrustFactEngine, TrustFactSet};
 use cose_sign1_validation_primitives::subject::TrustSubject;
+use cose_sign1_validation_test_utils::SimpleTrustPack;
 use sha2::Digest;
 use std::sync::Arc;
 
@@ -28,7 +28,7 @@ impl CryptoVerifier for AlwaysTrueVerifier {
     fn algorithm(&self) -> i64 {
         -7
     }
-    
+
     fn verify(&self, _data: &[u8], _signature: &[u8]) -> Result<bool, CryptoError> {
         Ok(true)
     }
@@ -101,9 +101,7 @@ fn engine_with_injected_headers(
     (engine, cose_bytes)
 }
 
-fn build_validator(
-    detached_payload: Option<Vec<u8>>,
-) -> CoseSign1Validator {
+fn build_validator(detached_payload: Option<Vec<u8>>) -> CoseSign1Validator {
     let trust_packs: Vec<Arc<dyn CoseSign1TrustPack>> = vec![Arc::new(
         SimpleTrustPack::no_facts("always_true_key")
             .with_cose_key_resolver(Arc::new(AlwaysTrueKeyResolver)),
@@ -236,12 +234,10 @@ fn raw_cwt_text_keyed_custom_claim_falls_through() {
 
 #[test]
 fn get_header_int_returns_none_for_text_value_at_content_type() {
-    let (engine, _) = engine_with_injected_headers(vec![
-        (
-            CoseHeaderLabel::Int(3),
-            CoseHeaderValue::Text("hello".to_string().into()),
-        ),
-    ]);
+    let (engine, _) = engine_with_injected_headers(vec![(
+        CoseHeaderLabel::Int(3),
+        CoseHeaderValue::Text("hello".to_string().into()),
+    )]);
 
     let subject = message_subject();
 
@@ -313,10 +309,9 @@ fn header_i64_uint_branch_via_cose_hash_envelope() {
     let cose_bytes = build_cose_sign1_with_payload(&expected_hash);
     let mut parsed = CoseSign1Message::parse(&cose_bytes).unwrap();
 
-    parsed.protected.insert(
-        CoseHeaderLabel::Int(1),
-        CoseHeaderValue::Int(-7),
-    );
+    parsed
+        .protected
+        .insert(CoseHeaderLabel::Int(1), CoseHeaderValue::Int(-7));
     // Use Uint variant to trigger the Uint branch of header_i64.
     // SHA-256 alg id in negative form won't fit as Uint; use a dummy value
     // that represents a valid hash alg. Actually, header_i64 just returns
@@ -327,10 +322,9 @@ fn header_i64_uint_branch_via_cose_hash_envelope() {
     // SHA-256 negative COSE label = -16. But Uint can't represent negative.
     // We can use a Uint that doesn't match any known alg, to test the Uint branch
     // is exercised even if the alg lookup fails.
-    parsed.protected.insert(
-        CoseHeaderLabel::Int(258),
-        CoseHeaderValue::Uint(42u64),
-    );
+    parsed
+        .protected
+        .insert(CoseHeaderLabel::Int(258), CoseHeaderValue::Uint(42u64));
 
     let producer = Arc::new(CoseSign1MessageFactProducer::new());
     let engine = TrustFactEngine::new(vec![producer])

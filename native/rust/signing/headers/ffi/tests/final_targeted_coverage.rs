@@ -18,9 +18,7 @@ fn error_message(err: *const CoseCwtErrorHandle) -> Option<String> {
     if msg.is_null() {
         return None;
     }
-    let s = unsafe { CStr::from_ptr(msg) }
-        .to_string_lossy()
-        .to_string();
+    let s = unsafe { CStr::from_ptr(msg) }.to_string_lossy().to_string();
     unsafe { cose_cwt_string_free(msg) };
     Some(s)
 }
@@ -102,7 +100,8 @@ fn test_cbor_round_trip_ok_branch() {
     err = ptr::null_mut();
     let rc = impl_cwt_claims_from_cbor_inner(out_bytes, out_len, &mut restored_handle, &mut err);
     assert_eq!(
-        rc, COSE_CWT_OK,
+        rc,
+        COSE_CWT_OK,
         "from_cbor failed: {:?}",
         error_message(err)
     );

@@ -88,10 +88,22 @@ impl std::fmt::Debug for DirectSignatureOptions {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("DirectSignatureOptions")
             .field("embed_payload", &self.embed_payload)
-            .field("additional_header_contributors", &format!("<{} contributors>", self.additional_header_contributors.len()))
-            .field("additional_data", &format!("<{} bytes>", self.additional_data.len()))
+            .field(
+                "additional_header_contributors",
+                &format!(
+                    "<{} contributors>",
+                    self.additional_header_contributors.len()
+                ),
+            )
+            .field(
+                "additional_data",
+                &format!("<{} bytes>", self.additional_data.len()),
+            )
             .field("disable_transparency", &self.disable_transparency)
-            .field("fail_on_transparency_error", &self.fail_on_transparency_error)
+            .field(
+                "fail_on_transparency_error",
+                &self.fail_on_transparency_error,
+            )
             .field("max_embed_size", &self.max_embed_size)
             .finish()
     }

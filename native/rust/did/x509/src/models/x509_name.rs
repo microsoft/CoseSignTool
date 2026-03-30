@@ -6,7 +6,7 @@
 pub struct X509NameAttribute {
     /// The attribute label (e.g., "CN", "O", "C")
     pub label: String,
-    
+
     /// The attribute value
     pub value: String,
 }

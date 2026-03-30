@@ -1,9 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-use crate::constants::{
-    SAN_TYPE_DNS, SAN_TYPE_EMAIL, SAN_TYPE_URI, SAN_TYPE_DN
-};
+use crate::constants::{SAN_TYPE_DN, SAN_TYPE_DNS, SAN_TYPE_EMAIL, SAN_TYPE_URI};
 
 /// Type of Subject Alternative Name
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -30,6 +28,7 @@ impl SanType {
     }
 
     /// Parse SanType from string
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             SAN_TYPE_EMAIL => Some(SanType::Email),
@@ -46,14 +45,14 @@ impl SanType {
 pub enum DidX509Policy {
     /// Extended Key Usage policy with list of OIDs
     Eku(Vec<String>),
-    
+
     /// Subject Distinguished Name policy with key-value pairs
     /// Each tuple is (attribute_label, value), e.g., ("CN", "example.com")
     Subject(Vec<(String, String)>),
-    
+
     /// Subject Alternative Name policy with type and value
     San(SanType, String),
-    
+
     /// Fulcio issuer policy with issuer domain
     FulcioIssuer(String),
 }

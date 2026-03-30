@@ -25,3 +25,6 @@ cose_sign1_crypto_openssl = { path = "../../primitives/crypto/openssl" }
 rcgen = "0.14"
 ring.workspace = true
 openssl = { workspace = true }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly)'] }

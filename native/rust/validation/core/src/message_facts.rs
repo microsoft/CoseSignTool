@@ -209,8 +209,8 @@ pub mod typed_fields {
 /// `use cose_sign1_validation::fluent::*;`
 pub mod fluent_ext {
     use super::{
-        typed_fields as msg_typed, ContentTypeFact, CwtClaimsFact,
-        CwtClaimsPresentFact, DetachedPayloadPresentFact,
+        typed_fields as msg_typed, ContentTypeFact, CwtClaimsFact, CwtClaimsPresentFact,
+        DetachedPayloadPresentFact,
     };
     use cbor_primitives::RawCbor;
     use cose_sign1_validation_primitives::facts::FactKey;

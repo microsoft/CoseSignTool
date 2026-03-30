@@ -10,20 +10,21 @@ const FP256: &str = "AAcOFRwjKjE4P0ZNVFtiaXB3foWMk5qhqK-2vcTL0tk";
 // Valid SHA-384 fingerprint: 48 bytes = 64 base64url chars (no padding)
 const FP384: &str = "AAsWISw3Qk1YY255hI-apbC7xtHc5_L9CBMeKTQ_SlVga3aBjJeirbjDztnk7_oF";
 // Valid SHA-512 fingerprint: 64 bytes = 86 base64url chars (no padding)
-const FP512: &str = "AA0aJzRBTltodYKPnKm2w9Dd6vcEER4rOEVSX2x5hpOgrbrH1OHu-wgVIi88SVZjcH2Kl6SxvsvY5fL_DBkmMw";
+const FP512: &str =
+    "AA0aJzRBTltodYKPnKm2w9Dd6vcEER4rOEVSX2x5hpOgrbrH1OHu-wgVIi88SVZjcH2Kl6SxvsvY5fL_DBkmMw";
 
 #[test]
 fn test_parse_valid_did_with_eku() {
     let did = format!("did:x509:0:sha256:{}::eku:1.2.3.4", FP256);
     let result = DidX509Parser::parse(&did);
-    
+
     assert!(result.is_ok());
     let parsed = result.unwrap();
-    
+
     assert_eq!(parsed.hash_algorithm, "sha256");
     assert_eq!(parsed.ca_fingerprint_hex.len(), 64); // SHA-256 produces 32 bytes = 64 hex chars
     assert_eq!(parsed.policies.len(), 1);
-    
+
     match &parsed.policies[0] {
         DidX509Policy::Eku(oids) => {
             assert_eq!(oids.len(), 1);
@@ -37,10 +38,10 @@ fn test_parse_valid_did_with_eku() {
 fn test_parse_valid_did_with_multiple_eku_oids() {
     let did = format!("did:x509:0:sha256:{}::eku:1.2.3.4:5.6.7.8", FP256);
     let result = DidX509Parser::parse(&did);
-    
+
     assert!(result.is_ok());
     let parsed = result.unwrap();
-    
+
     match &parsed.policies[0] {
         DidX509Policy::Eku(oids) => {
             assert_eq!(oids.len(), 2);
@@ -55,10 +56,10 @@ fn test_parse_valid_did_with_multiple_eku_oids() {
 fn test_parse_valid_did_with_subject_policy() {
     let did = format!("did:x509:0:sha256:{}::subject:CN:example.com", FP256);
     let result = DidX509Parser::parse(&did);
-    
+
     assert!(result.is_ok());
     let parsed = result.unwrap();
-    
+
     match &parsed.policies[0] {
         DidX509Policy::Subject(attrs) => {
             assert_eq!(attrs.len(), 1);
@@ -71,12 +72,15 @@ fn test_parse_valid_did_with_subject_policy() {
 
 #[test]
 fn test_parse_valid_did_with_multiple_subject_attributes() {
-    let did = format!("did:x509:0:sha256:{}::subject:CN:example.com:O:Example%20Org", FP256);
+    let did = format!(
+        "did:x509:0:sha256:{}::subject:CN:example.com:O:Example%20Org",
+        FP256
+    );
     let result = DidX509Parser::parse(&did);
-    
+
     assert!(result.is_ok());
     let parsed = result.unwrap();
-    
+
     match &parsed.policies[0] {
         DidX509Policy::Subject(attrs) => {
             assert_eq!(attrs.len(), 2);
@@ -93,10 +97,10 @@ fn test_parse_valid_did_with_multiple_subject_attributes() {
 fn test_parse_valid_did_with_san_email() {
     let did = format!("did:x509:0:sha256:{}::san:email:user@example.com", FP256);
     let result = DidX509Parser::parse(&did);
-    
+
     assert!(result.is_ok());
     let parsed = result.unwrap();
-    
+
     match &parsed.policies[0] {
         DidX509Policy::San(san_type, value) => {
             assert_eq!(*san_type, SanType::Email);
@@ -110,10 +114,10 @@ fn test_parse_valid_did_with_san_email() {
 fn test_parse_valid_did_with_san_dns() {
     let did = format!("did:x509:0:sha256:{}::san:dns:example.com", FP256);
     let result = DidX509Parser::parse(&did);
-    
+
     assert!(result.is_ok());
     let parsed = result.unwrap();
-    
+
     match &parsed.policies[0] {
         DidX509Policy::San(san_type, value) => {
             assert_eq!(*san_type, SanType::Dns);
@@ -125,12 +129,15 @@ fn test_parse_valid_did_with_san_dns() {
 
 #[test]
 fn test_parse_valid_did_with_san_uri() {
-    let did = format!("did:x509:0:sha256:{}::san:uri:https%3A%2F%2Fexample.com", FP256);
+    let did = format!(
+        "did:x509:0:sha256:{}::san:uri:https%3A%2F%2Fexample.com",
+        FP256
+    );
     let result = DidX509Parser::parse(&did);
-    
+
     assert!(result.is_ok());
     let parsed = result.unwrap();
-    
+
     match &parsed.policies[0] {
         DidX509Policy::San(san_type, value) => {
             assert_eq!(*san_type, SanType::Uri);
@@ -142,12 +149,15 @@ fn test_parse_valid_did_with_san_uri() {
 
 #[test]
 fn test_parse_valid_did_with_fulcio_issuer() {
-    let did = format!("did:x509:0:sha256:{}::fulcio-issuer:accounts.google.com", FP256);
+    let did = format!(
+        "did:x509:0:sha256:{}::fulcio-issuer:accounts.google.com",
+        FP256
+    );
     let result = DidX509Parser::parse(&did);
-    
+
     assert!(result.is_ok());
     let parsed = result.unwrap();
-    
+
     match &parsed.policies[0] {
         DidX509Policy::FulcioIssuer(issuer) => {
             assert_eq!(issuer, "accounts.google.com");
@@ -158,12 +168,15 @@ fn test_parse_valid_did_with_fulcio_issuer() {
 
 #[test]
 fn test_parse_valid_did_with_multiple_policies() {
-    let did = format!("did:x509:0:sha256:{}::eku:1.2.3.4::subject:CN:example.com::san:email:user@example.com", FP256);
+    let did = format!(
+        "did:x509:0:sha256:{}::eku:1.2.3.4::subject:CN:example.com::san:email:user@example.com",
+        FP256
+    );
     let result = DidX509Parser::parse(&did);
-    
+
     assert!(result.is_ok());
     let parsed = result.unwrap();
-    
+
     assert_eq!(parsed.policies.len(), 3);
     assert!(matches!(parsed.policies[0], DidX509Policy::Eku(_)));
     assert!(matches!(parsed.policies[1], DidX509Policy::Subject(_)));
@@ -174,7 +187,7 @@ fn test_parse_valid_did_with_multiple_policies() {
 fn test_parse_did_with_sha384() {
     let did = format!("did:x509:0:sha384:{}::eku:1.2.3.4", FP384);
     let result = DidX509Parser::parse(&did);
-    
+
     assert!(result.is_ok());
     let parsed = result.unwrap();
     assert_eq!(parsed.hash_algorithm, "sha384");
@@ -184,7 +197,7 @@ fn test_parse_did_with_sha384() {
 fn test_parse_did_with_sha512() {
     let did = format!("did:x509:0:sha512:{}::eku:1.2.3.4", FP512);
     let result = DidX509Parser::parse(&did);
-    
+
     assert!(result.is_ok());
     let parsed = result.unwrap();
     assert_eq!(parsed.hash_algorithm, "sha512");
@@ -227,14 +240,20 @@ fn test_parse_wrong_number_of_prefix_components() {
 fn test_parse_unsupported_version() {
     let did = format!("did:x509:1:sha256:{}::eku:1.2.3.4", FP256);
     let result = DidX509Parser::parse(&did);
-    assert!(matches!(result, Err(DidX509Error::UnsupportedVersion(_, _))));
+    assert!(matches!(
+        result,
+        Err(DidX509Error::UnsupportedVersion(_, _))
+    ));
 }
 
 #[test]
 fn test_parse_unsupported_hash_algorithm() {
     let did = format!("did:x509:0:md5:{}::eku:1.2.3.4", FP256);
     let result = DidX509Parser::parse(&did);
-    assert!(matches!(result, Err(DidX509Error::UnsupportedHashAlgorithm(_))));
+    assert!(matches!(
+        result,
+        Err(DidX509Error::UnsupportedHashAlgorithm(_))
+    ));
 }
 
 #[test]
@@ -249,7 +268,10 @@ fn test_parse_empty_fingerprint() {
 fn test_parse_wrong_fingerprint_length() {
     let did = "did:x509:0:sha256:short::eku:1.2.3.4";
     let result = DidX509Parser::parse(did);
-    assert!(matches!(result, Err(DidX509Error::FingerprintLengthMismatch(_, _, _))));
+    assert!(matches!(
+        result,
+        Err(DidX509Error::FingerprintLengthMismatch(_, _, _))
+    ));
 }
 
 #[test]
@@ -272,7 +294,10 @@ fn test_parse_empty_policy() {
 fn test_parse_invalid_subject_policy_odd_components() {
     let did = format!("did:x509:0:sha256:{}::subject:CN", FP256);
     let result = DidX509Parser::parse(&did);
-    assert!(matches!(result, Err(DidX509Error::InvalidSubjectPolicyComponents)));
+    assert!(matches!(
+        result,
+        Err(DidX509Error::InvalidSubjectPolicyComponents)
+    ));
 }
 
 #[test]
@@ -291,7 +316,10 @@ fn test_parse_invalid_subject_policy_empty_key() {
 fn test_parse_invalid_subject_policy_duplicate_key() {
     let did = format!("did:x509:0:sha256:{}::subject:CN:value1:CN:value2", FP256);
     let result = DidX509Parser::parse(&did);
-    assert!(matches!(result, Err(DidX509Error::DuplicateSubjectPolicyKey(_))));
+    assert!(matches!(
+        result,
+        Err(DidX509Error::DuplicateSubjectPolicyKey(_))
+    ));
 }
 
 #[test]
@@ -333,18 +361,21 @@ fn test_try_parse_failure() {
 
 #[test]
 fn test_parsed_identifier_helper_methods() {
-    let did = format!("did:x509:0:sha256:{}::eku:1.2.3.4::subject:CN:example.com", FP256);
+    let did = format!(
+        "did:x509:0:sha256:{}::eku:1.2.3.4::subject:CN:example.com",
+        FP256
+    );
     let parsed = DidX509Parser::parse(&did).unwrap();
-    
+
     assert!(parsed.has_eku_policy());
     assert!(parsed.has_subject_policy());
     assert!(!parsed.has_san_policy());
     assert!(!parsed.has_fulcio_issuer_policy());
-    
+
     let eku = parsed.get_eku_policy();
     assert!(eku.is_some());
     assert_eq!(eku.unwrap()[0], "1.2.3.4");
-    
+
     let subject = parsed.get_subject_policy();
     assert!(subject.is_some());
     assert_eq!(subject.unwrap()[0].0, "CN");

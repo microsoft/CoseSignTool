@@ -6,13 +6,19 @@ use cose_sign1_headers::HeaderError;
 #[test]
 fn test_cbor_encoding_error_display() {
     let error = HeaderError::CborEncodingError("test encoding error".to_string());
-    assert_eq!(error.to_string(), "CBOR encoding error: test encoding error");
+    assert_eq!(
+        error.to_string(),
+        "CBOR encoding error: test encoding error"
+    );
 }
 
 #[test]
 fn test_cbor_decoding_error_display() {
     let error = HeaderError::CborDecodingError("test decoding error".to_string());
-    assert_eq!(error.to_string(), "CBOR decoding error: test decoding error");
+    assert_eq!(
+        error.to_string(),
+        "CBOR decoding error: test decoding error"
+    );
 }
 
 #[test]
@@ -37,13 +43,19 @@ fn test_missing_required_claim_display() {
 #[test]
 fn test_invalid_timestamp_display() {
     let error = HeaderError::InvalidTimestamp("timestamp out of range".to_string());
-    assert_eq!(error.to_string(), "Invalid timestamp value: timestamp out of range");
+    assert_eq!(
+        error.to_string(),
+        "Invalid timestamp value: timestamp out of range"
+    );
 }
 
 #[test]
 fn test_complex_claim_value_display() {
     let error = HeaderError::ComplexClaimValue("nested object not supported".to_string());
-    assert_eq!(error.to_string(), "Custom claim value too complex: nested object not supported");
+    assert_eq!(
+        error.to_string(),
+        "Custom claim value too complex: nested object not supported"
+    );
 }
 
 #[test]

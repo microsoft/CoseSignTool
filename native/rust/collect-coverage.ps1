@@ -563,8 +563,20 @@ try {
     # requiring cloud services) from the coverage denominator.
     $toolchainArg = ''
     $nightlyAvail = (rustup toolchain list 2>$null) -match 'nightly'
+    if (-not $nightlyAvail) {
+        # dtolnay/rust-toolchain may set nightly as default without listing separately
+        $defaultToolchain = (rustup default 2>$null) -join ''
+        if ($defaultToolchain -match 'nightly') {
+            $nightlyAvail = $true
+        }
+    }
     if ($nightlyAvail) {
         $toolchainArg = '+nightly'
+        # Set RUSTFLAGS to enable coverage_nightly cfg so that
+        # #[cfg_attr(coverage_nightly, coverage(off))] attributes are activated.
+        # cargo-llvm-cov on nightly enables the coverage(off) attribute but the
+        # cfg flag must be passed explicitly.
+        $env:RUSTFLAGS = ($env:RUSTFLAGS, '--cfg coverage_nightly' | Where-Object { $_ }) -join ' '
         Write-Host "Using nightly toolchain for coverage (enables coverage(off) attribute)" -ForegroundColor Cyan
     } else {
         Write-Host "Nightly toolchain not found; using default (coverage(off) attributes will be ignored)" -ForegroundColor Yellow

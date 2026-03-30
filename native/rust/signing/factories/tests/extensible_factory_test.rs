@@ -7,11 +7,10 @@ use std::any::Any;
 use std::sync::Arc;
 
 use cose_sign1_factories::{
-    CoseSign1MessageFactory, FactoryError, SignatureFactoryProvider,
-    direct::DirectSignatureOptions,
-    indirect::IndirectSignatureOptions,
+    direct::DirectSignatureOptions, indirect::IndirectSignatureOptions, CoseSign1MessageFactory,
+    FactoryError, SignatureFactoryProvider,
 };
-use cose_sign1_primitives::{CoseHeaderMap, CoseSign1Message, CryptoSigner, CryptoError};
+use cose_sign1_primitives::{CoseHeaderMap, CoseSign1Message, CryptoError, CryptoSigner};
 use cose_sign1_signing::{
     CoseSigner, SigningContext, SigningError, SigningService, SigningServiceMetadata,
 };
@@ -33,10 +32,7 @@ impl CryptoSigner for MockKey {
         -7 // ES256
     }
 
-    fn sign(
-        &self,
-        data: &[u8],
-    ) -> Result<Vec<u8>, CryptoError> {
+    fn sign(&self, data: &[u8]) -> Result<Vec<u8>, CryptoError> {
         // Return deterministic "signature"
         let mut sig = data.to_vec();
         sig.extend_from_slice(b"mock-signature");
@@ -48,10 +44,7 @@ impl CryptoSigner for MockKey {
 struct MockSigningService;
 
 impl SigningService for MockSigningService {
-    fn get_cose_signer(
-        &self,
-        _context: &SigningContext,
-    ) -> Result<CoseSigner, SigningError> {
+    fn get_cose_signer(&self, _context: &SigningContext) -> Result<CoseSigner, SigningError> {
         let key = Box::new(MockKey);
         let protected = CoseHeaderMap::new();
         let unprotected = CoseHeaderMap::new();
@@ -109,9 +102,7 @@ impl SignatureFactoryProvider for CustomFactory {
         // Downcast options to CustomOptions
         let custom_opts = options
             .downcast_ref::<CustomOptions>()
-            .ok_or_else(|| {
-                FactoryError::InvalidInput("Expected CustomOptions".to_string())
-            })?;
+            .ok_or_else(|| FactoryError::InvalidInput("Expected CustomOptions".to_string()))?;
 
         // For testing, just use direct signature with the custom field in AAD
         let mut context = SigningContext::from_bytes(payload.to_vec());
@@ -148,8 +139,7 @@ impl SignatureFactoryProvider for CustomFactory {
         options: &dyn Any,
     ) -> Result<CoseSign1Message, FactoryError> {
         let bytes = self.create_bytes_dyn(payload, content_type, options)?;
-        CoseSign1Message::parse(&bytes)
-            .map_err(|e| FactoryError::SigningFailed(e.to_string()))
+        CoseSign1Message::parse(&bytes).map_err(|e| FactoryError::SigningFailed(e.to_string()))
     }
 }
 
@@ -206,7 +196,10 @@ fn test_backward_compatibility_indirect_signature() {
 
     let message = result.unwrap();
     // For indirect signatures with embed_payload=true, the hash payload is embedded
-    assert!(message.payload().is_some(), "Hash payload should be embedded");
+    assert!(
+        message.payload().is_some(),
+        "Hash payload should be embedded"
+    );
 }
 
 #[test]
@@ -310,5 +303,8 @@ fn test_multiple_custom_factories() {
     let result2 = factory.create_with(b"payload2", "type2", &options2);
     // This will fail because CustomFactory expects CustomOptions, but that's
     // expected behavior - it demonstrates type safety
-    assert!(result2.is_err(), "Second factory with wrong options should fail");
+    assert!(
+        result2.is_err(),
+        "Second factory with wrong options should fail"
+    );
 }

@@ -20,9 +20,7 @@ fn error_message(err: *const CoseSign1SigningErrorHandle) -> Option<String> {
     if msg.is_null() {
         return None;
     }
-    let s = unsafe { CStr::from_ptr(msg) }
-        .to_string_lossy()
-        .to_string();
+    let s = unsafe { CStr::from_ptr(msg) }.to_string_lossy().to_string();
     unsafe { cose_sign1_string_free(msg) };
     Some(s)
 }

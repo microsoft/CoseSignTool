@@ -71,9 +71,7 @@ impl ErrorInner {
 /// # Safety
 ///
 /// The handle must be valid and non-null.
-pub unsafe fn handle_to_inner(
-    handle: *const CoseCwtErrorHandle,
-) -> Option<&'static ErrorInner> {
+pub unsafe fn handle_to_inner(handle: *const CoseCwtErrorHandle) -> Option<&'static ErrorInner> {
     if handle.is_null() {
         return None;
     }
@@ -111,12 +109,10 @@ pub unsafe extern "C" fn cose_cwt_error_message(
 
     match CString::new(inner.message.as_str()) {
         Ok(c_str) => c_str.into_raw(),
-        Err(_) => {
-            match CString::new("error message contained NUL byte") {
-                Ok(c_str) => c_str.into_raw(),
-                Err(_) => ptr::null_mut(),
-            }
-        }
+        Err(_) => match CString::new("error message contained NUL byte") {
+            Ok(c_str) => c_str.into_raw(),
+            Err(_) => ptr::null_mut(),
+        },
     }
 }
 

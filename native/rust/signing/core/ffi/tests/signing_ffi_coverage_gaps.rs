@@ -18,7 +18,10 @@ fn test_error_handling_helpers() {
     // Test the error code constants
     assert_eq!(COSE_SIGN1_SIGNING_OK, 0);
     assert_ne!(COSE_SIGN1_SIGNING_ERR_NULL_POINTER, COSE_SIGN1_SIGNING_OK);
-    assert_ne!(COSE_SIGN1_SIGNING_ERR_INVALID_ARGUMENT, COSE_SIGN1_SIGNING_OK);
+    assert_ne!(
+        COSE_SIGN1_SIGNING_ERR_INVALID_ARGUMENT,
+        COSE_SIGN1_SIGNING_OK
+    );
     assert_ne!(COSE_SIGN1_SIGNING_ERR_SIGN_FAILED, COSE_SIGN1_SIGNING_OK);
     assert_ne!(COSE_SIGN1_SIGNING_ERR_FACTORY_FAILED, COSE_SIGN1_SIGNING_OK);
     assert_ne!(COSE_SIGN1_SIGNING_ERR_PANIC, COSE_SIGN1_SIGNING_OK);
@@ -27,7 +30,7 @@ fn test_error_handling_helpers() {
 #[test]
 fn test_headermap_null_safety() {
     let mut headermap_ptr: *mut CoseHeaderMapHandle = ptr::null_mut();
-    
+
     // Test null pointer handling in headermap creation
     let result = unsafe { cose_headermap_new(&mut headermap_ptr) };
     if result == COSE_SIGN1_SIGNING_OK {
@@ -37,19 +40,19 @@ fn test_headermap_null_safety() {
     }
 }
 
-#[test] 
+#[test]
 fn test_headermap_operations() {
     let mut headermap_ptr: *mut CoseHeaderMapHandle = ptr::null_mut();
     let result = unsafe { cose_headermap_new(&mut headermap_ptr) };
-    
+
     if result == COSE_SIGN1_SIGNING_OK && !headermap_ptr.is_null() {
         // Test inserting a header
         let label = 1i64; // algorithm label
         let value = -7i64; // ES256
-        
+
         let _insert_result = unsafe { cose_headermap_set_int(headermap_ptr, label, value) };
         // May succeed or fail depending on implementation, but should not crash
-        
+
         // Clean up
         unsafe { cose_headermap_free(headermap_ptr) };
     }
@@ -58,7 +61,7 @@ fn test_headermap_operations() {
 #[test]
 fn test_builder_null_safety() {
     let mut builder_ptr: *mut CoseSign1BuilderHandle = ptr::null_mut();
-    
+
     // Test null pointer handling in builder creation
     let result = unsafe { cose_sign1_builder_new(&mut builder_ptr) };
     if result == COSE_SIGN1_SIGNING_OK {
@@ -101,7 +104,7 @@ fn test_null_output_pointer_failures() {
     // These should all fail with null pointer errors
     let result1 = unsafe { cose_headermap_new(ptr::null_mut()) };
     assert_ne!(result1, COSE_SIGN1_SIGNING_OK);
-    
+
     let result2 = unsafe { cose_sign1_builder_new(ptr::null_mut()) };
     assert_ne!(result2, COSE_SIGN1_SIGNING_OK);
 }

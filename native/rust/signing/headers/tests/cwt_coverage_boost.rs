@@ -1,7 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-
 //! Targeted coverage tests for CWT claims CBOR encode/decode paths.
 //!
 //! Covers uncovered lines in `cwt_claims.rs`:
@@ -34,7 +33,10 @@ fn roundtrip_all_standard_claims() {
     let decoded: CwtClaims =
         CwtClaims::from_cbor_bytes(&cbor_bytes).expect("decode should succeed");
 
-    assert_eq!(decoded.issuer.as_deref(), Some("https://issuer.example.com"));
+    assert_eq!(
+        decoded.issuer.as_deref(),
+        Some("https://issuer.example.com")
+    );
     assert_eq!(decoded.subject.as_deref(), Some("subject-42"));
     assert_eq!(decoded.audience.as_deref(), Some("aud-service"));
     assert_eq!(decoded.expiration_time, Some(1_700_000_000));
@@ -111,8 +113,7 @@ fn roundtrip_mixed_standard_and_custom_claims() {
 /// ensuring false booleans round-trip correctly.
 #[test]
 fn roundtrip_custom_bool_false() {
-    let original = CwtClaims::new()
-        .with_custom_claim(300, CwtClaimValue::Bool(false));
+    let original = CwtClaims::new().with_custom_claim(300, CwtClaimValue::Bool(false));
 
     let cbor_bytes: Vec<u8> = original.to_cbor_bytes().expect("encode should succeed");
 
@@ -129,8 +130,7 @@ fn roundtrip_custom_bool_false() {
 /// decode branch (L263-L266).
 #[test]
 fn roundtrip_negative_integer_custom_claim() {
-    let original = CwtClaims::new()
-        .with_custom_claim(400, CwtClaimValue::Integer(-1_000_000));
+    let original = CwtClaims::new().with_custom_claim(400, CwtClaimValue::Integer(-1_000_000));
 
     let cbor_bytes: Vec<u8> = original.to_cbor_bytes().expect("encode should succeed");
 
@@ -146,8 +146,7 @@ fn roundtrip_negative_integer_custom_claim() {
 /// Exercises the positive integer custom claim through the decode branch.
 #[test]
 fn roundtrip_positive_integer_custom_claim() {
-    let original = CwtClaims::new()
-        .with_custom_claim(401, CwtClaimValue::Integer(999_999));
+    let original = CwtClaims::new().with_custom_claim(401, CwtClaimValue::Integer(999_999));
 
     let cbor_bytes: Vec<u8> = original.to_cbor_bytes().expect("encode should succeed");
 
@@ -163,8 +162,7 @@ fn roundtrip_positive_integer_custom_claim() {
 /// Exercises the byte-string custom-claim decode path (L268-L271).
 #[test]
 fn roundtrip_empty_bytes_custom_claim() {
-    let original = CwtClaims::new()
-        .with_custom_claim(500, CwtClaimValue::Bytes(vec![]));
+    let original = CwtClaims::new().with_custom_claim(500, CwtClaimValue::Bytes(vec![]));
 
     let cbor_bytes: Vec<u8> = original.to_cbor_bytes().expect("encode should succeed");
 

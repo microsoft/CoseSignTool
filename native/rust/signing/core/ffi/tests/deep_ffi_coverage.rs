@@ -87,7 +87,13 @@ unsafe extern "C" fn mock_sign_callback(
 fn create_test_key() -> *mut CoseKeyHandle {
     let mut key: *mut CoseKeyHandle = ptr::null_mut();
     let key_type = CString::new("EC").unwrap();
-    let rc = impl_key_from_callback_inner(-7, key_type.as_ptr(), mock_sign_callback, ptr::null_mut(), &mut key);
+    let rc = impl_key_from_callback_inner(
+        -7,
+        key_type.as_ptr(),
+        mock_sign_callback,
+        ptr::null_mut(),
+        &mut key,
+    );
     assert_eq!(rc, 0, "key creation failed");
     assert!(!key.is_null());
     key
@@ -105,7 +111,9 @@ fn create_test_service(key: *const CoseKeyHandle) -> *mut CoseSign1SigningServic
 }
 
 /// Creates a factory from a signing service via the inner function.
-fn create_test_factory(service: *const CoseSign1SigningServiceHandle) -> *mut CoseSign1FactoryHandle {
+fn create_test_factory(
+    service: *const CoseSign1SigningServiceHandle,
+) -> *mut CoseSign1FactoryHandle {
     let mut factory: *mut CoseSign1FactoryHandle = ptr::null_mut();
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
     let rc = impl_factory_create_inner(service, &mut factory, &mut err);
@@ -203,7 +211,9 @@ fn factory_sign_direct_file_inner_exercises_pipeline() {
     let factory = create_test_factory(service);
 
     let mut tmpfile = tempfile::NamedTempFile::new().expect("failed to create temp file");
-    tmpfile.write_all(b"file payload for direct signing").unwrap();
+    tmpfile
+        .write_all(b"file payload for direct signing")
+        .unwrap();
     tmpfile.flush().unwrap();
 
     let file_path = CString::new(tmpfile.path().to_str().unwrap()).unwrap();
@@ -244,7 +254,9 @@ fn factory_sign_indirect_file_inner_exercises_pipeline() {
     let factory = create_test_factory(service);
 
     let mut tmpfile = tempfile::NamedTempFile::new().expect("failed to create temp file");
-    tmpfile.write_all(b"file payload for indirect signing").unwrap();
+    tmpfile
+        .write_all(b"file payload for indirect signing")
+        .unwrap();
     tmpfile.flush().unwrap();
 
     let file_path = CString::new(tmpfile.path().to_str().unwrap()).unwrap();
@@ -291,11 +303,7 @@ unsafe extern "C" fn stream_read_callback(
     let remaining = state.data.len() - state.offset;
     let to_copy = buffer_len.min(remaining);
     if to_copy > 0 {
-        std::ptr::copy_nonoverlapping(
-            state.data.as_ptr().add(state.offset),
-            buffer,
-            to_copy,
-        );
+        std::ptr::copy_nonoverlapping(state.data.as_ptr().add(state.offset), buffer, to_copy);
         state.offset += to_copy;
     }
     to_copy as i64
@@ -387,11 +395,7 @@ fn signing_service_from_crypto_signer_null_signer() {
     let mut service: *mut CoseSign1SigningServiceHandle = ptr::null_mut();
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
 
-    let rc = impl_signing_service_from_crypto_signer_inner(
-        ptr::null_mut(),
-        &mut service,
-        &mut err,
-    );
+    let rc = impl_signing_service_from_crypto_signer_inner(ptr::null_mut(), &mut service, &mut err);
 
     assert!(rc < 0);
     assert!(service.is_null());
@@ -402,11 +406,8 @@ fn signing_service_from_crypto_signer_null_signer() {
 fn signing_service_from_crypto_signer_null_out_service() {
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
 
-    let rc = impl_signing_service_from_crypto_signer_inner(
-        ptr::null_mut(),
-        ptr::null_mut(),
-        &mut err,
-    );
+    let rc =
+        impl_signing_service_from_crypto_signer_inner(ptr::null_mut(), ptr::null_mut(), &mut err);
 
     assert!(rc < 0);
     free_error(err);
@@ -417,11 +418,7 @@ fn factory_from_crypto_signer_null_signer() {
     let mut factory: *mut CoseSign1FactoryHandle = ptr::null_mut();
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
 
-    let rc = impl_factory_from_crypto_signer_inner(
-        ptr::null_mut(),
-        &mut factory,
-        &mut err,
-    );
+    let rc = impl_factory_from_crypto_signer_inner(ptr::null_mut(), &mut factory, &mut err);
 
     assert!(rc < 0);
     assert!(factory.is_null());
@@ -432,11 +429,7 @@ fn factory_from_crypto_signer_null_signer() {
 fn factory_from_crypto_signer_null_out_factory() {
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
 
-    let rc = impl_factory_from_crypto_signer_inner(
-        ptr::null_mut(),
-        ptr::null_mut(),
-        &mut err,
-    );
+    let rc = impl_factory_from_crypto_signer_inner(ptr::null_mut(), ptr::null_mut(), &mut err);
 
     assert!(rc < 0);
     free_error(err);

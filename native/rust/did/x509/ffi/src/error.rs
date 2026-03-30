@@ -95,9 +95,7 @@ impl ErrorInner {
 /// # Safety
 ///
 /// The handle must be valid and non-null.
-pub unsafe fn handle_to_inner(
-    handle: *const DidX509ErrorHandle,
-) -> Option<&'static ErrorInner> {
+pub unsafe fn handle_to_inner(handle: *const DidX509ErrorHandle) -> Option<&'static ErrorInner> {
     if handle.is_null() {
         return None;
     }

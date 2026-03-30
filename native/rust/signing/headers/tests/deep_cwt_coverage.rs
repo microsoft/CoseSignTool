@@ -13,7 +13,7 @@
 
 use cbor_primitives::{CborEncoder, CborProvider};
 use cbor_primitives_everparse::EverParseCborProvider;
-use cose_sign1_headers::{CwtClaims, CwtClaimValue};
+use cose_sign1_headers::{CwtClaimValue, CwtClaims};
 
 // =========================================================================
 // Builder method coverage
@@ -64,8 +64,8 @@ fn builder_with_cwt_id() {
 
 #[test]
 fn builder_with_custom_claim_text() {
-    let claims = CwtClaims::new()
-        .with_custom_claim(100, CwtClaimValue::Text("custom-value".to_string()));
+    let claims =
+        CwtClaims::new().with_custom_claim(100, CwtClaimValue::Text("custom-value".to_string()));
     assert_eq!(
         claims.custom_claims.get(&100),
         Some(&CwtClaimValue::Text("custom-value".to_string()))
@@ -74,8 +74,7 @@ fn builder_with_custom_claim_text() {
 
 #[test]
 fn builder_with_custom_claim_integer() {
-    let claims = CwtClaims::new()
-        .with_custom_claim(101, CwtClaimValue::Integer(42));
+    let claims = CwtClaims::new().with_custom_claim(101, CwtClaimValue::Integer(42));
     assert_eq!(
         claims.custom_claims.get(&101),
         Some(&CwtClaimValue::Integer(42))
@@ -84,8 +83,7 @@ fn builder_with_custom_claim_integer() {
 
 #[test]
 fn builder_with_custom_claim_bytes() {
-    let claims = CwtClaims::new()
-        .with_custom_claim(102, CwtClaimValue::Bytes(vec![1, 2, 3]));
+    let claims = CwtClaims::new().with_custom_claim(102, CwtClaimValue::Bytes(vec![1, 2, 3]));
     assert_eq!(
         claims.custom_claims.get(&102),
         Some(&CwtClaimValue::Bytes(vec![1, 2, 3]))
@@ -94,8 +92,7 @@ fn builder_with_custom_claim_bytes() {
 
 #[test]
 fn builder_with_custom_claim_bool() {
-    let claims = CwtClaims::new()
-        .with_custom_claim(103, CwtClaimValue::Bool(true));
+    let claims = CwtClaims::new().with_custom_claim(103, CwtClaimValue::Bool(true));
     assert_eq!(
         claims.custom_claims.get(&103),
         Some(&CwtClaimValue::Bool(true))
@@ -104,8 +101,7 @@ fn builder_with_custom_claim_bool() {
 
 #[test]
 fn builder_with_custom_claim_float() {
-    let claims = CwtClaims::new()
-        .with_custom_claim(104, CwtClaimValue::Float(3.14));
+    let claims = CwtClaims::new().with_custom_claim(104, CwtClaimValue::Float(3.14));
     assert_eq!(
         claims.custom_claims.get(&104),
         Some(&CwtClaimValue::Float(3.14))
@@ -182,8 +178,7 @@ fn serialize_empty_claims() {
 
 #[test]
 fn serialize_custom_text_claim_roundtrip() {
-    let claims = CwtClaims::new()
-        .with_custom_claim(100, CwtClaimValue::Text("hello".to_string()));
+    let claims = CwtClaims::new().with_custom_claim(100, CwtClaimValue::Text("hello".to_string()));
     let bytes = claims.to_cbor_bytes().unwrap();
     let decoded = CwtClaims::from_cbor_bytes(&bytes).unwrap();
     assert_eq!(
@@ -194,8 +189,7 @@ fn serialize_custom_text_claim_roundtrip() {
 
 #[test]
 fn serialize_custom_integer_claim_roundtrip() {
-    let claims = CwtClaims::new()
-        .with_custom_claim(101, CwtClaimValue::Integer(-42));
+    let claims = CwtClaims::new().with_custom_claim(101, CwtClaimValue::Integer(-42));
     let bytes = claims.to_cbor_bytes().unwrap();
     let decoded = CwtClaims::from_cbor_bytes(&bytes).unwrap();
     assert_eq!(
@@ -206,8 +200,7 @@ fn serialize_custom_integer_claim_roundtrip() {
 
 #[test]
 fn serialize_custom_bytes_claim_roundtrip() {
-    let claims = CwtClaims::new()
-        .with_custom_claim(102, CwtClaimValue::Bytes(vec![0xDE, 0xAD]));
+    let claims = CwtClaims::new().with_custom_claim(102, CwtClaimValue::Bytes(vec![0xDE, 0xAD]));
     let bytes = claims.to_cbor_bytes().unwrap();
     let decoded = CwtClaims::from_cbor_bytes(&bytes).unwrap();
     assert_eq!(
@@ -218,8 +211,7 @@ fn serialize_custom_bytes_claim_roundtrip() {
 
 #[test]
 fn serialize_custom_bool_claim_roundtrip() {
-    let claims = CwtClaims::new()
-        .with_custom_claim(103, CwtClaimValue::Bool(false));
+    let claims = CwtClaims::new().with_custom_claim(103, CwtClaimValue::Bool(false));
     let bytes = claims.to_cbor_bytes().unwrap();
     let decoded = CwtClaims::from_cbor_bytes(&bytes).unwrap();
     assert_eq!(
@@ -231,8 +223,7 @@ fn serialize_custom_bool_claim_roundtrip() {
 #[test]
 fn serialize_custom_float_claim_errors() {
     // EverParse CBOR provider doesn't support float encoding
-    let claims = CwtClaims::new()
-        .with_custom_claim(104, CwtClaimValue::Float(2.718));
+    let claims = CwtClaims::new().with_custom_claim(104, CwtClaimValue::Float(2.718));
     let result = claims.to_cbor_bytes();
     assert!(result.is_err(), "Float encoding should fail with EverParse");
 }
@@ -339,14 +330,8 @@ fn claim_value_inequality() {
         CwtClaimValue::Text("a".to_string()),
         CwtClaimValue::Text("b".to_string())
     );
-    assert_ne!(
-        CwtClaimValue::Integer(1),
-        CwtClaimValue::Integer(2)
-    );
-    assert_ne!(
-        CwtClaimValue::Bool(true),
-        CwtClaimValue::Bool(false)
-    );
+    assert_ne!(CwtClaimValue::Integer(1), CwtClaimValue::Integer(2));
+    assert_ne!(CwtClaimValue::Bool(true), CwtClaimValue::Bool(false));
 }
 
 // =========================================================================

@@ -11,18 +11,18 @@
 //!
 //! Most callers should use `cose_sign1_validation::fluent` to build and run a validator.
 
-use tracing::{debug, info, error};
+use tracing::{debug, error, info};
 
 use crate::trust_packs::CoseSign1TrustPack;
 use crate::trust_plan_builder::CoseSign1CompiledTrustPlan;
+use cose_sign1_primitives::payload::{Payload, StreamingPayload};
+use cose_sign1_primitives::{build_sig_structure, build_sig_structure_prefix};
 use cose_sign1_validation_primitives::facts::{TrustFactEngine, TrustFactProducer};
 use cose_sign1_validation_primitives::plan::CompiledTrustPlan;
 use cose_sign1_validation_primitives::subject::TrustSubject;
 use cose_sign1_validation_primitives::{
     CoseHeaderLocation, CoseSign1Message, TrustDecision, TrustEvaluationOptions,
 };
-use cose_sign1_primitives::payload::{Payload, StreamingPayload};
-use cose_sign1_primitives::{build_sig_structure, build_sig_structure_prefix};
 use std::collections::BTreeMap;
 use std::future::Future;
 use std::io::Read;
@@ -312,10 +312,7 @@ pub trait CounterSignatureResolver: Send + Sync {
     fn name(&self) -> &'static str;
 
     /// Discover counter-signatures from the message.
-    fn resolve(
-        &self,
-        message: &CoseSign1Message,
-    ) -> CounterSignatureResolutionResult;
+    fn resolve(&self, message: &CoseSign1Message) -> CounterSignatureResolutionResult;
 
     /// Asynchronously discover counter-signatures from the message.
     ///
@@ -516,8 +513,9 @@ impl CoseSign1Validator {
         let (plan, trust_packs) = trust_plan.into_parts();
 
         let mut cose_key_resolvers: Vec<Arc<dyn CoseKeyResolver>> = Vec::new();
-        let mut post_signature_validators: Vec<Arc<dyn PostSignatureValidator>> =
-            vec![Arc::new(crate::indirect_signature::IndirectSignaturePostSignatureValidator)];
+        let mut post_signature_validators: Vec<Arc<dyn PostSignatureValidator>> = vec![Arc::new(
+            crate::indirect_signature::IndirectSignaturePostSignatureValidator,
+        )];
 
         // Always include message fact production for trust plans.
         let mut trust_producers: Vec<Arc<dyn TrustFactProducer>> = vec![Arc::new(
@@ -588,13 +586,16 @@ impl CoseSign1Validator {
         _provider: P,
         cose_sign1_bytes: Arc<[u8]>,
     ) -> Result<CoseSign1ValidationResult, CoseSign1ValidationError> {
-        info!(stage = "validate", payload_len = cose_sign1_bytes.len(), "Starting COSE_Sign1 validation");
-        
-        let parsed_message = CoseSign1Message::parse(&cose_sign1_bytes)
-            .map_err(|e| {
-                error!(stage = "parse", error = %e, "Failed to parse COSE_Sign1 message");
-                CoseSign1ValidationError::CoseDecode(e.to_string())
-            })?;
+        info!(
+            stage = "validate",
+            payload_len = cose_sign1_bytes.len(),
+            "Starting COSE_Sign1 validation"
+        );
+
+        let parsed_message = CoseSign1Message::parse(&cose_sign1_bytes).map_err(|e| {
+            error!(stage = "parse", error = %e, "Failed to parse COSE_Sign1 message");
+            CoseSign1ValidationError::CoseDecode(e.to_string())
+        })?;
 
         debug!(stage = "parse", algorithm = ?parsed_message.alg(), is_detached = parsed_message.is_detached(), "Message parsed");
 
@@ -607,13 +608,16 @@ impl CoseSign1Validator {
         _provider: P,
         cose_sign1_bytes: Arc<[u8]>,
     ) -> Result<CoseSign1ValidationResult, CoseSign1ValidationError> {
-        info!(stage = "validate", payload_len = cose_sign1_bytes.len(), "Starting COSE_Sign1 validation");
-        
-        let parsed_message = CoseSign1Message::parse(&cose_sign1_bytes)
-            .map_err(|e| {
-                error!(stage = "parse", error = %e, "Failed to parse COSE_Sign1 message");
-                CoseSign1ValidationError::CoseDecode(e.to_string())
-            })?;
+        info!(
+            stage = "validate",
+            payload_len = cose_sign1_bytes.len(),
+            "Starting COSE_Sign1 validation"
+        );
+
+        let parsed_message = CoseSign1Message::parse(&cose_sign1_bytes).map_err(|e| {
+            error!(stage = "parse", error = %e, "Failed to parse COSE_Sign1 message");
+            CoseSign1ValidationError::CoseDecode(e.to_string())
+        })?;
 
         debug!(stage = "parse", algorithm = ?parsed_message.alg(), is_detached = parsed_message.is_detached(), "Message parsed");
 
@@ -632,7 +636,11 @@ impl CoseSign1Validator {
     ) -> Result<CoseSign1ValidationResult, CoseSign1ValidationError> {
         // Stage 1: Key Material Resolution
         let (resolution_result, cose_key) = self.run_resolution_stage(&cose_sign1_parsed);
-        info!(stage = "key_resolution", resolved = resolution_result.is_valid(), "Key resolution complete");
+        info!(
+            stage = "key_resolution",
+            resolved = resolution_result.is_valid(),
+            "Key resolution complete"
+        );
 
         // If signing key resolution fails, we may still be able to validate via trusted
         // counter-signatures that attest to envelope integrity.
@@ -652,7 +660,11 @@ impl CoseSign1Validator {
                 true,
             )
             .map_err(CoseSign1ValidationError::Trust)?;
-        info!(stage = "trust_evaluation", is_trusted = trust_decision.is_trusted, "Trust evaluation complete");
+        info!(
+            stage = "trust_evaluation",
+            is_trusted = trust_decision.is_trusted,
+            "Trust evaluation complete"
+        );
 
         // Check if counter-signatures provide integrity attestation (signature bypass).
         // This is true when trust was achieved via counter-signatures rather than primary key.
@@ -767,7 +779,6 @@ impl CoseSign1Validator {
             });
         }
 
-
         // When counter-signatures provide integrity attestation (e.g. MST receipt verified
         // the Sig_structure through the OR path in the trust plan), bypass primary signature
         // verification. The counter-sig has already attested that the envelope is intact.
@@ -795,12 +806,29 @@ impl CoseSign1Validator {
             }
 
             let mut combined_metadata = BTreeMap::new();
-            merge_stage_metadata(&mut combined_metadata, Self::METADATA_PREFIX_RESOLUTION, &resolution_result);
-            merge_stage_metadata(&mut combined_metadata, Self::METADATA_PREFIX_TRUST, &trust_result);
-            merge_stage_metadata(&mut combined_metadata, Self::METADATA_PREFIX_SIGNATURE, &signature_result);
-            merge_stage_metadata(&mut combined_metadata, Self::METADATA_PREFIX_POST, &post_signature_result);
+            merge_stage_metadata(
+                &mut combined_metadata,
+                Self::METADATA_PREFIX_RESOLUTION,
+                &resolution_result,
+            );
+            merge_stage_metadata(
+                &mut combined_metadata,
+                Self::METADATA_PREFIX_TRUST,
+                &trust_result,
+            );
+            merge_stage_metadata(
+                &mut combined_metadata,
+                Self::METADATA_PREFIX_SIGNATURE,
+                &signature_result,
+            );
+            merge_stage_metadata(
+                &mut combined_metadata,
+                Self::METADATA_PREFIX_POST,
+                &post_signature_result,
+            );
 
-            let overall = ValidationResult::success(Self::VALIDATOR_NAME_OVERALL, Some(combined_metadata));
+            let overall =
+                ValidationResult::success(Self::VALIDATOR_NAME_OVERALL, Some(combined_metadata));
 
             return Ok(CoseSign1ValidationResult {
                 resolution: resolution_result,
@@ -893,7 +921,8 @@ impl CoseSign1Validator {
         cose_sign1_parsed: Arc<CoseSign1Message>,
     ) -> Result<CoseSign1ValidationResult, CoseSign1ValidationError> {
         // Stage 1: Key Material Resolution
-        let (resolution_result, cose_key) = self.run_resolution_stage_async(&cose_sign1_parsed).await;
+        let (resolution_result, cose_key) =
+            self.run_resolution_stage_async(&cose_sign1_parsed).await;
 
         let attempt_signature_bypass_on_resolution_failure = !resolution_result.is_valid();
 
@@ -1015,7 +1044,6 @@ impl CoseSign1Validator {
             });
         }
 
-
         // When counter-signatures provide integrity attestation (e.g. MST receipt verified
         // the Sig_structure through the OR path in the trust plan), bypass primary signature
         // verification. The counter-sig has already attested that the envelope is intact.
@@ -1043,12 +1071,29 @@ impl CoseSign1Validator {
             }
 
             let mut combined_metadata = BTreeMap::new();
-            merge_stage_metadata(&mut combined_metadata, Self::METADATA_PREFIX_RESOLUTION, &resolution_result);
-            merge_stage_metadata(&mut combined_metadata, Self::METADATA_PREFIX_TRUST, &trust_result);
-            merge_stage_metadata(&mut combined_metadata, Self::METADATA_PREFIX_SIGNATURE, &signature_result);
-            merge_stage_metadata(&mut combined_metadata, Self::METADATA_PREFIX_POST, &post_signature_result);
+            merge_stage_metadata(
+                &mut combined_metadata,
+                Self::METADATA_PREFIX_RESOLUTION,
+                &resolution_result,
+            );
+            merge_stage_metadata(
+                &mut combined_metadata,
+                Self::METADATA_PREFIX_TRUST,
+                &trust_result,
+            );
+            merge_stage_metadata(
+                &mut combined_metadata,
+                Self::METADATA_PREFIX_SIGNATURE,
+                &signature_result,
+            );
+            merge_stage_metadata(
+                &mut combined_metadata,
+                Self::METADATA_PREFIX_POST,
+                &post_signature_result,
+            );
 
-            let overall = ValidationResult::success(Self::VALIDATOR_NAME_OVERALL, Some(combined_metadata));
+            let overall =
+                ValidationResult::success(Self::VALIDATOR_NAME_OVERALL, Some(combined_metadata));
 
             return Ok(CoseSign1ValidationResult {
                 resolution: resolution_result,
@@ -1141,7 +1186,10 @@ impl CoseSign1Validator {
     fn run_resolution_stage(
         &self,
         message: &CoseSign1Message,
-    ) -> (ValidationResult, Option<Arc<dyn crypto_primitives::CryptoVerifier>>) {
+    ) -> (
+        ValidationResult,
+        Option<Arc<dyn crypto_primitives::CryptoVerifier>>,
+    ) {
         if self.cose_key_resolvers.is_empty() {
             return (
                 ValidationResult::failure_message(
@@ -1191,7 +1239,10 @@ impl CoseSign1Validator {
     async fn run_resolution_stage_async(
         &self,
         message: &CoseSign1Message,
-    ) -> (ValidationResult, Option<Arc<dyn crypto_primitives::CryptoVerifier>>) {
+    ) -> (
+        ValidationResult,
+        Option<Arc<dyn crypto_primitives::CryptoVerifier>>,
+    ) {
         if self.cose_key_resolvers.is_empty() {
             return (
                 ValidationResult::failure_message(
@@ -1424,8 +1475,7 @@ impl CoseSign1Validator {
             if let Payload::Streaming(streaming) = p {
                 let len = streaming.size();
                 if len > Self::LARGE_STREAM_THRESHOLD {
-                    let associated_data =
-                        self.options.associated_data.as_deref().unwrap_or(&[]);
+                    let associated_data = self.options.associated_data.as_deref().unwrap_or(&[]);
 
                     let Some(_alg) = message.alg() else {
                         return ValidationResult::failure_message(
@@ -1495,10 +1545,9 @@ impl CoseSign1Validator {
                     }
 
                     return match verifying_ctx.finalize() {
-                        Ok(true) => ValidationResult::success(
-                            Self::STAGE_NAME_SIGNATURE,
-                            Some(metadata),
-                        ),
+                        Ok(true) => {
+                            ValidationResult::success(Self::STAGE_NAME_SIGNATURE, Some(metadata))
+                        }
                         Ok(false) => ValidationResult::failure_message(
                             Self::STAGE_NAME_SIGNATURE,
                             Self::ERROR_MESSAGE_SIGNATURE_VERIFICATION_FAILED,
@@ -1682,7 +1731,8 @@ impl CoseSign1Validator {
                 Ok(Arc::from(b.as_slice()))
             }
             Payload::Streaming(streaming) => {
-                let mut reader = streaming.open()
+                let mut reader = streaming
+                    .open()
                     .map_err(|e| format!("detached_payload_open_failed: {}", e))?;
                 let mut buf = Vec::new();
                 reader
@@ -1717,7 +1767,8 @@ impl SigStructureReader {
         streaming: &dyn StreamingPayload,
         payload_len: u64,
     ) -> Result<Self, String> {
-        let payload = streaming.open()
+        let payload = streaming
+            .open()
             .map_err(|e| format!("detached_payload_open_failed: {}", e))?;
         let external = if external_aad.is_empty() {
             None
@@ -1773,13 +1824,7 @@ fn merge_stage_metadata(
     stage: &ValidationResult,
 ) {
     for (k, v) in &stage.metadata {
-        combined.insert(
-            format!(
-                "{prefix}.{}",
-                k
-            ),
-            v.clone(),
-        );
+        combined.insert(format!("{prefix}.{}", k), v.clone());
     }
 }
 

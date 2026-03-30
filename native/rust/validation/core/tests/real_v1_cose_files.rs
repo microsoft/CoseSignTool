@@ -3,10 +3,10 @@
 
 use cbor_primitives_everparse::EverParseCborProvider;
 use cose_sign1_validation::fluent::*;
-use cose_sign1_validation_test_utils::SimpleTrustPack;
 use cose_sign1_validation_primitives::facts::{TrustFactEngine, TrustFactSet};
 use cose_sign1_validation_primitives::subject::TrustSubject;
 use cose_sign1_validation_primitives::CoseSign1Message;
+use cose_sign1_validation_test_utils::SimpleTrustPack;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -21,8 +21,10 @@ fn v1_testdata_path(file_name: &str) -> PathBuf {
 struct AlwaysTrueVerifier;
 
 impl CryptoVerifier for AlwaysTrueVerifier {
-    fn algorithm(&self) -> i64 { -7 }
-    
+    fn algorithm(&self) -> i64 {
+        -7
+    }
+
     fn verify(&self, _data: &[u8], _signature: &[u8]) -> Result<bool, CryptoError> {
         Ok(true)
     }
@@ -91,7 +93,10 @@ fn real_v1_cose_file_runs_validator_pipeline_with_detached_payload() {
     });
 
     let result = validator
-        .validate_bytes(EverParseCborProvider, Arc::from(cose_bytes.into_boxed_slice()))
+        .validate_bytes(
+            EverParseCborProvider,
+            Arc::from(cose_bytes.into_boxed_slice()),
+        )
         .unwrap();
 
     assert!(result.resolution.is_valid());

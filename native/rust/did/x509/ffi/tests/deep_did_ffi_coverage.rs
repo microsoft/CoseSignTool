@@ -109,14 +109,7 @@ fn build_with_eku_null_cert_null_eku_returns_error() {
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
 
     // Null cert pointer with non-zero length
-    let rc = impl_build_with_eku_inner(
-        ptr::null(),
-        10,
-        ptr::null(),
-        0,
-        &mut out_did,
-        &mut err,
-    );
+    let rc = impl_build_with_eku_inner(ptr::null(), 10, ptr::null(), 0, &mut out_did, &mut err);
     assert!(rc < 0);
     assert!(out_did.is_null());
     if !err.is_null() {
@@ -473,7 +466,11 @@ fn parse_and_get_fingerprint_and_hash_algorithm() {
     let alg = unsafe { std::ffi::CStr::from_ptr(out_alg) }
         .to_str()
         .unwrap();
-    assert!(alg.contains("sha"), "expected sha-based algorithm, got: {}", alg);
+    assert!(
+        alg.contains("sha"),
+        "expected sha-based algorithm, got: {}",
+        alg
+    );
     unsafe { did_x509_string_free(out_alg as *mut _) };
     if !err3.is_null() {
         unsafe { did_x509_error_free(err3) };

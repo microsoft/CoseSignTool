@@ -179,7 +179,10 @@ fn test_impl_parsed_get_hash_algorithm_inner_ok_path() {
 
     let alg_rc = impl_parsed_get_hash_algorithm_inner(handle, &mut algorithm, &mut alg_err);
 
-    assert_eq!(alg_rc, DID_X509_OK, "hash algorithm extraction should succeed");
+    assert_eq!(
+        alg_rc, DID_X509_OK,
+        "hash algorithm extraction should succeed"
+    );
     assert!(!algorithm.is_null(), "algorithm must be non-null");
     assert!(alg_err.is_null(), "error must be null on success");
 
@@ -219,7 +222,10 @@ fn test_impl_build_with_eku_inner_ok_path() {
     );
 
     if rc == DID_X509_OK {
-        assert!(!did_string.is_null(), "did_string must be non-null on success");
+        assert!(
+            !did_string.is_null(),
+            "did_string must be non-null on success"
+        );
         assert!(err.is_null(), "error must be null on success");
 
         let did_str = unsafe { CStr::from_ptr(did_string) }
@@ -263,7 +269,10 @@ fn test_impl_build_from_chain_inner_ok_path() {
     );
 
     assert_eq!(rc, DID_X509_OK, "build_from_chain should succeed");
-    assert!(!did_string.is_null(), "did_string must be non-null on success");
+    assert!(
+        !did_string.is_null(),
+        "did_string must be non-null on success"
+    );
     assert!(err.is_null(), "error must be null on success");
 
     let did_str = unsafe { CStr::from_ptr(did_string) }
@@ -345,7 +354,10 @@ fn test_impl_resolve_inner_ok_path() {
     );
 
     if rc == DID_X509_OK {
-        assert!(!did_document_json.is_null(), "JSON must be non-null on success");
+        assert!(
+            !did_document_json.is_null(),
+            "JSON must be non-null on success"
+        );
         assert!(err.is_null(), "error must be null on success");
 
         let json_str = unsafe { CStr::from_ptr(did_document_json) }
@@ -354,8 +366,8 @@ fn test_impl_resolve_inner_ok_path() {
         assert!(!json_str.is_empty(), "JSON string must not be empty");
 
         // Validate it is proper JSON with an "id" field
-        let json_val: serde_json::Value = serde_json::from_str(&json_str)
-            .expect("resolve output should be valid JSON");
+        let json_val: serde_json::Value =
+            serde_json::from_str(&json_str).expect("resolve output should be valid JSON");
         assert!(json_val.is_object(), "DID document should be a JSON object");
         if let Some(id) = json_val.get("id") {
             assert!(

@@ -8,9 +8,9 @@
 //!          custom claims with complex types (Array, Map) that get skipped,
 //!          builder methods, error paths.
 
-use cose_sign1_headers::{CwtClaims, CwtClaimValue, CwtClaimsHeaderContributor, HeaderError};
-use cose_sign1_headers::CWTClaimsHeaderLabels;
 use cbor_primitives::CborEncoder;
+use cose_sign1_headers::CWTClaimsHeaderLabels;
+use cose_sign1_headers::{CwtClaimValue, CwtClaims, CwtClaimsHeaderContributor, HeaderError};
 use std::collections::HashMap;
 
 // ============================================================================
@@ -71,12 +71,8 @@ fn roundtrip_all_standard_claims() {
 #[test]
 fn custom_claim_bool_roundtrip() {
     let mut claims = CwtClaims::new();
-    claims
-        .custom_claims
-        .insert(100, CwtClaimValue::Bool(true));
-    claims
-        .custom_claims
-        .insert(101, CwtClaimValue::Bool(false));
+    claims.custom_claims.insert(100, CwtClaimValue::Bool(true));
+    claims.custom_claims.insert(101, CwtClaimValue::Bool(false));
 
     let bytes = claims.to_cbor_bytes().unwrap();
     let decoded = CwtClaims::from_cbor_bytes(&bytes).unwrap();
@@ -121,9 +117,7 @@ fn custom_claims_text_and_integer_roundtrip() {
     claims
         .custom_claims
         .insert(300, CwtClaimValue::Text("custom-text".to_string()));
-    claims
-        .custom_claims
-        .insert(301, CwtClaimValue::Integer(42));
+    claims.custom_claims.insert(301, CwtClaimValue::Integer(42));
 
     let bytes = claims.to_cbor_bytes().unwrap();
     let decoded = CwtClaims::from_cbor_bytes(&bytes).unwrap();
@@ -243,9 +237,7 @@ fn empty_claims_roundtrip() {
 
 #[test]
 fn header_contributor_smoke() {
-    let claims = CwtClaims::new()
-        .with_issuer("test")
-        .with_subject("sub");
+    let claims = CwtClaims::new().with_issuer("test").with_subject("sub");
     let _contributor = CwtClaimsHeaderContributor::new(&claims).unwrap();
 }
 
@@ -292,9 +284,7 @@ fn custom_claims_sorted_deterministic() {
     claims
         .custom_claims
         .insert(999, CwtClaimValue::Text("last".to_string()));
-    claims
-        .custom_claims
-        .insert(800, CwtClaimValue::Integer(-1));
+    claims.custom_claims.insert(800, CwtClaimValue::Integer(-1));
     claims
         .custom_claims
         .insert(900, CwtClaimValue::Bytes(vec![0x01]));

@@ -8,7 +8,7 @@ use crate::models::SanType;
 pub struct SubjectAlternativeName {
     /// The type of SAN
     pub san_type: SanType,
-    
+
     /// The value of the SAN
     pub value: String,
 }

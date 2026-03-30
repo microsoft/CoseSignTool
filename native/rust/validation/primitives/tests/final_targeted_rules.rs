@@ -17,15 +17,17 @@
 use cose_sign1_validation_primitives::audit::TrustDecisionAuditBuilder;
 use cose_sign1_validation_primitives::decision::TrustDecision;
 use cose_sign1_validation_primitives::error::TrustError;
-use cose_sign1_validation_primitives::fact_properties::{FactProperties, FactValue, FactValueOwned};
+use cose_sign1_validation_primitives::fact_properties::{
+    FactProperties, FactValue, FactValueOwned,
+};
 use cose_sign1_validation_primitives::facts::{
     FactKey, TrustFactContext, TrustFactEngine, TrustFactProducer,
 };
 use cose_sign1_validation_primitives::rules::{
-    all_of, allow_all, any_of, not, not_with_reason,
-    require_any, require_fact_bool, require_fact_matches, require_fact_matches_with_missing_behavior,
-    require_fact_property, require_fact_property_eq, require_fact_str_non_empty,
-    require_facts_match, AuditedRule, FactSelector, MissingBehavior, PropertyPredicate,
+    all_of, allow_all, any_of, not, not_with_reason, require_any, require_fact_bool,
+    require_fact_matches, require_fact_matches_with_missing_behavior, require_fact_property,
+    require_fact_property_eq, require_fact_str_non_empty, require_facts_match, AuditedRule,
+    FactSelector, MissingBehavior, PropertyPredicate,
 };
 // TrustRule trait is needed in scope for .evaluate() on Arc<dyn TrustRule>
 #[allow(unused_imports)]
@@ -84,7 +86,9 @@ struct AlphaBetaProducer {
 }
 
 impl TrustFactProducer for AlphaBetaProducer {
-    fn name(&self) -> &'static str { "alpha_beta" }
+    fn name(&self) -> &'static str {
+        "alpha_beta"
+    }
 
     fn provides(&self) -> &'static [FactKey] {
         static ONCE: std::sync::OnceLock<Vec<FactKey>> = std::sync::OnceLock::new();
@@ -112,7 +116,9 @@ impl TrustFactProducer for AlphaBetaProducer {
 struct MissingAlphaProducer;
 
 impl TrustFactProducer for MissingAlphaProducer {
-    fn name(&self) -> &'static str { "missing_alpha" }
+    fn name(&self) -> &'static str {
+        "missing_alpha"
+    }
 
     fn provides(&self) -> &'static [FactKey] {
         static ONCE: std::sync::OnceLock<Vec<FactKey>> = std::sync::OnceLock::new();
@@ -136,7 +142,9 @@ impl TrustFactProducer for MissingAlphaProducer {
 struct ErrorAlphaProducer;
 
 impl TrustFactProducer for ErrorAlphaProducer {
-    fn name(&self) -> &'static str { "error_alpha" }
+    fn name(&self) -> &'static str {
+        "error_alpha"
+    }
 
     fn provides(&self) -> &'static [FactKey] {
         static ONCE: std::sync::OnceLock<Vec<FactKey>> = std::sync::OnceLock::new();
@@ -176,31 +184,49 @@ fn subject() -> TrustSubject {
 #[test]
 fn all_of_one_denied_returns_denied() {
     let engine = make_engine(AlphaBetaProducer {
-        alpha: Some(Alpha { id: "1".into(), name: "a".into(), active: true, count: 5 }),
+        alpha: Some(Alpha {
+            id: "1".into(),
+            name: "a".into(),
+            active: true,
+            count: 5,
+        }),
         beta: None,
     });
 
-    let rule = all_of("all", vec![
-        allow_all("pass"),
-        require_any::<Alpha, _, _>("need_alpha_false", id_selector(), |a: &Alpha| a.active == false, "not inactive"),
-    ]);
+    let rule = all_of(
+        "all",
+        vec![
+            allow_all("pass"),
+            require_any::<Alpha, _, _>(
+                "need_alpha_false",
+                id_selector(),
+                |a: &Alpha| a.active == false,
+                "not inactive",
+            ),
+        ],
+    );
 
     let decision = rule.evaluate(&engine, &subject()).unwrap();
-    assert!(!decision.is_trusted, "AllOf should deny when inner rule denies");
+    assert!(
+        !decision.is_trusted,
+        "AllOf should deny when inner rule denies"
+    );
     assert!(!decision.reasons.is_empty());
 }
 
 #[test]
 fn all_of_all_pass() {
     let engine = make_engine(AlphaBetaProducer {
-        alpha: Some(Alpha { id: "1".into(), name: "a".into(), active: true, count: 5 }),
+        alpha: Some(Alpha {
+            id: "1".into(),
+            name: "a".into(),
+            active: true,
+            count: 5,
+        }),
         beta: None,
     });
 
-    let rule = all_of("all_pass", vec![
-        allow_all("p1"),
-        allow_all("p2"),
-    ]);
+    let rule = all_of("all_pass", vec![allow_all("p1"), allow_all("p2")]);
 
     let decision = rule.evaluate(&engine, &subject()).unwrap();
     assert!(decision.is_trusted);
@@ -213,14 +239,32 @@ fn all_of_all_pass() {
 #[test]
 fn any_of_all_denied() {
     let engine = make_engine(AlphaBetaProducer {
-        alpha: Some(Alpha { id: "1".into(), name: "a".into(), active: false, count: 5 }),
+        alpha: Some(Alpha {
+            id: "1".into(),
+            name: "a".into(),
+            active: false,
+            count: 5,
+        }),
         beta: None,
     });
 
-    let rule = any_of("any", vec![
-        require_any::<Alpha, _, _>("need_active", id_selector(), |a: &Alpha| a.count > 100, "count too low"),
-        require_any::<Alpha, _, _>("need_id_2", id_selector(), |a: &Alpha| a.id == "2", "wrong id"),
-    ]);
+    let rule = any_of(
+        "any",
+        vec![
+            require_any::<Alpha, _, _>(
+                "need_active",
+                id_selector(),
+                |a: &Alpha| a.count > 100,
+                "count too low",
+            ),
+            require_any::<Alpha, _, _>(
+                "need_id_2",
+                id_selector(),
+                |a: &Alpha| a.id == "2",
+                "wrong id",
+            ),
+        ],
+    );
 
     let decision = rule.evaluate(&engine, &subject()).unwrap();
     assert!(!decision.is_trusted, "AnyOf should deny when all deny");
@@ -229,14 +273,32 @@ fn any_of_all_denied() {
 #[test]
 fn any_of_one_passes() {
     let engine = make_engine(AlphaBetaProducer {
-        alpha: Some(Alpha { id: "1".into(), name: "a".into(), active: true, count: 5 }),
+        alpha: Some(Alpha {
+            id: "1".into(),
+            name: "a".into(),
+            active: true,
+            count: 5,
+        }),
         beta: None,
     });
 
-    let rule = any_of("any_pass", vec![
-        require_any::<Alpha, _, _>("need_active", id_selector(), |a: &Alpha| a.active, "not active"),
-        require_any::<Alpha, _, _>("need_id_99", id_selector(), |a: &Alpha| a.id == "99", "wrong"),
-    ]);
+    let rule = any_of(
+        "any_pass",
+        vec![
+            require_any::<Alpha, _, _>(
+                "need_active",
+                id_selector(),
+                |a: &Alpha| a.active,
+                "not active",
+            ),
+            require_any::<Alpha, _, _>(
+                "need_id_99",
+                id_selector(),
+                |a: &Alpha| a.id == "99",
+                "wrong",
+            ),
+        ],
+    );
 
     let decision = rule.evaluate(&engine, &subject()).unwrap();
     assert!(decision.is_trusted, "AnyOf should trust when one passes");
@@ -244,7 +306,10 @@ fn any_of_one_passes() {
 
 #[test]
 fn any_of_empty_rules_denies() {
-    let engine = make_engine(AlphaBetaProducer { alpha: None, beta: None });
+    let engine = make_engine(AlphaBetaProducer {
+        alpha: None,
+        beta: None,
+    });
     let rule = any_of("empty", vec![]);
     let decision = rule.evaluate(&engine, &subject()).unwrap();
     assert!(!decision.is_trusted, "Empty AnyOf should deny");
@@ -256,7 +321,10 @@ fn any_of_empty_rules_denies() {
 
 #[test]
 fn not_inverts_trusted_to_denied() {
-    let engine = make_engine(AlphaBetaProducer { alpha: None, beta: None });
+    let engine = make_engine(AlphaBetaProducer {
+        alpha: None,
+        beta: None,
+    });
     let rule = not("not_pass", allow_all("inner_pass"));
     let decision = rule.evaluate(&engine, &subject()).unwrap();
     assert!(!decision.is_trusted, "Not should deny when inner trusts");
@@ -265,7 +333,8 @@ fn not_inverts_trusted_to_denied() {
 #[test]
 fn not_inverts_denied_to_trusted() {
     let engine = make_engine(MissingAlphaProducer);
-    let inner = require_any::<Alpha, _, _>("need_alpha", id_selector(), |_: &Alpha| true, "no alpha");
+    let inner =
+        require_any::<Alpha, _, _>("need_alpha", id_selector(), |_: &Alpha| true, "no alpha");
     let rule = not("not_deny", inner);
     let decision = rule.evaluate(&engine, &subject()).unwrap();
     assert!(decision.is_trusted, "Not should trust when inner denies");
@@ -273,11 +342,17 @@ fn not_inverts_denied_to_trusted() {
 
 #[test]
 fn not_with_reason_gives_custom_reason() {
-    let engine = make_engine(AlphaBetaProducer { alpha: None, beta: None });
+    let engine = make_engine(AlphaBetaProducer {
+        alpha: None,
+        beta: None,
+    });
     let rule = not_with_reason("not_custom", allow_all("inner"), "custom deny reason");
     let decision = rule.evaluate(&engine, &subject()).unwrap();
     assert!(!decision.is_trusted);
-    assert!(decision.reasons.iter().any(|r| r.contains("custom deny reason")));
+    assert!(decision
+        .reasons
+        .iter()
+        .any(|r| r.contains("custom deny reason")));
 }
 
 // ====================================================================
@@ -287,7 +362,12 @@ fn not_with_reason_gives_custom_reason() {
 #[test]
 fn require_any_missing_fact_denies() {
     let engine = make_engine(MissingAlphaProducer);
-    let rule = require_any::<Alpha, _, _>("need_alpha", id_selector(), |_: &Alpha| true, "alpha missing");
+    let rule = require_any::<Alpha, _, _>(
+        "need_alpha",
+        id_selector(),
+        |_: &Alpha| true,
+        "alpha missing",
+    );
     let decision = rule.evaluate(&engine, &subject()).unwrap();
     assert!(!decision.is_trusted, "Missing fact should deny");
 }
@@ -295,7 +375,8 @@ fn require_any_missing_fact_denies() {
 #[test]
 fn require_any_error_fact_denies() {
     let engine = make_engine(ErrorAlphaProducer);
-    let rule = require_any::<Alpha, _, _>("need_alpha", id_selector(), |_: &Alpha| true, "alpha error");
+    let rule =
+        require_any::<Alpha, _, _>("need_alpha", id_selector(), |_: &Alpha| true, "alpha error");
     let decision = rule.evaluate(&engine, &subject()).unwrap();
     assert!(!decision.is_trusted, "Error fact should deny");
 }
@@ -337,7 +418,12 @@ fn require_fact_property_error_denies() {
 #[test]
 fn require_fact_property_no_matching_fact_denies() {
     let engine = make_engine(AlphaBetaProducer {
-        alpha: Some(Alpha { id: "1".into(), name: "a".into(), active: true, count: 5 }),
+        alpha: Some(Alpha {
+            id: "1".into(),
+            name: "a".into(),
+            active: true,
+            count: 5,
+        }),
         beta: None,
     });
     let rule = require_fact_property::<Alpha, _>(
@@ -355,7 +441,12 @@ fn require_fact_property_no_matching_fact_denies() {
 #[test]
 fn require_fact_property_missing_property_denies() {
     let engine = make_engine(AlphaBetaProducer {
-        alpha: Some(Alpha { id: "1".into(), name: "a".into(), active: true, count: 5 }),
+        alpha: Some(Alpha {
+            id: "1".into(),
+            name: "a".into(),
+            active: true,
+            count: 5,
+        }),
         beta: None,
     });
     let rule = require_fact_property::<Alpha, _>(
@@ -403,7 +494,12 @@ fn require_fact_matches_error_denies() {
 #[test]
 fn require_fact_matches_no_match_denies() {
     let engine = make_engine(AlphaBetaProducer {
-        alpha: Some(Alpha { id: "1".into(), name: "a".into(), active: true, count: 5 }),
+        alpha: Some(Alpha {
+            id: "1".into(),
+            name: "a".into(),
+            active: true,
+            count: 5,
+        }),
         beta: None,
     });
     let rule = require_fact_matches::<Alpha, _>(
@@ -419,7 +515,12 @@ fn require_fact_matches_no_match_denies() {
 #[test]
 fn require_fact_matches_match_trusts() {
     let engine = make_engine(AlphaBetaProducer {
-        alpha: Some(Alpha { id: "1".into(), name: "a".into(), active: true, count: 5 }),
+        alpha: Some(Alpha {
+            id: "1".into(),
+            name: "a".into(),
+            active: true,
+            count: 5,
+        }),
         beta: None,
     });
     let rule = require_fact_matches::<Alpha, _>(
@@ -467,7 +568,12 @@ fn require_fact_matches_with_missing_deny_denies() {
 #[test]
 fn require_fact_matches_with_missing_no_match_allow() {
     let engine = make_engine(AlphaBetaProducer {
-        alpha: Some(Alpha { id: "1".into(), name: "a".into(), active: true, count: 5 }),
+        alpha: Some(Alpha {
+            id: "1".into(),
+            name: "a".into(),
+            active: true,
+            count: 5,
+        }),
         beta: None,
     });
     let rule = require_fact_matches_with_missing_behavior::<Alpha, _>(
@@ -484,7 +590,12 @@ fn require_fact_matches_with_missing_no_match_allow() {
 #[test]
 fn require_fact_matches_with_missing_no_match_deny() {
     let engine = make_engine(AlphaBetaProducer {
-        alpha: Some(Alpha { id: "1".into(), name: "a".into(), active: true, count: 5 }),
+        alpha: Some(Alpha {
+            id: "1".into(),
+            name: "a".into(),
+            active: true,
+            count: 5,
+        }),
         beta: None,
     });
     let rule = require_fact_matches_with_missing_behavior::<Alpha, _>(
@@ -505,8 +616,16 @@ fn require_fact_matches_with_missing_no_match_deny() {
 #[test]
 fn require_facts_match_both_available_and_matching() {
     let engine = make_engine(AlphaBetaProducer {
-        alpha: Some(Alpha { id: "1".into(), name: "shared".into(), active: true, count: 5 }),
-        beta: Some(Beta { id: "1".into(), label: "shared".into() }),
+        alpha: Some(Alpha {
+            id: "1".into(),
+            name: "shared".into(),
+            active: true,
+            count: 5,
+        }),
+        beta: Some(Beta {
+            id: "1".into(),
+            label: "shared".into(),
+        }),
     });
     let rule = require_facts_match::<Alpha, Beta, _>(
         "match_ok",
@@ -524,8 +643,16 @@ fn require_facts_match_both_available_and_matching() {
 #[test]
 fn require_facts_match_property_mismatch_denies() {
     let engine = make_engine(AlphaBetaProducer {
-        alpha: Some(Alpha { id: "1".into(), name: "a".into(), active: true, count: 5 }),
-        beta: Some(Beta { id: "2".into(), label: "b".into() }),
+        alpha: Some(Alpha {
+            id: "1".into(),
+            name: "a".into(),
+            active: true,
+            count: 5,
+        }),
+        beta: Some(Beta {
+            id: "2".into(),
+            label: "b".into(),
+        }),
     });
     let rule = require_facts_match::<Alpha, Beta, _>(
         "match_mismatch",
@@ -575,7 +702,12 @@ fn require_facts_match_left_error_denies() {
 #[test]
 fn require_facts_match_right_missing_allow() {
     let engine = make_engine(AlphaBetaProducer {
-        alpha: Some(Alpha { id: "1".into(), name: "a".into(), active: true, count: 5 }),
+        alpha: Some(Alpha {
+            id: "1".into(),
+            name: "a".into(),
+            active: true,
+            count: 5,
+        }),
         beta: None, // Beta not observed -> Missing
     });
     let rule = require_facts_match::<Alpha, Beta, _>(
@@ -598,7 +730,12 @@ fn require_facts_match_right_missing_allow() {
 #[test]
 fn require_facts_match_right_missing_deny() {
     let engine = make_engine(AlphaBetaProducer {
-        alpha: Some(Alpha { id: "1".into(), name: "a".into(), active: true, count: 5 }),
+        alpha: Some(Alpha {
+            id: "1".into(),
+            name: "a".into(),
+            active: true,
+            count: 5,
+        }),
         beta: None,
     });
     let rule = require_facts_match::<Alpha, Beta, _>(
@@ -617,8 +754,16 @@ fn require_facts_match_right_missing_deny() {
 #[test]
 fn require_facts_match_left_no_property_denies() {
     let engine = make_engine(AlphaBetaProducer {
-        alpha: Some(Alpha { id: "1".into(), name: "a".into(), active: true, count: 5 }),
-        beta: Some(Beta { id: "1".into(), label: "b".into() }),
+        alpha: Some(Alpha {
+            id: "1".into(),
+            name: "a".into(),
+            active: true,
+            count: 5,
+        }),
+        beta: Some(Beta {
+            id: "1".into(),
+            label: "b".into(),
+        }),
     });
     let rule = require_facts_match::<Alpha, Beta, _>(
         "match_no_prop",
@@ -636,8 +781,16 @@ fn require_facts_match_left_no_property_denies() {
 #[test]
 fn require_facts_match_right_no_property_denies() {
     let engine = make_engine(AlphaBetaProducer {
-        alpha: Some(Alpha { id: "1".into(), name: "a".into(), active: true, count: 5 }),
-        beta: Some(Beta { id: "1".into(), label: "b".into() }),
+        alpha: Some(Alpha {
+            id: "1".into(),
+            name: "a".into(),
+            active: true,
+            count: 5,
+        }),
+        beta: Some(Beta {
+            id: "1".into(),
+            label: "b".into(),
+        }),
     });
     let rule = require_facts_match::<Alpha, Beta, _>(
         "match_right_no_prop",
@@ -659,7 +812,12 @@ fn require_facts_match_right_no_property_denies() {
 #[test]
 fn require_fact_bool_true_trusts() {
     let engine = make_engine(AlphaBetaProducer {
-        alpha: Some(Alpha { id: "1".into(), name: "a".into(), active: true, count: 5 }),
+        alpha: Some(Alpha {
+            id: "1".into(),
+            name: "a".into(),
+            active: true,
+            count: 5,
+        }),
         beta: None,
     });
     let rule = require_fact_bool::<Alpha, _>(
@@ -677,7 +835,12 @@ fn require_fact_bool_true_trusts() {
 #[test]
 fn require_fact_bool_mismatch_denies() {
     let engine = make_engine(AlphaBetaProducer {
-        alpha: Some(Alpha { id: "1".into(), name: "a".into(), active: false, count: 5 }),
+        alpha: Some(Alpha {
+            id: "1".into(),
+            name: "a".into(),
+            active: false,
+            count: 5,
+        }),
         beta: None,
     });
     let rule = require_fact_bool::<Alpha, _>(
@@ -699,7 +862,12 @@ fn require_fact_bool_mismatch_denies() {
 #[test]
 fn require_fact_str_non_empty_trusts() {
     let engine = make_engine(AlphaBetaProducer {
-        alpha: Some(Alpha { id: "1".into(), name: "hello".into(), active: true, count: 5 }),
+        alpha: Some(Alpha {
+            id: "1".into(),
+            name: "hello".into(),
+            active: true,
+            count: 5,
+        }),
         beta: None,
     });
     let rule = require_fact_str_non_empty::<Alpha, _>(
@@ -716,7 +884,12 @@ fn require_fact_str_non_empty_trusts() {
 #[test]
 fn require_fact_str_non_empty_empty_denies() {
     let engine = make_engine(AlphaBetaProducer {
-        alpha: Some(Alpha { id: "1".into(), name: "".into(), active: true, count: 5 }),
+        alpha: Some(Alpha {
+            id: "1".into(),
+            name: "".into(),
+            active: true,
+            count: 5,
+        }),
         beta: None,
     });
     let rule = require_fact_str_non_empty::<Alpha, _>(
@@ -737,7 +910,12 @@ fn require_fact_str_non_empty_empty_denies() {
 #[test]
 fn require_fact_property_eq_match_trusts() {
     let engine = make_engine(AlphaBetaProducer {
-        alpha: Some(Alpha { id: "1".into(), name: "x".into(), active: true, count: 42 }),
+        alpha: Some(Alpha {
+            id: "1".into(),
+            name: "x".into(),
+            active: true,
+            count: 42,
+        }),
         beta: None,
     });
     let rule = require_fact_property_eq::<Alpha, _>(
@@ -755,7 +933,12 @@ fn require_fact_property_eq_match_trusts() {
 #[test]
 fn require_fact_property_eq_mismatch_denies() {
     let engine = make_engine(AlphaBetaProducer {
-        alpha: Some(Alpha { id: "1".into(), name: "x".into(), active: true, count: 99 }),
+        alpha: Some(Alpha {
+            id: "1".into(),
+            name: "x".into(),
+            active: true,
+            count: 99,
+        }),
         beta: None,
     });
     let rule = require_fact_property_eq::<Alpha, _>(
@@ -776,7 +959,10 @@ fn require_fact_property_eq_mismatch_denies() {
 
 #[test]
 fn audited_rule_records_evaluation() {
-    let engine = make_engine(AlphaBetaProducer { alpha: None, beta: None });
+    let engine = make_engine(AlphaBetaProducer {
+        alpha: None,
+        beta: None,
+    });
     let audit_builder = Arc::new(Mutex::new(TrustDecisionAuditBuilder::default()));
     let inner = allow_all("audited_inner");
     let rule = AuditedRule::new(inner, audit_builder.clone());
@@ -786,14 +972,18 @@ fn audited_rule_records_evaluation() {
 
     let builder = std::mem::take(&mut *audit_builder.lock().unwrap());
     let audit = builder.build();
-    assert!(!audit.events().is_empty(), "Audit should record the evaluation");
+    assert!(
+        !audit.events().is_empty(),
+        "Audit should record the evaluation"
+    );
 }
 
 #[test]
 fn audited_rule_records_denial() {
     let engine = make_engine(MissingAlphaProducer);
     let audit_builder = Arc::new(Mutex::new(TrustDecisionAuditBuilder::default()));
-    let inner = require_any::<Alpha, _, _>("need_alpha", id_selector(), |_: &Alpha| true, "no alpha");
+    let inner =
+        require_any::<Alpha, _, _>("need_alpha", id_selector(), |_: &Alpha| true, "no alpha");
     let rule = AuditedRule::new(inner, audit_builder.clone());
 
     let decision = rule.evaluate(&engine, &subject()).unwrap();

@@ -4,8 +4,10 @@
 //! Tests for ContentTypeHeaderContributor.
 
 use cose_sign1_factories::direct::ContentTypeHeaderContributor;
-use cose_sign1_primitives::{CoseHeaderMap, ContentType, CryptoSigner, CryptoError};
-use cose_sign1_signing::{HeaderContributor, HeaderContributorContext, HeaderMergeStrategy, SigningContext};
+use cose_sign1_primitives::{ContentType, CoseHeaderMap, CryptoError, CryptoSigner};
+use cose_sign1_signing::{
+    HeaderContributor, HeaderContributorContext, HeaderMergeStrategy, SigningContext,
+};
 
 /// Mock crypto signer for testing.
 struct MockCryptoSigner;
@@ -35,7 +37,10 @@ impl CryptoSigner for MockCryptoSigner {
 #[test]
 fn test_content_type_contributor_new() {
     let contributor = ContentTypeHeaderContributor::new("application/json");
-    assert_eq!(contributor.merge_strategy(), HeaderMergeStrategy::KeepExisting);
+    assert_eq!(
+        contributor.merge_strategy(),
+        HeaderMergeStrategy::KeepExisting
+    );
 }
 
 #[test]
@@ -45,9 +50,9 @@ fn test_content_type_contributor_contribute_protected_headers() {
     let signing_context = SigningContext::from_bytes(b"test payload".to_vec());
     let signer = MockCryptoSigner;
     let context = HeaderContributorContext::new(&signing_context, &signer);
-    
+
     contributor.contribute_protected_headers(&mut headers, &context);
-    
+
     assert!(headers.content_type().is_some());
     if let Some(ContentType::Text(ct)) = headers.content_type() {
         assert_eq!(ct, "application/json");
@@ -64,9 +69,9 @@ fn test_content_type_contributor_keeps_existing() {
     let signing_context = SigningContext::from_bytes(b"test payload".to_vec());
     let signer = MockCryptoSigner;
     let context = HeaderContributorContext::new(&signing_context, &signer);
-    
+
     contributor.contribute_protected_headers(&mut headers, &context);
-    
+
     // Should keep existing value
     if let Some(ContentType::Text(ct)) = headers.content_type() {
         assert_eq!(ct, "existing/type");
@@ -82,15 +87,18 @@ fn test_content_type_contributor_unprotected_headers_noop() {
     let signing_context = SigningContext::from_bytes(b"test payload".to_vec());
     let signer = MockCryptoSigner;
     let context = HeaderContributorContext::new(&signing_context, &signer);
-    
+
     // contribute_unprotected_headers should do nothing
     contributor.contribute_unprotected_headers(&mut headers, &context);
-    
+
     assert!(headers.content_type().is_none());
 }
 
 #[test]
 fn test_content_type_contributor_merge_strategy() {
     let contributor = ContentTypeHeaderContributor::new("text/plain");
-    assert_eq!(contributor.merge_strategy(), HeaderMergeStrategy::KeepExisting);
+    assert_eq!(
+        contributor.merge_strategy(),
+        HeaderMergeStrategy::KeepExisting
+    );
 }

@@ -87,8 +87,8 @@ fn parse_from_shared_shares_same_arc() {
     let arc: Arc<[u8]> = Arc::from(msg_bytes.clone());
     let len = arc.len();
 
-    let msg = CoseSign1Message::parse_from_shared(arc.clone(), 0..len)
-        .expect("parse should succeed");
+    let msg =
+        CoseSign1Message::parse_from_shared(arc.clone(), 0..len).expect("parse should succeed");
 
     // The internal data should share the same Arc allocation
     let internal_bytes = msg.as_bytes();
@@ -180,7 +180,10 @@ fn encode_fast_path_returns_same_bytes() {
 
     // Not dirty, tagged matches → fast path
     let encoded = msg.encode(true).expect("encode should succeed");
-    assert_eq!(encoded, original, "fast-path encode should return identical bytes");
+    assert_eq!(
+        encoded, original,
+        "fast-path encode should return identical bytes"
+    );
 }
 
 #[test]
@@ -207,10 +210,7 @@ fn encode_dirty_path_produces_new_bytes() {
     let original = build_signed_bytes(b"dirty encode");
     let mut msg = CoseSign1Message::parse(&original).unwrap();
 
-    msg.set_unprotected_header(
-        CoseHeaderLabel::Int(42),
-        CoseHeaderValue::Int(12345),
-    );
+    msg.set_unprotected_header(CoseHeaderLabel::Int(42), CoseHeaderValue::Int(12345));
     assert!(msg.is_dirty());
 
     let encoded = msg.encode(true).expect("dirty encode should succeed");
@@ -243,8 +243,13 @@ fn encode_and_persist_clears_dirty_flag() {
     );
     assert!(msg.is_dirty());
 
-    let persisted = msg.encode_and_persist(true).expect("persist should succeed");
-    assert!(!msg.is_dirty(), "dirty flag should be cleared after persist");
+    let persisted = msg
+        .encode_and_persist(true)
+        .expect("persist should succeed");
+    assert!(
+        !msg.is_dirty(),
+        "dirty flag should be cleared after persist"
+    );
 
     // Subsequent encode should use fast path and return same bytes
     let encoded_again = msg.encode(true).unwrap();
@@ -257,6 +262,11 @@ fn encode_and_persist_fast_path_when_clean() {
     let mut msg = CoseSign1Message::parse(&original).unwrap();
     assert!(!msg.is_dirty());
 
-    let persisted = msg.encode_and_persist(true).expect("persist should succeed");
-    assert_eq!(persisted, original, "clean persist should return same bytes");
+    let persisted = msg
+        .encode_and_persist(true)
+        .expect("persist should succeed");
+    assert_eq!(
+        persisted, original,
+        "clean persist should return same bytes"
+    );
 }

@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-use did_x509::*;
 use did_x509::error::DidX509Error;
 use did_x509::parsing::DidX509Parser;
+use did_x509::*;
 
 // A valid DID string with a 43-char base64url SHA-256 fingerprint and an EKU policy.
 const VALID_DID: &str =
@@ -23,7 +23,8 @@ fn parse_invalid_prefix_returns_error() {
 
 #[test]
 fn parse_missing_policies_returns_error() {
-    let err = DidX509Parser::parse("did:x509:0:sha256:WE4P5dd8DnLHSkyHaIjhp4udlkSomeFakeBase64url").unwrap_err();
+    let err = DidX509Parser::parse("did:x509:0:sha256:WE4P5dd8DnLHSkyHaIjhp4udlkSomeFakeBase64url")
+        .unwrap_err();
     assert!(matches!(err, DidX509Error::MissingPolicies));
 }
 
@@ -127,8 +128,13 @@ fn validation_result_methods() {
 
 #[test]
 fn did_x509_error_display_variants() {
-    assert_eq!(DidX509Error::EmptyDid.to_string(), "DID cannot be null or empty");
-    assert!(DidX509Error::InvalidPrefix("did:x509".into()).to_string().contains("did:x509"));
+    assert_eq!(
+        DidX509Error::EmptyDid.to_string(),
+        "DID cannot be null or empty"
+    );
+    assert!(DidX509Error::InvalidPrefix("did:x509".into())
+        .to_string()
+        .contains("did:x509"));
     assert!(DidX509Error::MissingPolicies.to_string().contains("policy"));
     assert!(DidX509Error::InvalidEkuOid.to_string().contains("OID"));
     assert!(DidX509Error::NoCaMatch.to_string().contains("fingerprint"));

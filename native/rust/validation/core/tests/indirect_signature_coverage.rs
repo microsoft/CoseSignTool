@@ -8,11 +8,11 @@
 //! - CoseHashEnvelope with content-type as tstr in protected header
 //! - Legacy hash with case-insensitive algorithm names
 
-use cose_sign1_validation::fluent::*;
-use cose_sign1_validation_test_utils::SimpleTrustPack;
 use cbor_primitives::{CborEncoder, CborProvider};
 use cbor_primitives_everparse::EverParseCborProvider;
+use cose_sign1_validation::fluent::*;
 use cose_sign1_validation_primitives::CoseHeaderLocation;
+use cose_sign1_validation_test_utils::SimpleTrustPack;
 use sha2::Digest;
 use std::sync::Arc;
 
@@ -21,8 +21,10 @@ use std::sync::Arc;
 struct AlwaysTrueVerifier;
 
 impl CryptoVerifier for AlwaysTrueVerifier {
-    fn algorithm(&self) -> i64 { -7 }
-    
+    fn algorithm(&self) -> i64 {
+        -7
+    }
+
     fn verify(&self, _data: &[u8], _signature: &[u8]) -> Result<bool, CryptoError> {
         Ok(true)
     }
@@ -76,7 +78,13 @@ fn build_protected_header(
 }
 
 fn build_cose_sign1(protected: &[u8], payload: &[u8]) -> Vec<u8> {
-    build_cose_sign1_ex(protected, |enc| { enc.encode_map(0).unwrap(); }, Some(payload))
+    build_cose_sign1_ex(
+        protected,
+        |enc| {
+            enc.encode_map(0).unwrap();
+        },
+        Some(payload),
+    )
 }
 
 fn build_cose_sign1_ex(
@@ -111,7 +119,8 @@ fn legacy_hash_with_tstr_content_type_succeeds() {
         enc.encode_i64(1).unwrap();
         enc.encode_i64(-7).unwrap();
         enc.encode_i64(3).unwrap();
-        enc.encode_tstr("application/octet-stream+hash-sha256").unwrap();
+        enc.encode_tstr("application/octet-stream+hash-sha256")
+            .unwrap();
     });
 
     let cose = build_cose_sign1(&hdr, &expected_hash);
@@ -142,7 +151,8 @@ fn cose_hash_v_with_tstr_content_type_succeeds() {
         enc.encode_i64(1).unwrap();
         enc.encode_i64(-7).unwrap();
         enc.encode_i64(3).unwrap();
-        enc.encode_tstr("application/octet-stream+cose-hash-v").unwrap();
+        enc.encode_tstr("application/octet-stream+cose-hash-v")
+            .unwrap();
     });
 
     let cose = build_cose_sign1(&hdr, &hv_buf);
@@ -173,7 +183,8 @@ fn cose_hash_v_fails_when_array_length_is_wrong() {
         enc.encode_i64(1).unwrap();
         enc.encode_i64(-7).unwrap();
         enc.encode_i64(3).unwrap();
-        enc.encode_bstr("application/octet-stream+cose-hash-v".as_bytes()).unwrap();
+        enc.encode_bstr("application/octet-stream+cose-hash-v".as_bytes())
+            .unwrap();
     });
 
     let cose = build_cose_sign1(&hdr, &hv_buf);
@@ -202,7 +213,8 @@ fn cose_hash_v_fails_when_array_has_one_element() {
         enc.encode_i64(1).unwrap();
         enc.encode_i64(-7).unwrap();
         enc.encode_i64(3).unwrap();
-        enc.encode_bstr("application/octet-stream+cose-hash-v".as_bytes()).unwrap();
+        enc.encode_bstr("application/octet-stream+cose-hash-v".as_bytes())
+            .unwrap();
     });
 
     let cose = build_cose_sign1(&hdr, &hv_buf);
@@ -233,7 +245,8 @@ fn cose_hash_v_succeeds_with_sha384() {
         enc.encode_i64(1).unwrap();
         enc.encode_i64(-7).unwrap();
         enc.encode_i64(3).unwrap();
-        enc.encode_bstr("application/octet-stream+cose-hash-v".as_bytes()).unwrap();
+        enc.encode_bstr("application/octet-stream+cose-hash-v".as_bytes())
+            .unwrap();
     });
 
     let cose = build_cose_sign1(&hdr, &hv_buf);
@@ -263,7 +276,8 @@ fn cose_hash_v_succeeds_with_sha512() {
         enc.encode_i64(1).unwrap();
         enc.encode_i64(-7).unwrap();
         enc.encode_i64(3).unwrap();
-        enc.encode_bstr("application/octet-stream+cose-hash-v".as_bytes()).unwrap();
+        enc.encode_bstr("application/octet-stream+cose-hash-v".as_bytes())
+            .unwrap();
     });
 
     let cose = build_cose_sign1(&hdr, &hv_buf);
@@ -294,7 +308,8 @@ fn cose_hash_v_succeeds_with_sha1() {
         enc.encode_i64(1).unwrap();
         enc.encode_i64(-7).unwrap();
         enc.encode_i64(3).unwrap();
-        enc.encode_bstr("application/octet-stream+cose-hash-v".as_bytes()).unwrap();
+        enc.encode_bstr("application/octet-stream+cose-hash-v".as_bytes())
+            .unwrap();
     });
 
     let cose = build_cose_sign1(&hdr, &hv_buf);
@@ -326,7 +341,8 @@ fn unprotected_tstr_content_type_honored_when_header_location_is_any() {
         |enc| {
             enc.encode_map(1).unwrap();
             enc.encode_i64(3).unwrap();
-            enc.encode_tstr("application/octet-stream+hash-sha256").unwrap();
+            enc.encode_tstr("application/octet-stream+hash-sha256")
+                .unwrap();
         },
         Some(expected_hash.as_slice()),
     );
@@ -358,7 +374,8 @@ fn cose_hash_v_case_insensitive_content_type() {
         enc.encode_i64(1).unwrap();
         enc.encode_i64(-7).unwrap();
         enc.encode_i64(3).unwrap();
-        enc.encode_tstr("application/octet-stream+COSE-Hash-V").unwrap();
+        enc.encode_tstr("application/octet-stream+COSE-Hash-V")
+            .unwrap();
     });
 
     let cose = build_cose_sign1(&hdr, &hv_buf);
@@ -381,7 +398,8 @@ fn legacy_hash_case_insensitive_content_type() {
         enc.encode_i64(1).unwrap();
         enc.encode_i64(-7).unwrap();
         enc.encode_i64(3).unwrap();
-        enc.encode_tstr("application/octet-stream+HASH-SHA256").unwrap();
+        enc.encode_tstr("application/octet-stream+HASH-SHA256")
+            .unwrap();
     });
 
     let cose = build_cose_sign1(&hdr, &expected_hash);

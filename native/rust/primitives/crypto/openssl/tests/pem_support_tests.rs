@@ -69,7 +69,9 @@ fn verifier_from_pem_ec_p256_verifies_signature() {
     let verifier = EvpVerifier::from_pem(&public_pem, ES256).expect("from_pem should succeed");
     assert_eq!(verifier.algorithm(), ES256);
 
-    let valid = verifier.verify(data, &signature).expect("verify should succeed");
+    let valid = verifier
+        .verify(data, &signature)
+        .expect("verify should succeed");
     assert!(valid, "signature should verify successfully");
 }
 

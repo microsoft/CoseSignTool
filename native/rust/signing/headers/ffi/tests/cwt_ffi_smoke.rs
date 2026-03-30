@@ -18,9 +18,7 @@ fn error_message(err: *const CoseCwtErrorHandle) -> Option<String> {
     if msg.is_null() {
         return None;
     }
-    let s = unsafe { CStr::from_ptr(msg) }
-        .to_string_lossy()
-        .to_string();
+    let s = unsafe { CStr::from_ptr(msg) }.to_string_lossy().to_string();
     unsafe { cose_cwt_string_free(msg) };
     Some(s)
 }
@@ -244,29 +242,29 @@ fn ffi_cwt_claims_all_setters() {
     unsafe {
         // Test all setter functions
         let issuer = CString::new("https://issuer.example.com").unwrap();
-        let subject = CString::new("user@example.com").unwrap();  
+        let subject = CString::new("user@example.com").unwrap();
         let audience = CString::new("https://audience.example.com").unwrap();
-        
+
         // Set issuer
         let rc = cose_cwt_claims_set_issuer(handle, issuer.as_ptr(), &mut err);
         assert_eq!(rc, COSE_CWT_OK);
-        
+
         // Set subject
         let rc = cose_cwt_claims_set_subject(handle, subject.as_ptr(), &mut err);
         assert_eq!(rc, COSE_CWT_OK);
-        
+
         // Set audience
         let rc = cose_cwt_claims_set_audience(handle, audience.as_ptr(), &mut err);
         assert_eq!(rc, COSE_CWT_OK);
-        
+
         // Set expiration time
         let rc = cose_cwt_claims_set_expiration(handle, 1234567890, &mut err);
         assert_eq!(rc, COSE_CWT_OK);
-        
+
         // Set not before time
         let rc = cose_cwt_claims_set_not_before(handle, 1234567800, &mut err);
         assert_eq!(rc, COSE_CWT_OK);
-        
+
         // Set issued at time
         let rc = cose_cwt_claims_set_issued_at(handle, 1234567850, &mut err);
         assert_eq!(rc, COSE_CWT_OK);
@@ -333,7 +331,7 @@ fn ffi_cwt_claims_roundtrip() {
         let rc = cose_cwt_claims_get_issuer(handle2, &mut issuer_out, &mut err);
         assert_eq!(rc, COSE_CWT_OK);
         assert!(!issuer_out.is_null());
-        
+
         let issuer_str = CStr::from_ptr(issuer_out).to_string_lossy();
         assert_eq!(issuer_str, "test-issuer");
 
@@ -345,7 +343,7 @@ fn ffi_cwt_claims_roundtrip() {
     }
 }
 
-#[test] 
+#[test]
 fn ffi_cwt_claims_getters() {
     let mut handle: *mut CoseCwtClaimsHandle = ptr::null_mut();
     let mut err: *mut CoseCwtErrorHandle = ptr::null_mut();
@@ -358,10 +356,10 @@ fn ffi_cwt_claims_getters() {
         // Set issuer and subject
         let issuer = CString::new("test-issuer").unwrap();
         let subject = CString::new("test-subject").unwrap();
-        
+
         let rc = cose_cwt_claims_set_issuer(handle, issuer.as_ptr(), &mut err);
         assert_eq!(rc, COSE_CWT_OK);
-        
+
         let rc = cose_cwt_claims_set_subject(handle, subject.as_ptr(), &mut err);
         assert_eq!(rc, COSE_CWT_OK);
 
@@ -370,7 +368,7 @@ fn ffi_cwt_claims_getters() {
         let rc = cose_cwt_claims_get_issuer(handle, &mut issuer_out, &mut err);
         assert_eq!(rc, COSE_CWT_OK);
         assert!(!issuer_out.is_null());
-        
+
         let issuer_str = CStr::from_ptr(issuer_out).to_string_lossy();
         assert_eq!(issuer_str, "test-issuer");
         cose_cwt_string_free(issuer_out as *mut _);
@@ -380,7 +378,7 @@ fn ffi_cwt_claims_getters() {
         let rc = cose_cwt_claims_get_subject(handle, &mut subject_out, &mut err);
         assert_eq!(rc, COSE_CWT_OK);
         assert!(!subject_out.is_null());
-        
+
         let subject_str = CStr::from_ptr(subject_out).to_string_lossy();
         assert_eq!(subject_str, "test-subject");
         cose_cwt_string_free(subject_out as *mut _);
@@ -402,7 +400,7 @@ fn ffi_cwt_claims_null_getter_inputs() {
         // Test null output pointer
         let rc = cose_cwt_claims_get_issuer(handle, ptr::null_mut(), &mut err);
         assert!(rc < 0);
-        
+
         // Test null handle
         let mut issuer_out: *const libc::c_char = ptr::null();
         let rc = cose_cwt_claims_get_issuer(ptr::null(), &mut issuer_out, &mut err);

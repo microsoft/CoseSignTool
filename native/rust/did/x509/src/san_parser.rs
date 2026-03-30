@@ -5,10 +5,12 @@ use crate::models::SubjectAlternativeName;
 use x509_parser::prelude::*;
 
 /// Parse Subject Alternative Names from an X.509 certificate extension
-pub fn parse_san_extension(extension: &X509Extension) -> Result<Vec<SubjectAlternativeName>, String> {
+pub fn parse_san_extension(
+    extension: &X509Extension,
+) -> Result<Vec<SubjectAlternativeName>, String> {
     if let ParsedExtension::SubjectAlternativeName(san) = extension.parsed_extension() {
         let mut result = Vec::new();
-        
+
         for general_name in &san.general_names {
             match general_name {
                 GeneralName::RFC822Name(email) => {
@@ -29,7 +31,7 @@ pub fn parse_san_extension(extension: &X509Extension) -> Result<Vec<SubjectAlter
                 }
             }
         }
-        
+
         Ok(result)
     } else {
         Err("Extension is not a SubjectAlternativeName".to_string())
@@ -39,12 +41,12 @@ pub fn parse_san_extension(extension: &X509Extension) -> Result<Vec<SubjectAlter
 /// Parse SANs from a certificate
 pub fn parse_sans_from_certificate(cert: &X509Certificate) -> Vec<SubjectAlternativeName> {
     let mut sans = Vec::new();
-    
+
     for ext in cert.extensions() {
         if let Ok(parsed_sans) = parse_san_extension(ext) {
             sans.extend(parsed_sans);
         }
     }
-    
+
     sans
 }

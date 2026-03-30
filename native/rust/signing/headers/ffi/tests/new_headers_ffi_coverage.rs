@@ -56,19 +56,29 @@ fn full_lifecycle_create_set_serialize_deserialize_free() {
     assert_eq!(impl_cwt_claims_create_inner(&mut handle), COSE_CWT_OK);
 
     let issuer = CString::new("my-issuer").unwrap();
-    assert_eq!(impl_cwt_claims_set_issuer_inner(handle, issuer.as_ptr()), COSE_CWT_OK);
+    assert_eq!(
+        impl_cwt_claims_set_issuer_inner(handle, issuer.as_ptr()),
+        COSE_CWT_OK
+    );
 
     let subject = CString::new("my-subject").unwrap();
-    assert_eq!(impl_cwt_claims_set_subject_inner(handle, subject.as_ptr()), COSE_CWT_OK);
+    assert_eq!(
+        impl_cwt_claims_set_subject_inner(handle, subject.as_ptr()),
+        COSE_CWT_OK
+    );
 
     let audience = CString::new("my-audience").unwrap();
-    assert_eq!(impl_cwt_claims_set_audience_inner(handle, audience.as_ptr()), COSE_CWT_OK);
+    assert_eq!(
+        impl_cwt_claims_set_audience_inner(handle, audience.as_ptr()),
+        COSE_CWT_OK
+    );
 
     // Serialize to CBOR
     let mut out_bytes: *mut u8 = ptr::null_mut();
     let mut out_len: u32 = 0;
     let mut err: *mut CoseCwtErrorHandle = ptr::null_mut();
-    let rc = impl_cwt_claims_to_cbor_inner(handle as *const _, &mut out_bytes, &mut out_len, &mut err);
+    let rc =
+        impl_cwt_claims_to_cbor_inner(handle as *const _, &mut out_bytes, &mut out_len, &mut err);
     assert_eq!(rc, COSE_CWT_OK);
     assert!(!out_bytes.is_null());
     assert!(out_len > 0);

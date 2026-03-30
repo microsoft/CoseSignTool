@@ -3,7 +3,7 @@
 
 //! Content-Type header contributor.
 
-use tracing::{debug};
+use tracing::debug;
 
 use cose_sign1_primitives::{ContentType, CoseHeaderMap};
 use cose_sign1_signing::{HeaderContributor, HeaderContributorContext, HeaderMergeStrategy};

@@ -1,18 +1,19 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-use sha2::{Sha256, Sha384, Sha512, Digest};
-use x509_parser::prelude::*;
 use crate::constants::*;
+use crate::error::DidX509Error;
 use crate::models::policy::{DidX509Policy, SanType};
 use crate::parsing::percent_encoding;
-use crate::error::DidX509Error;
+use sha2::{Digest, Sha256, Sha384, Sha512};
+use x509_parser::prelude::*;
 
 // Inline base64url utilities
-const BASE64_URL_SAFE: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+const BASE64_URL_SAFE: &[u8; 64] =
+    b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
 fn base64_encode(input: &[u8], alphabet: &[u8; 64], pad: bool) -> String {
-    let mut out = String::with_capacity((input.len() + 2) / 3 * 4);
+    let mut out = String::with_capacity(input.len().div_ceil(3) * 4);
     let mut i = 0;
     while i + 2 < input.len() {
         let n = (input[i] as u32) << 16 | (input[i + 1] as u32) << 8 | input[i + 2] as u32;
@@ -27,13 +28,17 @@ fn base64_encode(input: &[u8], alphabet: &[u8; 64], pad: bool) -> String {
         let n = (input[i] as u32) << 16;
         out.push(alphabet[((n >> 18) & 0x3F) as usize] as char);
         out.push(alphabet[((n >> 12) & 0x3F) as usize] as char);
-        if pad { out.push_str("=="); }
+        if pad {
+            out.push_str("==");
+        }
     } else if rem == 2 {
         let n = (input[i] as u32) << 16 | (input[i + 1] as u32) << 8;
         out.push(alphabet[((n >> 18) & 0x3F) as usize] as char);
         out.push(alphabet[((n >> 12) & 0x3F) as usize] as char);
         out.push(alphabet[((n >> 6) & 0x3F) as usize] as char);
-        if pad { out.push('='); }
+        if pad {
+            out.push('=');
+        }
     }
     out
 }
@@ -66,7 +71,10 @@ impl DidX509Builder {
         let fingerprint_base64url = Self::encode_base64url(&fingerprint);
 
         // 2. Start building: did:x509:0:<hash_alg>:<fingerprint>
-        let mut did = format!("{}:{}:{}", FULL_DID_PREFIX, hash_algorithm, fingerprint_base64url);
+        let mut did = format!(
+            "{}:{}:{}",
+            FULL_DID_PREFIX, hash_algorithm, fingerprint_base64url
+        );
 
         // 3. Append each policy
         for policy in policies {
@@ -100,9 +108,7 @@ impl DidX509Builder {
 
     /// Build with EKU policy extracted from the leaf certificate.
     /// This is the most common pattern for SCITT compliance.
-    pub fn build_from_chain_with_eku(
-        chain: &[&[u8]],
-    ) -> Result<String, DidX509Error> {
+    pub fn build_from_chain_with_eku(chain: &[&[u8]]) -> Result<String, DidX509Error> {
         if chain.is_empty() {
             return Err(DidX509Error::InvalidChain("Empty chain".into()));
         }
@@ -110,10 +116,12 @@ impl DidX509Builder {
         let leaf_der = chain[0];
         let (_, leaf_cert) = X509Certificate::from_der(leaf_der)
             .map_err(|e| DidX509Error::CertificateParseError(e.to_string()))?;
-        
+
         let eku_oids = crate::x509_extensions::extract_eku_oids(&leaf_cert)?;
         if eku_oids.is_empty() {
-            return Err(DidX509Error::PolicyValidationFailed("No EKU found on leaf cert".into()));
+            return Err(DidX509Error::PolicyValidationFailed(
+                "No EKU found on leaf cert".into(),
+            ));
         }
 
         let policy = DidX509Policy::Eku(eku_oids);
@@ -125,7 +133,9 @@ impl DidX509Builder {
             HASH_ALGORITHM_SHA256 => Ok(Sha256::digest(cert_der).to_vec()),
             HASH_ALGORITHM_SHA384 => Ok(Sha384::digest(cert_der).to_vec()),
             HASH_ALGORITHM_SHA512 => Ok(Sha512::digest(cert_der).to_vec()),
-            _ => Err(DidX509Error::UnsupportedHashAlgorithm(hash_algorithm.to_string())),
+            _ => Err(DidX509Error::UnsupportedHashAlgorithm(
+                hash_algorithm.to_string(),
+            )),
         }
     }
 
@@ -137,7 +147,8 @@ impl DidX509Builder {
         match policy {
             DidX509Policy::Eku(oids) => {
                 // eku:<oid1>:<oid2>:...
-                let encoded: Vec<String> = oids.iter()
+                let encoded: Vec<String> = oids
+                    .iter()
                     .map(|oid| percent_encoding::percent_encode(oid))
                     .collect();
                 Ok(format!("{}:{}", POLICY_EKU, encoded.join(VALUE_SEPARATOR)))
@@ -158,11 +169,18 @@ impl DidX509Builder {
                     SanType::Uri => SAN_TYPE_URI,
                     SanType::Dn => SAN_TYPE_DN,
                 };
-                Ok(format!("{}:{}:{}", POLICY_SAN, type_str, percent_encoding::percent_encode(value)))
+                Ok(format!(
+                    "{}:{}:{}",
+                    POLICY_SAN,
+                    type_str,
+                    percent_encoding::percent_encode(value)
+                ))
             }
-            DidX509Policy::FulcioIssuer(issuer) => {
-                Ok(format!("{}:{}", POLICY_FULCIO_ISSUER, percent_encoding::percent_encode(issuer)))
-            }
+            DidX509Policy::FulcioIssuer(issuer) => Ok(format!(
+                "{}:{}",
+                POLICY_FULCIO_ISSUER,
+                percent_encoding::percent_encode(issuer)
+            )),
         }
     }
 }

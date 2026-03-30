@@ -40,9 +40,9 @@
 //! )?;
 //! ```
 
+pub mod direct;
 pub mod error;
 pub mod factory;
-pub mod direct;
 pub mod indirect;
 
 pub use error::FactoryError;

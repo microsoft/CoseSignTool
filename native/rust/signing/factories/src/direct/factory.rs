@@ -3,17 +3,20 @@
 
 //! Direct signature factory implementation.
 
-use tracing::{info};
+use tracing::info;
 
 use std::sync::Arc;
 
 use cose_sign1_primitives::{CoseSign1Builder, CoseSign1Message};
 use cose_sign1_signing::{
+    transparency::{add_proof_with_receipt_merge, TransparencyProvider},
     HeaderContributor, HeaderContributorContext, SigningContext, SigningService,
-    transparency::{TransparencyProvider, add_proof_with_receipt_merge},
 };
 
-use crate::{FactoryError, direct::{ContentTypeHeaderContributor, DirectSignatureOptions}};
+use crate::{
+    direct::{ContentTypeHeaderContributor, DirectSignatureOptions},
+    FactoryError,
+};
 
 /// Factory for creating direct COSE_Sign1 signatures.
 ///
@@ -60,7 +63,8 @@ impl DirectSignatureFactory {
     ///
     /// The COSE_Sign1 message bytes, or an error if signing or verification fails.
     pub fn create_bytes(
-        &self,        payload: &[u8],
+        &self,
+        payload: &[u8],
         content_type: &str,
         options: Option<DirectSignatureOptions>,
     ) -> Result<Vec<u8>, FactoryError> {
@@ -75,7 +79,10 @@ impl DirectSignatureFactory {
         let content_type_contributor = ContentTypeHeaderContributor::new(content_type);
 
         // Get signer from signing service
-        info!(service = self.signing_service.service_metadata().service_name, "Creating CoseSigner");
+        info!(
+            service = self.signing_service.service_metadata().service_name,
+            "Creating CoseSigner"
+        );
         let signer = self.signing_service.get_cose_signer(&context)?;
 
         // Build headers by applying contributors
@@ -125,11 +132,8 @@ impl DirectSignatureFactory {
             if !disable {
                 let mut current_bytes = message_bytes;
                 for provider in &self.transparency_providers {
-                    current_bytes = add_proof_with_receipt_merge(
-                        provider.as_ref(),
-                        &current_bytes,
-                    )
-                    .map_err(|e| FactoryError::TransparencyFailed(e.to_string()))?;
+                    current_bytes = add_proof_with_receipt_merge(provider.as_ref(), &current_bytes)
+                        .map_err(|e| FactoryError::TransparencyFailed(e.to_string()))?;
                 }
                 return Ok(current_bytes);
             }
@@ -156,8 +160,7 @@ impl DirectSignatureFactory {
         options: Option<DirectSignatureOptions>,
     ) -> Result<CoseSign1Message, FactoryError> {
         let bytes = self.create_bytes(payload, content_type, options)?;
-        CoseSign1Message::parse(&bytes)
-            .map_err(|e| FactoryError::SigningFailed(e.to_string()))
+        CoseSign1Message::parse(&bytes).map_err(|e| FactoryError::SigningFailed(e.to_string()))
     }
 
     /// Creates a COSE_Sign1 message with a direct signature from a streaming payload and returns it as bytes.
@@ -252,11 +255,8 @@ impl DirectSignatureFactory {
             if !disable {
                 let mut current_bytes = message_bytes;
                 for provider in &self.transparency_providers {
-                    current_bytes = add_proof_with_receipt_merge(
-                        provider.as_ref(),
-                        &current_bytes,
-                    )
-                    .map_err(|e| FactoryError::TransparencyFailed(e.to_string()))?;
+                    current_bytes = add_proof_with_receipt_merge(provider.as_ref(), &current_bytes)
+                        .map_err(|e| FactoryError::TransparencyFailed(e.to_string()))?;
                 }
                 return Ok(current_bytes);
             }
@@ -283,7 +283,6 @@ impl DirectSignatureFactory {
         options: Option<DirectSignatureOptions>,
     ) -> Result<CoseSign1Message, FactoryError> {
         let bytes = self.create_streaming_bytes(payload, content_type, options)?;
-        CoseSign1Message::parse(&bytes)
-            .map_err(|e| FactoryError::SigningFailed(e.to_string()))
+        CoseSign1Message::parse(&bytes).map_err(|e| FactoryError::SigningFailed(e.to_string()))
     }
 }

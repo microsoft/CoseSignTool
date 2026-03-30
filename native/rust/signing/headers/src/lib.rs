@@ -11,12 +11,12 @@
 //! This crate ports V2's `CoseSign1.Headers` package to Rust, providing
 //! SCITT-compliant header management.
 
-pub mod error;
 pub mod cwt_claims;
-pub mod cwt_claims_labels;
 pub mod cwt_claims_contributor;
+pub mod cwt_claims_labels;
+pub mod error;
 
-pub use error::HeaderError;
-pub use cwt_claims::{CwtClaims, CwtClaimValue};
-pub use cwt_claims_labels::CWTClaimsHeaderLabels;
+pub use cwt_claims::{CwtClaimValue, CwtClaims};
 pub use cwt_claims_contributor::CwtClaimsHeaderContributor;
+pub use cwt_claims_labels::CWTClaimsHeaderLabels;
+pub use error::HeaderError;

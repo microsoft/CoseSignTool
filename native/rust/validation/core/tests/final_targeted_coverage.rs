@@ -18,13 +18,13 @@
 //! - encode_value_recursive (523, 526, 529)
 //! - get_header_text/int (611)
 
-use cose_sign1_validation::fluent::*;
-use cose_sign1_validation_test_utils::SimpleTrustPack;
 use cbor_primitives::{CborEncoder, CborProvider};
 use cbor_primitives_everparse::EverParseCborProvider;
+use cose_sign1_primitives::{CoseHeaderLabel, CoseHeaderMap, CoseHeaderValue, CoseSign1Message};
+use cose_sign1_validation::fluent::*;
 use cose_sign1_validation_primitives::facts::{TrustFactEngine, TrustFactSet};
 use cose_sign1_validation_primitives::subject::TrustSubject;
-use cose_sign1_primitives::{CoseHeaderLabel, CoseHeaderMap, CoseHeaderValue, CoseSign1Message};
+use cose_sign1_validation_test_utils::SimpleTrustPack;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
@@ -35,7 +35,9 @@ use std::sync::Arc;
 struct AlwaysVerifier;
 
 impl CryptoVerifier for AlwaysVerifier {
-    fn algorithm(&self) -> i64 { -7 } // ES256
+    fn algorithm(&self) -> i64 {
+        -7
+    } // ES256
     fn verify(&self, _data: &[u8], _signature: &[u8]) -> Result<bool, CryptoError> {
         Ok(true)
     }
@@ -44,7 +46,9 @@ impl CryptoVerifier for AlwaysVerifier {
 struct FailingVerifier;
 
 impl CryptoVerifier for FailingVerifier {
-    fn algorithm(&self) -> i64 { -7 }
+    fn algorithm(&self) -> i64 {
+        -7
+    }
     fn verify(&self, _data: &[u8], _signature: &[u8]) -> Result<bool, CryptoError> {
         Ok(false)
     }
@@ -160,10 +164,14 @@ fn build_cose_with_cwt_claims_raw() -> (Vec<u8>, CoseSign1Message) {
     // Encode CWT claims as raw CBOR bytes: {1: "test-iss", 2: "test-sub", 4: 9999999999, 6: 1000000}
     let mut cwt = p.encoder();
     cwt.encode_map(4).unwrap();
-    cwt.encode_i64(1).unwrap(); cwt.encode_tstr("test-iss").unwrap();
-    cwt.encode_i64(2).unwrap(); cwt.encode_tstr("test-sub").unwrap();
-    cwt.encode_i64(4).unwrap(); cwt.encode_i64(9999999999).unwrap();
-    cwt.encode_i64(6).unwrap(); cwt.encode_i64(1000000).unwrap();
+    cwt.encode_i64(1).unwrap();
+    cwt.encode_tstr("test-iss").unwrap();
+    cwt.encode_i64(2).unwrap();
+    cwt.encode_tstr("test-sub").unwrap();
+    cwt.encode_i64(4).unwrap();
+    cwt.encode_i64(9999999999).unwrap();
+    cwt.encode_i64(6).unwrap();
+    cwt.encode_i64(1000000).unwrap();
     let cwt_bytes = cwt.into_bytes();
 
     // Inject as Raw (not Bytes) to exercise the Raw code path
@@ -237,16 +245,24 @@ fn build_cose_with_cwt_map_headers() -> (Vec<u8>, CoseSign1Message) {
 
     // Inject CWT as Map variant (already-decoded map)
     let map_pairs = vec![
-        (CoseHeaderLabel::Int(1), CoseHeaderValue::Text("iss_val".to_string().into())),
-        (CoseHeaderLabel::Int(2), CoseHeaderValue::Text("sub_val".to_string().into())),
-        (CoseHeaderLabel::Int(3), CoseHeaderValue::Text("aud_val".to_string().into())),
+        (
+            CoseHeaderLabel::Int(1),
+            CoseHeaderValue::Text("iss_val".to_string().into()),
+        ),
+        (
+            CoseHeaderLabel::Int(2),
+            CoseHeaderValue::Text("sub_val".to_string().into()),
+        ),
+        (
+            CoseHeaderLabel::Int(3),
+            CoseHeaderValue::Text("aud_val".to_string().into()),
+        ),
         (CoseHeaderLabel::Int(5), CoseHeaderValue::Int(100)),
         (CoseHeaderLabel::Int(6), CoseHeaderValue::Int(200)),
     ];
-    parsed.protected.insert(
-        CoseHeaderLabel::Int(15),
-        CoseHeaderValue::Map(map_pairs),
-    );
+    parsed
+        .protected
+        .insert(CoseHeaderLabel::Int(15), CoseHeaderValue::Map(map_pairs));
 
     (cose, parsed)
 }
@@ -273,12 +289,18 @@ fn build_cose_with_cwt_text_keys() -> (Vec<u8>, CoseSign1Message) {
     // CWT with text keys
     let mut cwt = p.encoder();
     cwt.encode_map(6).unwrap();
-    cwt.encode_tstr("iss").unwrap(); cwt.encode_tstr("text-iss").unwrap();
-    cwt.encode_tstr("sub").unwrap(); cwt.encode_tstr("text-sub").unwrap();
-    cwt.encode_tstr("aud").unwrap(); cwt.encode_tstr("text-aud").unwrap();
-    cwt.encode_tstr("exp").unwrap(); cwt.encode_i64(9999999).unwrap();
-    cwt.encode_tstr("nbf").unwrap(); cwt.encode_i64(1000).unwrap();
-    cwt.encode_tstr("iat").unwrap(); cwt.encode_i64(2000).unwrap();
+    cwt.encode_tstr("iss").unwrap();
+    cwt.encode_tstr("text-iss").unwrap();
+    cwt.encode_tstr("sub").unwrap();
+    cwt.encode_tstr("text-sub").unwrap();
+    cwt.encode_tstr("aud").unwrap();
+    cwt.encode_tstr("text-aud").unwrap();
+    cwt.encode_tstr("exp").unwrap();
+    cwt.encode_i64(9999999).unwrap();
+    cwt.encode_tstr("nbf").unwrap();
+    cwt.encode_i64(1000).unwrap();
+    cwt.encode_tstr("iat").unwrap();
+    cwt.encode_i64(2000).unwrap();
     let cwt_bytes = cwt.into_bytes();
 
     parsed.protected.insert(
@@ -310,8 +332,10 @@ fn build_cose_with_cwt_bool_claim() -> (Vec<u8>, CoseSign1Message) {
 
     let mut cwt = p.encoder();
     cwt.encode_map(2).unwrap();
-    cwt.encode_i64(1).unwrap(); cwt.encode_tstr("bool-iss").unwrap();
-    cwt.encode_i64(100).unwrap(); cwt.encode_bool(true).unwrap();
+    cwt.encode_i64(1).unwrap();
+    cwt.encode_tstr("bool-iss").unwrap();
+    cwt.encode_i64(100).unwrap();
+    cwt.encode_bool(true).unwrap();
     let cwt_bytes = cwt.into_bytes();
 
     parsed.protected.insert(
@@ -334,14 +358,11 @@ fn validate_bytes_parses_and_runs_pipeline() {
             .with_cose_key_resolver(Arc::new(SuccessResolver)),
     );
 
-    let plan = TrustPlanBuilder::new(vec![trust_pack])
-        .compile()
-        .unwrap();
+    let plan = TrustPlanBuilder::new(vec![trust_pack]).compile().unwrap();
 
-    let validator = CoseSign1Validator::new(plan)
-        .with_options(|o| {
-            o.trust_evaluation_options.bypass_trust = true;
-        });
+    let validator = CoseSign1Validator::new(plan).with_options(|o| {
+        o.trust_evaluation_options.bypass_trust = true;
+    });
 
     let result = validator
         .validate_bytes(EverParseCborProvider, Arc::from(cose.into_boxed_slice()))
@@ -360,14 +381,11 @@ async fn validate_bytes_async_parses_and_runs_pipeline() {
             .with_cose_key_resolver(Arc::new(SuccessResolver)),
     );
 
-    let plan = TrustPlanBuilder::new(vec![trust_pack])
-        .compile()
-        .unwrap();
+    let plan = TrustPlanBuilder::new(vec![trust_pack]).compile().unwrap();
 
-    let validator = CoseSign1Validator::new(plan)
-        .with_options(|o| {
-            o.trust_evaluation_options.bypass_trust = true;
-        });
+    let validator = CoseSign1Validator::new(plan).with_options(|o| {
+        o.trust_evaluation_options.bypass_trust = true;
+    });
 
     let result = validator
         .validate_bytes_async(EverParseCborProvider, Arc::from(cose.into_boxed_slice()))
@@ -385,8 +403,7 @@ async fn validate_bytes_async_parses_and_runs_pipeline() {
 fn validate_with_untrusted_plan_produces_trust_failure() {
     let cose = build_simple_cose_sign1(b"untrusted");
     let trust_pack: Arc<dyn CoseSign1TrustPack> = Arc::new(
-        SimpleTrustPack::no_facts("resolver")
-            .with_cose_key_resolver(Arc::new(SuccessResolver)),
+        SimpleTrustPack::no_facts("resolver").with_cose_key_resolver(Arc::new(SuccessResolver)),
     );
 
     // Build plan that requires a fact we won't provide -> trust denied
@@ -412,18 +429,14 @@ fn validate_with_untrusted_plan_produces_trust_failure() {
 #[test]
 fn validate_with_no_resolvers_fails_resolution() {
     let cose = build_simple_cose_sign1(b"no-resolver");
-    let trust_pack: Arc<dyn CoseSign1TrustPack> = Arc::new(
-        SimpleTrustPack::no_facts("no_resolvers"),
-    );
+    let trust_pack: Arc<dyn CoseSign1TrustPack> =
+        Arc::new(SimpleTrustPack::no_facts("no_resolvers"));
 
-    let plan = TrustPlanBuilder::new(vec![trust_pack])
-        .compile()
-        .unwrap();
+    let plan = TrustPlanBuilder::new(vec![trust_pack]).compile().unwrap();
 
-    let validator = CoseSign1Validator::new(plan)
-        .with_options(|o| {
-            o.trust_evaluation_options.bypass_trust = true;
-        });
+    let validator = CoseSign1Validator::new(plan).with_options(|o| {
+        o.trust_evaluation_options.bypass_trust = true;
+    });
 
     let result = validator
         .validate_bytes(EverParseCborProvider, Arc::from(cose.into_boxed_slice()))
@@ -438,18 +451,14 @@ fn validate_with_no_resolvers_fails_resolution() {
 #[tokio::test]
 async fn validate_async_with_no_resolvers_fails() {
     let cose = build_simple_cose_sign1(b"async-no-resolver");
-    let trust_pack: Arc<dyn CoseSign1TrustPack> = Arc::new(
-        SimpleTrustPack::no_facts("no_resolvers"),
-    );
+    let trust_pack: Arc<dyn CoseSign1TrustPack> =
+        Arc::new(SimpleTrustPack::no_facts("no_resolvers"));
 
-    let plan = TrustPlanBuilder::new(vec![trust_pack])
-        .compile()
-        .unwrap();
+    let plan = TrustPlanBuilder::new(vec![trust_pack]).compile().unwrap();
 
-    let validator = CoseSign1Validator::new(plan)
-        .with_options(|o| {
-            o.trust_evaluation_options.bypass_trust = true;
-        });
+    let validator = CoseSign1Validator::new(plan).with_options(|o| {
+        o.trust_evaluation_options.bypass_trust = true;
+    });
 
     let result = validator
         .validate_bytes_async(EverParseCborProvider, Arc::from(cose.into_boxed_slice()))
@@ -467,19 +476,15 @@ async fn validate_async_with_no_resolvers_fails() {
 fn validate_with_no_post_sig_validators_succeeds() {
     let cose = build_simple_cose_sign1(b"no-post-sig");
     let trust_pack: Arc<dyn CoseSign1TrustPack> = Arc::new(
-        SimpleTrustPack::no_facts("resolver")
-            .with_cose_key_resolver(Arc::new(SuccessResolver)),
+        SimpleTrustPack::no_facts("resolver").with_cose_key_resolver(Arc::new(SuccessResolver)),
     );
 
-    let plan = TrustPlanBuilder::new(vec![trust_pack])
-        .compile()
-        .unwrap();
+    let plan = TrustPlanBuilder::new(vec![trust_pack]).compile().unwrap();
 
-    let validator = CoseSign1Validator::new(plan)
-        .with_options(|o| {
-            o.trust_evaluation_options.bypass_trust = true;
-            o.skip_post_signature_validation = true;
-        });
+    let validator = CoseSign1Validator::new(plan).with_options(|o| {
+        o.trust_evaluation_options.bypass_trust = true;
+        o.skip_post_signature_validation = true;
+    });
 
     let result = validator
         .validate_bytes(EverParseCborProvider, Arc::from(cose.into_boxed_slice()))
@@ -493,19 +498,15 @@ fn validate_with_no_post_sig_validators_succeeds() {
 async fn validate_async_skips_post_sig() {
     let cose = build_simple_cose_sign1(b"skip-post-async");
     let trust_pack: Arc<dyn CoseSign1TrustPack> = Arc::new(
-        SimpleTrustPack::no_facts("resolver")
-            .with_cose_key_resolver(Arc::new(SuccessResolver)),
+        SimpleTrustPack::no_facts("resolver").with_cose_key_resolver(Arc::new(SuccessResolver)),
     );
 
-    let plan = TrustPlanBuilder::new(vec![trust_pack])
-        .compile()
-        .unwrap();
+    let plan = TrustPlanBuilder::new(vec![trust_pack]).compile().unwrap();
 
-    let validator = CoseSign1Validator::new(plan)
-        .with_options(|o| {
-            o.trust_evaluation_options.bypass_trust = true;
-            o.skip_post_signature_validation = true;
-        });
+    let validator = CoseSign1Validator::new(plan).with_options(|o| {
+        o.trust_evaluation_options.bypass_trust = true;
+        o.skip_post_signature_validation = true;
+    });
 
     let result = validator
         .validate_bytes_async(EverParseCborProvider, Arc::from(cose.into_boxed_slice()))
@@ -528,14 +529,11 @@ fn validate_with_failing_post_sig_validator() {
             .with_post_signature_validator(Arc::new(FailingPostSigValidator)),
     );
 
-    let plan = TrustPlanBuilder::new(vec![trust_pack])
-        .compile()
-        .unwrap();
+    let plan = TrustPlanBuilder::new(vec![trust_pack]).compile().unwrap();
 
-    let validator = CoseSign1Validator::new(plan)
-        .with_options(|o| {
-            o.trust_evaluation_options.bypass_trust = true;
-        });
+    let validator = CoseSign1Validator::new(plan).with_options(|o| {
+        o.trust_evaluation_options.bypass_trust = true;
+    });
 
     let result = validator
         .validate_bytes(EverParseCborProvider, Arc::from(cose.into_boxed_slice()))
@@ -552,28 +550,26 @@ fn validate_with_failing_post_sig_validator() {
 fn validate_detached_without_payload_fails_signature() {
     let cose = build_detached_cose_sign1();
     let trust_pack: Arc<dyn CoseSign1TrustPack> = Arc::new(
-        SimpleTrustPack::no_facts("resolver")
-            .with_cose_key_resolver(Arc::new(SuccessResolver)),
+        SimpleTrustPack::no_facts("resolver").with_cose_key_resolver(Arc::new(SuccessResolver)),
     );
 
-    let plan = TrustPlanBuilder::new(vec![trust_pack])
-        .compile()
-        .unwrap();
+    let plan = TrustPlanBuilder::new(vec![trust_pack]).compile().unwrap();
 
-    let validator = CoseSign1Validator::new(plan)
-        .with_options(|o| {
-            o.trust_evaluation_options.bypass_trust = true;
-            // No detached payload set -> will fail
-        });
+    let validator = CoseSign1Validator::new(plan).with_options(|o| {
+        o.trust_evaluation_options.bypass_trust = true;
+        // No detached payload set -> will fail
+    });
 
     let result = validator
         .validate_bytes(EverParseCborProvider, Arc::from(cose.into_boxed_slice()))
         .unwrap();
 
     assert!(!result.signature.is_valid());
-    assert!(result.signature.failures.iter().any(|f|
-        f.error_code.as_deref() == Some("SIGNATURE_MISSING_PAYLOAD")
-    ));
+    assert!(result
+        .signature
+        .failures
+        .iter()
+        .any(|f| f.error_code.as_deref() == Some("SIGNATURE_MISSING_PAYLOAD")));
 }
 
 // ---------------------------------------------------------------------------
@@ -584,19 +580,15 @@ fn validate_detached_without_payload_fails_signature() {
 fn validate_detached_with_bytes_payload() {
     let cose = build_detached_cose_sign1();
     let trust_pack: Arc<dyn CoseSign1TrustPack> = Arc::new(
-        SimpleTrustPack::no_facts("resolver")
-            .with_cose_key_resolver(Arc::new(SuccessResolver)),
+        SimpleTrustPack::no_facts("resolver").with_cose_key_resolver(Arc::new(SuccessResolver)),
     );
 
-    let plan = TrustPlanBuilder::new(vec![trust_pack])
-        .compile()
-        .unwrap();
+    let plan = TrustPlanBuilder::new(vec![trust_pack]).compile().unwrap();
 
-    let validator = CoseSign1Validator::new(plan)
-        .with_options(|o| {
-            o.trust_evaluation_options.bypass_trust = true;
-            o.detached_payload = Some(Payload::Bytes(b"detached content".to_vec()));
-        });
+    let validator = CoseSign1Validator::new(plan).with_options(|o| {
+        o.trust_evaluation_options.bypass_trust = true;
+        o.detached_payload = Some(Payload::Bytes(b"detached content".to_vec()));
+    });
 
     let result = validator
         .validate_bytes(EverParseCborProvider, Arc::from(cose.into_boxed_slice()))
@@ -614,22 +606,18 @@ fn validate_detached_with_bytes_payload() {
 fn validate_detached_with_streaming_payload() {
     let cose = build_detached_cose_sign1();
     let trust_pack: Arc<dyn CoseSign1TrustPack> = Arc::new(
-        SimpleTrustPack::no_facts("resolver")
-            .with_cose_key_resolver(Arc::new(SuccessResolver)),
+        SimpleTrustPack::no_facts("resolver").with_cose_key_resolver(Arc::new(SuccessResolver)),
     );
 
-    let plan = TrustPlanBuilder::new(vec![trust_pack])
-        .compile()
-        .unwrap();
+    let plan = TrustPlanBuilder::new(vec![trust_pack]).compile().unwrap();
 
     let payload_data = b"streaming detached content".to_vec();
     let mem_payload = MemoryPayload::new(payload_data);
 
-    let validator = CoseSign1Validator::new(plan)
-        .with_options(|o| {
-            o.trust_evaluation_options.bypass_trust = true;
-            o.detached_payload = Some(Payload::Streaming(Box::new(mem_payload)));
-        });
+    let validator = CoseSign1Validator::new(plan).with_options(|o| {
+        o.trust_evaluation_options.bypass_trust = true;
+        o.detached_payload = Some(Payload::Streaming(Box::new(mem_payload)));
+    });
 
     let result = validator
         .validate_bytes(EverParseCborProvider, Arc::from(cose.into_boxed_slice()))
@@ -646,19 +634,15 @@ fn validate_detached_with_streaming_payload() {
 fn validate_detached_with_empty_bytes_fails() {
     let cose = build_detached_cose_sign1();
     let trust_pack: Arc<dyn CoseSign1TrustPack> = Arc::new(
-        SimpleTrustPack::no_facts("resolver")
-            .with_cose_key_resolver(Arc::new(SuccessResolver)),
+        SimpleTrustPack::no_facts("resolver").with_cose_key_resolver(Arc::new(SuccessResolver)),
     );
 
-    let plan = TrustPlanBuilder::new(vec![trust_pack])
-        .compile()
-        .unwrap();
+    let plan = TrustPlanBuilder::new(vec![trust_pack]).compile().unwrap();
 
-    let validator = CoseSign1Validator::new(plan)
-        .with_options(|o| {
-            o.trust_evaluation_options.bypass_trust = true;
-            o.detached_payload = Some(Payload::Bytes(Vec::new()));
-        });
+    let validator = CoseSign1Validator::new(plan).with_options(|o| {
+        o.trust_evaluation_options.bypass_trust = true;
+        o.detached_payload = Some(Payload::Bytes(Vec::new()));
+    });
 
     let result = validator
         .validate_bytes(EverParseCborProvider, Arc::from(cose.into_boxed_slice()))
@@ -675,27 +659,25 @@ fn validate_detached_with_empty_bytes_fails() {
 fn validate_no_alg_fails_with_no_validator() {
     let cose = build_cose_no_alg();
     let trust_pack: Arc<dyn CoseSign1TrustPack> = Arc::new(
-        SimpleTrustPack::no_facts("resolver")
-            .with_cose_key_resolver(Arc::new(SuccessResolver)),
+        SimpleTrustPack::no_facts("resolver").with_cose_key_resolver(Arc::new(SuccessResolver)),
     );
 
-    let plan = TrustPlanBuilder::new(vec![trust_pack])
-        .compile()
-        .unwrap();
+    let plan = TrustPlanBuilder::new(vec![trust_pack]).compile().unwrap();
 
-    let validator = CoseSign1Validator::new(plan)
-        .with_options(|o| {
-            o.trust_evaluation_options.bypass_trust = true;
-        });
+    let validator = CoseSign1Validator::new(plan).with_options(|o| {
+        o.trust_evaluation_options.bypass_trust = true;
+    });
 
     let result = validator
         .validate_bytes(EverParseCborProvider, Arc::from(cose.into_boxed_slice()))
         .unwrap();
 
     assert!(!result.signature.is_valid());
-    assert!(result.signature.failures.iter().any(|f|
-        f.error_code.as_deref() == Some("NO_APPLICABLE_SIGNATURE_VALIDATOR")
-    ));
+    assert!(result
+        .signature
+        .failures
+        .iter()
+        .any(|f| f.error_code.as_deref() == Some("NO_APPLICABLE_SIGNATURE_VALIDATOR")));
 }
 
 // ---------------------------------------------------------------------------
@@ -706,18 +688,14 @@ fn validate_no_alg_fails_with_no_validator() {
 fn validate_with_audit_in_trust_evaluation() {
     let cose = build_simple_cose_sign1(b"audit-test");
     let trust_pack: Arc<dyn CoseSign1TrustPack> = Arc::new(
-        SimpleTrustPack::no_facts("resolver")
-            .with_cose_key_resolver(Arc::new(SuccessResolver)),
+        SimpleTrustPack::no_facts("resolver").with_cose_key_resolver(Arc::new(SuccessResolver)),
     );
 
-    let plan = TrustPlanBuilder::new(vec![trust_pack])
-        .compile()
-        .unwrap();
+    let plan = TrustPlanBuilder::new(vec![trust_pack]).compile().unwrap();
 
-    let validator = CoseSign1Validator::new(plan)
-        .with_options(|o| {
-            o.trust_evaluation_options.bypass_trust = true;
-        });
+    let validator = CoseSign1Validator::new(plan).with_options(|o| {
+        o.trust_evaluation_options.bypass_trust = true;
+    });
 
     let result = validator
         .validate_bytes(EverParseCborProvider, Arc::from(cose.into_boxed_slice()))
@@ -743,7 +721,9 @@ fn message_fact_producer_extracts_cwt_claims_raw() {
     let subject = TrustSubject::message(b"seed");
 
     // CwtClaimsPresentFact
-    let present = engine.get_fact_set::<CwtClaimsPresentFact>(&subject).unwrap();
+    let present = engine
+        .get_fact_set::<CwtClaimsPresentFact>(&subject)
+        .unwrap();
     match present {
         TrustFactSet::Available(v) => assert!(v[0].present),
         _ => panic!("Expected CwtClaimsPresentFact Available"),
@@ -931,7 +911,9 @@ fn message_fact_producer_no_cwt_claims() {
         .with_cose_sign1_message(Arc::new(parsed));
 
     let subject = TrustSubject::message(b"no-cwt-seed");
-    let present = engine.get_fact_set::<CwtClaimsPresentFact>(&subject).unwrap();
+    let present = engine
+        .get_fact_set::<CwtClaimsPresentFact>(&subject)
+        .unwrap();
     match present {
         TrustFactSet::Available(v) => assert!(!v[0].present),
         _ => panic!("Expected Available(false)"),
@@ -953,9 +935,13 @@ fn message_fact_producer_detached_payload_present() {
         .with_cose_sign1_message(Arc::new(parsed));
 
     let subject = TrustSubject::message(b"det-seed");
-    let det = engine.get_fact_set::<DetachedPayloadPresentFact>(&subject).unwrap();
+    let det = engine
+        .get_fact_set::<DetachedPayloadPresentFact>(&subject)
+        .unwrap();
     match det {
-        TrustFactSet::Available(v) => assert!(v[0].present, "Detached message should report present=true"),
+        TrustFactSet::Available(v) => {
+            assert!(v[0].present, "Detached message should report present=true")
+        }
         _ => panic!("Expected Available"),
     }
 }
@@ -977,7 +963,9 @@ fn message_fact_producer_non_message_subject_produces_nothing() {
     // Use a derived subject (not Message kind) to trigger line 60-64
     let msg_subject = TrustSubject::message(b"base");
     let key_subject = TrustSubject::primary_signing_key(&msg_subject);
-    let parts = engine.get_fact_set::<CoseSign1MessagePartsFact>(&key_subject).unwrap();
+    let parts = engine
+        .get_fact_set::<CoseSign1MessagePartsFact>(&key_subject)
+        .unwrap();
     match parts {
         TrustFactSet::Missing { .. } => {} // Expected: marks as produced but no data
         other => {
@@ -1002,7 +990,9 @@ fn message_fact_producer_primary_signing_key_subject() {
         .with_cose_sign1_message(Arc::new(parsed));
 
     let subject = TrustSubject::message(b"psk-seed");
-    let psk = engine.get_fact_set::<PrimarySigningKeySubjectFact>(&subject).unwrap();
+    let psk = engine
+        .get_fact_set::<PrimarySigningKeySubjectFact>(&subject)
+        .unwrap();
     match psk {
         TrustFactSet::Available(v) => {
             assert!(!v.is_empty());
@@ -1031,17 +1021,16 @@ fn validation_error_display() {
 
 #[test]
 fn validate_bytes_with_invalid_cbor_returns_decode_error() {
-    let trust_pack: Arc<dyn CoseSign1TrustPack> = Arc::new(
-        SimpleTrustPack::no_facts("resolver"),
-    );
+    let trust_pack: Arc<dyn CoseSign1TrustPack> = Arc::new(SimpleTrustPack::no_facts("resolver"));
 
-    let plan = TrustPlanBuilder::new(vec![trust_pack])
-        .compile()
-        .unwrap();
+    let plan = TrustPlanBuilder::new(vec![trust_pack]).compile().unwrap();
 
     let validator = CoseSign1Validator::new(plan);
 
-    let result = validator.validate_bytes(EverParseCborProvider, Arc::from(vec![0xFF, 0xFF].into_boxed_slice()));
+    let result = validator.validate_bytes(
+        EverParseCborProvider,
+        Arc::from(vec![0xFF, 0xFF].into_boxed_slice()),
+    );
     assert!(result.is_err());
     match result.unwrap_err() {
         CoseSign1ValidationError::CoseDecode(msg) => {

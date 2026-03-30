@@ -1,8 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-use std::collections::HashMap;
 use did_x509::{DidDocument, VerificationMethod};
+use std::collections::HashMap;
 
 #[test]
 fn test_did_document_to_json() {

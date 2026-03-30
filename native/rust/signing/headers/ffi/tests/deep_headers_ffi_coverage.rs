@@ -40,9 +40,7 @@ fn take_error_message(err: *const CoseCwtErrorHandle) -> Option<String> {
     if msg.is_null() {
         return None;
     }
-    let s = unsafe { CStr::from_ptr(msg) }
-        .to_string_lossy()
-        .to_string();
+    let s = unsafe { CStr::from_ptr(msg) }.to_string_lossy().to_string();
     unsafe { cose_cwt_string_free(msg) };
     Some(s)
 }
@@ -108,7 +106,12 @@ fn to_cbor_null_out_bytes_returns_null_pointer() {
     let handle = create_claims();
     let mut err: *mut CoseCwtErrorHandle = ptr::null_mut();
 
-    let rc = impl_cwt_claims_to_cbor_inner(handle as *const _, ptr::null_mut(), ptr::null_mut(), &mut err);
+    let rc = impl_cwt_claims_to_cbor_inner(
+        handle as *const _,
+        ptr::null_mut(),
+        ptr::null_mut(),
+        &mut err,
+    );
     assert_eq!(rc, COSE_CWT_ERR_NULL_POINTER);
 
     if !err.is_null() {
@@ -181,11 +184,7 @@ fn get_issuer_with_nul_byte_returns_invalid_argument() {
         let mut out_issuer: *const libc::c_char = ptr::null();
         let mut err2: *mut CoseCwtErrorHandle = ptr::null_mut();
 
-        let rc2 = impl_cwt_claims_get_issuer_inner(
-            handle as *const _,
-            &mut out_issuer,
-            &mut err2,
-        );
+        let rc2 = impl_cwt_claims_get_issuer_inner(handle as *const _, &mut out_issuer, &mut err2);
 
         // Should return invalid argument due to NUL byte in issuer
         assert_eq!(rc2, COSE_CWT_ERR_INVALID_ARGUMENT);
@@ -236,11 +235,8 @@ fn get_subject_with_nul_byte_returns_invalid_argument() {
         let mut out_subject: *const libc::c_char = ptr::null();
         let mut err2: *mut CoseCwtErrorHandle = ptr::null_mut();
 
-        let rc2 = impl_cwt_claims_get_subject_inner(
-            handle as *const _,
-            &mut out_subject,
-            &mut err2,
-        );
+        let rc2 =
+            impl_cwt_claims_get_subject_inner(handle as *const _, &mut out_subject, &mut err2);
 
         // Should return invalid argument due to NUL byte in subject
         assert_eq!(rc2, COSE_CWT_ERR_INVALID_ARGUMENT);
@@ -271,7 +267,10 @@ fn get_subject_with_nul_byte_returns_invalid_argument() {
 fn get_issuer_success_path() {
     let handle = create_claims();
     let issuer = std::ffi::CString::new("test-issuer").unwrap();
-    assert_eq!(impl_cwt_claims_set_issuer_inner(handle, issuer.as_ptr()), COSE_CWT_OK);
+    assert_eq!(
+        impl_cwt_claims_set_issuer_inner(handle, issuer.as_ptr()),
+        COSE_CWT_OK
+    );
 
     let mut out_issuer: *const libc::c_char = ptr::null();
     let mut err: *mut CoseCwtErrorHandle = ptr::null_mut();
@@ -298,7 +297,10 @@ fn get_issuer_success_path() {
 fn get_subject_success_path() {
     let handle = create_claims();
     let subject = std::ffi::CString::new("test-subject").unwrap();
-    assert_eq!(impl_cwt_claims_set_subject_inner(handle, subject.as_ptr()), COSE_CWT_OK);
+    assert_eq!(
+        impl_cwt_claims_set_subject_inner(handle, subject.as_ptr()),
+        COSE_CWT_OK
+    );
 
     let mut out_subject: *const libc::c_char = ptr::null();
     let mut err: *mut CoseCwtErrorHandle = ptr::null_mut();
@@ -434,24 +436,38 @@ fn roundtrip_all_claims_via_cbor() {
     let subject = std::ffi::CString::new("roundtrip-subject").unwrap();
     let audience = std::ffi::CString::new("roundtrip-audience").unwrap();
 
-    assert_eq!(impl_cwt_claims_set_issuer_inner(handle, issuer.as_ptr()), COSE_CWT_OK);
-    assert_eq!(impl_cwt_claims_set_subject_inner(handle, subject.as_ptr()), COSE_CWT_OK);
-    assert_eq!(impl_cwt_claims_set_audience_inner(handle, audience.as_ptr()), COSE_CWT_OK);
-    assert_eq!(impl_cwt_claims_set_issued_at_inner(handle, 1700000000), COSE_CWT_OK);
-    assert_eq!(impl_cwt_claims_set_not_before_inner(handle, 1699999000), COSE_CWT_OK);
-    assert_eq!(impl_cwt_claims_set_expiration_inner(handle, 1700100000), COSE_CWT_OK);
+    assert_eq!(
+        impl_cwt_claims_set_issuer_inner(handle, issuer.as_ptr()),
+        COSE_CWT_OK
+    );
+    assert_eq!(
+        impl_cwt_claims_set_subject_inner(handle, subject.as_ptr()),
+        COSE_CWT_OK
+    );
+    assert_eq!(
+        impl_cwt_claims_set_audience_inner(handle, audience.as_ptr()),
+        COSE_CWT_OK
+    );
+    assert_eq!(
+        impl_cwt_claims_set_issued_at_inner(handle, 1700000000),
+        COSE_CWT_OK
+    );
+    assert_eq!(
+        impl_cwt_claims_set_not_before_inner(handle, 1699999000),
+        COSE_CWT_OK
+    );
+    assert_eq!(
+        impl_cwt_claims_set_expiration_inner(handle, 1700100000),
+        COSE_CWT_OK
+    );
 
     // Serialize to CBOR
     let mut out_bytes: *mut u8 = ptr::null_mut();
     let mut out_len: u32 = 0;
     let mut err: *mut CoseCwtErrorHandle = ptr::null_mut();
 
-    let rc = impl_cwt_claims_to_cbor_inner(
-        handle as *const _,
-        &mut out_bytes,
-        &mut out_len,
-        &mut err,
-    );
+    let rc =
+        impl_cwt_claims_to_cbor_inner(handle as *const _, &mut out_bytes, &mut out_len, &mut err);
     assert_eq!(rc, COSE_CWT_OK);
     assert!(!out_bytes.is_null());
     assert!(out_len > 0);
@@ -489,8 +505,16 @@ fn roundtrip_all_claims_via_cbor() {
         cose_cwt_claims_free(handle);
         cose_cwt_claims_free(handle2);
     }
-    if !err.is_null() { unsafe { cose_cwt_error_free(err) }; }
-    if !err2.is_null() { unsafe { cose_cwt_error_free(err2) }; }
-    if !err3.is_null() { unsafe { cose_cwt_error_free(err3) }; }
-    if !err4.is_null() { unsafe { cose_cwt_error_free(err4) }; }
+    if !err.is_null() {
+        unsafe { cose_cwt_error_free(err) };
+    }
+    if !err2.is_null() {
+        unsafe { cose_cwt_error_free(err2) };
+    }
+    if !err3.is_null() {
+        unsafe { cose_cwt_error_free(err3) };
+    }
+    if !err4.is_null() {
+        unsafe { cose_cwt_error_free(err4) };
+    }
 }

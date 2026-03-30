@@ -50,7 +50,10 @@ fn compile_dnf(name: &'static str, dnf: Vec<Vec<TrustRuleRef>>) -> TrustRuleRef 
     }
 
     match and_terms.len() {
-        1 => and_terms.into_iter().next().unwrap_or_else(|| any_of(name, Vec::new())),
+        1 => and_terms
+            .into_iter()
+            .next()
+            .unwrap_or_else(|| any_of(name, Vec::new())),
         _ => any_of(name, and_terms),
     }
 }
@@ -558,7 +561,6 @@ where
         );
         self
     }
-
 
     /// String field must be non-empty after trimming.
     pub fn str_non_empty(mut self, field: Field<TFact, String>) -> Self {

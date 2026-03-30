@@ -8,12 +8,12 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use cose_sign1_primitives::CoseSign1Message;
-use cose_sign1_signing::{SigningService, transparency::TransparencyProvider};
+use cose_sign1_signing::{transparency::TransparencyProvider, SigningService};
 
 use crate::{
-    FactoryError,
     direct::{DirectSignatureFactory, DirectSignatureOptions},
     indirect::{IndirectSignatureFactory, IndirectSignatureOptions},
+    FactoryError,
 };
 
 /// Trait for type-erased factory implementations.
@@ -171,12 +171,12 @@ impl CoseSign1MessageFactory {
     /// * `content_type` - Original content type of the payload
     /// * `options` - Optional signing options
     pub fn create_indirect(
-        &self,        payload: &[u8],
+        &self,
+        payload: &[u8],
         content_type: &str,
         options: Option<IndirectSignatureOptions>,
     ) -> Result<CoseSign1Message, FactoryError> {
-        self.indirect_factory
-            .create(payload, content_type, options)
+        self.indirect_factory.create(payload, content_type, options)
     }
 
     /// Creates a COSE_Sign1 message with an indirect signature and returns it as bytes.
@@ -295,15 +295,12 @@ impl CoseSign1MessageFactory {
         content_type: &str,
         options: &T,
     ) -> Result<CoseSign1Message, FactoryError> {
-        let factory = self
-            .factories
-            .get(&TypeId::of::<T>())
-            .ok_or_else(|| {
-                FactoryError::SigningFailed(format!(
-                    "No factory registered for options type {:?}",
-                    std::any::type_name::<T>()
-                ))
-            })?;
+        let factory = self.factories.get(&TypeId::of::<T>()).ok_or_else(|| {
+            FactoryError::SigningFailed(format!(
+                "No factory registered for options type {:?}",
+                std::any::type_name::<T>()
+            ))
+        })?;
         factory.create_dyn(payload, content_type, options)
     }
 }

@@ -14,28 +14,27 @@
 //!
 //! Future expansions can add declarative rule/predicate authoring in a stable way.
 
-
 #![deny(unsafe_op_in_unsafe_fn)]
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
 use cose_sign1_validation::fluent::{
-    CoseSign1CompiledTrustPlan, CoseSign1TrustPack, CwtClaimsFact, CwtClaimsWhereExt,
-    CounterSignatureEnvelopeIntegrityFact, MessageScopeRulesExt, TrustPlanBuilder,
+    CoseSign1CompiledTrustPlan, CoseSign1TrustPack, CounterSignatureEnvelopeIntegrityFact,
+    CwtClaimsFact, CwtClaimsWhereExt, MessageScopeRulesExt, TrustPlanBuilder,
 };
 use cose_sign1_validation_ffi::{
-    cose_status_t, cose_trust_policy_builder_t, cose_sign1_validator_builder_t, with_catch_unwind,
+    cose_sign1_validator_builder_t, cose_status_t, cose_trust_policy_builder_t, with_catch_unwind,
     with_trust_policy_builder_mut as with_policy_builder_mut,
 };
 use cose_sign1_validation_primitives::fact_properties::FactValueOwned;
 use cose_sign1_validation_primitives::field::Field;
 use cose_sign1_validation_primitives::plan::CompiledTrustPlan;
 use cose_sign1_validation_primitives::rules::{
-    allow_all, all_of, any_of, require_fact_matches_with_missing_behavior, FactSelector,
+    all_of, allow_all, any_of, require_fact_matches_with_missing_behavior, FactSelector,
     MissingBehavior, PropertyPredicate,
 };
 use std::collections::HashSet;
-use std::ffi::{c_char, CStr};
 use std::ffi::CString;
+use std::ffi::{c_char, CStr};
 use std::ptr;
 use std::sync::Arc;
 
@@ -79,12 +78,15 @@ fn string_from_ptr(arg_name: &'static str, s: *const c_char) -> Result<String, a
     Ok(s.to_string())
 }
 
-
 fn collect_default_plan_for_pack(
     pack: &Arc<dyn CoseSign1TrustPack>,
 ) -> Result<CompiledTrustPlan, anyhow::Error> {
-    pack.default_trust_plan()
-        .ok_or_else(|| anyhow::anyhow!("pack '{}' does not provide a default trust plan", pack.name()))
+    pack.default_trust_plan().ok_or_else(|| {
+        anyhow::anyhow!(
+            "pack '{}' does not provide a default trust plan",
+            pack.name()
+        )
+    })
 }
 
 #[inline(never)]
@@ -125,7 +127,8 @@ pub extern "C" fn cose_sign1_trust_plan_builder_new_from_validator_builder(
         if out.is_null() {
             anyhow::bail!("out must not be null");
         }
-        let builder = unsafe { builder.as_ref() }.ok_or_else(|| anyhow::anyhow!("builder must not be null"))?;
+        let builder = unsafe { builder.as_ref() }
+            .ok_or_else(|| anyhow::anyhow!("builder must not be null"))?;
 
         let boxed = Box::new(cose_sign1_trust_plan_builder_t {
             packs: builder.packs.clone(),
@@ -140,7 +143,9 @@ pub extern "C" fn cose_sign1_trust_plan_builder_new_from_validator_builder(
 }
 
 #[no_mangle]
-pub extern "C" fn cose_sign1_trust_plan_builder_free(plan_builder: *mut cose_sign1_trust_plan_builder_t) {
+pub extern "C" fn cose_sign1_trust_plan_builder_free(
+    plan_builder: *mut cose_sign1_trust_plan_builder_t,
+) {
     if plan_builder.is_null() {
         return;
     }
@@ -350,7 +355,12 @@ pub extern "C" fn cose_sign1_trust_plan_builder_compile_allow_all(
         let plan_builder = unsafe { plan_builder.as_mut() }
             .ok_or_else(|| anyhow::anyhow!("plan_builder must not be null"))?;
 
-        let plan = CompiledTrustPlan::new(Vec::new(), Vec::new(), vec![allow_all("AllowAll")], Vec::new());
+        let plan = CompiledTrustPlan::new(
+            Vec::new(),
+            Vec::new(),
+            vec![allow_all("AllowAll")],
+            Vec::new(),
+        );
         let bundled = CoseSign1CompiledTrustPlan::from_parts(plan, plan_builder.packs.clone())?;
         let boxed = Box::new(cose_sign1_compiled_trust_plan_t { bundled });
         unsafe {
@@ -373,7 +383,12 @@ pub extern "C" fn cose_sign1_trust_plan_builder_compile_deny_all(
         let plan_builder = unsafe { plan_builder.as_mut() }
             .ok_or_else(|| anyhow::anyhow!("plan_builder must not be null"))?;
 
-        let plan = CompiledTrustPlan::new(Vec::new(), Vec::new(), vec![any_of("DenyAll", Vec::new())], Vec::new());
+        let plan = CompiledTrustPlan::new(
+            Vec::new(),
+            Vec::new(),
+            vec![any_of("DenyAll", Vec::new())],
+            Vec::new(),
+        );
         let bundled = CoseSign1CompiledTrustPlan::from_parts(plan, plan_builder.packs.clone())?;
         let boxed = Box::new(cose_sign1_compiled_trust_plan_t { bundled });
         unsafe {
@@ -395,7 +410,8 @@ pub extern "C" fn cose_sign1_validator_builder_with_compiled_trust_plan(
     with_catch_unwind(|| {
         let builder = unsafe { builder.as_mut() }
             .ok_or_else(|| anyhow::anyhow!("builder must not be null"))?;
-        let plan = unsafe { plan.as_ref() }.ok_or_else(|| anyhow::anyhow!("plan must not be null"))?;
+        let plan =
+            unsafe { plan.as_ref() }.ok_or_else(|| anyhow::anyhow!("plan must not be null"))?;
 
         builder.compiled_plan = Some(plan.bundled.clone());
         Ok(cose_status_t::COSE_OK)
@@ -430,7 +446,9 @@ pub extern "C" fn cose_sign1_trust_policy_builder_new_from_validator_builder(
 }
 
 #[no_mangle]
-pub extern "C" fn cose_sign1_trust_policy_builder_free(policy_builder: *mut cose_trust_policy_builder_t) {
+pub extern "C" fn cose_sign1_trust_policy_builder_free(
+    policy_builder: *mut cose_trust_policy_builder_t,
+) {
     if policy_builder.is_null() {
         return;
     }
@@ -660,7 +678,10 @@ pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_claim_label_i64_eq
     with_catch_unwind(|| {
         with_policy_builder_mut(policy_builder, |b| {
             b.for_message(|s| {
-                s.require_cwt_claim(label, move |r| matches!(r.try_as_i64(), Some(v) if v == value))
+                s.require_cwt_claim(
+                    label,
+                    move |r| matches!(r.try_as_i64(), Some(v) if v == value),
+                )
             })
         })?;
         Ok(cose_status_t::COSE_OK)
@@ -677,7 +698,10 @@ pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_claim_label_bool_e
     with_catch_unwind(|| {
         with_policy_builder_mut(policy_builder, |b| {
             b.for_message(|s| {
-                s.require_cwt_claim(label, move |r| matches!(r.try_as_bool(), Some(v) if v == value))
+                s.require_cwt_claim(
+                    label,
+                    move |r| matches!(r.try_as_bool(), Some(v) if v == value),
+                )
             })
         })?;
         Ok(cose_status_t::COSE_OK)
@@ -694,7 +718,10 @@ pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_claim_label_i64_ge
     with_catch_unwind(|| {
         with_policy_builder_mut(policy_builder, |b| {
             b.for_message(|s| {
-                s.require_cwt_claim(label, move |r| matches!(r.try_as_i64(), Some(v) if v >= min))
+                s.require_cwt_claim(
+                    label,
+                    move |r| matches!(r.try_as_i64(), Some(v) if v >= min),
+                )
             })
         })?;
         Ok(cose_status_t::COSE_OK)
@@ -711,7 +738,10 @@ pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_claim_label_i64_le
     with_catch_unwind(|| {
         with_policy_builder_mut(policy_builder, |b| {
             b.for_message(|s| {
-                s.require_cwt_claim(label, move |r| matches!(r.try_as_i64(), Some(v) if v <= max))
+                s.require_cwt_claim(
+                    label,
+                    move |r| matches!(r.try_as_i64(), Some(v) if v <= max),
+                )
             })
         })?;
         Ok(cose_status_t::COSE_OK)
@@ -771,7 +801,8 @@ pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_claim_label_str_st
         with_policy_builder_mut(policy_builder, |b| {
             b.for_message(|s| {
                 s.require_cwt_claim(label, move |r| {
-                    r.try_as_str().is_some_and(|s| s.starts_with(prefix.as_str()))
+                    r.try_as_str()
+                        .is_some_and(|s| s.starts_with(prefix.as_str()))
                 })
             })
         })?;
@@ -792,7 +823,8 @@ pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_claim_text_str_sta
         with_policy_builder_mut(policy_builder, |b| {
             b.for_message(|s| {
                 s.require_cwt_claim(key, move |r| {
-                    r.try_as_str().is_some_and(|s| s.starts_with(prefix.as_str()))
+                    r.try_as_str()
+                        .is_some_and(|s| s.starts_with(prefix.as_str()))
                 })
             })
         })?;
@@ -852,7 +884,10 @@ pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_claim_text_bool_eq
         let key = string_from_ptr("key_utf8", key_utf8)?;
         with_policy_builder_mut(policy_builder, |b| {
             b.for_message(|s| {
-                s.require_cwt_claim(key, move |r| matches!(r.try_as_bool(), Some(v) if v == value))
+                s.require_cwt_claim(
+                    key,
+                    move |r| matches!(r.try_as_bool(), Some(v) if v == value),
+                )
             })
         })?;
         Ok(cose_status_t::COSE_OK)
@@ -906,9 +941,10 @@ pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_claim_text_i64_eq(
         let key = string_from_ptr("key_utf8", key_utf8)?;
         with_policy_builder_mut(policy_builder, |b| {
             b.for_message(|s| {
-                s.require_cwt_claim(key, move |r| {
-                    matches!(r.try_as_i64(), Some(v) if v == value)
-                })
+                s.require_cwt_claim(
+                    key,
+                    move |r| matches!(r.try_as_i64(), Some(v) if v == value),
+                )
             })
         })?;
         Ok(cose_status_t::COSE_OK)
@@ -923,9 +959,7 @@ pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_exp_ge(
 ) -> cose_status_t {
     with_catch_unwind(|| {
         with_policy_builder_mut(policy_builder, |b| {
-            b.for_message(|s| {
-                s.require::<CwtClaimsFact>(|w| w.i64_ge(Field::new("exp"), min))
-            })
+            b.for_message(|s| s.require::<CwtClaimsFact>(|w| w.i64_ge(Field::new("exp"), min)))
         })?;
         Ok(cose_status_t::COSE_OK)
     })
@@ -939,9 +973,7 @@ pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_exp_le(
 ) -> cose_status_t {
     with_catch_unwind(|| {
         with_policy_builder_mut(policy_builder, |b| {
-            b.for_message(|s| {
-                s.require::<CwtClaimsFact>(|w| w.i64_le(Field::new("exp"), max))
-            })
+            b.for_message(|s| s.require::<CwtClaimsFact>(|w| w.i64_le(Field::new("exp"), max)))
         })?;
         Ok(cose_status_t::COSE_OK)
     })
@@ -955,9 +987,7 @@ pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_nbf_ge(
 ) -> cose_status_t {
     with_catch_unwind(|| {
         with_policy_builder_mut(policy_builder, |b| {
-            b.for_message(|s| {
-                s.require::<CwtClaimsFact>(|w| w.i64_ge(Field::new("nbf"), min))
-            })
+            b.for_message(|s| s.require::<CwtClaimsFact>(|w| w.i64_ge(Field::new("nbf"), min)))
         })?;
         Ok(cose_status_t::COSE_OK)
     })
@@ -971,9 +1001,7 @@ pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_nbf_le(
 ) -> cose_status_t {
     with_catch_unwind(|| {
         with_policy_builder_mut(policy_builder, |b| {
-            b.for_message(|s| {
-                s.require::<CwtClaimsFact>(|w| w.i64_le(Field::new("nbf"), max))
-            })
+            b.for_message(|s| s.require::<CwtClaimsFact>(|w| w.i64_le(Field::new("nbf"), max)))
         })?;
         Ok(cose_status_t::COSE_OK)
     })
@@ -987,9 +1015,7 @@ pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_iat_ge(
 ) -> cose_status_t {
     with_catch_unwind(|| {
         with_policy_builder_mut(policy_builder, |b| {
-            b.for_message(|s| {
-                s.require::<CwtClaimsFact>(|w| w.i64_ge(Field::new("iat"), min))
-            })
+            b.for_message(|s| s.require::<CwtClaimsFact>(|w| w.i64_ge(Field::new("iat"), min)))
         })?;
         Ok(cose_status_t::COSE_OK)
     })
@@ -1003,9 +1029,7 @@ pub extern "C" fn cose_sign1_trust_policy_builder_require_cwt_iat_le(
 ) -> cose_status_t {
     with_catch_unwind(|| {
         with_policy_builder_mut(policy_builder, |b| {
-            b.for_message(|s| {
-                s.require::<CwtClaimsFact>(|w| w.i64_le(Field::new("iat"), max))
-            })
+            b.for_message(|s| s.require::<CwtClaimsFact>(|w| w.i64_le(Field::new("iat"), max)))
         })?;
         Ok(cose_status_t::COSE_OK)
     })

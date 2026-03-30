@@ -9,8 +9,12 @@
 //! - No applicable signature validator / missing alg (lines 1476-1481)
 //! - Counter-signature fact resolution error paths (lines 1305, 1314)
 
+use cbor_primitives::{CborEncoder, CborProvider};
+use cbor_primitives_everparse::EverParseCborProvider;
+use cose_sign1_primitives::error::PayloadError;
+use cose_sign1_primitives::sig_structure::SizedRead;
+use cose_sign1_primitives::CoseSign1Message;
 use cose_sign1_validation::fluent::*;
-use cose_sign1_validation_test_utils::SimpleTrustPack;
 use cose_sign1_validation_primitives::{
     error::TrustError,
     facts::{FactKey, TrustFactContext, TrustFactEngine, TrustFactProducer},
@@ -20,16 +24,12 @@ use cose_sign1_validation_primitives::{
     subject::TrustSubject,
     TrustDecision, TrustEvaluationOptions,
 };
-use cbor_primitives::{CborEncoder, CborProvider};
-use cbor_primitives_everparse::EverParseCborProvider;
-use cose_sign1_primitives::CoseSign1Message;
-use cose_sign1_primitives::error::PayloadError;
-use cose_sign1_primitives::sig_structure::SizedRead;
-use std::sync::LazyLock;
+use cose_sign1_validation_test_utils::SimpleTrustPack;
 use std::future::Future;
 use std::io::Cursor;
 use std::pin::Pin;
 use std::sync::Arc;
+use std::sync::LazyLock;
 use std::task::{Context, Poll, RawWaker, RawWakerVTable, Waker};
 
 // ---------------------------------------------------------------------------
@@ -102,8 +102,10 @@ fn allow_all_trust_plan() -> CompiledTrustPlan {
 
 struct AlwaysTrueVerifier;
 impl CryptoVerifier for AlwaysTrueVerifier {
-    fn algorithm(&self) -> i64 { -7 }
-    
+    fn algorithm(&self) -> i64 {
+        -7
+    }
+
     fn verify(&self, _data: &[u8], _signature: &[u8]) -> Result<bool, CryptoError> {
         Ok(true)
     }
@@ -112,8 +114,10 @@ impl CryptoVerifier for AlwaysTrueVerifier {
 /// Verifier whose `verify` returns `Err` (not just `Ok(false)`).
 struct ErrorVerifyVerifier;
 impl CryptoVerifier for ErrorVerifyVerifier {
-    fn algorithm(&self) -> i64 { -7 }
-    
+    fn algorithm(&self) -> i64 {
+        -7
+    }
+
     fn verify(&self, _data: &[u8], _signature: &[u8]) -> Result<bool, CryptoError> {
         Err(CryptoError::VerificationFailed("verify_boom".to_string()))
     }
@@ -122,8 +126,10 @@ impl CryptoVerifier for ErrorVerifyVerifier {
 /// Verifier whose `verify` returns `Ok(false)`.
 struct AlwaysFalseVerifier;
 impl CryptoVerifier for AlwaysFalseVerifier {
-    fn algorithm(&self) -> i64 { -7 }
-    
+    fn algorithm(&self) -> i64 {
+        -7
+    }
+
     fn verify(&self, _data: &[u8], _signature: &[u8]) -> Result<bool, CryptoError> {
         Ok(false)
     }
@@ -646,7 +652,10 @@ fn validate_async_post_signature_failure() {
     );
 
     let result = block_on(v.validate_async(&parsed, Arc::from(cose.into_boxed_slice()))).unwrap();
-    assert_eq!(ValidationResultKind::Failure, result.post_signature_policy.kind);
+    assert_eq!(
+        ValidationResultKind::Failure,
+        result.post_signature_policy.kind
+    );
     assert_eq!(ValidationResultKind::Failure, result.overall.kind);
 }
 

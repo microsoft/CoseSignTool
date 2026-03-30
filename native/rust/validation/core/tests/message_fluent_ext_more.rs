@@ -2,18 +2,20 @@
 // Licensed under the MIT License.
 
 use cbor_primitives::{CborEncoder, CborProvider};
+use cbor_primitives_everparse::EverParseCborProvider;
 use cose_sign1_validation::fluent::{
     ContentTypeFact, CwtClaimsFact, CwtClaimsPresentFact, DetachedPayloadPresentFact,
     MessageScopeRulesExt as _,
 };
 use cose_sign1_validation_primitives::error::TrustError;
 use cose_sign1_validation_primitives::evaluation_options::TrustEvaluationOptions;
-use cose_sign1_validation_primitives::facts::{FactKey, TrustFactContext, TrustFactEngine, TrustFactProducer};
+use cose_sign1_validation_primitives::facts::{
+    FactKey, TrustFactContext, TrustFactEngine, TrustFactProducer,
+};
 use cose_sign1_validation_primitives::fluent::TrustPlanBuilder;
 use cose_sign1_validation_primitives::subject::TrustSubject;
 use std::collections::BTreeMap;
 use std::sync::Arc;
-use cbor_primitives_everparse::EverParseCborProvider;
 
 fn encode_cbor_i64(n: i64) -> Arc<[u8]> {
     let p = EverParseCborProvider;

@@ -9,23 +9,23 @@
 //! signing operations with COSE_Sign1 messages. It maps V2 C# signing abstractions
 //! to Rust.
 
-pub mod traits;
 pub mod context;
-pub mod options;
-pub mod metadata;
-pub mod signer;
 pub mod error;
 pub mod extensions;
+pub mod metadata;
+pub mod options;
+pub mod signer;
+pub mod traits;
 pub mod transparency;
 
-pub use traits::*;
 pub use context::*;
-pub use options::*;
-pub use metadata::*;
-pub use signer::*;
 pub use error::*;
 pub use extensions::*;
+pub use metadata::*;
+pub use options::*;
+pub use signer::*;
+pub use traits::*;
 pub use transparency::{
-    TransparencyProvider, TransparencyValidationResult, TransparencyError,
-    RECEIPTS_HEADER_LABEL, extract_receipts, merge_receipts, add_proof_with_receipt_merge,
+    add_proof_with_receipt_merge, extract_receipts, merge_receipts, TransparencyError,
+    TransparencyProvider, TransparencyValidationResult, RECEIPTS_HEADER_LABEL,
 };

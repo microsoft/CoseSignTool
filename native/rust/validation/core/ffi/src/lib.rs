@@ -9,11 +9,10 @@
 pub mod provider;
 
 use anyhow::Context as _;
-use cose_sign1_validation::fluent::{
-    CoseSign1CompiledTrustPlan, CoseSign1TrustPack, CoseSign1Validator,
-    TrustPlanBuilder,
-};
 use cose_sign1_primitives::payload::Payload;
+use cose_sign1_validation::fluent::{
+    CoseSign1CompiledTrustPlan, CoseSign1TrustPack, CoseSign1Validator, TrustPlanBuilder,
+};
 use std::cell::RefCell;
 use std::ffi::{c_char, CString};
 use std::panic::{catch_unwind, AssertUnwindSafe};
@@ -28,7 +27,8 @@ thread_local! {
 
 pub fn set_last_error(message: impl Into<String>) {
     let s = message.into();
-    let c = CString::new(s).unwrap_or_else(|_| CString::new("error message contained NUL").unwrap());
+    let c =
+        CString::new(s).unwrap_or_else(|_| CString::new("error message contained NUL").unwrap());
     LAST_ERROR.with(|slot| {
         *slot.borrow_mut() = Some(c);
     });
@@ -102,7 +102,9 @@ pub fn with_trust_policy_builder_mut(
 }
 
 #[inline(never)]
-pub fn with_catch_unwind<F: FnOnce() -> Result<cose_status_t, anyhow::Error>>(f: F) -> cose_status_t {
+pub fn with_catch_unwind<F: FnOnce() -> Result<cose_status_t, anyhow::Error>>(
+    f: F,
+) -> cose_status_t {
     clear_last_error();
     match catch_unwind(AssertUnwindSafe(f)) {
         Ok(Ok(status)) => status,
@@ -157,7 +159,9 @@ pub unsafe extern "C" fn cose_string_free(s: *mut c_char) {
 }
 
 #[no_mangle]
-pub extern "C" fn cose_sign1_validator_builder_new(out: *mut *mut cose_sign1_validator_builder_t) -> cose_status_t {
+pub extern "C" fn cose_sign1_validator_builder_new(
+    out: *mut *mut cose_sign1_validator_builder_t,
+) -> cose_status_t {
     with_catch_unwind(|| {
         if out.is_null() {
             anyhow::bail!("out must not be null");
@@ -330,7 +334,10 @@ pub extern "C" fn cose_sign1_validator_validate_bytes(
             }
         };
 
-        let boxed = Box::new(cose_sign1_validation_result_t { ok, failure_message });
+        let boxed = Box::new(cose_sign1_validation_result_t {
+            ok,
+            failure_message,
+        });
         unsafe {
             *out_result = Box::into_raw(boxed);
         }

@@ -5,7 +5,7 @@
 //! encoding custom claim types, decoding complex skip paths,
 //! Debug/Clone/Display coverage, and error paths.
 
-use cose_sign1_headers::{CwtClaims, CwtClaimValue, CWTClaimsHeaderLabels, HeaderError};
+use cose_sign1_headers::{CWTClaimsHeaderLabels, CwtClaimValue, CwtClaims, HeaderError};
 
 // ---------------------------------------------------------------------------
 // CwtClaims::new() and Default
@@ -35,7 +35,10 @@ fn default_is_identical_to_new() {
     assert_eq!(from_new.not_before, from_default.not_before);
     assert_eq!(from_new.issued_at, from_default.issued_at);
     assert_eq!(from_new.cwt_id, from_default.cwt_id);
-    assert_eq!(from_new.custom_claims.len(), from_default.custom_claims.len());
+    assert_eq!(
+        from_new.custom_claims.len(),
+        from_default.custom_claims.len()
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -80,11 +83,26 @@ fn encode_decode_all_standard_and_custom_claim_types() {
     assert_eq!(decoded.not_before, Some(1_699_999_000));
     assert_eq!(decoded.issued_at, Some(1_699_999_500));
     assert_eq!(decoded.cwt_id, Some(vec![0xCA, 0xFE]));
-    assert_eq!(decoded.custom_claims.get(&100), Some(&CwtClaimValue::Text("txt".to_string())));
-    assert_eq!(decoded.custom_claims.get(&101), Some(&CwtClaimValue::Integer(42)));
-    assert_eq!(decoded.custom_claims.get(&102), Some(&CwtClaimValue::Bytes(vec![0xDE, 0xAD])));
-    assert_eq!(decoded.custom_claims.get(&103), Some(&CwtClaimValue::Bool(true)));
-    assert_eq!(decoded.custom_claims.get(&104), Some(&CwtClaimValue::Bool(false)));
+    assert_eq!(
+        decoded.custom_claims.get(&100),
+        Some(&CwtClaimValue::Text("txt".to_string()))
+    );
+    assert_eq!(
+        decoded.custom_claims.get(&101),
+        Some(&CwtClaimValue::Integer(42))
+    );
+    assert_eq!(
+        decoded.custom_claims.get(&102),
+        Some(&CwtClaimValue::Bytes(vec![0xDE, 0xAD]))
+    );
+    assert_eq!(
+        decoded.custom_claims.get(&103),
+        Some(&CwtClaimValue::Bool(true))
+    );
+    assert_eq!(
+        decoded.custom_claims.get(&104),
+        Some(&CwtClaimValue::Bool(false))
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -93,11 +111,13 @@ fn encode_decode_all_standard_and_custom_claim_types() {
 
 #[test]
 fn encode_decode_negative_custom_label() {
-    let claims = CwtClaims::new()
-        .with_custom_claim(-50, CwtClaimValue::Integer(-999));
+    let claims = CwtClaims::new().with_custom_claim(-50, CwtClaimValue::Integer(-999));
     let bytes = claims.to_cbor_bytes().unwrap();
     let decoded = CwtClaims::from_cbor_bytes(&bytes).unwrap();
-    assert_eq!(decoded.custom_claims.get(&-50), Some(&CwtClaimValue::Integer(-999)));
+    assert_eq!(
+        decoded.custom_claims.get(&-50),
+        Some(&CwtClaimValue::Integer(-999))
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -194,9 +214,9 @@ fn decode_error_empty_data() {
 fn decode_skips_array_value_with_text_elements() {
     // map(1) { 100: ["hello", "world"] }
     let cbor = vec![
-        0xa1,       // map(1)
+        0xa1, // map(1)
         0x18, 0x64, // unsigned(100)
-        0x82,       // array(2)
+        0x82, // array(2)
         0x65, 0x68, 0x65, 0x6c, 0x6c, 0x6f, // "hello"
         0x65, 0x77, 0x6f, 0x72, 0x6c, 0x64, // "world"
     ];
@@ -208,9 +228,9 @@ fn decode_skips_array_value_with_text_elements() {
 fn decode_skips_array_value_with_bstr_elements() {
     // map(1) { 100: [h'AABB', h'CCDD'] }
     let cbor = vec![
-        0xa1,       // map(1)
+        0xa1, // map(1)
         0x18, 0x64, // unsigned(100)
-        0x82,       // array(2)
+        0x82, // array(2)
         0x42, 0xAA, 0xBB, // bytes(2) AABB
         0x42, 0xCC, 0xDD, // bytes(2) CCDD
     ];
@@ -222,11 +242,11 @@ fn decode_skips_array_value_with_bstr_elements() {
 fn decode_skips_array_with_bool_elements() {
     // map(1) { 100: [true, false] }
     let cbor = vec![
-        0xa1,       // map(1)
+        0xa1, // map(1)
         0x18, 0x64, // unsigned(100)
-        0x82,       // array(2)
-        0xf5,       // true
-        0xf4,       // false
+        0x82, // array(2)
+        0xf5, // true
+        0xf4, // false
     ];
     let claims = CwtClaims::from_cbor_bytes(&cbor).unwrap();
     assert!(claims.custom_claims.is_empty());
@@ -240,9 +260,9 @@ fn decode_skips_array_with_bool_elements() {
 fn decode_skips_map_value_with_text_string_key() {
     // map(1) { 100: {"key": 42} }
     let cbor = vec![
-        0xa1,       // map(1)
+        0xa1, // map(1)
         0x18, 0x64, // unsigned(100)
-        0xa1,       // map(1)
+        0xa1, // map(1)
         0x63, 0x6b, 0x65, 0x79, // "key"
         0x18, 0x2a, // unsigned(42)
     ];
@@ -254,10 +274,10 @@ fn decode_skips_map_value_with_text_string_key() {
 fn decode_skips_map_value_with_bstr_value() {
     // map(1) { 100: {1: h'BEEF'} }
     let cbor = vec![
-        0xa1,       // map(1)
+        0xa1, // map(1)
         0x18, 0x64, // unsigned(100)
-        0xa1,       // map(1)
-        0x01,       // key: 1
+        0xa1, // map(1)
+        0x01, // key: 1
         0x42, 0xBE, 0xEF, // bytes(2) BEEF
     ];
     let claims = CwtClaims::from_cbor_bytes(&cbor).unwrap();
@@ -268,11 +288,11 @@ fn decode_skips_map_value_with_bstr_value() {
 fn decode_skips_map_value_with_bool_value() {
     // map(1) { 100: {1: true} }
     let cbor = vec![
-        0xa1,       // map(1)
+        0xa1, // map(1)
         0x18, 0x64, // unsigned(100)
-        0xa1,       // map(1)
-        0x01,       // key: 1
-        0xf5,       // true
+        0xa1, // map(1)
+        0x01, // key: 1
+        0xf5, // true
     ];
     let claims = CwtClaims::from_cbor_bytes(&cbor).unwrap();
     assert!(claims.custom_claims.is_empty());
@@ -282,10 +302,10 @@ fn decode_skips_map_value_with_bool_value() {
 fn decode_skips_map_value_with_text_value() {
     // map(1) { 100: {1: "val"} }
     let cbor = vec![
-        0xa1,       // map(1)
+        0xa1, // map(1)
         0x18, 0x64, // unsigned(100)
-        0xa1,       // map(1)
-        0x01,       // key: 1
+        0xa1, // map(1)
+        0x01, // key: 1
         0x63, 0x76, 0x61, 0x6c, // "val"
     ];
     let claims = CwtClaims::from_cbor_bytes(&cbor).unwrap();
@@ -300,10 +320,10 @@ fn decode_skips_map_value_with_text_value() {
 fn decode_error_unsupported_tagged_value() {
     // map(1) { 100: tag(1) 0 }
     let cbor = vec![
-        0xa1,       // map(1)
+        0xa1, // map(1)
         0x18, 0x64, // unsigned(100)
-        0xc1,       // tag(1)
-        0x00,       // unsigned(0)
+        0xc1, // tag(1)
+        0x00, // unsigned(0)
     ];
     let err = CwtClaims::from_cbor_bytes(&cbor).unwrap_err();
     match err {
@@ -322,21 +342,24 @@ fn decode_error_unsupported_tagged_value() {
 fn decode_mixed_standard_simple_custom_and_skipped_complex() {
     // map(4) { 1: "iss", 2: "sub", 100: 42, 101: [1] }
     let cbor = vec![
-        0xa4,       // map(4)
-        0x01,       // key: 1 (issuer)
+        0xa4, // map(4)
+        0x01, // key: 1 (issuer)
         0x63, 0x69, 0x73, 0x73, // "iss"
-        0x02,       // key: 2 (subject)
+        0x02, // key: 2 (subject)
         0x63, 0x73, 0x75, 0x62, // "sub"
         0x18, 0x64, // key: 100
         0x18, 0x2a, // unsigned(42)
         0x18, 0x65, // key: 101
-        0x81,       // array(1)
-        0x01,       // unsigned(1)
+        0x81, // array(1)
+        0x01, // unsigned(1)
     ];
     let claims = CwtClaims::from_cbor_bytes(&cbor).unwrap();
     assert_eq!(claims.issuer.as_deref(), Some("iss"));
     assert_eq!(claims.subject.as_deref(), Some("sub"));
-    assert_eq!(claims.custom_claims.get(&100), Some(&CwtClaimValue::Integer(42)));
+    assert_eq!(
+        claims.custom_claims.get(&100),
+        Some(&CwtClaimValue::Integer(42))
+    );
     // label 101 (array) should have been skipped
     assert!(!claims.custom_claims.contains_key(&101));
 }
@@ -347,8 +370,7 @@ fn decode_mixed_standard_simple_custom_and_skipped_complex() {
 
 #[test]
 fn encode_float_custom_claim_fails() {
-    let claims = CwtClaims::new()
-        .with_custom_claim(200, CwtClaimValue::Float(3.14));
+    let claims = CwtClaims::new().with_custom_claim(200, CwtClaimValue::Float(3.14));
     let err = claims.to_cbor_bytes().unwrap_err();
     match err {
         HeaderError::CborEncodingError(msg) => {
@@ -487,7 +509,9 @@ fn direct_field_set_and_roundtrip() {
     claims.not_before = Some(888);
     claims.issued_at = Some(777);
     claims.cwt_id = Some(vec![0xFF]);
-    claims.custom_claims.insert(10, CwtClaimValue::Text("x".to_string()));
+    claims
+        .custom_claims
+        .insert(10, CwtClaimValue::Text("x".to_string()));
 
     let bytes = claims.to_cbor_bytes().unwrap();
     let d = CwtClaims::from_cbor_bytes(&bytes).unwrap();
@@ -498,7 +522,10 @@ fn direct_field_set_and_roundtrip() {
     assert_eq!(d.not_before, Some(888));
     assert_eq!(d.issued_at, Some(777));
     assert_eq!(d.cwt_id, Some(vec![0xFF]));
-    assert_eq!(d.custom_claims.get(&10), Some(&CwtClaimValue::Text("x".to_string())));
+    assert_eq!(
+        d.custom_claims.get(&10),
+        Some(&CwtClaimValue::Text("x".to_string()))
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -701,16 +728,19 @@ fn multiple_text_custom_claims_roundtrip() {
 fn decode_skips_map_value_preserves_subsequent_simple() {
     // map(2) { 100: {1: 2}, 101: 42 }
     let cbor = vec![
-        0xa2,       // map(2)
+        0xa2, // map(2)
         0x18, 0x64, // key: 100
-        0xa1,       // map(1)
+        0xa1, // map(1)
         0x01, 0x02, // {1: 2}
         0x18, 0x65, // key: 101
         0x18, 0x2a, // unsigned(42)
     ];
     let claims = CwtClaims::from_cbor_bytes(&cbor).unwrap();
     assert!(!claims.custom_claims.contains_key(&100));
-    assert_eq!(claims.custom_claims.get(&101), Some(&CwtClaimValue::Integer(42)));
+    assert_eq!(
+        claims.custom_claims.get(&101),
+        Some(&CwtClaimValue::Integer(42))
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -721,7 +751,7 @@ fn decode_skips_map_value_preserves_subsequent_simple() {
 fn decode_skips_array_preserves_subsequent_simple() {
     // map(2) { 100: [1,2], 101: "hi" }
     let cbor = vec![
-        0xa2,       // map(2)
+        0xa2, // map(2)
         0x18, 0x64, // key: 100
         0x82, 0x01, 0x02, // array(2) [1,2]
         0x18, 0x65, // key: 101
@@ -729,5 +759,8 @@ fn decode_skips_array_preserves_subsequent_simple() {
     ];
     let claims = CwtClaims::from_cbor_bytes(&cbor).unwrap();
     assert!(!claims.custom_claims.contains_key(&100));
-    assert_eq!(claims.custom_claims.get(&101), Some(&CwtClaimValue::Text("hi".to_string())));
+    assert_eq!(
+        claims.custom_claims.get(&101),
+        Some(&CwtClaimValue::Text("hi".to_string()))
+    );
 }

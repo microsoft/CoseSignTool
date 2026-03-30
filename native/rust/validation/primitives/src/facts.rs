@@ -9,15 +9,15 @@
 //! - the engine caches observed facts per subject and fact type
 
 use crate::audit::{AuditEvent, TrustDecisionAudit, TrustDecisionAuditBuilder};
-use cose_sign1_primitives::CoseSign1Message;
 use crate::error::TrustError;
 use crate::ids::SubjectId;
 use crate::subject::TrustSubject;
 use crate::{CoseHeaderLocation, TrustEvaluationOptions};
-use std::sync::Mutex;
+use cose_sign1_primitives::CoseSign1Message;
 use std::any::{Any, TypeId};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
+use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -259,7 +259,11 @@ impl TrustFactEngine {
 
     /// Take the current audit, if enabled.
     pub fn take_audit(&self) -> Option<TrustDecisionAudit> {
-        self.audit.lock().expect("lock poisoned").take().map(|b| b.build())
+        self.audit
+            .lock()
+            .expect("lock poisoned")
+            .take()
+            .map(|b| b.build())
     }
 
     /// Returns the available facts for a subject.

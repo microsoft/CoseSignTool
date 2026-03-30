@@ -12,7 +12,7 @@ use openssl::ec::{EcGroup, EcKey};
 use openssl::hash::MessageDigest;
 use openssl::nid::Nid;
 use openssl::pkey::PKey;
-use openssl::x509::{X509Builder, X509NameBuilder, extension::*};
+use openssl::x509::{extension::*, X509Builder, X509NameBuilder};
 use std::ffi::CString;
 use std::ptr;
 
@@ -245,14 +245,7 @@ fn inner_policy_count_success() {
 #[test]
 fn inner_build_with_eku_null_out() {
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
-    let rc = impl_build_with_eku_inner(
-        ptr::null(),
-        0,
-        ptr::null(),
-        0,
-        ptr::null_mut(),
-        &mut err,
-    );
+    let rc = impl_build_with_eku_inner(ptr::null(), 0, ptr::null(), 0, ptr::null_mut(), &mut err);
     assert!(rc < 0);
 }
 
@@ -299,14 +292,7 @@ fn inner_build_with_eku_null_eku_nonzero_count() {
 fn inner_build_with_eku_empty_inputs() {
     let mut out: *mut libc::c_char = ptr::null_mut();
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
-    let rc = impl_build_with_eku_inner(
-        ptr::null(),
-        0,
-        ptr::null(),
-        0,
-        &mut out,
-        &mut err,
-    );
+    let rc = impl_build_with_eku_inner(ptr::null(), 0, ptr::null(), 0, &mut out, &mut err);
     // Should succeed with empty inputs
     assert_eq!(rc, 0);
     assert!(!out.is_null());
@@ -363,13 +349,7 @@ fn inner_build_with_eku_null_eku_in_array() {
 #[test]
 fn inner_build_from_chain_null_out() {
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
-    let rc = impl_build_from_chain_inner(
-        ptr::null(),
-        ptr::null(),
-        0,
-        ptr::null_mut(),
-        &mut err,
-    );
+    let rc = impl_build_from_chain_inner(ptr::null(), ptr::null(), 0, ptr::null_mut(), &mut err);
     assert!(rc < 0);
 }
 
@@ -378,13 +358,7 @@ fn inner_build_from_chain_null_certs() {
     let mut out: *mut libc::c_char = ptr::null_mut();
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
     let lens = [100u32];
-    let rc = impl_build_from_chain_inner(
-        ptr::null(),
-        lens.as_ptr(),
-        1,
-        &mut out,
-        &mut err,
-    );
+    let rc = impl_build_from_chain_inner(ptr::null(), lens.as_ptr(), 1, &mut out, &mut err);
     assert!(rc < 0);
     if !err.is_null() {
         unsafe { did_x509_error_free(err) };
@@ -397,13 +371,7 @@ fn inner_build_from_chain_null_lens() {
     let certs = [cert.as_ptr()];
     let mut out: *mut libc::c_char = ptr::null_mut();
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
-    let rc = impl_build_from_chain_inner(
-        certs.as_ptr(),
-        ptr::null(),
-        1,
-        &mut out,
-        &mut err,
-    );
+    let rc = impl_build_from_chain_inner(certs.as_ptr(), ptr::null(), 1, &mut out, &mut err);
     assert!(rc < 0);
     if !err.is_null() {
         unsafe { did_x509_error_free(err) };
@@ -417,13 +385,7 @@ fn inner_build_from_chain_zero_count() {
     let lens = [cert.len() as u32];
     let mut out: *mut libc::c_char = ptr::null_mut();
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
-    let rc = impl_build_from_chain_inner(
-        certs.as_ptr(),
-        lens.as_ptr(),
-        0,
-        &mut out,
-        &mut err,
-    );
+    let rc = impl_build_from_chain_inner(certs.as_ptr(), lens.as_ptr(), 0, &mut out, &mut err);
     assert!(rc < 0);
     if !err.is_null() {
         unsafe { did_x509_error_free(err) };
@@ -437,13 +399,7 @@ fn inner_build_from_chain_null_cert_in_array() {
     let lens = [100u32];
     let mut out: *mut libc::c_char = ptr::null_mut();
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
-    let rc = impl_build_from_chain_inner(
-        certs.as_ptr(),
-        lens.as_ptr(),
-        1,
-        &mut out,
-        &mut err,
-    );
+    let rc = impl_build_from_chain_inner(certs.as_ptr(), lens.as_ptr(), 1, &mut out, &mut err);
     assert!(rc < 0);
     if !err.is_null() {
         unsafe { did_x509_error_free(err) };
@@ -457,13 +413,7 @@ fn inner_build_from_chain_with_valid_cert() {
     let lens = [cert.len() as u32];
     let mut out: *mut libc::c_char = ptr::null_mut();
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
-    let rc = impl_build_from_chain_inner(
-        certs.as_ptr(),
-        lens.as_ptr(),
-        1,
-        &mut out,
-        &mut err,
-    );
+    let rc = impl_build_from_chain_inner(certs.as_ptr(), lens.as_ptr(), 1, &mut out, &mut err);
     assert_eq!(rc, 0);
     assert!(!out.is_null());
     unsafe { did_x509_string_free(out) };

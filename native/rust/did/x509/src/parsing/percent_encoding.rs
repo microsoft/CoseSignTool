@@ -54,8 +54,9 @@ pub fn percent_decode(input: &str) -> Result<String, DidX509Error> {
 
             if is_hex_digit(hex1) && is_hex_digit(hex2) {
                 let hex_str = format!("{}{}", hex1, hex2);
-                let byte = u8::from_str_radix(&hex_str, 16)
-                    .map_err(|_| DidX509Error::PercentDecodingError(format!("Invalid hex: {}", hex_str)))?;
+                let byte = u8::from_str_radix(&hex_str, 16).map_err(|_| {
+                    DidX509Error::PercentDecodingError(format!("Invalid hex: {}", hex_str))
+                })?;
                 bytes.push(byte);
                 i += 3;
                 continue;

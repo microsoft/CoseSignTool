@@ -1,21 +1,24 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-use cose_sign1_validation_primitives::error::TrustError;
 use cose_sign1_validation_primitives::audit::{AuditEvent, TrustDecisionAuditBuilder};
-use cose_sign1_validation_primitives::fact_properties::{FactProperties, FactValue, FactValueOwned};
-use cose_sign1_validation_primitives::facts::{FactKey, TrustFactContext, TrustFactEngine, TrustFactProducer};
+use cose_sign1_validation_primitives::error::TrustError;
+use cose_sign1_validation_primitives::fact_properties::{
+    FactProperties, FactValue, FactValueOwned,
+};
+use cose_sign1_validation_primitives::facts::{
+    FactKey, TrustFactContext, TrustFactEngine, TrustFactProducer,
+};
 use cose_sign1_validation_primitives::rules::{
-    all_of, allow_all, any_of, not, not_with_reason,
-    AuditedRule, require_fact_bool, require_fact_matches, require_fact_matches_with_missing_behavior,
-    require_fact_property, require_fact_property_eq, require_fact_str_non_empty, require_facts_match,
-    FactSelector, MissingBehavior,
+    all_of, allow_all, any_of, not, not_with_reason, require_fact_bool, require_fact_matches,
+    require_fact_matches_with_missing_behavior, require_fact_property, require_fact_property_eq,
+    require_fact_str_non_empty, require_facts_match, AuditedRule, FactSelector, MissingBehavior,
 };
 use cose_sign1_validation_primitives::subject::TrustSubject;
 use cose_sign1_validation_primitives::TrustDecision;
-use std::sync::Mutex;
 use std::borrow::Cow;
 use std::sync::Arc;
+use std::sync::Mutex;
 
 #[derive(Debug, Clone)]
 struct PropFact {
@@ -107,13 +110,17 @@ impl TrustFactProducer for MultiProducer {
         }
 
         if ctx.requested_fact() == FactKey::of::<LeftFact>() {
-            ctx.observe(LeftFact { v: "same".to_string() })?;
+            ctx.observe(LeftFact {
+                v: "same".to_string(),
+            })?;
             ctx.mark_produced(FactKey::of::<LeftFact>());
             return Ok(());
         }
 
         if ctx.requested_fact() == FactKey::of::<RightFact>() {
-            ctx.observe(RightFact { v: "same".to_string() })?;
+            ctx.observe(RightFact {
+                v: "same".to_string(),
+            })?;
             ctx.mark_produced(FactKey::of::<RightFact>());
             return Ok(());
         }
@@ -131,7 +138,8 @@ impl TrustFactProducer for ErrorProducer {
 
     fn provides(&self) -> &'static [FactKey] {
         static ONCE: std::sync::OnceLock<Vec<FactKey>> = std::sync::OnceLock::new();
-        ONCE.get_or_init(|| vec![FactKey::of::<PropFact>()]).as_slice()
+        ONCE.get_or_init(|| vec![FactKey::of::<PropFact>()])
+            .as_slice()
     }
 
     fn produce(&self, ctx: &mut TrustFactContext<'_>) -> Result<(), TrustError> {
@@ -156,7 +164,9 @@ impl TrustFactProducer for EmptyRightProducer {
 
     fn produce(&self, ctx: &mut TrustFactContext<'_>) -> Result<(), TrustError> {
         if ctx.requested_fact() == FactKey::of::<LeftFact>() {
-            ctx.observe(LeftFact { v: "left".to_string() })?;
+            ctx.observe(LeftFact {
+                v: "left".to_string(),
+            })?;
             ctx.mark_produced(FactKey::of::<LeftFact>());
             return Ok(());
         }
@@ -206,10 +216,12 @@ fn require_fact_property_and_matches_cover_common_branches() {
         cose_sign1_validation_primitives::rules::PropertyPredicate::StrNonEmpty,
         "NoMatch",
     );
-    assert!(!rule_missing_property
-        .evaluate(&engine, &subject)
-        .unwrap()
-        .is_trusted);
+    assert!(
+        !rule_missing_property
+            .evaluate(&engine, &subject)
+            .unwrap()
+            .is_trusted
+    );
 
     let rule_fact_matches = require_fact_matches::<PropFact, _>(
         "matches",
@@ -217,7 +229,12 @@ fn require_fact_property_and_matches_cover_common_branches() {
         FactSelector::first().where_u32("u", 42).where_i64("i", -5),
         "NoMatch",
     );
-    assert!(rule_fact_matches.evaluate(&engine, &subject).unwrap().is_trusted);
+    assert!(
+        rule_fact_matches
+            .evaluate(&engine, &subject)
+            .unwrap()
+            .is_trusted
+    );
 
     let rule_bool = require_fact_bool::<PropFact, _>(
         "bool",
@@ -236,7 +253,12 @@ fn require_fact_property_and_matches_cover_common_branches() {
         "s",
         "NoMatch",
     );
-    assert!(rule_non_empty.evaluate(&engine, &subject).unwrap().is_trusted);
+    assert!(
+        rule_non_empty
+            .evaluate(&engine, &subject)
+            .unwrap()
+            .is_trusted
+    );
 }
 
 #[test]
@@ -251,7 +273,12 @@ fn require_fact_matches_with_missing_behavior_handles_error() {
         MissingBehavior::Allow,
         "NoMatch",
     );
-    assert!(allow_on_error.evaluate(&engine, &subject).unwrap().is_trusted);
+    assert!(
+        allow_on_error
+            .evaluate(&engine, &subject)
+            .unwrap()
+            .is_trusted
+    );
 
     let deny_on_error = require_fact_matches_with_missing_behavior::<PropFact, _>(
         "deny",
@@ -260,7 +287,12 @@ fn require_fact_matches_with_missing_behavior_handles_error() {
         MissingBehavior::Deny,
         "NoMatch",
     );
-    assert!(!deny_on_error.evaluate(&engine, &subject).unwrap().is_trusted);
+    assert!(
+        !deny_on_error
+            .evaluate(&engine, &subject)
+            .unwrap()
+            .is_trusted
+    );
 }
 
 #[test]
@@ -350,10 +382,12 @@ fn property_predicates_return_false_on_type_mismatch() {
         PropertyPredicate::StrNonEmpty,
         "NoMatch",
     );
-    assert!(!non_empty_on_bool
-        .evaluate(&engine, &subject)
-        .unwrap()
-        .is_trusted);
+    assert!(
+        !non_empty_on_bool
+            .evaluate(&engine, &subject)
+            .unwrap()
+            .is_trusted
+    );
 
     let contains_on_u32 = require_fact_property::<PropFact, _>(
         "contains_on_u32",
@@ -363,10 +397,12 @@ fn property_predicates_return_false_on_type_mismatch() {
         PropertyPredicate::StrContains("x".to_string()),
         "NoMatch",
     );
-    assert!(!contains_on_u32
-        .evaluate(&engine, &subject)
-        .unwrap()
-        .is_trusted);
+    assert!(
+        !contains_on_u32
+            .evaluate(&engine, &subject)
+            .unwrap()
+            .is_trusted
+    );
 
     // Numeric predicates should return false when the property is not numeric.
     let ge_on_str = require_fact_property::<PropFact, _>(
@@ -403,10 +439,12 @@ fn selectors_and_fact_set_missing_error_branches_are_exercised() {
         FactSelector::first().where_eq("does_not_exist", FactValueOwned::Bool(true)),
         "NoMatch",
     );
-    assert!(!deny_when_selector_filter_property_missing
-        .evaluate(&engine, &subject)
-        .unwrap()
-        .is_trusted);
+    assert!(
+        !deny_when_selector_filter_property_missing
+            .evaluate(&engine, &subject)
+            .unwrap()
+            .is_trusted
+    );
 
     // Cover require_fact_property() path where no facts match the selector.
     let deny_when_no_fact_matches_selector = require_fact_property::<PropFact, _>(
@@ -417,10 +455,12 @@ fn selectors_and_fact_set_missing_error_branches_are_exercised() {
         cose_sign1_validation_primitives::rules::PropertyPredicate::StrNonEmpty,
         "NoMatch",
     );
-    assert!(!deny_when_no_fact_matches_selector
-        .evaluate(&engine, &subject)
-        .unwrap()
-        .is_trusted);
+    assert!(
+        !deny_when_no_fact_matches_selector
+            .evaluate(&engine, &subject)
+            .unwrap()
+            .is_trusted
+    );
 
     // Cover require_fact_matches() deny branch when selector yields no match.
     let deny_when_require_fact_matches_no_match = require_fact_matches::<PropFact, _>(
@@ -429,10 +469,12 @@ fn selectors_and_fact_set_missing_error_branches_are_exercised() {
         FactSelector::first().where_u32("u", 999),
         "NoMatch",
     );
-    assert!(!deny_when_require_fact_matches_no_match
-        .evaluate(&engine, &subject)
-        .unwrap()
-        .is_trusted);
+    assert!(
+        !deny_when_require_fact_matches_no_match
+            .evaluate(&engine, &subject)
+            .unwrap()
+            .is_trusted
+    );
 
     // Cover require_facts_match() fact-set Missing/Error formatting branches.
     struct MissingLeftProducer;
@@ -455,7 +497,9 @@ fn selectors_and_fact_set_missing_error_branches_are_exercised() {
             }
 
             if ctx.requested_fact() == FactKey::of::<RightFact>() {
-                ctx.observe(RightFact { v: "same".to_string() })?;
+                ctx.observe(RightFact {
+                    v: "same".to_string(),
+                })?;
                 ctx.mark_produced(FactKey::of::<RightFact>());
                 return Ok(());
             }
@@ -478,7 +522,9 @@ fn selectors_and_fact_set_missing_error_branches_are_exercised() {
 
         fn produce(&self, ctx: &mut TrustFactContext<'_>) -> Result<(), TrustError> {
             if ctx.requested_fact() == FactKey::of::<LeftFact>() {
-                ctx.observe(LeftFact { v: "same".to_string() })?;
+                ctx.observe(LeftFact {
+                    v: "same".to_string(),
+                })?;
                 ctx.mark_produced(FactKey::of::<LeftFact>());
                 return Ok(());
             }
@@ -561,13 +607,17 @@ fn require_facts_match_denies_on_property_mismatch() {
 
         fn produce(&self, ctx: &mut TrustFactContext<'_>) -> Result<(), TrustError> {
             if ctx.requested_fact() == FactKey::of::<LeftFact>() {
-                ctx.observe(LeftFact { v: "left".to_string() })?;
+                ctx.observe(LeftFact {
+                    v: "left".to_string(),
+                })?;
                 ctx.mark_produced(FactKey::of::<LeftFact>());
                 return Ok(());
             }
 
             if ctx.requested_fact() == FactKey::of::<RightFact>() {
-                ctx.observe(RightFact { v: "right".to_string() })?;
+                ctx.observe(RightFact {
+                    v: "right".to_string(),
+                })?;
                 ctx.mark_produced(FactKey::of::<RightFact>());
                 return Ok(());
             }
@@ -643,10 +693,12 @@ fn require_facts_match_denies_when_properties_are_missing_on_selected_facts() {
         MissingBehavior::Deny,
         "NoMatch",
     );
-    assert!(!missing_left_prop
-        .evaluate(&engine, &subject)
-        .unwrap()
-        .is_trusted);
+    assert!(
+        !missing_left_prop
+            .evaluate(&engine, &subject)
+            .unwrap()
+            .is_trusted
+    );
 
     let missing_right_prop = require_facts_match::<LeftFact, RightFact, _>(
         "missing_right_prop",
@@ -657,10 +709,12 @@ fn require_facts_match_denies_when_properties_are_missing_on_selected_facts() {
         MissingBehavior::Deny,
         "NoMatch",
     );
-    assert!(!missing_right_prop
-        .evaluate(&engine, &subject)
-        .unwrap()
-        .is_trusted);
+    assert!(
+        !missing_right_prop
+            .evaluate(&engine, &subject)
+            .unwrap()
+            .is_trusted
+    );
 }
 
 #[test]
@@ -680,7 +734,9 @@ fn require_facts_match_denies_when_right_fact_set_is_missing() {
 
         fn produce(&self, ctx: &mut TrustFactContext<'_>) -> Result<(), TrustError> {
             if ctx.requested_fact() == FactKey::of::<LeftFact>() {
-                ctx.observe(LeftFact { v: "left".to_string() })?;
+                ctx.observe(LeftFact {
+                    v: "left".to_string(),
+                })?;
                 ctx.mark_produced(FactKey::of::<LeftFact>());
                 return Ok(());
             }

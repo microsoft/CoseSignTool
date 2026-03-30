@@ -3,17 +3,17 @@
 
 //! Tests for direct and indirect signature factories.
 
-use std::sync::Arc;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use cose_sign1_factories::{
     direct::{DirectSignatureFactory, DirectSignatureOptions},
-    indirect::{IndirectSignatureFactory, IndirectSignatureOptions, HashAlgorithm},
+    indirect::{HashAlgorithm, IndirectSignatureFactory, IndirectSignatureOptions},
 };
-use cose_sign1_primitives::{CoseHeaderMap, CryptoSigner, CryptoError, StreamingPayload};
+use cose_sign1_primitives::{CoseHeaderMap, CryptoError, CryptoSigner, StreamingPayload};
 use cose_sign1_signing::{
-    CoseSigner, SigningContext, SigningError, SigningService, SigningServiceMetadata,
-    transparency::TransparencyProvider,
+    transparency::TransparencyProvider, CoseSigner, SigningContext, SigningError, SigningService,
+    SigningServiceMetadata,
 };
 
 /// Mock key for testing
@@ -48,12 +48,16 @@ struct MockSigningService {
 
 impl MockSigningService {
     fn new() -> Self {
-        Self { verification_result: true }
+        Self {
+            verification_result: true,
+        }
     }
-    
+
     #[allow(dead_code)]
     fn with_verification_result(verification_result: bool) -> Self {
-        Self { verification_result }
+        Self {
+            verification_result,
+        }
     }
 }
 
@@ -101,7 +105,7 @@ impl MockTransparencyProvider {
             should_fail: false,
         }
     }
-    
+
     #[allow(dead_code)]
     fn new_failing(name: &str) -> Self {
         Self {
@@ -122,7 +126,10 @@ impl TransparencyProvider for MockTransparencyProvider {
     ) -> Result<Vec<u8>, cose_sign1_signing::transparency::TransparencyError> {
         use cose_sign1_signing::transparency::TransparencyError;
         if self.should_fail {
-            Err(TransparencyError::SubmissionFailed(format!("{} transparency failed", self.name)))
+            Err(TransparencyError::SubmissionFailed(format!(
+                "{} transparency failed",
+                self.name
+            )))
         } else {
             let mut result = message_bytes.to_vec();
             result.extend_from_slice(format!("-{}", self.name).as_bytes());
@@ -133,7 +140,10 @@ impl TransparencyProvider for MockTransparencyProvider {
     fn verify_transparency_proof(
         &self,
         _message_bytes: &[u8],
-    ) -> Result<cose_sign1_signing::transparency::TransparencyValidationResult, cose_sign1_signing::transparency::TransparencyError> {
+    ) -> Result<
+        cose_sign1_signing::transparency::TransparencyValidationResult,
+        cose_sign1_signing::transparency::TransparencyError,
+    > {
         use cose_sign1_signing::transparency::TransparencyValidationResult;
         Ok(TransparencyValidationResult::success(&self.name))
     }
@@ -156,7 +166,7 @@ impl MockStreamingPayload {
             should_fail_read: false,
         }
     }
-    
+
     #[allow(dead_code)]
     fn new_with_open_failure(data: Vec<u8>) -> Self {
         Self {
@@ -165,7 +175,7 @@ impl MockStreamingPayload {
             should_fail_read: false,
         }
     }
-    
+
     #[allow(dead_code)]
     fn new_with_read_failure(data: Vec<u8>) -> Self {
         Self {
@@ -181,15 +191,20 @@ impl StreamingPayload for MockStreamingPayload {
         self.data.len() as u64
     }
 
-    fn open(&self) -> Result<Box<dyn cose_sign1_primitives::SizedRead + Send>, cose_sign1_primitives::PayloadError> {
+    fn open(
+        &self,
+    ) -> Result<Box<dyn cose_sign1_primitives::SizedRead + Send>, cose_sign1_primitives::PayloadError>
+    {
         use cose_sign1_primitives::PayloadError;
         if self.should_fail_open {
-            Err(PayloadError::OpenFailed("Failed to open stream".to_string()))
+            Err(PayloadError::OpenFailed(
+                "Failed to open stream".to_string(),
+            ))
         } else if self.should_fail_read {
             // Return a reader that will fail on read
             Ok(Box::new(cose_sign1_primitives::SizedReader::new(
                 FailingReader,
-                self.data.len() as u64
+                self.data.len() as u64,
             )))
         } else {
             Ok(Box::new(std::io::Cursor::new(self.data.clone())))
@@ -202,7 +217,10 @@ struct FailingReader;
 
 impl std::io::Read for FailingReader {
     fn read(&mut self, _buf: &mut [u8]) -> std::io::Result<usize> {
-        Err(std::io::Error::new(std::io::ErrorKind::Other, "Read failed"))
+        Err(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            "Read failed",
+        ))
     }
 }
 
@@ -212,7 +230,7 @@ impl std::io::Read for FailingReader {
 fn test_direct_factory_new() {
     let signing_service = Arc::new(MockSigningService::new());
     let factory = DirectSignatureFactory::new(signing_service);
-    
+
     // Verify no transparency providers by default
     assert_eq!(factory.transparency_providers().len(), 0);
 }
@@ -224,9 +242,9 @@ fn test_direct_factory_with_transparency_providers() {
         Box::new(MockTransparencyProvider::new("provider1")),
         Box::new(MockTransparencyProvider::new("provider2")),
     ];
-    
+
     let factory = DirectSignatureFactory::with_transparency_providers(signing_service, providers);
-    
+
     // Verify transparency providers are stored
     assert_eq!(factory.transparency_providers().len(), 2);
 }
@@ -234,13 +252,12 @@ fn test_direct_factory_with_transparency_providers() {
 #[test]
 fn test_direct_factory_transparency_providers_access() {
     let signing_service = Arc::new(MockSigningService::new());
-    let providers: Vec<Box<dyn TransparencyProvider>> = vec![
-        Box::new(MockTransparencyProvider::new("test-provider")),
-    ];
-    
+    let providers: Vec<Box<dyn TransparencyProvider>> =
+        vec![Box::new(MockTransparencyProvider::new("test-provider"))];
+
     let factory = DirectSignatureFactory::with_transparency_providers(signing_service, providers);
     let providers = factory.transparency_providers();
-    
+
     assert_eq!(providers.len(), 1);
     assert_eq!(providers[0].provider_name(), "test-provider");
 }
@@ -252,7 +269,7 @@ fn test_indirect_factory_new() {
     let signing_service = Arc::new(MockSigningService::new());
     let direct_factory = DirectSignatureFactory::new(signing_service);
     let indirect_factory = IndirectSignatureFactory::new(direct_factory);
-    
+
     // Should be able to access the direct factory
     let _direct_ref = indirect_factory.direct_factory();
 }
@@ -261,7 +278,7 @@ fn test_indirect_factory_new() {
 fn test_indirect_factory_from_signing_service() {
     let signing_service = Arc::new(MockSigningService::new());
     let indirect_factory = IndirectSignatureFactory::from_signing_service(signing_service);
-    
+
     // Should work as expected
     let _direct_ref = indirect_factory.direct_factory();
 }
@@ -271,7 +288,7 @@ fn test_indirect_factory_direct_factory_access() {
     let signing_service = Arc::new(MockSigningService::new());
     let direct_factory = DirectSignatureFactory::new(signing_service);
     let indirect_factory = IndirectSignatureFactory::new(direct_factory);
-    
+
     let direct_ref = indirect_factory.direct_factory();
     assert_eq!(direct_ref.transparency_providers().len(), 0);
 }
@@ -279,53 +296,49 @@ fn test_indirect_factory_direct_factory_access() {
 #[test]
 fn test_indirect_signature_options_default() {
     let options = IndirectSignatureOptions::default();
-    
+
     // Check default values
     assert_eq!(options.payload_hash_algorithm, HashAlgorithm::Sha256);
     assert_eq!(options.payload_location, None);
-    
+
     // Base options should have reasonable defaults
     assert_eq!(options.base.embed_payload, false);
 }
 
 #[test]
 fn test_indirect_signature_options_with_sha384() {
-    let options = IndirectSignatureOptions::new()
-        .with_hash_algorithm(HashAlgorithm::Sha384);
-    
+    let options = IndirectSignatureOptions::new().with_hash_algorithm(HashAlgorithm::Sha384);
+
     assert_eq!(options.payload_hash_algorithm, HashAlgorithm::Sha384);
 }
 
 #[test]
 fn test_indirect_signature_options_with_sha512() {
-    let options = IndirectSignatureOptions::new()
-        .with_hash_algorithm(HashAlgorithm::Sha512);
-    
+    let options = IndirectSignatureOptions::new().with_hash_algorithm(HashAlgorithm::Sha512);
+
     assert_eq!(options.payload_hash_algorithm, HashAlgorithm::Sha512);
 }
 
 #[test]
 fn test_indirect_signature_options_with_payload_location() {
     let location = "https://example.com/payload";
-    let options = IndirectSignatureOptions::new()
-        .with_payload_location(location.to_string());
-    
+    let options = IndirectSignatureOptions::new().with_payload_location(location.to_string());
+
     assert_eq!(options.payload_location, Some(location.to_string()));
 }
 
 #[test]
 fn test_indirect_signature_options_with_base_options() {
     let base_options = DirectSignatureOptions::new().with_embed_payload(true);
-    let options = IndirectSignatureOptions::new()
-        .with_base_options(base_options);
-    
+    let options = IndirectSignatureOptions::new().with_base_options(base_options);
+
     assert_eq!(options.base.embed_payload, true);
 }
 
 #[test]
 fn test_direct_signature_options_new() {
     let options = DirectSignatureOptions::new();
-    
+
     // Check defaults
     assert_eq!(options.embed_payload, true);
     assert!(options.additional_header_contributors.is_empty());
@@ -335,7 +348,7 @@ fn test_direct_signature_options_new() {
 fn test_direct_signature_options_with_embed_payload() {
     let options = DirectSignatureOptions::new().with_embed_payload(true);
     assert_eq!(options.embed_payload, true);
-    
+
     let options = DirectSignatureOptions::new().with_embed_payload(false);
     assert_eq!(options.embed_payload, false);
 }
@@ -364,12 +377,10 @@ fn test_hash_algorithm_clone() {
     assert_eq!(algo, cloned);
 }
 
-
 #[test]
 fn test_indirect_signature_options_debug() {
-    let options = IndirectSignatureOptions::new()
-        .with_hash_algorithm(HashAlgorithm::Sha512);
-    
+    let options = IndirectSignatureOptions::new().with_hash_algorithm(HashAlgorithm::Sha512);
+
     let debug_str = format!("{:?}", options);
     assert!(debug_str.contains("Sha512"));
 }

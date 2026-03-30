@@ -18,9 +18,7 @@ fn error_message(err: *const CoseSign1FactoriesErrorHandle) -> Option<String> {
     if msg.is_null() {
         return None;
     }
-    let s = unsafe { CStr::from_ptr(msg) }
-        .to_string_lossy()
-        .to_string();
+    let s = unsafe { CStr::from_ptr(msg) }.to_string_lossy().to_string();
     unsafe { cose_sign1_factories_string_free(msg) };
     Some(s)
 }
@@ -47,12 +45,8 @@ fn ffi_create_from_crypto_signer_null_inputs() {
     let mut err: *mut CoseSign1FactoriesErrorHandle = ptr::null_mut();
 
     // Null out_factory should fail
-    let rc = unsafe { 
-        cose_sign1_factories_create_from_crypto_signer(
-            ptr::null_mut(), 
-            ptr::null_mut(), 
-            &mut err
-        ) 
+    let rc = unsafe {
+        cose_sign1_factories_create_from_crypto_signer(ptr::null_mut(), ptr::null_mut(), &mut err)
     };
     assert_eq!(rc, COSE_SIGN1_FACTORIES_ERR_NULL_POINTER);
     assert!(!err.is_null());
@@ -62,12 +56,8 @@ fn ffi_create_from_crypto_signer_null_inputs() {
 
     // Null signer_handle should fail
     err = ptr::null_mut();
-    let rc = unsafe { 
-        cose_sign1_factories_create_from_crypto_signer(
-            ptr::null_mut(), 
-            &mut factory, 
-            &mut err
-        ) 
+    let rc = unsafe {
+        cose_sign1_factories_create_from_crypto_signer(ptr::null_mut(), &mut factory, &mut err)
     };
     assert_eq!(rc, COSE_SIGN1_FACTORIES_ERR_NULL_POINTER);
     assert!(factory.is_null());
@@ -85,11 +75,11 @@ fn ffi_create_with_transparency_null_inputs() {
     // Null out_factory should fail
     let rc = unsafe {
         cose_sign1_factories_create_with_transparency(
-            ptr::null(), 
-            ptr::null(), 
-            0, 
-            ptr::null_mut(), 
-            &mut err
+            ptr::null(),
+            ptr::null(),
+            0,
+            ptr::null_mut(),
+            &mut err,
         )
     };
     assert_eq!(rc, COSE_SIGN1_FACTORIES_ERR_NULL_POINTER);
@@ -98,15 +88,15 @@ fn ffi_create_with_transparency_null_inputs() {
     assert!(err_msg.contains("out_factory"));
     unsafe { cose_sign1_factories_error_free(err) };
 
-    // Null service should fail  
+    // Null service should fail
     err = ptr::null_mut();
     let rc = unsafe {
         cose_sign1_factories_create_with_transparency(
-            ptr::null(), 
-            ptr::null(), 
-            0, 
-            &mut factory, 
-            &mut err
+            ptr::null(),
+            ptr::null(),
+            0,
+            &mut factory,
+            &mut err,
         )
     };
     assert_eq!(rc, COSE_SIGN1_FACTORIES_ERR_NULL_POINTER);
@@ -123,12 +113,8 @@ fn ffi_error_handling() {
     let mut err: *mut CoseSign1FactoriesErrorHandle = ptr::null_mut();
 
     // Trigger an error with null signer
-    let rc = unsafe { 
-        cose_sign1_factories_create_from_crypto_signer(
-            ptr::null_mut(), 
-            &mut factory, 
-            &mut err
-        ) 
+    let rc = unsafe {
+        cose_sign1_factories_create_from_crypto_signer(ptr::null_mut(), &mut factory, &mut err)
     };
     assert!(rc < 0);
     assert!(!err.is_null());

@@ -166,7 +166,10 @@ fn produce_cwt_claims_facts(
     let cwt_label = CoseHeaderLabel::Int(CWT_CLAIMS);
 
     // Check protected then unprotected headers
-    let raw = msg.protected.headers().get(&cwt_label)
+    let raw = msg
+        .protected
+        .headers()
+        .get(&cwt_label)
         .or_else(|| msg.unprotected.get(&cwt_label));
 
     let Some(raw) = raw else {
@@ -302,9 +305,7 @@ fn extract_bool(value: &CoseHeaderValue) -> Option<bool> {
 }
 
 /// Re-encode a CoseHeaderValue to bytes.
-fn encode_value_to_bytes(
-    value: &CoseHeaderValue,
-) -> Option<Vec<u8>> {
+fn encode_value_to_bytes(value: &CoseHeaderValue) -> Option<Vec<u8>> {
     let mut enc = cose_sign1_primitives::provider::encoder();
     encode_value_recursive(&mut enc, value).ok()?;
     Some(enc.into_bytes())
@@ -396,7 +397,9 @@ fn produce_cwt_claims_from_bytes(
         };
 
         let key_i64 = cbor_primitives::RawCbor::new(&key_bytes).try_as_i64();
-        let key_text = cbor_primitives::RawCbor::new(&key_bytes).try_as_str().map(String::from);
+        let key_text = cbor_primitives::RawCbor::new(&key_bytes)
+            .try_as_str()
+            .map(String::from);
 
         let value_raw = cbor_primitives::RawCbor::new(&value_bytes);
         let value_str = value_raw.try_as_str().map(String::from);
@@ -473,7 +476,8 @@ impl CoseSign1MessageFactProducer {
         let mut subjects = Vec::new();
         let mut signing_key_subjects = Vec::new();
         let mut unknowns = Vec::new();
-        let mut seen_ids: HashSet<cose_sign1_validation_primitives::ids::SubjectId> = HashSet::new();
+        let mut seen_ids: HashSet<cose_sign1_validation_primitives::ids::SubjectId> =
+            HashSet::new();
         let mut any_success = false;
         let mut failure_reasons: Vec<String> = Vec::new();
 
@@ -554,8 +558,8 @@ fn resolve_content_type(msg: &CoseSign1Message) -> Option<String> {
 
     let has_envelope_marker = protected.get(&hash_alg_label).is_some();
 
-    let raw_ct = get_header_text(protected, &ct_label)
-        .or_else(|| get_header_text(unprotected, &ct_label));
+    let raw_ct =
+        get_header_text(protected, &ct_label).or_else(|| get_header_text(unprotected, &ct_label));
 
     if has_envelope_marker {
         if let Some(ct) = get_header_text(protected, &preimage_ct_label)

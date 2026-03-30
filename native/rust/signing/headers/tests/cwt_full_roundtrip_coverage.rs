@@ -5,8 +5,8 @@
 //! for every standard claim field and every custom claim value type.
 
 use cbor_primitives_everparse::EverParseCborProvider;
-use cose_sign1_headers::CwtClaims;
 use cose_sign1_headers::cwt_claims::CwtClaimValue;
+use cose_sign1_headers::CwtClaims;
 
 fn _init() -> EverParseCborProvider {
     EverParseCborProvider
@@ -30,7 +30,10 @@ fn roundtrip_all_standard_claims() {
 
     assert_eq!(decoded.issuer.as_deref(), Some("did:x509:test_issuer"));
     assert_eq!(decoded.subject.as_deref(), Some("test.subject.v1"));
-    assert_eq!(decoded.audience.as_deref(), Some("https://audience.example.com"));
+    assert_eq!(
+        decoded.audience.as_deref(),
+        Some("https://audience.example.com")
+    );
     assert_eq!(decoded.expiration_time, Some(1700000000));
     assert_eq!(decoded.not_before, Some(1690000000));
     assert_eq!(decoded.issued_at, Some(1695000000));
@@ -42,7 +45,9 @@ fn roundtrip_custom_text_claim() {
     let _p = _init();
 
     let mut claims = CwtClaims::new().with_issuer("iss".to_string());
-    claims.custom_claims.insert(100, CwtClaimValue::Text("custom-text".to_string()));
+    claims
+        .custom_claims
+        .insert(100, CwtClaimValue::Text("custom-text".to_string()));
 
     let bytes = claims.to_cbor_bytes().unwrap();
     let decoded = CwtClaims::from_cbor_bytes(&bytes).unwrap();
@@ -74,7 +79,9 @@ fn roundtrip_custom_bytes_claim() {
     let _p = _init();
 
     let mut claims = CwtClaims::new();
-    claims.custom_claims.insert(300, CwtClaimValue::Bytes(vec![1, 2, 3]));
+    claims
+        .custom_claims
+        .insert(300, CwtClaimValue::Bytes(vec![1, 2, 3]));
 
     let bytes = claims.to_cbor_bytes().unwrap();
     let decoded = CwtClaims::from_cbor_bytes(&bytes).unwrap();
@@ -96,8 +103,14 @@ fn roundtrip_custom_bool_claim() {
     let bytes = claims.to_cbor_bytes().unwrap();
     let decoded = CwtClaims::from_cbor_bytes(&bytes).unwrap();
 
-    assert_eq!(decoded.custom_claims.get(&400), Some(&CwtClaimValue::Bool(true)));
-    assert_eq!(decoded.custom_claims.get(&401), Some(&CwtClaimValue::Bool(false)));
+    assert_eq!(
+        decoded.custom_claims.get(&400),
+        Some(&CwtClaimValue::Bool(true))
+    );
+    assert_eq!(
+        decoded.custom_claims.get(&401),
+        Some(&CwtClaimValue::Bool(false))
+    );
 }
 
 #[test]
@@ -125,9 +138,13 @@ fn roundtrip_all_custom_types_together() {
         .with_issued_at(500)
         .with_cwt_id(vec![0x01]);
 
-    claims.custom_claims.insert(10, CwtClaimValue::Text("txt".to_string()));
+    claims
+        .custom_claims
+        .insert(10, CwtClaimValue::Text("txt".to_string()));
     claims.custom_claims.insert(11, CwtClaimValue::Integer(-99));
-    claims.custom_claims.insert(12, CwtClaimValue::Bytes(vec![0xFF]));
+    claims
+        .custom_claims
+        .insert(12, CwtClaimValue::Bytes(vec![0xFF]));
     claims.custom_claims.insert(13, CwtClaimValue::Bool(true));
 
     let bytes = claims.to_cbor_bytes().unwrap();
@@ -141,10 +158,22 @@ fn roundtrip_all_custom_types_together() {
     assert_eq!(decoded.issued_at, Some(500));
     assert_eq!(decoded.cwt_id, Some(vec![0x01]));
     assert_eq!(decoded.custom_claims.len(), 4);
-    assert_eq!(decoded.custom_claims.get(&10), Some(&CwtClaimValue::Text("txt".to_string())));
-    assert_eq!(decoded.custom_claims.get(&11), Some(&CwtClaimValue::Integer(-99)));
-    assert_eq!(decoded.custom_claims.get(&12), Some(&CwtClaimValue::Bytes(vec![0xFF])));
-    assert_eq!(decoded.custom_claims.get(&13), Some(&CwtClaimValue::Bool(true)));
+    assert_eq!(
+        decoded.custom_claims.get(&10),
+        Some(&CwtClaimValue::Text("txt".to_string()))
+    );
+    assert_eq!(
+        decoded.custom_claims.get(&11),
+        Some(&CwtClaimValue::Integer(-99))
+    );
+    assert_eq!(
+        decoded.custom_claims.get(&12),
+        Some(&CwtClaimValue::Bytes(vec![0xFF]))
+    );
+    assert_eq!(
+        decoded.custom_claims.get(&13),
+        Some(&CwtClaimValue::Bool(true))
+    );
 }
 
 #[test]

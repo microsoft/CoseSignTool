@@ -27,7 +27,8 @@ impl CwtClaimsHeaderContributor {
     /// * `claims` - The CWT claims
     /// * `provider` - CBOR provider for encoding claims
     pub fn new(claims: &CwtClaims) -> Result<Self, String> {
-        let claims_bytes = claims.to_cbor_bytes()
+        let claims_bytes = claims
+            .to_cbor_bytes()
             .map_err(|e| format!("Failed to encode CWT claims: {}", e))?;
         Ok(Self { claims_bytes })
     }
@@ -60,4 +61,3 @@ impl HeaderContributor for CwtClaimsHeaderContributor {
         // No-op: CWT claims are always in protected headers for SCITT compliance
     }
 }
-

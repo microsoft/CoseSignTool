@@ -74,10 +74,13 @@ fn test_oid_to_attribute_label_mapping() {
     assert_eq!(oid_to_attribute_label(OID_LOCALITY), Some(ATTRIBUTE_L));
     assert_eq!(oid_to_attribute_label(OID_STATE), Some(ATTRIBUTE_ST));
     assert_eq!(oid_to_attribute_label(OID_ORGANIZATION), Some(ATTRIBUTE_O));
-    assert_eq!(oid_to_attribute_label(OID_ORGANIZATIONAL_UNIT), Some(ATTRIBUTE_OU));
+    assert_eq!(
+        oid_to_attribute_label(OID_ORGANIZATIONAL_UNIT),
+        Some(ATTRIBUTE_OU)
+    );
     assert_eq!(oid_to_attribute_label(OID_COUNTRY), Some(ATTRIBUTE_C));
     assert_eq!(oid_to_attribute_label(OID_STREET), Some(ATTRIBUTE_STREET));
-    
+
     // Test unmapped OID
     assert_eq!(oid_to_attribute_label("1.2.3.4"), None);
     assert_eq!(oid_to_attribute_label(""), None);
@@ -94,7 +97,7 @@ fn test_attribute_label_to_oid_mapping() {
     assert_eq!(attribute_label_to_oid("OU"), Some(OID_ORGANIZATIONAL_UNIT));
     assert_eq!(attribute_label_to_oid("C"), Some(OID_COUNTRY));
     assert_eq!(attribute_label_to_oid("STREET"), Some(OID_STREET));
-    
+
     // Test case insensitive mappings
     assert_eq!(attribute_label_to_oid("cn"), Some(OID_COMMON_NAME));
     assert_eq!(attribute_label_to_oid("l"), Some(OID_LOCALITY));
@@ -103,11 +106,11 @@ fn test_attribute_label_to_oid_mapping() {
     assert_eq!(attribute_label_to_oid("ou"), Some(OID_ORGANIZATIONAL_UNIT));
     assert_eq!(attribute_label_to_oid("c"), Some(OID_COUNTRY));
     assert_eq!(attribute_label_to_oid("street"), Some(OID_STREET));
-    
+
     // Test mixed case
     assert_eq!(attribute_label_to_oid("Cn"), Some(OID_COMMON_NAME));
     assert_eq!(attribute_label_to_oid("Street"), Some(OID_STREET));
-    
+
     // Test unmapped attributes
     assert_eq!(attribute_label_to_oid("SERIALNUMBER"), None);
     assert_eq!(attribute_label_to_oid(""), None);
@@ -126,7 +129,7 @@ fn test_bidirectional_mapping_consistency() {
         (OID_COUNTRY, ATTRIBUTE_C),
         (OID_STREET, ATTRIBUTE_STREET),
     ];
-    
+
     for (oid, label) in test_cases {
         // Forward mapping
         assert_eq!(oid_to_attribute_label(oid), Some(label));
@@ -141,21 +144,21 @@ fn test_constant_string_properties() {
     assert!(!DID_PREFIX.is_empty());
     assert!(FULL_DID_PREFIX.starts_with(DID_PREFIX));
     assert!(FULL_DID_PREFIX.contains(VERSION));
-    
+
     // Test separators
     assert!(POLICY_SEPARATOR.len() == 2);
     assert!(VALUE_SEPARATOR.len() == 1);
-    
+
     // Test hash algorithms are lowercase
     assert_eq!(HASH_ALGORITHM_SHA256, HASH_ALGORITHM_SHA256.to_lowercase());
     assert_eq!(HASH_ALGORITHM_SHA384, HASH_ALGORITHM_SHA384.to_lowercase());
     assert_eq!(HASH_ALGORITHM_SHA512, HASH_ALGORITHM_SHA512.to_lowercase());
-    
+
     // Test policy names are lowercase
     assert_eq!(POLICY_SUBJECT, POLICY_SUBJECT.to_lowercase());
     assert_eq!(POLICY_SAN, POLICY_SAN.to_lowercase());
     assert_eq!(POLICY_EKU, POLICY_EKU.to_lowercase());
-    
+
     // Test SAN types are lowercase
     assert_eq!(SAN_TYPE_EMAIL, SAN_TYPE_EMAIL.to_lowercase());
     assert_eq!(SAN_TYPE_DNS, SAN_TYPE_DNS.to_lowercase());
@@ -179,13 +182,20 @@ fn test_oid_format() {
         OID_SAN,
         OID_BASIC_CONSTRAINTS,
     ];
-    
+
     for oid in oids {
         assert!(!oid.is_empty());
         assert!(oid.chars().all(|c| c.is_ascii_digit() || c == '.'));
         assert!(oid.chars().next().map_or(false, |c| c.is_ascii_digit()));
-        assert!(oid.chars().next_back().map_or(false, |c| c.is_ascii_digit()));
-        assert!(!oid.contains(".."), "OID should not have consecutive dots: {}", oid);
+        assert!(oid
+            .chars()
+            .next_back()
+            .map_or(false, |c| c.is_ascii_digit()));
+        assert!(
+            !oid.contains(".."),
+            "OID should not have consecutive dots: {}",
+            oid
+        );
     }
 }
 
@@ -201,10 +211,12 @@ fn test_attribute_label_format() {
         ATTRIBUTE_C,
         ATTRIBUTE_STREET,
     ];
-    
+
     for label in labels {
         assert!(!label.is_empty());
-        assert!(label.chars().all(|c| c.is_ascii_uppercase() || c.is_ascii_alphabetic()));
+        assert!(label
+            .chars()
+            .all(|c| c.is_ascii_uppercase() || c.is_ascii_alphabetic()));
         assert_eq!(label, label.to_uppercase());
     }
 }
@@ -215,15 +227,15 @@ fn test_mapping_edge_cases() {
     // Test empty strings
     assert_eq!(oid_to_attribute_label(""), None);
     assert_eq!(attribute_label_to_oid(""), None);
-    
+
     // Test whitespace
     assert_eq!(oid_to_attribute_label(" "), None);
     assert_eq!(attribute_label_to_oid(" "), None);
-    
+
     // Test case sensitivity for OID lookup (should be exact match)
     assert_eq!(oid_to_attribute_label("2.5.4.3"), Some("CN"));
     assert_eq!(oid_to_attribute_label("2.5.4.3 "), None); // with space
-    
+
     // Test that attribute lookup is case insensitive
     assert_eq!(attribute_label_to_oid("cn"), Some("2.5.4.3"));
     assert_eq!(attribute_label_to_oid("CN"), Some("2.5.4.3"));

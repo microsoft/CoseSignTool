@@ -43,11 +43,14 @@ fn message_facts_fluent_helpers_build_and_compile() {
                 })
                 .and()
                 .require_cwt_claim("custom", |r| {
-                use cbor_primitives::CborDecoder;
-                let provider = cbor_primitives_everparse::EverParseCborProvider;
-                let mut d = provider.decoder(r.as_bytes());
-                d.decode_tstr().ok().map(|s| s.to_string())
-            }.is_some())
+                    {
+                        use cbor_primitives::CborDecoder;
+                        let provider = cbor_primitives_everparse::EverParseCborProvider;
+                        let mut d = provider.decoder(r.as_bytes());
+                        d.decode_tstr().ok().map(|s| s.to_string())
+                    }
+                    .is_some()
+                })
         })
         .compile()
         .expect("message-only plan should compile");
@@ -56,7 +59,10 @@ fn message_facts_fluent_helpers_build_and_compile() {
 #[test]
 fn message_fact_properties_cover_expected_branches() {
     let detached = DetachedPayloadPresentFact { present: true };
-    assert_eq!(detached.get_property("present"), Some(FactValue::Bool(true)));
+    assert_eq!(
+        detached.get_property("present"),
+        Some(FactValue::Bool(true))
+    );
     assert_eq!(detached.get_property("nope"), None);
 
     let ct = ContentTypeFact {

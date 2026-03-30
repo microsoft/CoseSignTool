@@ -113,12 +113,10 @@ pub unsafe extern "C" fn cose_sign1_signing_error_message(
 
     match CString::new(inner.message.as_str()) {
         Ok(c_str) => c_str.into_raw(),
-        Err(_) => {
-            match CString::new("error message contained NUL byte") {
-                Ok(c_str) => c_str.into_raw(),
-                Err(_) => ptr::null_mut(),
-            }
-        }
+        Err(_) => match CString::new("error message contained NUL byte") {
+            Ok(c_str) => c_str.into_raw(),
+            Err(_) => ptr::null_mut(),
+        },
     }
 }
 
@@ -128,7 +126,9 @@ pub unsafe extern "C" fn cose_sign1_signing_error_message(
 ///
 /// - `handle` must be a valid error handle or null
 #[no_mangle]
-pub unsafe extern "C" fn cose_sign1_signing_error_code(handle: *const CoseSign1SigningErrorHandle) -> i32 {
+pub unsafe extern "C" fn cose_sign1_signing_error_code(
+    handle: *const CoseSign1SigningErrorHandle,
+) -> i32 {
     match unsafe { handle_to_inner(handle) } {
         Some(inner) => inner.code,
         None => 0,

@@ -5,12 +5,12 @@
 
 #![allow(unused_unsafe)]
 
-use std::ptr;
 use cose_sign1_validation_ffi::{
-    cose_status_t, cose_sign1_validator_builder_new, cose_sign1_validator_builder_free,
-    cose_trust_policy_builder_t, cose_sign1_validator_builder_t,
+    cose_sign1_validator_builder_free, cose_sign1_validator_builder_new,
+    cose_sign1_validator_builder_t, cose_status_t, cose_trust_policy_builder_t,
 };
 use cose_sign1_validation_primitives_ffi::*;
+use std::ptr;
 
 const COSE_OK: cose_status_t = cose_status_t::COSE_OK;
 

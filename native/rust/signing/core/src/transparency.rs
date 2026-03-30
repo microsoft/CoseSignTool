@@ -7,11 +7,11 @@
 //! Provides traits and utilities for augmenting COSE_Sign1 messages with transparency proofs
 //! (e.g., MST receipts) and verifying them.
 
-use tracing::{info};
+use tracing::info;
 
 use std::collections::{HashMap, HashSet};
 
-use cose_sign1_primitives::{ArcSlice, CoseSign1Message, CoseHeaderLabel, CoseHeaderValue};
+use cose_sign1_primitives::{ArcSlice, CoseHeaderLabel, CoseHeaderValue, CoseSign1Message};
 
 /// COSE header label for receipts array (label 394).
 pub const RECEIPTS_HEADER_LABEL: i64 = 394;
@@ -218,8 +218,11 @@ pub fn add_proof_with_receipt_merge(
     provider: &dyn TransparencyProvider,
     cose_bytes: &[u8],
 ) -> Result<Vec<u8>, TransparencyError> {
-    info!(provider = provider.provider_name(), "Applying transparency proof");
-    
+    info!(
+        provider = provider.provider_name(),
+        "Applying transparency proof"
+    );
+
     let existing_receipts = match CoseSign1Message::parse(cose_bytes) {
         Ok(msg) => extract_receipts(&msg),
         Err(_) => vec![],

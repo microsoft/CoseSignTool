@@ -41,7 +41,10 @@ fn main() {
     });
 
     let result = validator
-        .validate_bytes(cbor_primitives_everparse::EverParseCborProvider, std::sync::Arc::from(cose_bytes.into_boxed_slice()))
+        .validate_bytes(
+            cbor_primitives_everparse::EverParseCborProvider,
+            std::sync::Arc::from(cose_bytes.into_boxed_slice()),
+        )
         .expect("validation failed");
 
     println!("resolution: {:?}", result.resolution.kind);

@@ -5,9 +5,9 @@
 //! std::error::Error, DirectSignatureOptions, IndirectSignatureOptions,
 //! and HashAlgorithm.
 
-use cose_sign1_factories::FactoryError;
 use cose_sign1_factories::direct::DirectSignatureOptions;
 use cose_sign1_factories::indirect::{HashAlgorithm, IndirectSignatureOptions};
+use cose_sign1_factories::FactoryError;
 
 // ---------- FactoryError Display ----------
 
@@ -15,10 +15,16 @@ use cose_sign1_factories::indirect::{HashAlgorithm, IndirectSignatureOptions};
 fn error_display_all_variants() {
     let cases: Vec<(FactoryError, &str)> = vec![
         (FactoryError::SigningFailed("s".into()), "Signing failed: s"),
-        (FactoryError::VerificationFailed("v".into()), "Verification failed: v"),
+        (
+            FactoryError::VerificationFailed("v".into()),
+            "Verification failed: v",
+        ),
         (FactoryError::InvalidInput("i".into()), "Invalid input: i"),
         (FactoryError::CborError("c".into()), "CBOR error: c"),
-        (FactoryError::TransparencyFailed("t".into()), "Transparency failed: t"),
+        (
+            FactoryError::TransparencyFailed("t".into()),
+            "Transparency failed: t",
+        ),
         (
             FactoryError::PayloadTooLargeForEmbedding(200, 100),
             "Payload too large for embedding: 200 bytes (max 100)",
@@ -83,7 +89,10 @@ fn indirect_options_builder_chain() {
         .with_hash_algorithm(HashAlgorithm::Sha384)
         .with_payload_location("https://example.com/payload");
     assert_eq!(opts.payload_hash_algorithm, HashAlgorithm::Sha384);
-    assert_eq!(opts.payload_location.as_deref(), Some("https://example.com/payload"));
+    assert_eq!(
+        opts.payload_location.as_deref(),
+        Some("https://example.com/payload")
+    );
 }
 
 // ---------- HashAlgorithm ----------

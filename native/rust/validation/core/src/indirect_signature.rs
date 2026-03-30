@@ -20,8 +20,15 @@ fn extract_legacy_hash_alg(ct: &str) -> Option<String> {
     let pos = lower.find(prefix)?;
     let after = &ct[pos + prefix.len()..];
     // Take word characters (alphanumeric + underscore) only
-    let alg: String = after.chars().take_while(|c| c.is_alphanumeric() || *c == '_').collect();
-    if alg.is_empty() { None } else { Some(alg) }
+    let alg: String = after
+        .chars()
+        .take_while(|c| c.is_alphanumeric() || *c == '_')
+        .collect();
+    if alg.is_empty() {
+        None
+    } else {
+        Some(alg)
+    }
 }
 
 const VALIDATOR_NAME: &str = "Indirect Signature Content Validation";
@@ -106,7 +113,10 @@ fn header_i64(map: &CoseHeaderMap, label: i64) -> Option<i64> {
     }
 }
 
-fn detect_indirect_signature_kind(protected: &CoseHeaderMap, content_type: Option<&str>) -> Option<IndirectSignatureKind> {
+fn detect_indirect_signature_kind(
+    protected: &CoseHeaderMap,
+    content_type: Option<&str>,
+) -> Option<IndirectSignatureKind> {
     let hash_alg_label = CoseHeaderLabel::Int(COSE_HASH_ENVELOPE_PAYLOAD_HASH_ALG);
     if protected.get(&hash_alg_label).is_some() {
         return Some(IndirectSignatureKind::CoseHashEnvelope);
@@ -180,7 +190,7 @@ fn compute_hash_reader(alg: HashAlgorithm, mut reader: impl Read) -> Result<Vec<
             Ok(hasher.finalize().to_vec())
         }
         #[cfg(feature = "legacy-sha1")]
-        HashAlgorithm::Sha1 =>  {
+        HashAlgorithm::Sha1 => {
             let mut hasher = sha1::Sha1::new();
             loop {
                 let read = reader
@@ -208,7 +218,8 @@ fn compute_hash_from_detached_payload(
             Ok(compute_hash_bytes(alg, b.as_ref()))
         }
         cose_sign1_primitives::payload::Payload::Streaming(s) => {
-            let reader = s.open()
+            let reader = s
+                .open()
                 .map_err(|e| format!("detached_payload_open_failed: {}", e))?;
             compute_hash_reader(alg, reader)
         }
@@ -217,20 +228,22 @@ fn compute_hash_from_detached_payload(
 
 fn parse_cose_hash_v(payload: &[u8]) -> Result<(HashAlgorithm, Vec<u8>), String> {
     let mut d = cose_sign1_primitives::provider::decoder(payload);
-    
+
     let len = d
         .decode_array_len()
         .map_err(|e| format!("invalid COSE_Hash_V: {e}"))?
         .ok_or_else(|| "invalid COSE_Hash_V: indefinite array not supported".to_string())?;
-        
+
     if len != 2 {
         return Err("invalid COSE_Hash_V: expected array of 2 elements".to_string());
     }
 
-    let alg = d.decode_i64()
+    let alg = d
+        .decode_i64()
         .map_err(|e| format!("invalid COSE_Hash_V alg: {e}"))?;
 
-    let hash_bytes = d.decode_bstr_owned()
+    let hash_bytes = d
+        .decode_bstr_owned()
         .map_err(|e| format!("invalid COSE_Hash_V hash: {e}"))?;
 
     let alg = cose_hash_alg_from_cose_alg_value(alg)
@@ -279,7 +292,10 @@ impl PostSignatureValidator for IndirectSignaturePostSignatureValidator {
         let kind = match kind {
             Some(k) => k,
             None => {
-                return ValidationResult::not_applicable(VALIDATOR_NAME, Some("Not an indirect signature"))
+                return ValidationResult::not_applicable(
+                    VALIDATOR_NAME,
+                    Some("Not an indirect signature"),
+                )
             }
         };
 
@@ -338,7 +354,8 @@ impl PostSignatureValidator for IndirectSignaturePostSignatureValidator {
                 }
             },
             IndirectSignatureKind::CoseHashEnvelope => {
-                let Some(alg_raw) = header_i64(protected, COSE_HASH_ENVELOPE_PAYLOAD_HASH_ALG) else {
+                let Some(alg_raw) = header_i64(protected, COSE_HASH_ENVELOPE_PAYLOAD_HASH_ALG)
+                else {
                     return ValidationResult::failure_message(
                         VALIDATOR_NAME,
                         "CoseHashEnvelope payload-hash-alg (258) missing from protected headers",
@@ -372,8 +389,14 @@ impl PostSignatureValidator for IndirectSignaturePostSignatureValidator {
 
         if actual_hash == expected_hash {
             let mut metadata = std::collections::BTreeMap::new();
-            metadata.insert("IndirectSignature.Format".to_string(), format_name.to_string());
-            metadata.insert("IndirectSignature.HashAlgorithm".to_string(), alg.name().to_string());
+            metadata.insert(
+                "IndirectSignature.Format".to_string(),
+                format_name.to_string(),
+            );
+            metadata.insert(
+                "IndirectSignature.HashAlgorithm".to_string(),
+                alg.name().to_string(),
+            );
             ValidationResult::success(VALIDATOR_NAME, Some(metadata))
         } else {
             ValidationResult::failure_message(

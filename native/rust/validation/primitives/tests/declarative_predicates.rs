@@ -5,7 +5,9 @@ use cose_sign1_validation_primitives::fact_properties::{FactProperties, FactValu
 use cose_sign1_validation_primitives::facts::{
     FactKey, TrustFactContext, TrustFactEngine, TrustFactProducer,
 };
-use cose_sign1_validation_primitives::rules::{require_fact_property, FactSelector, PropertyPredicate};
+use cose_sign1_validation_primitives::rules::{
+    require_fact_property, FactSelector, PropertyPredicate,
+};
 use cose_sign1_validation_primitives::subject::TrustSubject;
 use std::borrow::Cow;
 use std::sync::Arc;

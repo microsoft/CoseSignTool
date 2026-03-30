@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-use did_x509::parsing::percent_encoding::{percent_encode, percent_decode};
+use did_x509::parsing::percent_encoding::{percent_decode, percent_encode};
 
 #[test]
 fn test_percent_encode_simple() {

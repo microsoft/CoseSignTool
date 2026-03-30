@@ -26,7 +26,11 @@ impl std::fmt::Display for HeaderError {
         match self {
             Self::CborEncodingError(msg) => write!(f, "CBOR encoding error: {}", msg),
             Self::CborDecodingError(msg) => write!(f, "CBOR decoding error: {}", msg),
-            Self::InvalidClaimType { label, expected, actual } => write!(
+            Self::InvalidClaimType {
+                label,
+                expected,
+                actual,
+            } => write!(
                 f,
                 "Invalid CWT claim type for label {}: expected {}, got {}",
                 label, expected, actual

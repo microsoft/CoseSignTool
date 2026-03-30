@@ -33,11 +33,10 @@ pub use crate::trust_plan_builder::{
 pub use crate::trust_packs::CoseSign1TrustPack;
 
 pub use crate::validator::{
-    CoseSign1MessageValidator, CoseSign1ValidationError, CoseSign1ValidationOptions,
-    CoseSign1ValidationResult, CoseSign1Validator, CoseSign1ValidatorInit, CounterSignature,
-    CounterSignatureResolutionResult, CounterSignatureResolver,
-    PostSignatureValidationContext,
-    PostSignatureValidator, CoseKeyResolutionResult, CoseKeyResolver,
+    CoseKeyResolutionResult, CoseKeyResolver, CoseSign1MessageValidator, CoseSign1ValidationError,
+    CoseSign1ValidationOptions, CoseSign1ValidationResult, CoseSign1Validator,
+    CoseSign1ValidatorInit, CounterSignature, CounterSignatureResolutionResult,
+    CounterSignatureResolver, PostSignatureValidationContext, PostSignatureValidator,
     ValidationFailure, ValidationResult, ValidationResultKind,
 };
 

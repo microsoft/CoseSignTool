@@ -241,7 +241,8 @@ impl TrustFactProducer for SimpleProducer {
 
     fn provides(&self) -> &'static [FactKey] {
         static ONCE: std::sync::OnceLock<Vec<FactKey>> = std::sync::OnceLock::new();
-        ONCE.get_or_init(|| vec![FactKey::of::<SimpleFact>()]).as_slice()
+        ONCE.get_or_init(|| vec![FactKey::of::<SimpleFact>()])
+            .as_slice()
     }
 
     fn produce(&self, ctx: &mut TrustFactContext<'_>) -> Result<(), TrustError> {

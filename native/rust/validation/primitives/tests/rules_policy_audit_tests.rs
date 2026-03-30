@@ -27,8 +27,9 @@ struct DummyFact {
 struct DummyProducer {
     name: &'static str,
     called: Arc<AtomicUsize>,
-    behavior:
-        fn(&cose_sign1_validation_primitives::facts::TrustFactContext<'_>) -> Result<(), TrustError>,
+    behavior: fn(
+        &cose_sign1_validation_primitives::facts::TrustFactContext<'_>,
+    ) -> Result<(), TrustError>,
 }
 
 impl TrustFactProducer for DummyProducer {

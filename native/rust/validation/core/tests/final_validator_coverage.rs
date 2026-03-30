@@ -5,12 +5,10 @@
 //! Targets uncovered async paths, error handling, and edge cases.
 
 use cose_sign1_validation::fluent::{
+    CoseKeyResolutionResult, CoseSign1CompiledTrustPlan, CoseSign1TrustPack,
     CoseSign1ValidationError, CoseSign1ValidationOptions, CoseSign1ValidationResult,
-    CoseSign1Validator, CoseKeyResolutionResult,
-    CounterSignatureResolutionResult,
-    ValidationFailure, ValidationResult, ValidationResultKind,
-    CoseSign1TrustPack,
-    CoseSign1CompiledTrustPlan,
+    CoseSign1Validator, CounterSignatureResolutionResult, ValidationFailure, ValidationResult,
+    ValidationResultKind,
 };
 
 use std::collections::BTreeMap;
@@ -30,11 +28,20 @@ fn test_validation_result_kind_default() {
 fn test_validation_result_kind_equality() {
     assert_eq!(ValidationResultKind::Success, ValidationResultKind::Success);
     assert_eq!(ValidationResultKind::Failure, ValidationResultKind::Failure);
-    assert_eq!(ValidationResultKind::NotApplicable, ValidationResultKind::NotApplicable);
-    
+    assert_eq!(
+        ValidationResultKind::NotApplicable,
+        ValidationResultKind::NotApplicable
+    );
+
     assert_ne!(ValidationResultKind::Success, ValidationResultKind::Failure);
-    assert_ne!(ValidationResultKind::Success, ValidationResultKind::NotApplicable);
-    assert_ne!(ValidationResultKind::Failure, ValidationResultKind::NotApplicable);
+    assert_ne!(
+        ValidationResultKind::Success,
+        ValidationResultKind::NotApplicable
+    );
+    assert_ne!(
+        ValidationResultKind::Failure,
+        ValidationResultKind::NotApplicable
+    );
 }
 
 // ============================================================================
@@ -60,7 +67,7 @@ fn test_validation_failure_with_all_fields() {
         attempted_value: Some("bad_value".to_string()),
         exception: Some("stack trace here".to_string()),
     };
-    
+
     assert_eq!(failure.message, "test message");
     assert_eq!(failure.error_code.as_deref(), Some("ERR001"));
     assert_eq!(failure.property_name.as_deref(), Some("field_name"));
@@ -77,7 +84,7 @@ fn test_validation_failure_clone() {
         attempted_value: None,
         exception: None,
     };
-    
+
     let cloned = failure.clone();
     assert_eq!(cloned, failure);
 }
@@ -91,7 +98,7 @@ fn test_validation_failure_debug() {
         attempted_value: None,
         exception: None,
     };
-    
+
     let debug_str = format!("{:?}", failure);
     assert!(debug_str.contains("ValidationFailure"));
     assert!(debug_str.contains("test"));
@@ -113,7 +120,7 @@ fn test_validation_result_default() {
 #[test]
 fn test_validation_result_success() {
     let result = ValidationResult::success("TestValidator", None);
-    
+
     assert!(result.is_valid());
     assert!(!result.is_failure());
     assert_eq!(result.validator_name, "TestValidator");
@@ -126,9 +133,9 @@ fn test_validation_result_success_with_metadata() {
     let mut metadata = BTreeMap::new();
     metadata.insert("key1".to_string(), "value1".to_string());
     metadata.insert("key2".to_string(), "value2".to_string());
-    
+
     let result = ValidationResult::success("TestValidator", Some(metadata.clone()));
-    
+
     assert!(result.is_valid());
     assert_eq!(result.metadata.len(), 2);
     assert_eq!(result.metadata.get("key1").unwrap(), "value1");
@@ -137,7 +144,7 @@ fn test_validation_result_success_with_metadata() {
 #[test]
 fn test_validation_result_not_applicable_no_reason() {
     let result = ValidationResult::not_applicable("TestValidator", None);
-    
+
     assert!(!result.is_valid());
     assert!(!result.is_failure());
     assert_eq!(result.kind, ValidationResultKind::NotApplicable);
@@ -147,12 +154,15 @@ fn test_validation_result_not_applicable_no_reason() {
 #[test]
 fn test_validation_result_not_applicable_with_reason() {
     let result = ValidationResult::not_applicable("TestValidator", Some("Prior stage failed"));
-    
+
     assert!(!result.is_valid());
     assert!(!result.is_failure());
     assert_eq!(result.kind, ValidationResultKind::NotApplicable);
     assert_eq!(
-        result.metadata.get(ValidationResult::METADATA_REASON_KEY).unwrap(),
+        result
+            .metadata
+            .get(ValidationResult::METADATA_REASON_KEY)
+            .unwrap(),
         "Prior stage failed"
     );
 }
@@ -160,7 +170,7 @@ fn test_validation_result_not_applicable_with_reason() {
 #[test]
 fn test_validation_result_not_applicable_with_empty_reason() {
     let result = ValidationResult::not_applicable("TestValidator", Some("   "));
-    
+
     // Empty/whitespace-only reason should not be stored
     assert!(result.metadata.is_empty());
 }
@@ -177,9 +187,9 @@ fn test_validation_result_failure() {
             ..ValidationFailure::default()
         },
     ];
-    
+
     let result = ValidationResult::failure("TestValidator", failures);
-    
+
     assert!(!result.is_valid());
     assert!(result.is_failure());
     assert_eq!(result.kind, ValidationResultKind::Failure);
@@ -195,7 +205,7 @@ fn test_validation_result_failure_message() {
         "Something went wrong",
         Some("ERR_CODE"),
     );
-    
+
     assert!(result.is_failure());
     assert_eq!(result.failures.len(), 1);
     assert_eq!(result.failures[0].message, "Something went wrong");
@@ -205,7 +215,7 @@ fn test_validation_result_failure_message() {
 #[test]
 fn test_validation_result_failure_message_no_code() {
     let result = ValidationResult::failure_message("TestValidator", "Error", None);
-    
+
     assert!(result.is_failure());
     assert_eq!(result.failures.len(), 1);
     assert!(result.failures[0].error_code.is_none());
@@ -232,7 +242,7 @@ fn test_validation_result_debug() {
 #[test]
 fn test_cose_key_resolution_result_default() {
     let result = CoseKeyResolutionResult::default();
-    
+
     assert!(!result.is_success);
     assert!(result.cose_key.is_none());
     assert!(result.candidate_keys.is_empty());
@@ -249,7 +259,7 @@ fn test_cose_key_resolution_result_failure() {
         Some("KEY_NOT_FOUND".to_string()),
         Some("Could not find key".to_string()),
     );
-    
+
     assert!(!result.is_success);
     assert!(result.cose_key.is_none());
     assert_eq!(result.error_code.as_deref(), Some("KEY_NOT_FOUND"));
@@ -259,7 +269,7 @@ fn test_cose_key_resolution_result_failure() {
 #[test]
 fn test_cose_key_resolution_result_failure_no_details() {
     let result = CoseKeyResolutionResult::failure(None, None);
-    
+
     assert!(!result.is_success);
     assert!(result.error_code.is_none());
     assert!(result.error_message.is_none());
@@ -272,7 +282,7 @@ fn test_cose_key_resolution_result_failure_no_details() {
 #[test]
 fn test_counter_signature_resolution_result_default() {
     let result = CounterSignatureResolutionResult::default();
-    
+
     assert!(!result.is_success);
     assert!(result.counter_signatures.is_empty());
     assert!(result.diagnostics.is_empty());
@@ -283,7 +293,7 @@ fn test_counter_signature_resolution_result_default() {
 #[test]
 fn test_counter_signature_resolution_result_success_empty() {
     let result = CounterSignatureResolutionResult::success(vec![]);
-    
+
     assert!(result.is_success);
     assert!(result.counter_signatures.is_empty());
 }
@@ -294,10 +304,13 @@ fn test_counter_signature_resolution_result_failure() {
         Some("CS_NOT_FOUND".to_string()),
         Some("No counter signature found".to_string()),
     );
-    
+
     assert!(!result.is_success);
     assert_eq!(result.error_code.as_deref(), Some("CS_NOT_FOUND"));
-    assert_eq!(result.error_message.as_deref(), Some("No counter signature found"));
+    assert_eq!(
+        result.error_message.as_deref(),
+        Some("No counter signature found")
+    );
 }
 
 // ============================================================================
@@ -307,7 +320,7 @@ fn test_counter_signature_resolution_result_failure() {
 #[test]
 fn test_validation_options_default() {
     let options = CoseSign1ValidationOptions::default();
-    
+
     assert!(options.detached_payload.is_none());
     assert!(options.associated_data.is_none());
     assert!(!options.skip_post_signature_validation);
@@ -328,7 +341,7 @@ fn test_validation_options_debug() {
 fn test_validation_error_cose_decode_display() {
     let error = CoseSign1ValidationError::CoseDecode("invalid CBOR".to_string());
     let display = format!("{}", error);
-    
+
     assert!(display.contains("COSE decode failed"));
     assert!(display.contains("invalid CBOR"));
 }
@@ -337,7 +350,7 @@ fn test_validation_error_cose_decode_display() {
 fn test_validation_error_trust_display() {
     let error = CoseSign1ValidationError::Trust("trust plan failed".to_string());
     let display = format!("{}", error);
-    
+
     assert!(display.contains("trust evaluation failed"));
     assert!(display.contains("trust plan failed"));
 }
@@ -352,7 +365,7 @@ fn test_validation_error_debug() {
 #[test]
 fn test_validation_error_is_error_trait() {
     let error = CoseSign1ValidationError::Trust("test".to_string());
-    
+
     // Should implement std::error::Error
     fn assert_error<T: std::error::Error>() {}
     assert_error::<CoseSign1ValidationError>();
@@ -363,7 +376,7 @@ fn test_validation_error_is_error_trait() {
 // ============================================================================
 
 // ============================================================================
-// CoseSign1Validator constants tests  
+// CoseSign1Validator constants tests
 // ============================================================================
 
 #[test]
@@ -374,24 +387,24 @@ fn test_validator_constants() {
     assert!(!CoseSign1Validator::STAGE_NAME_KEY_MATERIAL_TRUST.is_empty());
     assert!(!CoseSign1Validator::STAGE_NAME_SIGNATURE.is_empty());
     assert!(!CoseSign1Validator::STAGE_NAME_POST_SIGNATURE.is_empty());
-    
+
     // Not applicable reasons
     assert!(!CoseSign1Validator::NOT_APPLICABLE_REASON_PRIOR_STAGE_FAILED.is_empty());
     assert!(!CoseSign1Validator::NOT_APPLICABLE_REASON_SIGNING_KEY_NOT_TRUSTED.is_empty());
-    
+
     // Metadata prefixes
     assert!(!CoseSign1Validator::METADATA_PREFIX_RESOLUTION.is_empty());
     assert!(!CoseSign1Validator::METADATA_PREFIX_TRUST.is_empty());
     assert!(!CoseSign1Validator::METADATA_PREFIX_SIGNATURE.is_empty());
     assert!(!CoseSign1Validator::METADATA_KEY_SEPARATOR.is_empty());
-    
+
     // Error codes
     assert!(!CoseSign1Validator::ERROR_CODE_TRUST_PLAN_NOT_SATISFIED.is_empty());
     assert!(!CoseSign1Validator::ERROR_CODE_NO_SIGNING_KEY_RESOLVED.is_empty());
     assert!(!CoseSign1Validator::ERROR_CODE_SIGNATURE_VERIFICATION_FAILED.is_empty());
     assert!(!CoseSign1Validator::ERROR_CODE_SIGNATURE_MISSING_PAYLOAD.is_empty());
     assert!(!CoseSign1Validator::ERROR_CODE_ALGORITHM_MISMATCH.is_empty());
-    
+
     // Streaming threshold
     assert!(CoseSign1Validator::LARGE_STREAM_THRESHOLD > 0);
 }
@@ -419,7 +432,7 @@ fn test_validation_result_is_valid_for_each_kind() {
     };
     assert!(success.is_valid());
     assert!(!success.is_failure());
-    
+
     let failure = ValidationResult {
         kind: ValidationResultKind::Failure,
         validator_name: "test".into(),
@@ -428,7 +441,7 @@ fn test_validation_result_is_valid_for_each_kind() {
     };
     assert!(!failure.is_valid());
     assert!(failure.is_failure());
-    
+
     let not_applicable = ValidationResult {
         kind: ValidationResultKind::NotApplicable,
         validator_name: "test".into(),
@@ -448,7 +461,7 @@ fn test_validation_result_equality() {
     let result1 = ValidationResult::success("Test", None);
     let result2 = ValidationResult::success("Test", None);
     assert_eq!(result1, result2);
-    
+
     let result3 = ValidationResult::failure_message("Test", "error", None);
     assert_ne!(result1, result3);
 }
@@ -476,10 +489,10 @@ fn test_validation_failure_equality() {
         attempted_value: None,
         exception: None,
     };
-    
+
     let f2 = f1.clone();
     assert_eq!(f1, f2);
-    
+
     let f3 = ValidationFailure::default();
     assert_ne!(f1, f3);
 }
@@ -497,7 +510,7 @@ fn test_cose_sign1_validation_result_debug() {
         post_signature_policy: ValidationResult::success("Post", None),
         overall: ValidationResult::success("Overall", None),
     };
-    
+
     let debug_str = format!("{:?}", result);
     assert!(debug_str.contains("CoseSign1ValidationResult"));
 }
@@ -511,7 +524,7 @@ fn test_cose_sign1_validation_result_equality() {
         post_signature_policy: ValidationResult::success("Post", None),
         overall: ValidationResult::success("Overall", None),
     };
-    
+
     let result2 = result1.clone();
     assert_eq!(result1, result2);
 }
@@ -523,9 +536,13 @@ fn test_cose_sign1_validation_result_with_failures() {
         trust: ValidationResult::not_applicable("Trust", Some("Prior stage failed")),
         signature: ValidationResult::not_applicable("Signature", Some("Prior stage failed")),
         post_signature_policy: ValidationResult::not_applicable("Post", Some("Prior stage failed")),
-        overall: ValidationResult::failure_message("Overall", "validation failed", Some("ERR_OVERALL")),
+        overall: ValidationResult::failure_message(
+            "Overall",
+            "validation failed",
+            Some("ERR_OVERALL"),
+        ),
     };
-    
+
     assert!(result.resolution.is_failure());
     assert!(!result.trust.is_failure());
     assert!(result.overall.is_failure());

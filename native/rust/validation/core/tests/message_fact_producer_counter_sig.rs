@@ -6,11 +6,11 @@
 //! header extraction, CWT text-keyed claims from Map, and
 //! encode_value_recursive complex types.
 
+use cbor_primitives::{CborEncoder, CborProvider};
+use cbor_primitives_everparse::EverParseCborProvider;
 use cose_sign1_validation::fluent::*;
 use cose_sign1_validation_primitives::facts::{TrustFactEngine, TrustFactSet};
 use cose_sign1_validation_primitives::subject::TrustSubject;
-use cbor_primitives::{CborEncoder, CborProvider};
-use cbor_primitives_everparse::EverParseCborProvider;
 use std::sync::Arc;
 
 // ---------------------------------------------------------------------------
@@ -73,10 +73,7 @@ impl CounterSignatureResolver for FailResolver {
     }
 
     fn resolve(&self, _: &CoseSign1Message) -> CounterSignatureResolutionResult {
-        CounterSignatureResolutionResult::failure(
-            None,
-            self.error_msg.map(|s| s.to_string()),
-        )
+        CounterSignatureResolutionResult::failure(None, self.error_msg.map(|s| s.to_string()))
     }
 }
 
@@ -150,9 +147,7 @@ fn build_cose_sign1_with_raw_protected(
 }
 
 fn engine_with_parsed(cose_bytes: &[u8]) -> TrustFactEngine {
-    let parsed = cose_sign1_primitives::CoseSign1Message::parse(cose_bytes,
-    )
-    .expect("parse");
+    let parsed = cose_sign1_primitives::CoseSign1Message::parse(cose_bytes).expect("parse");
 
     let producer = Arc::new(CoseSign1MessageFactProducer::new());
     TrustFactEngine::new(vec![producer])
@@ -164,14 +159,10 @@ fn engine_with_parsed_and_resolvers(
     cose_bytes: &[u8],
     resolvers: Vec<Arc<dyn CounterSignatureResolver>>,
 ) -> TrustFactEngine {
-    let parsed = cose_sign1_primitives::CoseSign1Message::parse(cose_bytes,
-    )
-    .expect("parse");
+    let parsed = cose_sign1_primitives::CoseSign1Message::parse(cose_bytes).expect("parse");
 
-    let producer = Arc::new(
-        CoseSign1MessageFactProducer::new()
-            .with_counter_signature_resolvers(resolvers),
-    );
+    let producer =
+        Arc::new(CoseSign1MessageFactProducer::new().with_counter_signature_resolvers(resolvers));
     TrustFactEngine::new(vec![producer])
         .with_cose_sign1_bytes(Arc::from(cose_bytes.to_vec().into_boxed_slice()))
         .with_cose_sign1_message(Arc::new(parsed))
@@ -182,11 +173,7 @@ fn message_subject() -> TrustSubject {
 }
 
 fn simple_cose_bytes() -> Vec<u8> {
-    build_cose_sign1(
-        &[(1, CborValue::I64(-7))],
-        &[],
-        Some(b"payload"),
-    )
+    build_cose_sign1(&[(1, CborValue::I64(-7))], &[], Some(b"payload"))
 }
 
 // ===========================================================================
@@ -214,21 +201,32 @@ fn counter_sig_mixed_success_and_failure_produces_facts_from_successful_resolver
     let subject = message_subject();
 
     // Despite one resolver failing, counter-signature facts should be produced.
-    let subjects = engine.get_facts::<CounterSignatureSubjectFact>(&subject).unwrap();
+    let subjects = engine
+        .get_facts::<CounterSignatureSubjectFact>(&subject)
+        .unwrap();
     assert_eq!(1, subjects.len());
     assert_eq!("CounterSignature", subjects[0].subject.kind);
     assert!(subjects[0].is_protected_header);
 
-    let signing_keys = engine.get_facts::<CounterSignatureSigningKeySubjectFact>(&subject).unwrap();
+    let signing_keys = engine
+        .get_facts::<CounterSignatureSigningKeySubjectFact>(&subject)
+        .unwrap();
     assert_eq!(1, signing_keys.len());
     assert_eq!("CounterSignatureSigningKey", signing_keys[0].subject.kind);
 
-    let unknowns = engine.get_facts::<UnknownCounterSignatureBytesFact>(&subject).unwrap();
+    let unknowns = engine
+        .get_facts::<UnknownCounterSignatureBytesFact>(&subject)
+        .unwrap();
     assert_eq!(1, unknowns.len());
-    assert_eq!(b"cs-alpha".as_slice(), unknowns[0].raw_counter_signature_bytes.as_ref());
+    assert_eq!(
+        b"cs-alpha".as_slice(),
+        unknowns[0].raw_counter_signature_bytes.as_ref()
+    );
 
     // Facts should NOT be missing since at least one resolver succeeded.
-    let set = engine.get_fact_set::<CounterSignatureSubjectFact>(&subject).unwrap();
+    let set = engine
+        .get_fact_set::<CounterSignatureSubjectFact>(&subject)
+        .unwrap();
     assert!(matches!(set, TrustFactSet::Available(_)));
 }
 
@@ -256,13 +254,20 @@ fn counter_sig_dedup_across_two_resolvers_with_same_raw_bytes() {
     let subject = message_subject();
 
     // Two CounterSignatureSubjectFact entries (one per counter-sig instance).
-    let subjects = engine.get_facts::<CounterSignatureSubjectFact>(&subject).unwrap();
+    let subjects = engine
+        .get_facts::<CounterSignatureSubjectFact>(&subject)
+        .unwrap();
     assert_eq!(2, subjects.len());
 
     // UnknownCounterSignatureBytesFact is deduplicated: same raw bytes → one entry.
-    let unknowns = engine.get_facts::<UnknownCounterSignatureBytesFact>(&subject).unwrap();
+    let unknowns = engine
+        .get_facts::<UnknownCounterSignatureBytesFact>(&subject)
+        .unwrap();
     assert_eq!(1, unknowns.len());
-    assert_eq!(b"shared-bytes".as_slice(), unknowns[0].raw_counter_signature_bytes.as_ref());
+    assert_eq!(
+        b"shared-bytes".as_slice(),
+        unknowns[0].raw_counter_signature_bytes.as_ref()
+    );
 }
 
 #[test]
@@ -278,7 +283,9 @@ fn counter_sig_failure_with_none_error_message() {
     );
     let subject = message_subject();
 
-    let set = engine.get_fact_set::<CounterSignatureSubjectFact>(&subject).unwrap();
+    let set = engine
+        .get_fact_set::<CounterSignatureSubjectFact>(&subject)
+        .unwrap();
     match set {
         TrustFactSet::Missing { reason } => {
             assert!(reason.contains("ProducerFailed:none_msg"));
@@ -302,7 +309,9 @@ fn counter_sig_failure_with_empty_error_message_trims_to_no_suffix() {
     );
     let subject = message_subject();
 
-    let set = engine.get_fact_set::<CounterSignatureSubjectFact>(&subject).unwrap();
+    let set = engine
+        .get_fact_set::<CounterSignatureSubjectFact>(&subject)
+        .unwrap();
     match set {
         TrustFactSet::Missing { reason } => {
             assert!(reason.contains("ProducerFailed:empty_msg"));
@@ -333,16 +342,22 @@ fn counter_sig_multiple_distinct_sigs_from_single_resolver() {
     );
     let subject = message_subject();
 
-    let subjects = engine.get_facts::<CounterSignatureSubjectFact>(&subject).unwrap();
+    let subjects = engine
+        .get_facts::<CounterSignatureSubjectFact>(&subject)
+        .unwrap();
     assert_eq!(2, subjects.len());
     assert!(subjects[0].is_protected_header);
     assert!(!subjects[1].is_protected_header);
 
-    let signing_keys = engine.get_facts::<CounterSignatureSigningKeySubjectFact>(&subject).unwrap();
+    let signing_keys = engine
+        .get_facts::<CounterSignatureSigningKeySubjectFact>(&subject)
+        .unwrap();
     assert_eq!(2, signing_keys.len());
 
     // Two distinct raw bytes → two UnknownCounterSignatureBytesFact entries (no dedup).
-    let unknowns = engine.get_facts::<UnknownCounterSignatureBytesFact>(&subject).unwrap();
+    let unknowns = engine
+        .get_facts::<UnknownCounterSignatureBytesFact>(&subject)
+        .unwrap();
     assert_eq!(2, unknowns.len());
 }
 
@@ -362,7 +377,10 @@ fn content_type_empty_text_header_produces_no_fact() {
 
     let ct = engine.get_fact_set::<ContentTypeFact>(&subject).unwrap();
     match ct {
-        TrustFactSet::Available(v) => assert!(v.is_empty(), "whitespace-only text should yield no ContentTypeFact"),
+        TrustFactSet::Available(v) => assert!(
+            v.is_empty(),
+            "whitespace-only text should yield no ContentTypeFact"
+        ),
         other => panic!("expected Available(empty), got {other:?}"),
     }
 }
@@ -370,7 +388,10 @@ fn content_type_empty_text_header_produces_no_fact() {
 #[test]
 fn content_type_bytes_header_valid_utf8_is_used() {
     let cose_bytes = build_cose_sign1(
-        &[(1, CborValue::I64(-7)), (3, CborValue::Bytes(b"application/cbor".to_vec()))],
+        &[
+            (1, CborValue::I64(-7)),
+            (3, CborValue::Bytes(b"application/cbor".to_vec())),
+        ],
         &[],
         Some(b"payload"),
     );
@@ -385,7 +406,10 @@ fn content_type_bytes_header_valid_utf8_is_used() {
 #[test]
 fn content_type_bytes_header_invalid_utf8_produces_no_fact() {
     let cose_bytes = build_cose_sign1(
-        &[(1, CborValue::I64(-7)), (3, CborValue::Bytes(vec![0xFF, 0xFE]))],
+        &[
+            (1, CborValue::I64(-7)),
+            (3, CborValue::Bytes(vec![0xFF, 0xFE])),
+        ],
         &[],
         Some(b"payload"),
     );
@@ -394,7 +418,10 @@ fn content_type_bytes_header_invalid_utf8_produces_no_fact() {
 
     let ct = engine.get_fact_set::<ContentTypeFact>(&subject).unwrap();
     match ct {
-        TrustFactSet::Available(v) => assert!(v.is_empty(), "invalid UTF-8 bytes should yield no ContentTypeFact"),
+        TrustFactSet::Available(v) => assert!(
+            v.is_empty(),
+            "invalid UTF-8 bytes should yield no ContentTypeFact"
+        ),
         other => panic!("expected Available(empty), got {other:?}"),
     }
 }
@@ -402,7 +429,10 @@ fn content_type_bytes_header_invalid_utf8_produces_no_fact() {
 #[test]
 fn content_type_bytes_header_whitespace_only_produces_no_fact() {
     let cose_bytes = build_cose_sign1(
-        &[(1, CborValue::I64(-7)), (3, CborValue::Bytes(b"  ".to_vec()))],
+        &[
+            (1, CborValue::I64(-7)),
+            (3, CborValue::Bytes(b"  ".to_vec())),
+        ],
         &[],
         Some(b"payload"),
     );
@@ -411,7 +441,10 @@ fn content_type_bytes_header_whitespace_only_produces_no_fact() {
 
     let ct = engine.get_fact_set::<ContentTypeFact>(&subject).unwrap();
     match ct {
-        TrustFactSet::Available(v) => assert!(v.is_empty(), "whitespace-only UTF-8 bytes should yield no ContentTypeFact"),
+        TrustFactSet::Available(v) => assert!(
+            v.is_empty(),
+            "whitespace-only UTF-8 bytes should yield no ContentTypeFact"
+        ),
         other => panic!("expected Available(empty), got {other:?}"),
     }
 }
@@ -468,7 +501,10 @@ fn content_type_integer_preimage_from_unprotected() {
 #[test]
 fn content_type_cose_hash_v_case_insensitive_strip() {
     let cose_bytes = build_cose_sign1(
-        &[(1, CborValue::I64(-7)), (3, CborValue::Text("application/xml+COSE-HASH-V"))],
+        &[
+            (1, CborValue::I64(-7)),
+            (3, CborValue::Text("application/xml+COSE-HASH-V")),
+        ],
         &[],
         Some(b"payload"),
     );
@@ -483,7 +519,10 @@ fn content_type_cose_hash_v_case_insensitive_strip() {
 #[test]
 fn content_type_hash_legacy_case_insensitive_strip() {
     let cose_bytes = build_cose_sign1(
-        &[(1, CborValue::I64(-7)), (3, CborValue::Text("application/xml+Hash-SHA512"))],
+        &[
+            (1, CborValue::I64(-7)),
+            (3, CborValue::Text("application/xml+Hash-SHA512")),
+        ],
         &[],
         Some(b"payload"),
     );
@@ -499,7 +538,10 @@ fn content_type_hash_legacy_case_insensitive_strip() {
 fn content_type_only_cose_hash_v_suffix_returns_none() {
     // Content type is ONLY "+cose-hash-v" → after stripping it's empty → returns None.
     let cose_bytes = build_cose_sign1(
-        &[(1, CborValue::I64(-7)), (3, CborValue::Text("+cose-hash-v"))],
+        &[
+            (1, CborValue::I64(-7)),
+            (3, CborValue::Text("+cose-hash-v")),
+        ],
         &[],
         Some(b"payload"),
     );
@@ -517,7 +559,10 @@ fn content_type_only_cose_hash_v_suffix_returns_none() {
 fn content_type_only_hash_legacy_suffix_returns_none() {
     // Content type is ONLY "+hash-sha256" → after stripping it's empty → returns None.
     let cose_bytes = build_cose_sign1(
-        &[(1, CborValue::I64(-7)), (3, CborValue::Text("+hash-sha256"))],
+        &[
+            (1, CborValue::I64(-7)),
+            (3, CborValue::Text("+hash-sha256")),
+        ],
         &[],
         Some(b"payload"),
     );
@@ -767,7 +812,11 @@ fn cwt_claims_map_handles_map_with_text_key_encoding() {
 fn get_header_int_returns_integer_preimage_content_type() {
     // Exercises get_header_int path for preimage content type (label 259).
     let cose_bytes = build_cose_sign1(
-        &[(1, CborValue::I64(-7)), (258, CborValue::I64(1)), (259, CborValue::I64(0))],
+        &[
+            (1, CborValue::I64(-7)),
+            (258, CborValue::I64(1)),
+            (259, CborValue::I64(0)),
+        ],
         &[],
         Some(b"payload"),
     );

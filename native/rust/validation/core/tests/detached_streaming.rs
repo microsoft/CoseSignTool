@@ -1,13 +1,13 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-use cose_sign1_validation::fluent::*;
-use cose_sign1_validation_test_utils::SimpleTrustPack;
-use cose_sign1_validation_primitives::CoseSign1Message;
-use std::io::{Read, Result as IoResult};
-use std::sync::Arc;
 use cbor_primitives::{CborEncoder, CborProvider};
 use cbor_primitives_everparse::EverParseCborProvider;
+use cose_sign1_validation::fluent::*;
+use cose_sign1_validation_primitives::CoseSign1Message;
+use cose_sign1_validation_test_utils::SimpleTrustPack;
+use std::io::{Read, Result as IoResult};
+use std::sync::Arc;
 
 struct FixedCoseKeyResolver {
     key: Arc<dyn CryptoVerifier>,
@@ -26,17 +26,24 @@ impl CoseKeyResolver for FixedCoseKeyResolver {
 struct StreamingOnlyVerifier;
 
 impl CryptoVerifier for StreamingOnlyVerifier {
-    fn algorithm(&self) -> i64 { -7 }
-    
-    fn verify(&self, _data: &[u8], _signature: &[u8]) -> Result<bool, CryptoError> {
-        Err(CryptoError::VerificationFailed("verify(bytes) should not be called".to_string()))
+    fn algorithm(&self) -> i64 {
+        -7
     }
-    
+
+    fn verify(&self, _data: &[u8], _signature: &[u8]) -> Result<bool, CryptoError> {
+        Err(CryptoError::VerificationFailed(
+            "verify(bytes) should not be called".to_string(),
+        ))
+    }
+
     fn supports_streaming(&self) -> bool {
         true
     }
-    
-    fn verify_init(&self, _signature: &[u8]) -> Result<Box<dyn crypto_primitives::VerifyingContext>, CryptoError> {
+
+    fn verify_init(
+        &self,
+        _signature: &[u8],
+    ) -> Result<Box<dyn crypto_primitives::VerifyingContext>, CryptoError> {
         Ok(Box::new(StreamingVerifyingContext { total: 0 }))
     }
 }
@@ -50,11 +57,13 @@ impl crypto_primitives::VerifyingContext for StreamingVerifyingContext {
         self.total += chunk.len() as u64;
         Ok(())
     }
-    
+
     fn finalize(self: Box<Self>) -> Result<bool, CryptoError> {
         // Not asserting exact size here (CBOR overhead varies), just that we read something.
         if self.total == 0 {
-            return Err(CryptoError::VerificationFailed("expected non-empty stream".to_string()));
+            return Err(CryptoError::VerificationFailed(
+                "expected non-empty stream".to_string(),
+            ));
         }
         Ok(true)
     }
@@ -93,7 +102,12 @@ impl StreamingPayload for GeneratedPayloadProvider {
         self.len
     }
 
-    fn open(&self) -> Result<Box<dyn cose_sign1_primitives::sig_structure::SizedRead + Send>, cose_sign1_primitives::error::PayloadError> {
+    fn open(
+        &self,
+    ) -> Result<
+        Box<dyn cose_sign1_primitives::sig_structure::SizedRead + Send>,
+        cose_sign1_primitives::error::PayloadError,
+    > {
         Ok(Box::new(ZeroReader {
             remaining: self.len,
             total: self.len,
@@ -150,7 +164,9 @@ fn large_detached_payload_provider_uses_streaming_verify_path() {
         .unwrap();
 
     let validator = CoseSign1Validator::new(bundled).with_options(|o| {
-        o.detached_payload = Some(Payload::Streaming(Box::new(GeneratedPayloadProvider { len: payload_len })));
+        o.detached_payload = Some(Payload::Streaming(Box::new(GeneratedPayloadProvider {
+            len: payload_len,
+        })));
         o.trust_evaluation_options.bypass_trust = true;
     });
 

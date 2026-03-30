@@ -7,15 +7,15 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use cose_sign1_factories::{
-    FactoryError,
     direct::{DirectSignatureFactory, DirectSignatureOptions},
+    FactoryError,
 };
 use cose_sign1_primitives::{
-    CoseHeaderMap, CoseSign1Message, CryptoSigner, CryptoError, MemoryPayload,
+    CoseHeaderMap, CoseSign1Message, CryptoError, CryptoSigner, MemoryPayload,
 };
 use cose_sign1_signing::{
+    transparency::{TransparencyError, TransparencyProvider, TransparencyValidationResult},
     CoseSigner, SigningContext, SigningError, SigningService, SigningServiceMetadata,
-    transparency::{TransparencyProvider, TransparencyError, TransparencyValidationResult},
 };
 
 /// Mock key that returns deterministic signatures.
@@ -170,9 +170,8 @@ fn test_direct_factory_with_transparency_providers() {
 #[test]
 fn test_direct_factory_transparency_providers_accessor() {
     let signing_service = create_test_signing_service();
-    let providers: Vec<Box<dyn TransparencyProvider>> = vec![
-        Box::new(MockTransparencyProvider::new("test-provider")),
-    ];
+    let providers: Vec<Box<dyn TransparencyProvider>> =
+        vec![Box::new(MockTransparencyProvider::new("test-provider"))];
 
     let factory = DirectSignatureFactory::with_transparency_providers(signing_service, providers);
     let transparency_providers = factory.transparency_providers();
@@ -189,7 +188,10 @@ fn test_direct_factory_create_bytes_none_options() {
     let content_type = "text/plain";
 
     let result = factory.create_bytes(payload, content_type, None);
-    assert!(result.is_ok(), "create_bytes should succeed with None options");
+    assert!(
+        result.is_ok(),
+        "create_bytes should succeed with None options"
+    );
 
     let bytes = result.unwrap();
     assert!(!bytes.is_empty(), "Result bytes should not be empty");
@@ -286,16 +288,18 @@ fn test_direct_factory_create_streaming() {
     assert!(result.is_ok(), "create_streaming should succeed");
 
     let message = result.unwrap();
-    assert!(message.payload().is_some(), "Message should have embedded payload");
+    assert!(
+        message.payload().is_some(),
+        "Message should have embedded payload"
+    );
     assert_eq!(message.payload().unwrap(), payload_data);
 }
 
 #[test]
 fn test_direct_factory_create_bytes_with_transparency() {
     let signing_service = create_test_signing_service();
-    let providers: Vec<Box<dyn TransparencyProvider>> = vec![
-        Box::new(MockTransparencyProvider::new("test-provider")),
-    ];
+    let providers: Vec<Box<dyn TransparencyProvider>> =
+        vec![Box::new(MockTransparencyProvider::new("test-provider"))];
     let factory = DirectSignatureFactory::with_transparency_providers(signing_service, providers);
 
     let payload = b"Test payload with transparency";
@@ -310,7 +314,7 @@ fn test_direct_factory_create_bytes_with_transparency() {
 
     let bytes = result.unwrap();
     assert!(!bytes.is_empty(), "Result bytes should not be empty");
-    
+
     // The mock transparency provider adds a suffix
     let bytes_str = String::from_utf8_lossy(&bytes);
     assert!(bytes_str.contains("test-provider-proof"));
@@ -319,9 +323,8 @@ fn test_direct_factory_create_bytes_with_transparency() {
 #[test]
 fn test_direct_factory_create_bytes_disable_transparency() {
     let signing_service = create_test_signing_service();
-    let providers: Vec<Box<dyn TransparencyProvider>> = vec![
-        Box::new(MockTransparencyProvider::new("disabled-provider")),
-    ];
+    let providers: Vec<Box<dyn TransparencyProvider>> =
+        vec![Box::new(MockTransparencyProvider::new("disabled-provider"))];
     let factory = DirectSignatureFactory::with_transparency_providers(signing_service, providers);
 
     let payload = b"Test payload disable transparency";
@@ -337,17 +340,18 @@ fn test_direct_factory_create_bytes_disable_transparency() {
     );
 
     let bytes_with_disabled = result.unwrap();
-    
+
     // Also create without transparency providers for comparison
     let signing_service2 = create_test_signing_service();
     let factory_no_transparency = DirectSignatureFactory::new(signing_service2);
     let options_no_transparency = DirectSignatureOptions::new().with_embed_payload(true);
-    let result_no_transparency = factory_no_transparency.create_bytes(payload, content_type, Some(options_no_transparency));
+    let result_no_transparency =
+        factory_no_transparency.create_bytes(payload, content_type, Some(options_no_transparency));
     let bytes_no_transparency = result_no_transparency.unwrap();
-    
+
     // When transparency is disabled, bytes should be same length as without transparency
     assert_eq!(
-        bytes_with_disabled.len(), 
+        bytes_with_disabled.len(),
         bytes_no_transparency.len(),
         "Disabled transparency should produce same length as no transparency"
     );
@@ -366,7 +370,10 @@ fn test_direct_factory_streaming_max_embed_size() {
         .with_max_embed_size(500); // Smaller than payload
 
     let result = factory.create_streaming_bytes(streaming_payload, content_type, Some(options));
-    assert!(result.is_err(), "Should fail when payload exceeds max embed size");
+    assert!(
+        result.is_err(),
+        "Should fail when payload exceeds max embed size"
+    );
 
     match result.unwrap_err() {
         FactoryError::PayloadTooLargeForEmbedding(size, max_size) => {
@@ -439,7 +446,8 @@ fn test_factory_error_display() {
     let cbor_error = FactoryError::CborError("test cbor error".to_string());
     assert_eq!(format!("{}", cbor_error), "CBOR error: test cbor error");
 
-    let transparency_failed = FactoryError::TransparencyFailed("test transparency error".to_string());
+    let transparency_failed =
+        FactoryError::TransparencyFailed("test transparency error".to_string());
     assert_eq!(
         format!("{}", transparency_failed),
         "Transparency failed: test transparency error"

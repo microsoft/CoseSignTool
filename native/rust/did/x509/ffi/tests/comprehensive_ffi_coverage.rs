@@ -12,7 +12,7 @@ use openssl::ec::{EcGroup, EcKey};
 use openssl::hash::MessageDigest;
 use openssl::nid::Nid;
 use openssl::pkey::PKey;
-use openssl::x509::{X509Builder, X509NameBuilder, extension::*};
+use openssl::x509::{extension::*, X509Builder, X509NameBuilder};
 use std::ffi::{CStr, CString};
 use std::ptr;
 
@@ -25,9 +25,7 @@ fn error_message(err: *const DidX509ErrorHandle) -> Option<String> {
     if msg.is_null() {
         return None;
     }
-    let s = unsafe { CStr::from_ptr(msg) }
-        .to_string_lossy()
-        .to_string();
+    let s = unsafe { CStr::from_ptr(msg) }.to_string_lossy().to_string();
     Some(s)
 }
 
@@ -73,7 +71,7 @@ fn test_did_x509_parsed_null_safety_comprehensive() {
     assert!(rc < 0);
     assert!(result.is_null());
 
-    // Test hash algorithm accessor with null handle  
+    // Test hash algorithm accessor with null handle
     err = ptr::null_mut();
     let rc = unsafe { did_x509_parsed_get_hash_algorithm(ptr::null(), &mut result, &mut err) };
     assert!(rc < 0);
@@ -125,7 +123,7 @@ fn test_did_x509_build_from_chain_comprehensive_errors() {
     let rc = unsafe {
         did_x509_build_from_chain(
             chain_certs.as_ptr(),
-            chain_lens.as_ptr(), 
+            chain_lens.as_ptr(),
             0,
             &mut did_string,
             &mut err,
@@ -152,7 +150,7 @@ fn test_did_x509_build_from_chain_comprehensive_errors() {
     assert!(did_string.is_null());
 }
 
-#[test] 
+#[test]
 fn test_did_x509_build_from_chain_with_invalid_data() {
     // Test with invalid certificate data
     let invalid_cert_data = b"not a certificate";
@@ -313,7 +311,7 @@ fn test_did_x509_error_handling_edge_cases() {
     // Test string_free with null
     unsafe { did_x509_string_free(ptr::null_mut()) };
 
-    // Test parsed_free with null  
+    // Test parsed_free with null
     unsafe { did_x509_parsed_free(ptr::null_mut()) };
 }
 
@@ -324,16 +322,9 @@ fn test_did_x509_build_with_eku_edge_cases() {
 
     // Test with empty certificate data (zero length)
     let rc = unsafe {
-        did_x509_build_with_eku(
-            ptr::null(),
-            0,
-            ptr::null(),
-            0,
-            &mut did_string,
-            &mut err,
-        )
+        did_x509_build_with_eku(ptr::null(), 0, ptr::null(), 0, &mut did_string, &mut err)
     };
-    assert_eq!(rc, 0);  // Should succeed with empty data
+    assert_eq!(rc, 0); // Should succeed with empty data
     assert!(!did_string.is_null());
     unsafe { did_x509_string_free(did_string) };
 
@@ -350,23 +341,15 @@ fn test_did_x509_build_with_eku_edge_cases() {
             &mut err,
         )
     };
-    assert_eq!(rc, 0);  // Should succeed
+    assert_eq!(rc, 0); // Should succeed
     assert!(!did_string.is_null());
     unsafe { did_x509_string_free(did_string) };
 
     // Test with null out_did_string
     let rc = unsafe {
-        did_x509_build_with_eku(
-            ptr::null(),
-            0,
-            ptr::null(),
-            0,
-            ptr::null_mut(),
-            &mut err,
-        )
+        did_x509_build_with_eku(ptr::null(), 0, ptr::null(), 0, ptr::null_mut(), &mut err)
     };
-    assert!(rc < 0);  // Should fail
+    assert!(rc < 0); // Should fail
     assert!(!err.is_null());
     unsafe { did_x509_error_free(err) };
 }
-

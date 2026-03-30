@@ -42,8 +42,9 @@ impl EvpVerifier {
 
     /// Creates an EvpVerifier from a PEM-encoded public key.
     pub fn from_pem(pem: &[u8], cose_algorithm: i64) -> Result<Self, CryptoError> {
-        let pkey = openssl::pkey::PKey::public_key_from_pem(pem)
-            .map_err(|e| CryptoError::InvalidKey(format!("Failed to parse PEM public key: {}", e)))?;
+        let pkey = openssl::pkey::PKey::public_key_from_pem(pem).map_err(|e| {
+            CryptoError::InvalidKey(format!("Failed to parse PEM public key: {}", e))
+        })?;
         let key = EvpPublicKey::from_pkey(pkey).map_err(CryptoError::InvalidKey)?;
         Self::new(key, cose_algorithm)
     }

@@ -9,8 +9,15 @@
 //! - Detached streaming payload handling
 //! - Result helper methods and option combinations
 
+use cbor_primitives::{CborEncoder, CborProvider};
+use cbor_primitives_everparse::EverParseCborProvider;
+use cose_sign1_primitives::error::PayloadError;
+use cose_sign1_primitives::sig_structure::SizedRead;
+use cose_sign1_primitives::{
+    payload::{Payload, StreamingPayload},
+    CoseSign1Message,
+};
 use cose_sign1_validation::fluent::*;
-use cose_sign1_validation_test_utils::SimpleTrustPack;
 use cose_sign1_validation_primitives::{
     error::TrustError,
     facts::{FactKey, TrustFactContext, TrustFactEngine, TrustFactProducer},
@@ -20,17 +27,13 @@ use cose_sign1_validation_primitives::{
     subject::TrustSubject,
     TrustDecision, TrustEvaluationOptions,
 };
-use cbor_primitives::{CborEncoder, CborProvider};
-use cbor_primitives_everparse::EverParseCborProvider;
-use cose_sign1_primitives::{CoseSign1Message, payload::{Payload, StreamingPayload}};
-use cose_sign1_primitives::error::PayloadError;
-use cose_sign1_primitives::sig_structure::SizedRead;
+use cose_sign1_validation_test_utils::SimpleTrustPack;
 use crypto_primitives::{CryptoError, CryptoVerifier, VerifyingContext};
-use std::sync::LazyLock;
 use std::future::Future;
 use std::io::Cursor;
 use std::pin::Pin;
 use std::sync::Arc;
+use std::sync::LazyLock;
 use std::task::{Context, Poll, RawWaker, RawWakerVTable, Waker};
 
 // ---------------------------------------------------------------------------
@@ -97,7 +100,9 @@ fn allow_all_trust_plan() -> CompiledTrustPlan {
 struct StreamingVerifier;
 
 impl CryptoVerifier for StreamingVerifier {
-    fn algorithm(&self) -> i64 { -7 }
+    fn algorithm(&self) -> i64 {
+        -7
+    }
 
     fn verify(&self, _data: &[u8], _signature: &[u8]) -> Result<bool, CryptoError> {
         Ok(true)
@@ -111,14 +116,18 @@ impl CryptoVerifier for StreamingVerifier {
 struct StreamingVerifierFailsVerifyInit;
 
 impl CryptoVerifier for StreamingVerifierFailsVerifyInit {
-    fn algorithm(&self) -> i64 { -7 }
+    fn algorithm(&self) -> i64 {
+        -7
+    }
 
     fn verify(&self, _data: &[u8], _signature: &[u8]) -> Result<bool, CryptoError> {
         Ok(true)
     }
 
     fn verify_init(&self, _signature: &[u8]) -> Result<Box<dyn VerifyingContext>, CryptoError> {
-        Err(CryptoError::VerificationFailed("verify_init_failed".to_string()))
+        Err(CryptoError::VerificationFailed(
+            "verify_init_failed".to_string(),
+        ))
     }
 }
 
@@ -139,8 +148,10 @@ impl VerifyingContext for MockVerifyingContext {
 struct AlwaysTrueVerifier;
 
 impl CryptoVerifier for AlwaysTrueVerifier {
-    fn algorithm(&self) -> i64 { -7 }
-    
+    fn algorithm(&self) -> i64 {
+        -7
+    }
+
     fn verify(&self, _data: &[u8], _signature: &[u8]) -> Result<bool, CryptoError> {
         Ok(true)
     }
@@ -244,7 +255,8 @@ fn test_validate_bytes_async_happy_path() {
         }),
     );
 
-    let result = block_on(validator.validate_async(&parsed, Arc::from(cose.into_boxed_slice()))).unwrap();
+    let result =
+        block_on(validator.validate_async(&parsed, Arc::from(cose.into_boxed_slice()))).unwrap();
     assert!(result.overall.is_valid());
     assert!(result.resolution.is_valid());
     assert!(result.trust.is_valid());
@@ -255,7 +267,7 @@ fn test_validate_bytes_async_happy_path() {
 fn test_validate_bytes_async_parse_failure() {
     // Invalid CBOR bytes
     let invalid_cbor = vec![0xFF, 0xFF, 0xFF, 0xFF];
-    
+
     let validator = validator_with_components(
         vec![Arc::new(StaticKeyResolver {
             key: Arc::new(AlwaysTrueVerifier),
@@ -269,7 +281,10 @@ fn test_validate_bytes_async_parse_failure() {
         }),
     );
 
-    let result = block_on(validator.validate_bytes_async(EverParseCborProvider, Arc::from(invalid_cbor.into_boxed_slice())));
+    let result = block_on(validator.validate_bytes_async(
+        EverParseCborProvider,
+        Arc::from(invalid_cbor.into_boxed_slice()),
+    ));
     assert!(result.is_err()); // Should fail at parse stage
 }
 
@@ -301,10 +316,14 @@ fn test_validate_async_trust_failure() {
         None, // Use default trust evaluation (no bypass)
     );
 
-    let result = block_on(validator.validate_async(&parsed, Arc::from(cose.into_boxed_slice()))).unwrap();
+    let result =
+        block_on(validator.validate_async(&parsed, Arc::from(cose.into_boxed_slice()))).unwrap();
     assert_eq!(ValidationResultKind::Failure, result.trust.kind);
     assert_eq!(ValidationResultKind::NotApplicable, result.signature.kind);
-    assert_eq!(ValidationResultKind::NotApplicable, result.post_signature_policy.kind);
+    assert_eq!(
+        ValidationResultKind::NotApplicable,
+        result.post_signature_policy.kind
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -316,7 +335,7 @@ fn test_streaming_signature_large_payload() {
     // Create a payload larger than 85KB to trigger streaming
     let large_size = 100_000u64; // 100KB
     let large_payload_provider = LargePayloadProvider::new(large_size);
-    
+
     // Create COSE_Sign1 message with null payload (detached)
     let cose = build_cose_sign1_bytes(None, &encode_protected_alg(-7));
 
@@ -350,7 +369,7 @@ fn test_streaming_signature_verify_init_failure() {
     // Test the error path when verify_init fails during streaming
     let large_size = 100_000u64; // 100KB
     let large_payload_provider = LargePayloadProvider::new(large_size);
-    
+
     let cose = build_cose_sign1_bytes(None, &encode_protected_alg(-7));
 
     let validator = validator_with_components(
@@ -374,8 +393,12 @@ fn test_streaming_signature_verify_init_failure() {
         .unwrap();
 
     assert_eq!(ValidationResultKind::Failure, result.signature.kind);
-    assert!(result.signature.failures[0].message.contains("Failed to initialize verifying context"));
-    assert!(result.signature.failures[0].message.contains("verify_init_failed"));
+    assert!(result.signature.failures[0]
+        .message
+        .contains("Failed to initialize verifying context"));
+    assert!(result.signature.failures[0]
+        .message
+        .contains("verify_init_failed"));
 }
 
 // ---------------------------------------------------------------------------
@@ -476,7 +499,8 @@ fn test_counter_signature_result_helpers() {
                     Some(bytes) => TrustSubject::message(bytes.as_ref()),
                     None => TrustSubject::message(b"test"),
                 };
-                let cs_subject = TrustSubject::counter_signature(&message_subject, b"fake-counter-sig");
+                let cs_subject =
+                    TrustSubject::counter_signature(&message_subject, b"fake-counter-sig");
                 ctx.observe(CounterSignatureSubjectFact {
                     subject: cs_subject,
                     is_protected_header: false,
@@ -486,25 +510,29 @@ fn test_counter_signature_result_helpers() {
         }
 
         fn provides(&self) -> &'static [FactKey] {
-            static PROVIDED: LazyLock<[FactKey; 1]> = LazyLock::new(|| {
-                [FactKey::of::<CounterSignatureSubjectFact>()]
-            });
+            static PROVIDED: LazyLock<[FactKey; 1]> =
+                LazyLock::new(|| [FactKey::of::<CounterSignatureSubjectFact>()]);
             &*PROVIDED
         }
     }
 
     let trust_packs: Vec<Arc<dyn CoseSign1TrustPack>> = vec![
         Arc::new(CounterSigTrustPack),
-        Arc::new(SimpleTrustPack::no_facts("base_plan").with_default_trust_plan(allow_all_trust_plan())),
+        Arc::new(
+            SimpleTrustPack::no_facts("base_plan").with_default_trust_plan(allow_all_trust_plan()),
+        ),
     ];
 
-    let validator = CoseSign1Validator::advanced(trust_packs, CoseSign1ValidationOptions {
-        trust_evaluation_options: TrustEvaluationOptions {
-            bypass_trust: true,
+    let validator = CoseSign1Validator::advanced(
+        trust_packs,
+        CoseSign1ValidationOptions {
+            trust_evaluation_options: TrustEvaluationOptions {
+                bypass_trust: true,
+                ..Default::default()
+            },
             ..Default::default()
         },
-        ..Default::default()
-    });
+    );
 
     let _result = validator
         .validate_bytes(EverParseCborProvider, Arc::from(cose.into_boxed_slice()))
@@ -519,7 +547,7 @@ fn test_with_options_various_combinations() {
     let cose = build_cose_sign1_bytes(Some(b"payload"), &encode_protected_alg(-7));
 
     // Test different option combinations
-    
+
     // Test 1: Skip post-signature validation
     let validator1 = validator_with_components(
         vec![Arc::new(StaticKeyResolver {
@@ -538,7 +566,10 @@ fn test_with_options_various_combinations() {
     );
 
     let result1 = validator1
-        .validate_bytes(EverParseCborProvider, Arc::from(cose.clone().into_boxed_slice()))
+        .validate_bytes(
+            EverParseCborProvider,
+            Arc::from(cose.clone().into_boxed_slice()),
+        )
         .unwrap();
 
     assert!(result1.overall.is_valid());
@@ -561,7 +592,10 @@ fn test_with_options_various_combinations() {
     );
 
     let result2 = validator2
-        .validate_bytes(EverParseCborProvider, Arc::from(cose.clone().into_boxed_slice()))
+        .validate_bytes(
+            EverParseCborProvider,
+            Arc::from(cose.clone().into_boxed_slice()),
+        )
         .unwrap();
 
     assert!(result2.overall.is_valid());

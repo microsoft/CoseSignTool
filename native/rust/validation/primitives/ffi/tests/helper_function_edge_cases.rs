@@ -30,14 +30,12 @@ fn create_validator_builder_with_mixed_packs() -> *mut cose_sign1_validator_buil
     assert!(!builder.is_null());
 
     // Create packs
-    let plan_with_default = CompiledTrustPlan::new(
-        vec![],
-        vec![],
-        vec![allow_all("test_trust_source")],
-        vec![],
+    let plan_with_default =
+        CompiledTrustPlan::new(vec![], vec![], vec![allow_all("test_trust_source")], vec![]);
+    let pack_with_default = Arc::new(
+        SimpleTrustPack::no_facts("test_pack_with_default")
+            .with_default_trust_plan(plan_with_default),
     );
-    let pack_with_default = Arc::new(SimpleTrustPack::no_facts("test_pack_with_default")
-        .with_default_trust_plan(plan_with_default));
 
     let pack_without_default = Arc::new(SimpleTrustPack::no_facts("test_pack_no_default"));
 
@@ -47,8 +45,10 @@ fn create_validator_builder_with_mixed_packs() -> *mut cose_sign1_validator_buil
         vec![allow_all("test_trust_source_2")],
         vec![],
     );
-    let pack_with_default_2 = Arc::new(SimpleTrustPack::no_facts("test_pack_with_default_2")
-        .with_default_trust_plan(plan_with_default_2));
+    let pack_with_default_2 = Arc::new(
+        SimpleTrustPack::no_facts("test_pack_with_default_2")
+            .with_default_trust_plan(plan_with_default_2),
+    );
 
     // Add packs directly to the builder's packs vector
     // SAFETY: builder was verified non-null above via assert, and was allocated by
@@ -179,9 +179,8 @@ fn test_add_pack_default_plan_by_name_success() {
 
     // Now compile the plan - this exercises compile_or_selected
     let mut compiled_plan: *mut cose_sign1_compiled_trust_plan_t = ptr::null_mut();
-    let status = unsafe {
-        cose_sign1_trust_plan_builder_compile_or(plan_builder, &mut compiled_plan)
-    };
+    let status =
+        unsafe { cose_sign1_trust_plan_builder_compile_or(plan_builder, &mut compiled_plan) };
     assert_eq!(status, cose_status_t::COSE_OK);
     assert!(!compiled_plan.is_null());
 
@@ -208,9 +207,7 @@ fn test_to_new_utf8_all_packs() {
     assert_eq!(status, cose_status_t::COSE_OK);
 
     let mut pack_count: usize = 0;
-    let status = unsafe {
-        cose_sign1_trust_plan_builder_pack_count(plan_builder, &mut pack_count)
-    };
+    let status = unsafe { cose_sign1_trust_plan_builder_pack_count(plan_builder, &mut pack_count) };
     assert_eq!(status, cose_status_t::COSE_OK);
     assert_eq!(pack_count, 3); // We created 3 packs
 
@@ -227,15 +224,11 @@ fn test_to_new_utf8_all_packs() {
     }
 
     // Test null pointer path for pack_name_utf8
-    let name_ptr = unsafe {
-        cose_sign1_trust_plan_builder_pack_name_utf8(ptr::null(), 0)
-    };
+    let name_ptr = unsafe { cose_sign1_trust_plan_builder_pack_name_utf8(ptr::null(), 0) };
     assert!(name_ptr.is_null());
 
     // Test out of bounds index
-    let name_ptr = unsafe {
-        cose_sign1_trust_plan_builder_pack_name_utf8(plan_builder, 999)
-    };
+    let name_ptr = unsafe { cose_sign1_trust_plan_builder_pack_name_utf8(plan_builder, 999) };
     assert!(name_ptr.is_null());
 
     // Cleanup
@@ -280,9 +273,8 @@ fn test_compile_and_selected_multiple_plans() {
 
     // Compile with AND - this exercises compile_and_selected with multiple plans
     let mut compiled_plan: *mut cose_sign1_compiled_trust_plan_t = ptr::null_mut();
-    let status = unsafe {
-        cose_sign1_trust_plan_builder_compile_and(plan_builder, &mut compiled_plan)
-    };
+    let status =
+        unsafe { cose_sign1_trust_plan_builder_compile_and(plan_builder, &mut compiled_plan) };
     assert_eq!(status, cose_status_t::COSE_OK);
     assert!(!compiled_plan.is_null());
 
@@ -318,16 +310,13 @@ fn test_compile_or_null_pointers() {
     };
 
     // Try compile_or with null out_plan
-    let status = unsafe {
-        cose_sign1_trust_plan_builder_compile_or(plan_builder, ptr::null_mut())
-    };
+    let status = unsafe { cose_sign1_trust_plan_builder_compile_or(plan_builder, ptr::null_mut()) };
     assert_ne!(status, cose_status_t::COSE_OK); // Should fail
 
     // Try compile_or with null plan_builder
     let mut compiled_plan: *mut cose_sign1_compiled_trust_plan_t = ptr::null_mut();
-    let status = unsafe {
-        cose_sign1_trust_plan_builder_compile_or(ptr::null_mut(), &mut compiled_plan)
-    };
+    let status =
+        unsafe { cose_sign1_trust_plan_builder_compile_or(ptr::null_mut(), &mut compiled_plan) };
     assert_ne!(status, cose_status_t::COSE_OK); // Should fail
 
     // Cleanup
@@ -361,16 +350,14 @@ fn test_compile_and_null_pointers() {
     };
 
     // Try compile_and with null out_plan
-    let status = unsafe {
-        cose_sign1_trust_plan_builder_compile_and(plan_builder, ptr::null_mut())
-    };
+    let status =
+        unsafe { cose_sign1_trust_plan_builder_compile_and(plan_builder, ptr::null_mut()) };
     assert_ne!(status, cose_status_t::COSE_OK); // Should fail
 
     // Try compile_and with null plan_builder
     let mut compiled_plan: *mut cose_sign1_compiled_trust_plan_t = ptr::null_mut();
-    let status = unsafe {
-        cose_sign1_trust_plan_builder_compile_and(ptr::null_mut(), &mut compiled_plan)
-    };
+    let status =
+        unsafe { cose_sign1_trust_plan_builder_compile_and(ptr::null_mut(), &mut compiled_plan) };
     assert_ne!(status, cose_status_t::COSE_OK); // Should fail
 
     // Cleanup
@@ -397,16 +384,12 @@ fn test_compile_empty_selected_plans() {
     // Don't add any plans - both compile functions should fail with "no plans selected"
 
     let mut or_plan: *mut cose_sign1_compiled_trust_plan_t = ptr::null_mut();
-    let status = unsafe {
-        cose_sign1_trust_plan_builder_compile_or(plan_builder, &mut or_plan)
-    };
+    let status = unsafe { cose_sign1_trust_plan_builder_compile_or(plan_builder, &mut or_plan) };
     assert_ne!(status, cose_status_t::COSE_OK);
     assert!(or_plan.is_null());
 
     let mut and_plan: *mut cose_sign1_compiled_trust_plan_t = ptr::null_mut();
-    let status = unsafe {
-        cose_sign1_trust_plan_builder_compile_and(plan_builder, &mut and_plan)
-    };
+    let status = unsafe { cose_sign1_trust_plan_builder_compile_and(plan_builder, &mut and_plan) };
     assert_ne!(status, cose_status_t::COSE_OK);
     assert!(and_plan.is_null());
 

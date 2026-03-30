@@ -5,7 +5,7 @@
 //! can attribute hits to the catch_unwind + match code paths.
 
 use cose_sign1_signing_ffi::error::{cose_sign1_signing_error_free, CoseSign1SigningErrorHandle};
-use cose_sign1_signing_ffi::types::{CoseSign1BuilderHandle, CoseHeaderMapHandle, CoseKeyHandle};
+use cose_sign1_signing_ffi::types::{CoseHeaderMapHandle, CoseKeyHandle, CoseSign1BuilderHandle};
 use cose_sign1_signing_ffi::*;
 
 use std::ptr;
@@ -416,7 +416,13 @@ fn inner_builder_sign_with_callback_error() {
     // Create key that returns an error
     let key_type = std::ffi::CString::new("EC2").unwrap();
     let mut key: *mut CoseKeyHandle = ptr::null_mut();
-    impl_key_from_callback_inner(-7, key_type.as_ptr(), fail_sign_callback, ptr::null_mut(), &mut key);
+    impl_key_from_callback_inner(
+        -7,
+        key_type.as_ptr(),
+        fail_sign_callback,
+        ptr::null_mut(),
+        &mut key,
+    );
 
     let mut builder: *mut CoseSign1BuilderHandle = ptr::null_mut();
     impl_builder_new_inner(&mut builder);
@@ -448,7 +454,13 @@ fn inner_builder_sign_with_null_sig_callback() {
     // Create key that returns null signature
     let key_type = std::ffi::CString::new("EC2").unwrap();
     let mut key: *mut CoseKeyHandle = ptr::null_mut();
-    impl_key_from_callback_inner(-7, key_type.as_ptr(), null_sig_callback, ptr::null_mut(), &mut key);
+    impl_key_from_callback_inner(
+        -7,
+        key_type.as_ptr(),
+        null_sig_callback,
+        ptr::null_mut(),
+        &mut key,
+    );
 
     let mut builder: *mut CoseSign1BuilderHandle = ptr::null_mut();
     impl_builder_new_inner(&mut builder);
@@ -525,7 +537,13 @@ fn inner_key_from_callback_null_key_type() {
 fn inner_builder_sign_with_options() {
     let key_type = std::ffi::CString::new("EC2").unwrap();
     let mut key: *mut CoseKeyHandle = ptr::null_mut();
-    impl_key_from_callback_inner(-7, key_type.as_ptr(), mock_sign_callback, ptr::null_mut(), &mut key);
+    impl_key_from_callback_inner(
+        -7,
+        key_type.as_ptr(),
+        mock_sign_callback,
+        ptr::null_mut(),
+        &mut key,
+    );
 
     // Builder with unprotected headers and external AAD
     let mut builder: *mut CoseSign1BuilderHandle = ptr::null_mut();
@@ -588,12 +606,14 @@ fn error_inner_from_cose_error_impl_all_variants() {
     assert!(inner.code < 0);
 
     let e = CoseSign1Error::KeyError(cose_sign1_primitives::CoseKeyError::Crypto(
-        cose_sign1_primitives::CryptoError::SigningFailed("err".into())
+        cose_sign1_primitives::CryptoError::SigningFailed("err".into()),
     ));
     let inner = ErrorInner::from_cose_error(&e);
     assert!(inner.code < 0);
 
-    let e = CoseSign1Error::PayloadError(cose_sign1_primitives::PayloadError::ReadFailed("err".into()));
+    let e = CoseSign1Error::PayloadError(cose_sign1_primitives::PayloadError::ReadFailed(
+        "err".into(),
+    ));
     let inner = ErrorInner::from_cose_error(&e);
     assert!(inner.code < 0);
 

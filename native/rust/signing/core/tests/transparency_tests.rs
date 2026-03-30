@@ -3,24 +3,28 @@
 
 //! Tests for transparency provider functionality.
 
-use std::collections::HashMap;
-use cose_sign1_signing::{
-    TransparencyError, TransparencyValidationResult, extract_receipts, merge_receipts,
-    add_proof_with_receipt_merge, TransparencyProvider, RECEIPTS_HEADER_LABEL,
-};
 use cose_sign1_primitives::{
-    CoseSign1Message, CoseSign1Builder, CoseHeaderLabel, CoseHeaderValue, CoseHeaderMap, ArcSlice,
+    ArcSlice, CoseHeaderLabel, CoseHeaderMap, CoseHeaderValue, CoseSign1Builder, CoseSign1Message,
 };
-use crypto_primitives::{CryptoSigner, CryptoError};
+use cose_sign1_signing::{
+    add_proof_with_receipt_merge, extract_receipts, merge_receipts, TransparencyError,
+    TransparencyProvider, TransparencyValidationResult, RECEIPTS_HEADER_LABEL,
+};
+use crypto_primitives::{CryptoError, CryptoSigner};
+use std::collections::HashMap;
 
 #[test]
 fn test_transparency_error_display() {
     let submission_err = TransparencyError::SubmissionFailed("submit failed".to_string());
-    assert!(submission_err.to_string().contains("transparency submission failed"));
+    assert!(submission_err
+        .to_string()
+        .contains("transparency submission failed"));
     assert!(submission_err.to_string().contains("submit failed"));
 
     let verification_err = TransparencyError::VerificationFailed("verify failed".to_string());
-    assert!(verification_err.to_string().contains("transparency verification failed"));
+    assert!(verification_err
+        .to_string()
+        .contains("transparency verification failed"));
     assert!(verification_err.to_string().contains("verify failed"));
 
     let invalid_msg_err = TransparencyError::InvalidMessage("invalid msg".to_string());
@@ -52,8 +56,9 @@ fn test_transparency_validation_result_success() {
 fn test_transparency_validation_result_success_with_metadata() {
     let mut metadata = HashMap::new();
     metadata.insert("version".to_string(), "1.0".to_string());
-    
-    let result = TransparencyValidationResult::success_with_metadata("test_provider", metadata.clone());
+
+    let result =
+        TransparencyValidationResult::success_with_metadata("test_provider", metadata.clone());
     assert!(result.is_valid);
     assert!(result.errors.is_empty());
     assert_eq!(result.provider_name, "test_provider");
@@ -120,9 +125,9 @@ fn test_extract_receipts_missing_header() {
         CoseHeaderLabel::Int(123),
         CoseHeaderValue::Text("some other header".into()),
     );
-    
+
     let msg = create_test_message_with_unprotected(unprotected);
-    
+
     let receipts = extract_receipts(&msg);
     assert!(receipts.is_empty());
 }
@@ -132,20 +137,20 @@ fn test_extract_receipts_with_receipts() {
     let mut unprotected = CoseHeaderMap::new();
     let receipt1: ArcSlice = b"receipt1".to_vec().into();
     let receipt2: ArcSlice = b"receipt2".to_vec().into();
-    
+
     let receipts_array = vec![
         CoseHeaderValue::Bytes(receipt1.clone()),
         CoseHeaderValue::Bytes(receipt2.clone()),
         CoseHeaderValue::Text("not a receipt".into()), // Should be filtered out
     ];
-    
+
     unprotected.insert(
         CoseHeaderLabel::Int(RECEIPTS_HEADER_LABEL),
         CoseHeaderValue::Array(receipts_array),
     );
-    
+
     let msg = create_test_message_with_unprotected(unprotected);
-    
+
     let receipts = extract_receipts(&msg);
     assert_eq!(receipts.len(), 2);
     assert!(receipts.contains(&receipt1));
@@ -155,9 +160,9 @@ fn test_extract_receipts_with_receipts() {
 #[test]
 fn test_merge_receipts_empty_additional() {
     let mut msg = create_test_message();
-    
+
     merge_receipts::<Vec<u8>>(&mut msg, &[]);
-    
+
     // Should not have added any receipts header
     let receipts = extract_receipts(&msg);
     assert!(receipts.is_empty());
@@ -167,20 +172,20 @@ fn test_merge_receipts_empty_additional() {
 fn test_merge_receipts_with_duplicates() {
     let receipt1: ArcSlice = b"receipt1".to_vec().into();
     let receipt2: ArcSlice = b"receipt2".to_vec().into();
-    
+
     // Start with one receipt
     let mut unprotected = CoseHeaderMap::new();
     unprotected.insert(
         CoseHeaderLabel::Int(RECEIPTS_HEADER_LABEL),
         CoseHeaderValue::Array(vec![CoseHeaderValue::Bytes(receipt1.clone())]),
     );
-    
+
     let mut msg = create_test_message_with_unprotected(unprotected);
-    
+
     // Try to add the same receipt plus a new one
     let additional = vec![receipt1.clone(), receipt2.clone()];
     merge_receipts(&mut msg, &additional);
-    
+
     let receipts = extract_receipts(&msg);
     assert_eq!(receipts.len(), 2); // Should deduplicate
     assert!(receipts.contains(&receipt1));
@@ -190,10 +195,10 @@ fn test_merge_receipts_with_duplicates() {
 #[test]
 fn test_merge_receipts_skip_empty() {
     let mut msg = create_test_message();
-    
+
     let additional = vec![vec![], b"valid".to_vec(), vec![]];
     merge_receipts(&mut msg, &additional);
-    
+
     let receipts = extract_receipts(&msg);
     assert_eq!(receipts.len(), 1);
     assert!(receipts.iter().any(|r| r.as_ref() == b"valid"));
@@ -214,12 +219,12 @@ impl MockTransparencyProvider {
             add_receipt: true,
         }
     }
-    
+
     fn with_failure(mut self) -> Self {
         self.should_fail = true;
         self
     }
-    
+
     fn without_receipt(mut self) -> Self {
         self.add_receipt = false;
         self
@@ -230,32 +235,39 @@ impl TransparencyProvider for MockTransparencyProvider {
     fn provider_name(&self) -> &str {
         &self.name
     }
-    
+
     fn add_transparency_proof(&self, cose_bytes: &[u8]) -> Result<Vec<u8>, TransparencyError> {
         if self.should_fail {
-            return Err(TransparencyError::SubmissionFailed("Mock failure".to_string()));
+            return Err(TransparencyError::SubmissionFailed(
+                "Mock failure".to_string(),
+            ));
         }
-        
+
         if !self.add_receipt {
             return Ok(cose_bytes.to_vec());
         }
-        
+
         // Parse the message and add a fake receipt
         let mut msg = CoseSign1Message::parse(cose_bytes)
             .map_err(|e| TransparencyError::InvalidMessage(e.to_string()))?;
-            
+
         let fake_receipt = format!("receipt-{}", self.name).into_bytes();
         merge_receipts(&mut msg, &[fake_receipt]);
-        
+
         msg.encode(true)
             .map_err(|e| TransparencyError::InvalidMessage(e.to_string()))
     }
-    
-    fn verify_transparency_proof(&self, _cose_bytes: &[u8]) -> Result<TransparencyValidationResult, TransparencyError> {
+
+    fn verify_transparency_proof(
+        &self,
+        _cose_bytes: &[u8],
+    ) -> Result<TransparencyValidationResult, TransparencyError> {
         if self.should_fail {
-            return Err(TransparencyError::VerificationFailed("Mock verification failure".to_string()));
+            return Err(TransparencyError::VerificationFailed(
+                "Mock verification failure".to_string(),
+            ));
         }
-        
+
         Ok(TransparencyValidationResult::success(&self.name))
     }
 }
@@ -263,16 +275,16 @@ impl TransparencyProvider for MockTransparencyProvider {
 #[test]
 fn test_add_proof_with_receipt_merge_success() {
     let provider = MockTransparencyProvider::new("test");
-    
+
     // Create a simple COSE message
     let msg = create_test_message();
-    
+
     let original_bytes = msg.encode(true).expect("Failed to encode message");
     let result = add_proof_with_receipt_merge(&provider, &original_bytes);
-    
+
     assert!(result.is_ok());
     let result_bytes = result.unwrap();
-    
+
     // Parse the result and check that a receipt was added
     let result_msg = CoseSign1Message::parse(&result_bytes).expect("Failed to parse result");
     let receipts = extract_receipts(&result_msg);
@@ -283,22 +295,24 @@ fn test_add_proof_with_receipt_merge_success() {
 #[test]
 fn test_add_proof_with_receipt_merge_preserve_existing() {
     let provider = MockTransparencyProvider::new("test");
-    
+
     // Create a message with an existing receipt
     let mut unprotected = CoseHeaderMap::new();
     unprotected.insert(
         CoseHeaderLabel::Int(RECEIPTS_HEADER_LABEL),
-        CoseHeaderValue::Array(vec![CoseHeaderValue::Bytes(b"existing-receipt".to_vec().into())]),
+        CoseHeaderValue::Array(vec![CoseHeaderValue::Bytes(
+            b"existing-receipt".to_vec().into(),
+        )]),
     );
-    
+
     let msg = create_test_message_with_unprotected(unprotected);
-    
+
     let original_bytes = msg.encode(true).expect("Failed to encode message");
     let result = add_proof_with_receipt_merge(&provider, &original_bytes);
-    
+
     assert!(result.is_ok());
     let result_bytes = result.unwrap();
-    
+
     // Parse the result and check that both receipts are present
     let result_msg = CoseSign1Message::parse(&result_bytes).expect("Failed to parse result");
     let receipts = extract_receipts(&result_msg);
@@ -310,12 +324,12 @@ fn test_add_proof_with_receipt_merge_preserve_existing() {
 #[test]
 fn test_add_proof_with_receipt_merge_provider_error() {
     let provider = MockTransparencyProvider::new("test").with_failure();
-    
+
     let msg = create_test_message();
-    
+
     let original_bytes = msg.encode(true).expect("Failed to encode message");
     let result = add_proof_with_receipt_merge(&provider, &original_bytes);
-    
+
     assert!(result.is_err());
     match result.unwrap_err() {
         TransparencyError::SubmissionFailed(msg) => assert!(msg.contains("Mock failure")),
@@ -326,35 +340,37 @@ fn test_add_proof_with_receipt_merge_provider_error() {
 #[test]
 fn test_add_proof_with_receipt_merge_invalid_input() {
     let provider = MockTransparencyProvider::new("test");
-    
+
     // Use invalid COSE bytes
     let invalid_bytes = b"not a valid cose message";
     let result = add_proof_with_receipt_merge(&provider, invalid_bytes);
-    
+
     // Should fail because the provider will try to parse the invalid message
     assert!(result.is_err());
     match result.unwrap_err() {
-        TransparencyError::InvalidMessage(_) => {},
+        TransparencyError::InvalidMessage(_) => {}
         _ => panic!("Expected InvalidMessage error"),
     }
 }
 
-#[test] 
+#[test]
 fn test_add_proof_with_receipt_merge_no_new_receipt() {
     let provider = MockTransparencyProvider::new("test").without_receipt();
-    
+
     // Create a message with an existing receipt
     let mut unprotected = CoseHeaderMap::new();
     unprotected.insert(
         CoseHeaderLabel::Int(RECEIPTS_HEADER_LABEL),
-        CoseHeaderValue::Array(vec![CoseHeaderValue::Bytes(b"existing-receipt".to_vec().into())]),
+        CoseHeaderValue::Array(vec![CoseHeaderValue::Bytes(
+            b"existing-receipt".to_vec().into(),
+        )]),
     );
-    
+
     let msg = create_test_message_with_unprotected(unprotected);
-    
+
     let original_bytes = msg.encode(true).expect("Failed to encode message");
     let result = add_proof_with_receipt_merge(&provider, &original_bytes);
-    
+
     assert!(result.is_ok());
     // Should preserve the existing receipt even if provider doesn't add new ones
     let result_bytes = result.unwrap();

@@ -9,7 +9,7 @@
 //! - post-signature validation (additional policy checks)
 //! - an optional secure-by-default trust plan
 
-use crate::validator::{PostSignatureValidator, CoseKeyResolver};
+use crate::validator::{CoseKeyResolver, PostSignatureValidator};
 use cose_sign1_validation_primitives::facts::TrustFactProducer;
 use cose_sign1_validation_primitives::plan::CompiledTrustPlan;
 use std::sync::Arc;

@@ -101,12 +101,10 @@ pub unsafe extern "C" fn cose_sign1_factories_error_message(
 
     match CString::new(inner.message.as_str()) {
         Ok(c_str) => c_str.into_raw(),
-        Err(_) => {
-            match CString::new("error message contained NUL byte") {
-                Ok(c_str) => c_str.into_raw(),
-                Err(_) => ptr::null_mut(),
-            }
-        }
+        Err(_) => match CString::new("error message contained NUL byte") {
+            Ok(c_str) => c_str.into_raw(),
+            Err(_) => ptr::null_mut(),
+        },
     }
 }
 
@@ -117,7 +115,9 @@ pub unsafe extern "C" fn cose_sign1_factories_error_message(
 /// - `handle` must be a valid error handle or null
 #[no_mangle]
 #[cfg_attr(coverage_nightly, coverage(off))]
-pub unsafe extern "C" fn cose_sign1_factories_error_code(handle: *const CoseSign1FactoriesErrorHandle) -> i32 {
+pub unsafe extern "C" fn cose_sign1_factories_error_code(
+    handle: *const CoseSign1FactoriesErrorHandle,
+) -> i32 {
     match unsafe { handle_to_inner(handle) } {
         Some(inner) => inner.code,
         None => 0,
@@ -132,7 +132,9 @@ pub unsafe extern "C" fn cose_sign1_factories_error_code(handle: *const CoseSign
 /// - The handle must not be used after this call
 #[no_mangle]
 #[cfg_attr(coverage_nightly, coverage(off))]
-pub unsafe extern "C" fn cose_sign1_factories_error_free(handle: *mut CoseSign1FactoriesErrorHandle) {
+pub unsafe extern "C" fn cose_sign1_factories_error_free(
+    handle: *mut CoseSign1FactoriesErrorHandle,
+) {
     if handle.is_null() {
         return;
     }

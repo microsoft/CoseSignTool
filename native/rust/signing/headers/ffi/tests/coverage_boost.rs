@@ -1,7 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-
 //! Targeted coverage tests for cose_sign1_headers_ffi.
 //!
 //! Covers uncovered lines:
@@ -336,12 +335,7 @@ fn from_cbor_inner_null_data_returns_null_pointer() {
     let mut handle: *mut CoseCwtClaimsHandle = ptr::null_mut();
     let mut err: *mut CoseCwtErrorHandle = ptr::null_mut();
 
-    let rc: i32 = impl_cwt_claims_from_cbor_inner(
-        ptr::null(),
-        0,
-        &mut handle,
-        &mut err,
-    );
+    let rc: i32 = impl_cwt_claims_from_cbor_inner(ptr::null(), 0, &mut handle, &mut err);
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     free_error(err);
 }
@@ -372,12 +366,7 @@ fn to_cbor_inner_null_out_bytes() {
     let handle: *mut CoseCwtClaimsHandle = create_claims_handle();
     let mut err: *mut CoseCwtErrorHandle = ptr::null_mut();
 
-    let rc: i32 = impl_cwt_claims_to_cbor_inner(
-        handle,
-        ptr::null_mut(),
-        ptr::null_mut(),
-        &mut err,
-    );
+    let rc: i32 = impl_cwt_claims_to_cbor_inner(handle, ptr::null_mut(), ptr::null_mut(), &mut err);
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     free_error(err);
     unsafe { cose_cwt_claims_free(handle) };
@@ -390,12 +379,8 @@ fn to_cbor_inner_null_handle() {
     let mut out_len: u32 = 0;
     let mut err: *mut CoseCwtErrorHandle = ptr::null_mut();
 
-    let rc: i32 = impl_cwt_claims_to_cbor_inner(
-        ptr::null(),
-        &mut out_bytes,
-        &mut out_len,
-        &mut err,
-    );
+    let rc: i32 =
+        impl_cwt_claims_to_cbor_inner(ptr::null(), &mut out_bytes, &mut out_len, &mut err);
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     free_error(err);
 }

@@ -8,15 +8,18 @@ use crate::parsing::percent_encoding::percent_decode;
 
 /// Encode bytes as lowercase hex string.
 fn hex_encode(bytes: &[u8]) -> String {
-    bytes.iter().fold(String::with_capacity(bytes.len() * 2), |mut s, b| {
-        use std::fmt::Write;
-        write!(s, "{:02x}", b).unwrap();
-        s
-    })
+    bytes
+        .iter()
+        .fold(String::with_capacity(bytes.len() * 2), |mut s, b| {
+            use std::fmt::Write;
+            write!(s, "{:02x}", b).unwrap();
+            s
+        })
 }
 
 // Inline base64url utilities
-const BASE64_URL_SAFE: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+const BASE64_URL_SAFE: &[u8; 64] =
+    b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
 
 fn base64_decode(input: &str, alphabet: &[u8; 64]) -> Result<Vec<u8>, String> {
     let mut lookup = [0xFFu8; 256];
@@ -153,9 +156,7 @@ impl DidX509Parser {
             // Split policy into name:value
             let first_colon = policy_part.find(':');
             if first_colon.is_none() || first_colon == Some(0) {
-                return Err(DidX509Error::InvalidPolicyFormat(
-                    "name:value".to_string(),
-                ));
+                return Err(DidX509Error::InvalidPolicyFormat("name:value".to_string()));
             }
 
             let colon_idx = first_colon.unwrap();
@@ -190,7 +191,10 @@ impl DidX509Parser {
     }
 }
 
-fn parse_policy_value(policy_name: &str, policy_value: &str) -> Result<DidX509Policy, DidX509Error> {
+fn parse_policy_value(
+    policy_name: &str,
+    policy_value: &str,
+) -> Result<DidX509Policy, DidX509Error> {
     match policy_name.to_lowercase().as_str() {
         POLICY_SUBJECT => parse_subject_policy(policy_value),
         POLICY_SAN => parse_san_policy(policy_value),
@@ -209,7 +213,7 @@ fn parse_subject_policy(value: &str) -> Result<DidX509Policy, DidX509Error> {
     // Format: key:value:key:value:...
     let parts: Vec<&str> = value.split(':').collect();
 
-    if parts.len() % 2 != 0 {
+    if !parts.len().is_multiple_of(2) {
         return Err(DidX509Error::InvalidSubjectPolicyComponents);
     }
 
@@ -264,7 +268,7 @@ fn parse_san_policy(value: &str) -> Result<DidX509Policy, DidX509Error> {
 fn parse_eku_policy(value: &str) -> Result<DidX509Policy, DidX509Error> {
     // Format: OID or multiple OIDs separated by colons
     let oids: Vec<&str> = value.split(':').collect();
-    
+
     let mut valid_oids = Vec::new();
     for oid in oids {
         if !is_valid_oid(oid) {
@@ -289,9 +293,9 @@ fn parse_fulcio_issuer_policy(value: &str) -> Result<DidX509Policy, DidX509Error
 }
 
 pub fn is_valid_base64url(value: &str) -> bool {
-    value.chars().all(|c| {
-        c.is_ascii_alphanumeric() || c == '-' || c == '_'
-    })
+    value
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
 }
 
 fn decode_base64url(input: &str) -> Result<Vec<u8>, DidX509Error> {
@@ -309,7 +313,7 @@ pub fn is_valid_oid(value: &str) -> bool {
         return false;
     }
 
-    parts.iter().all(|part| {
-        !part.is_empty() && part.chars().all(|c| c.is_ascii_digit())
-    })
+    parts
+        .iter()
+        .all(|part| !part.is_empty() && part.chars().all(|c| c.is_ascii_digit()))
 }

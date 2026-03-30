@@ -1,19 +1,21 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-use cose_sign1_validation::fluent::*;
-use cose_sign1_validation_test_utils::SimpleTrustPack;
 use cbor_primitives::{CborEncoder, CborProvider};
 use cbor_primitives_everparse::EverParseCborProvider;
+use cose_sign1_validation::fluent::*;
 use cose_sign1_validation_primitives::{CoseHeaderLocation, CoseSign1Message};
+use cose_sign1_validation_test_utils::SimpleTrustPack;
 use sha2::Digest;
 use std::sync::Arc;
 
 struct AlwaysTrueVerifier;
 
 impl CryptoVerifier for AlwaysTrueVerifier {
-    fn algorithm(&self) -> i64 { -7 }
-    
+    fn algorithm(&self) -> i64 {
+        -7
+    }
+
     fn verify(&self, _data: &[u8], _signature: &[u8]) -> Result<bool, CryptoError> {
         Ok(true)
     }
@@ -31,7 +33,10 @@ impl CoseKeyResolver for AlwaysTrueKeyResolver {
     }
 }
 
-fn build_protected_header(map_len: usize, entries: impl FnOnce(&mut cbor_primitives_everparse::EverParseEncoder)) -> Vec<u8> {
+fn build_protected_header(
+    map_len: usize,
+    entries: impl FnOnce(&mut cbor_primitives_everparse::EverParseEncoder),
+) -> Vec<u8> {
     let p = EverParseCborProvider;
     let mut hdr_enc = p.encoder();
 
@@ -121,7 +126,8 @@ fn legacy_hash_extension_succeeds_when_detached_payload_matches() {
         enc.encode_i64(1).unwrap();
         enc.encode_i64(-7).unwrap();
         enc.encode_i64(3).unwrap();
-        enc.encode_bstr("application/octet-stream+hash-sha256".as_bytes()).unwrap();
+        enc.encode_bstr("application/octet-stream+hash-sha256".as_bytes())
+            .unwrap();
     });
 
     let cose = build_cose_sign1(&hdr, &expected_hash);
@@ -144,7 +150,8 @@ fn legacy_hash_extension_fails_when_detached_payload_mismatches() {
         enc.encode_i64(1).unwrap();
         enc.encode_i64(-7).unwrap();
         enc.encode_i64(3).unwrap();
-        enc.encode_bstr("application/octet-stream+hash-sha256".as_bytes()).unwrap();
+        enc.encode_bstr("application/octet-stream+hash-sha256".as_bytes())
+            .unwrap();
     });
 
     let cose = build_cose_sign1(&hdr, &wrong_hash);
@@ -177,7 +184,8 @@ fn cose_hash_v_succeeds_when_detached_payload_matches() {
         enc.encode_i64(1).unwrap();
         enc.encode_i64(-7).unwrap();
         enc.encode_i64(3).unwrap();
-        enc.encode_bstr("application/octet-stream+cose-hash-v".as_bytes()).unwrap();
+        enc.encode_bstr("application/octet-stream+cose-hash-v".as_bytes())
+            .unwrap();
     });
 
     let cose = build_cose_sign1(&hdr, &hv_buf);
@@ -242,9 +250,13 @@ fn indirect_signatures_are_treated_as_signature_only_when_no_detached_payload_is
 }
 
 fn build_cose_sign1(protected_header_bytes: &[u8], payload: &[u8]) -> Vec<u8> {
-    build_cose_sign1_with_unprotected(protected_header_bytes, |enc| {
-        enc.encode_map(0).unwrap();
-    }, Some(payload))
+    build_cose_sign1_with_unprotected(
+        protected_header_bytes,
+        |enc| {
+            enc.encode_map(0).unwrap();
+        },
+        Some(payload),
+    )
 }
 
 struct ErroringProvider {
@@ -256,8 +268,15 @@ impl StreamingPayload for ErroringProvider {
         0
     }
 
-    fn open(&self) -> Result<Box<dyn cose_sign1_primitives::sig_structure::SizedRead + Send>, cose_sign1_primitives::error::PayloadError> {
-        Err(cose_sign1_primitives::error::PayloadError::OpenFailed(self.open_error.clone()))
+    fn open(
+        &self,
+    ) -> Result<
+        Box<dyn cose_sign1_primitives::sig_structure::SizedRead + Send>,
+        cose_sign1_primitives::error::PayloadError,
+    > {
+        Err(cose_sign1_primitives::error::PayloadError::OpenFailed(
+            self.open_error.clone(),
+        ))
     }
 }
 
@@ -265,10 +284,7 @@ struct ErroringReader;
 
 impl std::io::Read for ErroringReader {
     fn read(&mut self, _buf: &mut [u8]) -> std::io::Result<usize> {
-        Err(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            "boom",
-        ))
+        Err(std::io::Error::new(std::io::ErrorKind::Other, "boom"))
     }
 }
 
@@ -285,7 +301,12 @@ impl StreamingPayload for ReadErrorProvider {
         0
     }
 
-    fn open(&self) -> Result<Box<dyn cose_sign1_primitives::sig_structure::SizedRead + Send>, cose_sign1_primitives::error::PayloadError> {
+    fn open(
+        &self,
+    ) -> Result<
+        Box<dyn cose_sign1_primitives::sig_structure::SizedRead + Send>,
+        cose_sign1_primitives::error::PayloadError,
+    > {
         Ok(Box::new(ErroringReader))
     }
 }
@@ -316,7 +337,10 @@ fn unprotected_content_type_is_only_honored_when_header_location_is_any() {
     // Default (Protected-only): should ignore unprotected Content-Type and treat as not-indirect.
     let v_protected = validator_with_detached_payload(Some(artifact.clone()), None);
     let result = v_protected
-        .validate_bytes(EverParseCborProvider, Arc::from(cose.clone().into_boxed_slice()))
+        .validate_bytes(
+            EverParseCborProvider,
+            Arc::from(cose.clone().into_boxed_slice()),
+        )
         .unwrap();
     assert!(result.overall.is_valid());
     assert!(result.post_signature_policy.is_valid());
@@ -340,7 +364,8 @@ fn legacy_hash_extension_fails_when_hash_algorithm_is_unsupported() {
         enc.encode_i64(1).unwrap();
         enc.encode_i64(-7).unwrap();
         enc.encode_i64(3).unwrap();
-        enc.encode_bstr("application/octet-stream+hash-md5".as_bytes()).unwrap();
+        enc.encode_bstr("application/octet-stream+hash-md5".as_bytes())
+            .unwrap();
     });
 
     let cose = build_cose_sign1(&hdr, &expected_hash);
@@ -364,7 +389,8 @@ fn cose_hash_v_fails_when_payload_is_not_a_valid_cose_hash_v() {
         enc.encode_i64(1).unwrap();
         enc.encode_i64(-7).unwrap();
         enc.encode_i64(3).unwrap();
-        enc.encode_bstr("application/octet-stream+cose-hash-v".as_bytes()).unwrap();
+        enc.encode_bstr("application/octet-stream+cose-hash-v".as_bytes())
+            .unwrap();
     });
 
     // payload: invalid CBOR (empty)
@@ -447,7 +473,8 @@ fn indirect_signature_fails_when_detached_payload_is_empty() {
         enc.encode_i64(1).unwrap();
         enc.encode_i64(-7).unwrap();
         enc.encode_i64(3).unwrap();
-        enc.encode_bstr("application/octet-stream+hash-sha256".as_bytes()).unwrap();
+        enc.encode_bstr("application/octet-stream+hash-sha256".as_bytes())
+            .unwrap();
     });
 
     let hash = sha2::Sha256::digest(b"anything".as_slice()).to_vec();
@@ -474,7 +501,8 @@ fn indirect_signature_fails_when_provider_open_fails() {
         enc.encode_i64(1).unwrap();
         enc.encode_i64(-7).unwrap();
         enc.encode_i64(3).unwrap();
-        enc.encode_bstr("application/octet-stream+hash-sha256".as_bytes()).unwrap();
+        enc.encode_bstr("application/octet-stream+hash-sha256".as_bytes())
+            .unwrap();
     });
     let cose = build_cose_sign1(&hdr, &expected_hash);
 
@@ -508,7 +536,8 @@ fn indirect_signature_fails_when_provider_reader_errors() {
         enc.encode_i64(1).unwrap();
         enc.encode_i64(-7).unwrap();
         enc.encode_i64(3).unwrap();
-        enc.encode_bstr("application/octet-stream+hash-sha256".as_bytes()).unwrap();
+        enc.encode_bstr("application/octet-stream+hash-sha256".as_bytes())
+            .unwrap();
     });
     let cose = build_cose_sign1(&hdr, &expected_hash);
 
@@ -615,7 +644,8 @@ fn cose_hash_v_fails_when_hash_is_empty() {
         enc.encode_i64(1).unwrap();
         enc.encode_i64(-7).unwrap();
         enc.encode_i64(3).unwrap();
-        enc.encode_bstr("application/octet-stream+cose-hash-v".as_bytes()).unwrap();
+        enc.encode_bstr("application/octet-stream+cose-hash-v".as_bytes())
+            .unwrap();
     });
 
     let cose = build_cose_sign1(&hdr, &hv_buf);
@@ -646,7 +676,8 @@ fn cose_hash_v_fails_when_alg_is_unsupported() {
         enc.encode_i64(1).unwrap();
         enc.encode_i64(-7).unwrap();
         enc.encode_i64(3).unwrap();
-        enc.encode_bstr("application/octet-stream+cose-hash-v".as_bytes()).unwrap();
+        enc.encode_bstr("application/octet-stream+cose-hash-v".as_bytes())
+            .unwrap();
     });
 
     let cose = build_cose_sign1(&hdr, &hv_buf);
@@ -744,7 +775,8 @@ fn legacy_hash_extension_succeeds_for_sha384() {
         enc.encode_i64(1).unwrap();
         enc.encode_i64(-7).unwrap();
         enc.encode_i64(3).unwrap();
-        enc.encode_bstr("application/octet-stream+hash-sha384".as_bytes()).unwrap();
+        enc.encode_bstr("application/octet-stream+hash-sha384".as_bytes())
+            .unwrap();
     });
 
     let cose = build_cose_sign1(&hdr, &expected_hash);
@@ -818,7 +850,8 @@ fn legacy_hash_extension_succeeds_for_sha512() {
         enc.encode_i64(1).unwrap();
         enc.encode_i64(-7).unwrap();
         enc.encode_i64(3).unwrap();
-        enc.encode_bstr("application/octet-stream+hash-sha512".as_bytes()).unwrap();
+        enc.encode_bstr("application/octet-stream+hash-sha512".as_bytes())
+            .unwrap();
     });
 
     let cose = build_cose_sign1(&hdr, &expected_hash);
@@ -842,7 +875,8 @@ fn legacy_hash_extension_succeeds_for_sha1() {
         enc.encode_i64(1).unwrap();
         enc.encode_i64(-7).unwrap();
         enc.encode_i64(3).unwrap();
-        enc.encode_bstr("application/octet-stream+hash-sha1".as_bytes()).unwrap();
+        enc.encode_bstr("application/octet-stream+hash-sha1".as_bytes())
+            .unwrap();
     });
 
     let cose = build_cose_sign1(&hdr, &expected_hash);
@@ -865,7 +899,8 @@ fn legacy_hash_extension_hashes_with_sha256_via_provider_streaming() {
         enc.encode_i64(1).unwrap();
         enc.encode_i64(-7).unwrap();
         enc.encode_i64(3).unwrap();
-        enc.encode_bstr("application/octet-stream+hash-sha256".as_bytes()).unwrap();
+        enc.encode_bstr("application/octet-stream+hash-sha256".as_bytes())
+            .unwrap();
     });
 
     let cose = build_cose_sign1(&hdr, &expected_hash);

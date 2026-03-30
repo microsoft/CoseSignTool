@@ -207,7 +207,9 @@ impl crypto_primitives::VerifyingContext for StreamingErrorCtx {
         Ok(())
     }
     fn finalize(self: Box<Self>) -> Result<bool, CryptoError> {
-        Err(CryptoError::VerificationFailed("streaming boom".to_string()))
+        Err(CryptoError::VerificationFailed(
+            "streaming boom".to_string(),
+        ))
     }
 }
 
@@ -495,9 +497,8 @@ impl TrustFactProducer for IntegrityFactProducer {
     }
 
     fn provides(&self) -> &'static [FactKey] {
-        static KEYS: std::sync::LazyLock<[FactKey; 1]> = std::sync::LazyLock::new(|| {
-            [FactKey::of::<CounterSignatureEnvelopeIntegrityFact>()]
-        });
+        static KEYS: std::sync::LazyLock<[FactKey; 1]> =
+            std::sync::LazyLock::new(|| [FactKey::of::<CounterSignatureEnvelopeIntegrityFact>()]);
         &*KEYS
     }
 
@@ -531,10 +532,11 @@ fn validator_with(
     }
 
     if !post_validators.is_empty() {
-        let pack = post_validators.into_iter().fold(
-            SimpleTrustPack::no_facts("post_sig_pack"),
-            |p, v| p.with_post_signature_validator(v),
-        );
+        let pack = post_validators
+            .into_iter()
+            .fold(SimpleTrustPack::no_facts("post_sig_pack"), |p, v| {
+                p.with_post_signature_validator(v)
+            });
         trust_packs.push(Arc::new(pack));
     }
 
@@ -564,11 +566,9 @@ fn validate_bytes_async_success_covers_info_debug_logging() {
         o.trust_evaluation_options.bypass_trust = true;
     });
 
-    let result = block_on(v.validate_bytes_async(
-        EverParseCborProvider,
-        Arc::from(cose.into_boxed_slice()),
-    ))
-    .unwrap();
+    let result =
+        block_on(v.validate_bytes_async(EverParseCborProvider, Arc::from(cose.into_boxed_slice())))
+            .unwrap();
 
     assert_eq!(ValidationResultKind::Success, result.overall.kind);
 }
@@ -615,13 +615,9 @@ fn validate_async_embedded_success() {
 #[test]
 fn resolution_success_but_null_key_falls_through_to_failure_with_diagnostics() {
     let cose = build_cose_sign1(Some(b"payload"), Some(-7));
-    let v = validator_with(
-        Some(Arc::new(SuccessButNullKeyResolver)),
-        vec![],
-        |o| {
-            o.trust_evaluation_options.bypass_trust = true;
-        },
-    );
+    let v = validator_with(Some(Arc::new(SuccessButNullKeyResolver)), vec![], |o| {
+        o.trust_evaluation_options.bypass_trust = true;
+    });
 
     let result = v
         .validate_bytes(EverParseCborProvider, Arc::from(cose.into_boxed_slice()))
@@ -639,13 +635,9 @@ fn resolution_success_but_null_key_falls_through_to_failure_with_diagnostics() {
 #[test]
 fn resolution_with_multiple_diagnostics_are_joined() {
     let cose = build_cose_sign1(Some(b"payload"), Some(-7));
-    let v = validator_with(
-        Some(Arc::new(DiagnosticFailResolver)),
-        vec![],
-        |o| {
-            o.trust_evaluation_options.bypass_trust = true;
-        },
-    );
+    let v = validator_with(Some(Arc::new(DiagnosticFailResolver)), vec![], |o| {
+        o.trust_evaluation_options.bypass_trust = true;
+    });
 
     let result = v
         .validate_bytes(EverParseCborProvider, Arc::from(cose.into_boxed_slice()))
@@ -664,19 +656,13 @@ fn resolution_with_multiple_diagnostics_are_joined() {
 #[test]
 fn async_resolution_success_but_null_key_reports_diagnostics() {
     let cose = build_cose_sign1(Some(b"payload"), Some(-7));
-    let v = validator_with(
-        Some(Arc::new(SuccessButNullKeyResolver)),
-        vec![],
-        |o| {
-            o.trust_evaluation_options.bypass_trust = true;
-        },
-    );
+    let v = validator_with(Some(Arc::new(SuccessButNullKeyResolver)), vec![], |o| {
+        o.trust_evaluation_options.bypass_trust = true;
+    });
 
-    let result = block_on(v.validate_bytes_async(
-        EverParseCborProvider,
-        Arc::from(cose.into_boxed_slice()),
-    ))
-    .unwrap();
+    let result =
+        block_on(v.validate_bytes_async(EverParseCborProvider, Arc::from(cose.into_boxed_slice())))
+            .unwrap();
 
     assert_eq!(ValidationResultKind::Failure, result.resolution.kind);
 }
@@ -684,19 +670,13 @@ fn async_resolution_success_but_null_key_reports_diagnostics() {
 #[test]
 fn async_resolution_failure_with_diagnostics() {
     let cose = build_cose_sign1(Some(b"payload"), Some(-7));
-    let v = validator_with(
-        Some(Arc::new(DiagnosticFailResolver)),
-        vec![],
-        |o| {
-            o.trust_evaluation_options.bypass_trust = true;
-        },
-    );
+    let v = validator_with(Some(Arc::new(DiagnosticFailResolver)), vec![], |o| {
+        o.trust_evaluation_options.bypass_trust = true;
+    });
 
-    let result = block_on(v.validate_bytes_async(
-        EverParseCborProvider,
-        Arc::from(cose.into_boxed_slice()),
-    ))
-    .unwrap();
+    let result =
+        block_on(v.validate_bytes_async(EverParseCborProvider, Arc::from(cose.into_boxed_slice())))
+            .unwrap();
 
     assert_eq!(ValidationResultKind::Failure, result.resolution.kind);
 }
@@ -711,19 +691,16 @@ fn async_pipeline_resolution_fails_no_bypass_returns_not_applicable() {
 
     // No resolvers => resolution fails, no counter-sig bypass => early exit
     let trust_packs: Vec<Arc<dyn CoseSign1TrustPack>> = vec![Arc::new(
-        SimpleTrustPack::no_facts("allow_all")
-            .with_default_trust_plan(allow_all_trust_plan()),
+        SimpleTrustPack::no_facts("allow_all").with_default_trust_plan(allow_all_trust_plan()),
     )];
 
     let v = CoseSign1Validator::new(trust_packs).with_options(|o| {
         o.trust_evaluation_options.bypass_trust = true;
     });
 
-    let result = block_on(v.validate_bytes_async(
-        EverParseCborProvider,
-        Arc::from(cose.into_boxed_slice()),
-    ))
-    .unwrap();
+    let result =
+        block_on(v.validate_bytes_async(EverParseCborProvider, Arc::from(cose.into_boxed_slice())))
+            .unwrap();
 
     assert_eq!(ValidationResultKind::Failure, result.resolution.kind);
     assert_eq!(ValidationResultKind::NotApplicable, result.trust.kind);
@@ -748,11 +725,9 @@ fn async_pipeline_trust_denied_returns_not_applicable_signature() {
     // Empty trust plan with bypass_trust = false denies trust
     let v = validator_with(Some(resolver), vec![], |_o| {});
 
-    let result = block_on(v.validate_bytes_async(
-        EverParseCborProvider,
-        Arc::from(cose.into_boxed_slice()),
-    ))
-    .unwrap();
+    let result =
+        block_on(v.validate_bytes_async(EverParseCborProvider, Arc::from(cose.into_boxed_slice())))
+            .unwrap();
 
     assert_eq!(ValidationResultKind::Failure, result.trust.kind);
     assert_eq!(ValidationResultKind::NotApplicable, result.signature.kind);
@@ -773,11 +748,9 @@ fn async_pipeline_full_success_merges_metadata() {
         o.trust_evaluation_options.bypass_trust = true;
     });
 
-    let result = block_on(v.validate_bytes_async(
-        EverParseCborProvider,
-        Arc::from(cose.into_boxed_slice()),
-    ))
-    .unwrap();
+    let result =
+        block_on(v.validate_bytes_async(EverParseCborProvider, Arc::from(cose.into_boxed_slice())))
+            .unwrap();
 
     assert_eq!(ValidationResultKind::Success, result.overall.kind);
     assert_eq!(ValidationResultKind::Success, result.resolution.kind);
@@ -799,11 +772,9 @@ fn async_pipeline_signature_failure_returns_not_applicable_post_sig() {
         o.trust_evaluation_options.bypass_trust = true;
     });
 
-    let result = block_on(v.validate_bytes_async(
-        EverParseCborProvider,
-        Arc::from(cose.into_boxed_slice()),
-    ))
-    .unwrap();
+    let result =
+        block_on(v.validate_bytes_async(EverParseCborProvider, Arc::from(cose.into_boxed_slice())))
+            .unwrap();
 
     assert_eq!(ValidationResultKind::Failure, result.signature.kind);
     assert_eq!(
@@ -830,11 +801,9 @@ fn async_pipeline_post_signature_failure() {
         },
     );
 
-    let result = block_on(v.validate_bytes_async(
-        EverParseCborProvider,
-        Arc::from(cose.into_boxed_slice()),
-    ))
-    .unwrap();
+    let result =
+        block_on(v.validate_bytes_async(EverParseCborProvider, Arc::from(cose.into_boxed_slice())))
+            .unwrap();
 
     assert_eq!(
         ValidationResultKind::Failure,
@@ -862,11 +831,9 @@ fn async_pipeline_post_sig_skip_returns_success() {
         },
     );
 
-    let result = block_on(v.validate_bytes_async(
-        EverParseCborProvider,
-        Arc::from(cose.into_boxed_slice()),
-    ))
-    .unwrap();
+    let result =
+        block_on(v.validate_bytes_async(EverParseCborProvider, Arc::from(cose.into_boxed_slice())))
+            .unwrap();
 
     assert_eq!(
         ValidationResultKind::Success,
@@ -883,9 +850,7 @@ fn async_pipeline_post_sig_empty_validators_returns_success() {
 
     // No post-sig validators at all (tests line 1640)
     let trust_packs: Vec<Arc<dyn CoseSign1TrustPack>> = vec![
-        Arc::new(
-            SimpleTrustPack::no_facts("resolver_pack").with_cose_key_resolver(resolver),
-        ),
+        Arc::new(SimpleTrustPack::no_facts("resolver_pack").with_cose_key_resolver(resolver)),
         Arc::new(
             SimpleTrustPack::no_facts("allow_all_trust")
                 .with_default_trust_plan(allow_all_trust_plan()),
@@ -896,11 +861,9 @@ fn async_pipeline_post_sig_empty_validators_returns_success() {
         o.trust_evaluation_options.bypass_trust = true;
     });
 
-    let result = block_on(v.validate_bytes_async(
-        EverParseCborProvider,
-        Arc::from(cose.into_boxed_slice()),
-    ))
-    .unwrap();
+    let result =
+        block_on(v.validate_bytes_async(EverParseCborProvider, Arc::from(cose.into_boxed_slice())))
+            .unwrap();
 
     assert_eq!(ValidationResultKind::Success, result.overall.kind);
 }
@@ -916,9 +879,7 @@ fn sync_post_sig_empty_validators_returns_success() {
     let resolver: Arc<dyn CoseKeyResolver> = Arc::new(StaticResolver { key });
 
     let trust_packs: Vec<Arc<dyn CoseSign1TrustPack>> = vec![
-        Arc::new(
-            SimpleTrustPack::no_facts("resolver_pack").with_cose_key_resolver(resolver),
-        ),
+        Arc::new(SimpleTrustPack::no_facts("resolver_pack").with_cose_key_resolver(resolver)),
         Arc::new(
             SimpleTrustPack::no_facts("allow_all_trust")
                 .with_default_trust_plan(allow_all_trust_plan()),
@@ -943,7 +904,8 @@ fn sync_post_sig_empty_validators_returns_success() {
 #[test]
 fn algorithm_mismatch_returns_failure() {
     let cose = build_cose_sign1(Some(b"payload"), Some(-7)); // ES256 in message
-    let key: Arc<dyn crypto_primitives::CryptoVerifier> = Arc::new(MismatchAlgVerifier { alg: -35 });
+    let key: Arc<dyn crypto_primitives::CryptoVerifier> =
+        Arc::new(MismatchAlgVerifier { alg: -35 });
     let resolver: Arc<dyn CoseKeyResolver> = Arc::new(StaticResolver { key });
 
     let v = validator_with(Some(resolver), vec![], |o| {
@@ -1009,7 +971,11 @@ fn streaming_no_alg_returns_no_applicable_validator() {
     assert_eq!(ValidationResultKind::Failure, result.signature.kind);
     assert_eq!(
         Some(CoseSign1Validator::ERROR_CODE_NO_APPLICABLE_SIGNATURE_VALIDATOR.to_string()),
-        result.signature.failures.first().and_then(|f| f.error_code.clone())
+        result
+            .signature
+            .failures
+            .first()
+            .and_then(|f| f.error_code.clone())
     );
 }
 
@@ -1124,7 +1090,11 @@ fn streaming_finalize_false_returns_failure() {
     assert_eq!(ValidationResultKind::Failure, result.signature.kind);
     assert_eq!(
         Some(CoseSign1Validator::ERROR_CODE_SIGNATURE_VERIFICATION_FAILED.to_string()),
-        result.signature.failures.first().and_then(|f| f.error_code.clone())
+        result
+            .signature
+            .failures
+            .first()
+            .and_then(|f| f.error_code.clone())
     );
 }
 
@@ -1186,7 +1156,11 @@ fn detached_small_streaming_payload_uses_buffered_path() {
     assert_eq!(ValidationResultKind::Success, result.signature.kind);
     assert_eq!(
         Some("non-streaming".to_string()),
-        result.signature.metadata.get(CoseSign1Validator::METADATA_KEY_SELECTED_VALIDATOR).cloned()
+        result
+            .signature
+            .metadata
+            .get(CoseSign1Validator::METADATA_KEY_SELECTED_VALIDATOR)
+            .cloned()
     );
 }
 
@@ -1522,11 +1496,9 @@ fn async_counter_sig_bypass_resolution_failed_success() {
     });
 
     let cose = build_cose_sign1(Some(b"payload"), Some(-7));
-    let result = block_on(v.validate_bytes_async(
-        EverParseCborProvider,
-        Arc::from(cose.into_boxed_slice()),
-    ))
-    .unwrap();
+    let result =
+        block_on(v.validate_bytes_async(EverParseCborProvider, Arc::from(cose.into_boxed_slice())))
+            .unwrap();
 
     assert_eq!(ValidationResultKind::Success, result.overall.kind);
 }
@@ -1563,11 +1535,9 @@ fn async_counter_sig_bypass_resolution_failed_post_sig_fails() {
     });
 
     let cose = build_cose_sign1(Some(b"payload"), Some(-7));
-    let result = block_on(v.validate_bytes_async(
-        EverParseCborProvider,
-        Arc::from(cose.into_boxed_slice()),
-    ))
-    .unwrap();
+    let result =
+        block_on(v.validate_bytes_async(EverParseCborProvider, Arc::from(cose.into_boxed_slice())))
+            .unwrap();
 
     assert_eq!(
         ValidationResultKind::Failure,
@@ -1614,11 +1584,9 @@ fn async_counter_sig_bypass_resolution_succeeded_success() {
     });
 
     let cose = build_cose_sign1(Some(b"payload"), Some(-7));
-    let result = block_on(v.validate_bytes_async(
-        EverParseCborProvider,
-        Arc::from(cose.into_boxed_slice()),
-    ))
-    .unwrap();
+    let result =
+        block_on(v.validate_bytes_async(EverParseCborProvider, Arc::from(cose.into_boxed_slice())))
+            .unwrap();
 
     assert_eq!(ValidationResultKind::Success, result.overall.kind);
 }
@@ -1661,11 +1629,9 @@ fn async_counter_sig_bypass_resolution_succeeded_post_sig_fails() {
     });
 
     let cose = build_cose_sign1(Some(b"payload"), Some(-7));
-    let result = block_on(v.validate_bytes_async(
-        EverParseCborProvider,
-        Arc::from(cose.into_boxed_slice()),
-    ))
-    .unwrap();
+    let result =
+        block_on(v.validate_bytes_async(EverParseCborProvider, Arc::from(cose.into_boxed_slice())))
+            .unwrap();
 
     assert_eq!(
         ValidationResultKind::Failure,
@@ -1888,8 +1854,7 @@ fn validator_init_from_compiled_plan() {
 #[test]
 fn validator_advanced_constructor() {
     let trust_packs: Vec<Arc<dyn CoseSign1TrustPack>> = vec![Arc::new(
-        SimpleTrustPack::no_facts("allow_all")
-            .with_default_trust_plan(allow_all_trust_plan()),
+        SimpleTrustPack::no_facts("allow_all").with_default_trust_plan(allow_all_trust_plan()),
     )];
 
     let mut options = CoseSign1ValidationOptions::default();
@@ -2075,6 +2040,12 @@ fn overall_metadata_prefixes_stage_names() {
     let overall_keys: Vec<&String> = result.overall.metadata.keys().collect();
     let has_trust_prefix = overall_keys.iter().any(|k| k.starts_with("Trust."));
     let has_sig_prefix = overall_keys.iter().any(|k| k.starts_with("Signature."));
-    assert!(has_trust_prefix, "Expected Trust. prefixed key in overall metadata");
-    assert!(has_sig_prefix, "Expected Signature. prefixed key in overall metadata");
+    assert!(
+        has_trust_prefix,
+        "Expected Trust. prefixed key in overall metadata"
+    );
+    assert!(
+        has_sig_prefix,
+        "Expected Signature. prefixed key in overall metadata"
+    );
 }

@@ -11,7 +11,7 @@ use cose_sign1_factories::{
     indirect::{HashAlgorithm, IndirectSignatureFactory, IndirectSignatureOptions},
 };
 use cose_sign1_primitives::{
-    CoseHeaderMap, CoseSign1Message, CryptoSigner, CryptoError, MemoryPayload,
+    CoseHeaderMap, CoseSign1Message, CryptoError, CryptoSigner, MemoryPayload,
 };
 use cose_sign1_signing::{
     CoseSigner, SigningContext, SigningError, SigningService, SigningServiceMetadata,
@@ -89,7 +89,10 @@ fn test_indirect_factory_new() {
     // Factory should be created successfully
     // Test by accessing the direct factory
     assert_eq!(
-        indirect_factory.direct_factory().transparency_providers().len(),
+        indirect_factory
+            .direct_factory()
+            .transparency_providers()
+            .len(),
         0
     );
 }
@@ -101,7 +104,10 @@ fn test_indirect_factory_from_signing_service() {
 
     // Should create internal direct factory
     assert_eq!(
-        indirect_factory.direct_factory().transparency_providers().len(),
+        indirect_factory
+            .direct_factory()
+            .transparency_providers()
+            .len(),
         0
     );
 }
@@ -206,7 +212,10 @@ fn test_indirect_factory_create_bytes_with_payload_location() {
         .with_payload_location("https://example.com/payload.bin".to_string());
 
     let result = indirect_factory.create_bytes(payload, content_type, Some(options));
-    assert!(result.is_ok(), "create_bytes should succeed with payload location");
+    assert!(
+        result.is_ok(),
+        "create_bytes should succeed with payload location"
+    );
 
     let bytes = result.unwrap();
     assert!(!bytes.is_empty(), "Result bytes should not be empty");
@@ -239,7 +248,10 @@ fn test_indirect_factory_create_bytes_with_embedded_hash() {
     );
     // The payload should be the hash of the original payload, not the original payload
     let hash_payload = message.payload().unwrap();
-    assert_ne!(hash_payload, payload, "Embedded payload should be hash, not original");
+    assert_ne!(
+        hash_payload, payload,
+        "Embedded payload should be hash, not original"
+    );
     // SHA256 hash should be 32 bytes
     assert_eq!(hash_payload.len(), 32, "SHA256 hash should be 32 bytes");
 }
@@ -278,7 +290,8 @@ fn test_indirect_factory_create_streaming_bytes() {
     let content_type = "application/octet-stream";
     let options = IndirectSignatureOptions::new().with_hash_algorithm(HashAlgorithm::Sha384);
 
-    let result = indirect_factory.create_streaming_bytes(streaming_payload, content_type, Some(options));
+    let result =
+        indirect_factory.create_streaming_bytes(streaming_payload, content_type, Some(options));
     assert!(
         result.is_ok(),
         "create_streaming_bytes should succeed: {:?}",
@@ -304,8 +317,12 @@ fn test_indirect_factory_create_streaming_bytes_sha256() {
     let content_type = "text/plain";
     let options = IndirectSignatureOptions::new().with_hash_algorithm(HashAlgorithm::Sha256);
 
-    let result = indirect_factory.create_streaming_bytes(streaming_payload, content_type, Some(options));
-    assert!(result.is_ok(), "create_streaming_bytes SHA256 should succeed");
+    let result =
+        indirect_factory.create_streaming_bytes(streaming_payload, content_type, Some(options));
+    assert!(
+        result.is_ok(),
+        "create_streaming_bytes SHA256 should succeed"
+    );
 
     let bytes = result.unwrap();
     assert!(!bytes.is_empty(), "Result bytes should not be empty");
@@ -321,8 +338,12 @@ fn test_indirect_factory_create_streaming_bytes_sha512() {
     let content_type = "application/binary";
     let options = IndirectSignatureOptions::new().with_hash_algorithm(HashAlgorithm::Sha512);
 
-    let result = indirect_factory.create_streaming_bytes(streaming_payload, content_type, Some(options));
-    assert!(result.is_ok(), "create_streaming_bytes SHA512 should succeed");
+    let result =
+        indirect_factory.create_streaming_bytes(streaming_payload, content_type, Some(options));
+    assert!(
+        result.is_ok(),
+        "create_streaming_bytes SHA512 should succeed"
+    );
 
     let bytes = result.unwrap();
     assert!(!bytes.is_empty(), "Result bytes should not be empty");
@@ -414,7 +435,7 @@ fn test_indirect_factory_complex_options() {
     // Parse and verify
     let message = CoseSign1Message::parse(&bytes).expect("Should parse successfully");
     assert!(message.payload().is_some(), "Hash should be embedded");
-    
+
     // SHA512 hash should be 64 bytes
     let hash_payload = message.payload().unwrap();
     assert_eq!(hash_payload.len(), 64, "SHA512 hash should be 64 bytes");
@@ -435,9 +456,13 @@ fn test_indirect_factory_empty_payload() {
 
     let bytes = result.unwrap();
     let message = CoseSign1Message::parse(&bytes).expect("Should parse successfully");
-    
+
     assert!(message.payload().is_some(), "Hash should be embedded");
     // SHA256 hash of empty bytes
     let hash_payload = message.payload().unwrap();
-    assert_eq!(hash_payload.len(), 32, "SHA256 hash should be 32 bytes even for empty payload");
+    assert_eq!(
+        hash_payload.len(),
+        32,
+        "SHA256 hash should be 32 bytes even for empty payload"
+    );
 }

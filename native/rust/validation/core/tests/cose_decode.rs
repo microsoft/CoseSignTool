@@ -77,7 +77,11 @@ fn decode_rejects_invalid_tag_encoding() {
     let s = err.to_string();
     eprintln!("Error message 1: {}", s);
     // Error should mention CBOR or decode issue
-    assert!(s.to_lowercase().contains("cbor") || s.to_lowercase().contains("decode") || s.to_lowercase().contains("incomplete"));
+    assert!(
+        s.to_lowercase().contains("cbor")
+            || s.to_lowercase().contains("decode")
+            || s.to_lowercase().contains("incomplete")
+    );
 
     // tag(ai=28) is not valid for our decoder
     let tagged = vec![0xDCu8, 0x00u8];
@@ -85,7 +89,11 @@ fn decode_rejects_invalid_tag_encoding() {
     let s = err.to_string();
     eprintln!("Error message 2: {}", s);
     // Error should mention CBOR or decode issue
-    assert!(s.to_lowercase().contains("cbor") || s.to_lowercase().contains("decode") || s.to_lowercase().contains("invalid"));
+    assert!(
+        s.to_lowercase().contains("cbor")
+            || s.to_lowercase().contains("decode")
+            || s.to_lowercase().contains("invalid")
+    );
 }
 
 #[test]
@@ -120,5 +128,9 @@ fn decode_rejects_arrays_with_missing_or_extra_items() {
 fn decode_rejects_empty_input() {
     let err = CoseSign1Message::parse(&[]).unwrap_err();
     let s = err.to_string();
-    assert!(s.to_lowercase().contains("cbor") || s.to_lowercase().contains("empty") || s.to_lowercase().contains("incomplete"));
+    assert!(
+        s.to_lowercase().contains("cbor")
+            || s.to_lowercase().contains("empty")
+            || s.to_lowercase().contains("incomplete")
+    );
 }

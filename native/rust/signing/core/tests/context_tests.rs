@@ -23,7 +23,10 @@ fn test_signing_context_from_bytes_with_content_type() {
     context.content_type = Some("application/octet-stream".to_string());
 
     assert_eq!(context.payload_bytes(), Some(payload.as_slice()));
-    assert_eq!(context.content_type.as_deref(), Some("application/octet-stream"));
+    assert_eq!(
+        context.content_type.as_deref(),
+        Some("application/octet-stream")
+    );
 }
 
 #[test]
@@ -39,8 +42,8 @@ fn test_signing_payload_bytes() {
 
 #[test]
 fn test_context_payload_bytes_returns_none_for_stream() {
-    use std::io::Cursor;
     use cose_sign1_primitives::SizedReader;
+    use std::io::Cursor;
 
     let data = vec![1, 2, 3, 4, 5];
     let cursor = Cursor::new(data.clone());
@@ -56,8 +59,8 @@ fn test_context_has_stream() {
     let bytes_context = SigningContext::from_bytes(vec![1, 2, 3]);
     assert!(!bytes_context.has_stream());
 
-    use std::io::Cursor;
     use cose_sign1_primitives::SizedReader;
+    use std::io::Cursor;
 
     let data = vec![1, 2, 3];
     let cursor = Cursor::new(data.clone());

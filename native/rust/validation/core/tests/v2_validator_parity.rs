@@ -1,22 +1,24 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+use cbor_primitives::{CborEncoder, CborProvider};
+use cbor_primitives_everparse::EverParseCborProvider;
 use cose_sign1_validation::fluent::*;
-use cose_sign1_validation_test_utils::SimpleTrustPack;
 use cose_sign1_validation_primitives::facts::TrustFactEngine;
 use cose_sign1_validation_primitives::policy::TrustPolicyBuilder;
 use cose_sign1_validation_primitives::rules::FnRule;
 use cose_sign1_validation_primitives::subject::TrustSubject;
 use cose_sign1_validation_primitives::{CoseSign1Message, TrustDecision, TrustEvaluationOptions};
-use cbor_primitives::{CborEncoder, CborProvider};
-use cbor_primitives_everparse::EverParseCborProvider;
+use cose_sign1_validation_test_utils::SimpleTrustPack;
 use std::sync::Arc;
 
 struct AlwaysOkVerifier;
 
 impl CryptoVerifier for AlwaysOkVerifier {
-    fn algorithm(&self) -> i64 { -7 }
-    
+    fn algorithm(&self) -> i64 {
+        -7
+    }
+
     fn verify(&self, _data: &[u8], _signature: &[u8]) -> Result<bool, CryptoError> {
         Ok(true)
     }
@@ -25,8 +27,10 @@ impl CryptoVerifier for AlwaysOkVerifier {
 struct AlwaysFailVerifier;
 
 impl CryptoVerifier for AlwaysFailVerifier {
-    fn algorithm(&self) -> i64 { -7 }
-    
+    fn algorithm(&self) -> i64 {
+        -7
+    }
+
     fn verify(&self, _data: &[u8], _signature: &[u8]) -> Result<bool, CryptoError> {
         Ok(false)
     }

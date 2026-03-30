@@ -10,9 +10,9 @@ use cose_sign1_signing::SigningService;
 use sha2::{Digest, Sha256, Sha384, Sha512};
 
 use crate::{
-    FactoryError,
     direct::DirectSignatureFactory,
     indirect::{HashAlgorithm, HashEnvelopeHeaderContributor, IndirectSignatureOptions},
+    FactoryError,
 };
 
 /// Factory for creating indirect COSE_Sign1 signatures.
@@ -68,7 +68,8 @@ impl IndirectSignatureFactory {
     /// 3. Delegate to DirectSignatureFactory with the hash as the payload
     /// 4. The signed content is the hash, not the original payload
     pub fn create_bytes(
-        &self,        payload: &[u8],
+        &self,
+        payload: &[u8],
         content_type: &str,
         options: Option<IndirectSignatureOptions>,
     ) -> Result<Vec<u8>, FactoryError> {
@@ -111,11 +112,8 @@ impl IndirectSignatureFactory {
         let signed_content_type = "application/octet-stream";
 
         // Delegate to direct factory with the hash as the payload
-        self.direct_factory.create_bytes(
-            &hash_bytes,
-            signed_content_type,
-            Some(direct_options),
-        )
+        self.direct_factory
+            .create_bytes(&hash_bytes, signed_content_type, Some(direct_options))
     }
 
     /// Creates a COSE_Sign1 message with an indirect signature.
@@ -143,8 +141,7 @@ impl IndirectSignatureFactory {
         options: Option<IndirectSignatureOptions>,
     ) -> Result<CoseSign1Message, FactoryError> {
         let bytes = self.create_bytes(payload, content_type, options)?;
-        CoseSign1Message::parse(&bytes)
-            .map_err(|e| FactoryError::SigningFailed(e.to_string()))
+        CoseSign1Message::parse(&bytes).map_err(|e| FactoryError::SigningFailed(e.to_string()))
     }
 
     /// Creates a COSE_Sign1 message with an indirect signature from a streaming payload and returns it as bytes.
@@ -183,8 +180,9 @@ impl IndirectSignatureFactory {
                 let mut hasher = Sha256::new();
                 let mut buf = vec![0u8; 65536];
                 loop {
-                    let n = std::io::Read::read(reader.as_mut(), &mut buf)
-                        .map_err(|e| FactoryError::SigningFailed(format!("Failed to read payload: {}", e)))?;
+                    let n = std::io::Read::read(reader.as_mut(), &mut buf).map_err(|e| {
+                        FactoryError::SigningFailed(format!("Failed to read payload: {}", e))
+                    })?;
                     if n == 0 {
                         break;
                     }
@@ -196,8 +194,9 @@ impl IndirectSignatureFactory {
                 let mut hasher = Sha384::new();
                 let mut buf = vec![0u8; 65536];
                 loop {
-                    let n = std::io::Read::read(reader.as_mut(), &mut buf)
-                        .map_err(|e| FactoryError::SigningFailed(format!("Failed to read payload: {}", e)))?;
+                    let n = std::io::Read::read(reader.as_mut(), &mut buf).map_err(|e| {
+                        FactoryError::SigningFailed(format!("Failed to read payload: {}", e))
+                    })?;
                     if n == 0 {
                         break;
                     }
@@ -209,8 +208,9 @@ impl IndirectSignatureFactory {
                 let mut hasher = Sha512::new();
                 let mut buf = vec![0u8; 65536];
                 loop {
-                    let n = std::io::Read::read(reader.as_mut(), &mut buf)
-                        .map_err(|e| FactoryError::SigningFailed(format!("Failed to read payload: {}", e)))?;
+                    let n = std::io::Read::read(reader.as_mut(), &mut buf).map_err(|e| {
+                        FactoryError::SigningFailed(format!("Failed to read payload: {}", e))
+                    })?;
                     if n == 0 {
                         break;
                     }
@@ -238,11 +238,8 @@ impl IndirectSignatureFactory {
         let signed_content_type = "application/octet-stream";
 
         // Delegate to direct factory with the hash as the payload
-        self.direct_factory.create_bytes(
-            &hash_bytes,
-            signed_content_type,
-            Some(direct_options),
-        )
+        self.direct_factory
+            .create_bytes(&hash_bytes, signed_content_type, Some(direct_options))
     }
 
     /// Creates a COSE_Sign1 message with an indirect signature from a streaming payload.
@@ -263,7 +260,6 @@ impl IndirectSignatureFactory {
         options: Option<IndirectSignatureOptions>,
     ) -> Result<CoseSign1Message, FactoryError> {
         let bytes = self.create_streaming_bytes(payload, content_type, options)?;
-        CoseSign1Message::parse(&bytes)
-            .map_err(|e| FactoryError::SigningFailed(e.to_string()))
+        CoseSign1Message::parse(&bytes).map_err(|e| FactoryError::SigningFailed(e.to_string()))
     }
 }

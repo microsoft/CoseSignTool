@@ -3,13 +3,10 @@
 
 //! Tests for x509_extensions module
 
-use did_x509::x509_extensions::{
-    extract_extended_key_usage, 
-    extract_eku_oids, 
-    is_ca_certificate,
-    extract_fulcio_issuer
-};
 use did_x509::error::DidX509Error;
+use did_x509::x509_extensions::{
+    extract_eku_oids, extract_extended_key_usage, extract_fulcio_issuer, is_ca_certificate,
+};
 use x509_parser::prelude::*;
 
 // Helper function to create test certificate with extensions
@@ -17,9 +14,10 @@ fn create_test_cert_bytes() -> &'static [u8] {
     // This should be a real certificate DER with extensions for testing
     // For now, we'll use a minimal certificate structure
     &[
-        0x30, 0x82, 0x02, 0x00, // Certificate SEQUENCE
-        // ... This would contain a full certificate with extensions
-        // For testing purposes, we'll create mock scenarios
+        0x30, 0x82, 0x02,
+        0x00, // Certificate SEQUENCE
+             // ... This would contain a full certificate with extensions
+             // For testing purposes, we'll create mock scenarios
     ]
 }
 
@@ -64,17 +62,18 @@ fn test_extract_fulcio_issuer_none() {
 }
 
 // More comprehensive tests with mock certificate data
-#[test] 
+#[test]
 fn test_extract_functions_basic_coverage() {
     // Test the functions exist and work with minimal data
     // In production, these would use real test certificates
-    
+
     let minimal_cert_der = &[
         0x30, 0x82, 0x02, 0x00, // Certificate SEQUENCE
-        0x30, 0x82, 0x01, 0x00, // TBSCertificate  
-        // Minimal certificate structure
+        0x30, 0x82, 0x01,
+        0x00, // TBSCertificate
+              // Minimal certificate structure
     ];
-    
+
     // Test that functions can be called (even if parsing fails)
     if let Ok((_rem, cert)) = X509Certificate::from_der(minimal_cert_der) {
         let _ekus = extract_extended_key_usage(&cert);
@@ -82,7 +81,7 @@ fn test_extract_functions_basic_coverage() {
         let _is_ca = is_ca_certificate(&cert);
         let _fulcio = extract_fulcio_issuer(&cert);
     }
-    
+
     // Verify function signatures exist
     let _ = extract_extended_key_usage as fn(&X509Certificate) -> Vec<String>;
     let _ = extract_eku_oids as fn(&X509Certificate) -> Result<Vec<String>, DidX509Error>;
@@ -105,15 +104,18 @@ fn test_extract_eku_oids_error_handling() {
 #[test]
 fn test_extension_parsing_coverage() {
     // Test coverage for different extension parsing scenarios
-    
+
     // This test ensures we cover the code paths in the extension parsing functions
     // by creating certificates with and without the relevant extensions
-    
+
     let test_cases = vec![
         ("No extensions", create_minimal_cert_with_no_extensions()),
-        ("With basic constraints only", create_cert_with_basic_constraints()),
+        (
+            "With basic constraints only",
+            create_cert_with_basic_constraints(),
+        ),
     ];
-    
+
     for (name, cert_der) in test_cases {
         if let Ok((_rem, cert)) = X509Certificate::from_der(&cert_der) {
             // Test all functions
@@ -121,7 +123,7 @@ fn test_extension_parsing_coverage() {
             let _eku_result = extract_eku_oids(&cert);
             let _is_ca = is_ca_certificate(&cert);
             let _fulcio = extract_fulcio_issuer(&cert);
-            
+
             // All should complete without panicking
             println!("Tested scenario: {}", name);
         }
@@ -142,7 +144,7 @@ fn create_cert_with_basic_constraints() -> Vec<u8> {
     // Return a certificate DER with Basic Constraints extension
     // This would contain a real certificate for testing
     vec![
-        0x30, 0x82, 0x01, 0x30, // Certificate SEQUENCE  
+        0x30, 0x82, 0x01, 0x30, // Certificate SEQUENCE
         // ... certificate with Basic Constraints extension
         0x30, 0x10, // Extensions with Basic Constraints
     ]

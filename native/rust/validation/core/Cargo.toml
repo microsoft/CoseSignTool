@@ -49,3 +49,6 @@ cbor_primitives_everparse = { path = "../../primitives/cbor/everparse" }
 # cose_sign1_certificates = { path = "../../extension_packs/certificates" }
 # cose_sign1_azure_key_vault = { path = "../../extension_packs/azure_key_vault" }
 cose_sign1_validation_test_utils = { path = "../test_utils" }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly)'] }

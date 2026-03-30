@@ -11,7 +11,9 @@
 //! - All code paths in internal type implementations
 
 use cose_sign1_signing_ffi::error::{cose_sign1_signing_error_free, CoseSign1SigningErrorHandle};
-use cose_sign1_signing_ffi::types::{CoseKeyHandle, CoseSign1SigningServiceHandle, CoseSign1FactoryHandle};
+use cose_sign1_signing_ffi::types::{
+    CoseKeyHandle, CoseSign1FactoryHandle, CoseSign1SigningServiceHandle,
+};
 use cose_sign1_signing_ffi::*;
 
 use std::ptr;
@@ -117,10 +119,14 @@ unsafe extern "C" fn mock_read_callback_empty(
 }
 
 // Helper to create different types of keys
-fn create_callback_key(algorithm: i64, key_type: &str, callback: CoseSignCallback) -> *mut CoseKeyHandle {
+fn create_callback_key(
+    algorithm: i64,
+    key_type: &str,
+    callback: CoseSignCallback,
+) -> *mut CoseKeyHandle {
     let mut key: *mut CoseKeyHandle = ptr::null_mut();
     let key_type_cstr = std::ffi::CString::new(key_type).unwrap();
-    
+
     let rc = unsafe {
         cose_key_from_callback(
             algorithm,
@@ -138,7 +144,7 @@ fn create_callback_key(algorithm: i64, key_type: &str, callback: CoseSignCallbac
 fn create_signing_service(key: *const CoseKeyHandle) -> *mut CoseSign1SigningServiceHandle {
     let mut service: *mut CoseSign1SigningServiceHandle = ptr::null_mut();
     let mut error: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
-    
+
     let rc = unsafe { cose_sign1_signing_service_create(key, &mut service, &mut error) };
     assert_eq!(rc, 0);
     assert!(!service.is_null());
@@ -146,10 +152,12 @@ fn create_signing_service(key: *const CoseKeyHandle) -> *mut CoseSign1SigningSer
     service
 }
 
-fn create_factory_from_service(service: *const CoseSign1SigningServiceHandle) -> *mut CoseSign1FactoryHandle {
+fn create_factory_from_service(
+    service: *const CoseSign1SigningServiceHandle,
+) -> *mut CoseSign1FactoryHandle {
     let mut factory: *mut CoseSign1FactoryHandle = ptr::null_mut();
     let mut error: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
-    
+
     let rc = unsafe { cose_sign1_factory_create(service, &mut factory, &mut error) };
     assert_eq!(rc, 0);
     assert!(!factory.is_null());
@@ -166,11 +174,11 @@ fn test_callback_key_successful_signing() {
     // Test successful path through CallbackKey::sign
     let key = create_callback_key(-7, "EC", mock_successful_callback);
     let service = create_signing_service(key);
-    
+
     // The key was created successfully, proving CallbackKey works
     assert!(!key.is_null());
     assert!(!service.is_null());
-    
+
     free_service(service);
     free_key(key);
 }
@@ -248,25 +256,25 @@ fn test_callback_key_null_signature() {
 #[test]
 fn test_callback_key_different_algorithms() {
     // Test CallbackKey::algorithm() method with different values
-    
+
     // ES256 (-7)
     let key_es256 = create_callback_key(-7, "EC", mock_successful_callback);
     let service_es256 = create_signing_service(key_es256);
     free_service(service_es256);
     free_key(key_es256);
-    
+
     // ES384 (-35)
     let key_es384 = create_callback_key(-35, "EC", mock_successful_callback);
     let service_es384 = create_signing_service(key_es384);
     free_service(service_es384);
     free_key(key_es384);
-    
+
     // ES512 (-36)
     let key_es512 = create_callback_key(-36, "EC", mock_successful_callback);
     let service_es512 = create_signing_service(key_es512);
     free_service(service_es512);
     free_key(key_es512);
-    
+
     // PS256 (-37)
     let key_ps256 = create_callback_key(-37, "RSA", mock_successful_callback);
     let service_ps256 = create_signing_service(key_ps256);
@@ -277,17 +285,17 @@ fn test_callback_key_different_algorithms() {
 #[test]
 fn test_callback_key_different_key_types() {
     // Test CallbackKey::key_type() method with different values
-    
+
     let key_ec = create_callback_key(-7, "EC", mock_successful_callback);
     let service_ec = create_signing_service(key_ec);
     free_service(service_ec);
     free_key(key_ec);
-    
+
     let key_rsa = create_callback_key(-7, "RSA", mock_successful_callback);
     let service_rsa = create_signing_service(key_rsa);
     free_service(service_rsa);
     free_key(key_rsa);
-    
+
     let key_okp = create_callback_key(-7, "OKP", mock_successful_callback);
     let service_okp = create_signing_service(key_okp);
     free_service(service_okp);
@@ -300,7 +308,7 @@ fn test_callback_key_with_user_data() {
     let mut user_data: u32 = 12345;
     let mut key: *mut CoseKeyHandle = ptr::null_mut();
     let key_type_cstr = std::ffi::CString::new("EC").unwrap();
-    
+
     let rc = unsafe {
         cose_key_from_callback(
             -7,
@@ -312,7 +320,7 @@ fn test_callback_key_with_user_data() {
     };
     assert_eq!(rc, 0);
     assert!(!key.is_null());
-    
+
     let service = create_signing_service(key);
     free_service(service);
     free_key(key);
@@ -475,21 +483,21 @@ fn test_multiple_key_creations_and_services() {
     // Test creating multiple keys and services to exercise type instantiation
     let mut keys = Vec::new();
     let mut services = Vec::new();
-    
+
     for i in 0..3 {
         let algorithm = match i {
             0 => -7,  // ES256
             1 => -35, // ES384
             _ => -36, // ES512
         };
-        
+
         let key = create_callback_key(algorithm, "EC", mock_successful_callback);
         let service = create_signing_service(key);
-        
+
         keys.push(key);
         services.push(service);
     }
-    
+
     // Clean up all resources
     for service in services {
         free_service(service);
@@ -503,12 +511,12 @@ fn test_multiple_key_creations_and_services() {
 fn test_factory_operations_with_different_keys() {
     // Test factory operations with different key configurations
     let algorithms = vec![(-7, "EC"), (-35, "EC"), (-36, "EC"), (-37, "RSA")];
-    
+
     for (algorithm, key_type) in algorithms {
         let key = create_callback_key(algorithm, key_type, mock_successful_callback);
         let service = create_signing_service(key);
         let factory = create_factory_from_service(service);
-        
+
         // Try a simple operation
         let payload = b"test";
         let content_type = b"application/octet-stream\0".as_ptr() as *const libc::c_char;
@@ -527,7 +535,7 @@ fn test_factory_operations_with_different_keys() {
                 &mut sign_error,
             )
         };
-        
+
         // Clean up (ignoring result as we expect failure)
         free_error(sign_error);
         free_factory(factory);

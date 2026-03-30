@@ -4,7 +4,9 @@
 use cose_sign1_validation_primitives::error::TrustError;
 use cose_sign1_validation_primitives::evaluation_options::TrustEvaluationOptions;
 use cose_sign1_validation_primitives::fact_properties::{FactProperties, FactValue};
-use cose_sign1_validation_primitives::facts::{FactKey, TrustFactContext, TrustFactEngine, TrustFactProducer};
+use cose_sign1_validation_primitives::facts::{
+    FactKey, TrustFactContext, TrustFactEngine, TrustFactProducer,
+};
 use cose_sign1_validation_primitives::field::Field;
 use cose_sign1_validation_primitives::fluent::{
     HasTrustSubject, MessageScope, PrimarySigningKeyScope, ScopeProvider, SubjectsFromFactsScope,
@@ -94,8 +96,7 @@ fn trust_plan_builder_scoped_dsl_compiles() {
     let plan = TrustPlanBuilder::default()
         .for_message(|m| m.and().or().and())
         .for_primary_signing_key(|k| k.or().and())
-        .compile()
-        ;
+        .compile();
 
     // Touch the compiled plan API; this also ensures the derived-Default path is executed.
     let _ = plan.required_facts();
@@ -109,7 +110,9 @@ fn scoped_rules_on_empty_allow_allows_when_no_derived_subjects() {
     let engine = TrustFactEngine::new(vec![Arc::new(DerivedSubjectProducer { derived: vec![] })]);
 
     let plan = TrustPlanBuilder::default()
-        .for_subjects_from_facts::<DerivedSubjectFact>(|s| s.on_empty(OnEmptyBehavior::Allow).allow_all())
+        .for_subjects_from_facts::<DerivedSubjectFact>(|s| {
+            s.on_empty(OnEmptyBehavior::Allow).allow_all()
+        })
         .compile();
 
     let d = plan
@@ -124,7 +127,9 @@ fn scoped_rules_on_empty_deny_denies_when_no_derived_subjects() {
     let engine = TrustFactEngine::new(vec![Arc::new(DerivedSubjectProducer { derived: vec![] })]);
 
     let plan = TrustPlanBuilder::default()
-        .for_subjects_from_facts::<DerivedSubjectFact>(|s| s.on_empty(OnEmptyBehavior::Deny).allow_all())
+        .for_subjects_from_facts::<DerivedSubjectFact>(|s| {
+            s.on_empty(OnEmptyBehavior::Deny).allow_all()
+        })
         .compile();
 
     let d = plan
@@ -159,7 +164,8 @@ impl TrustFactProducer for MarkerProducer {
 
     fn provides(&self) -> &'static [FactKey] {
         static ONCE: std::sync::OnceLock<Vec<FactKey>> = std::sync::OnceLock::new();
-        ONCE.get_or_init(|| vec![FactKey::of::<MarkerFact>()]).as_slice()
+        ONCE.get_or_init(|| vec![FactKey::of::<MarkerFact>()])
+            .as_slice()
     }
 
     fn produce(&self, ctx: &mut TrustFactContext<'_>) -> Result<(), TrustError> {
@@ -229,7 +235,8 @@ impl TrustFactProducer for StringFactProducer {
 
     fn provides(&self) -> &'static [FactKey] {
         static ONCE: std::sync::OnceLock<Vec<FactKey>> = std::sync::OnceLock::new();
-        ONCE.get_or_init(|| vec![FactKey::of::<StringFact>()]).as_slice()
+        ONCE.get_or_init(|| vec![FactKey::of::<StringFact>()])
+            .as_slice()
     }
 
     fn produce(&self, ctx: &mut TrustFactContext<'_>) -> Result<(), TrustError> {

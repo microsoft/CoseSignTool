@@ -84,10 +84,7 @@ fn build_did_from_cert(cert_der: &[u8]) -> String {
     assert_eq!(rc, FFI_OK, "build_did_from_cert failed with rc={}", rc);
     assert!(!out.is_null());
 
-    let did_str = unsafe { CStr::from_ptr(out) }
-        .to_str()
-        .unwrap()
-        .to_owned();
+    let did_str = unsafe { CStr::from_ptr(out) }.to_str().unwrap().to_owned();
     unsafe { did_x509_string_free(out) };
     did_str
 }
@@ -207,13 +204,7 @@ fn deep_build_from_chain_success() {
     let mut out: *mut libc::c_char = ptr::null_mut();
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
 
-    let rc = impl_build_from_chain_inner(
-        certs.as_ptr(),
-        lens.as_ptr(),
-        1,
-        &mut out,
-        &mut err,
-    );
+    let rc = impl_build_from_chain_inner(certs.as_ptr(), lens.as_ptr(), 1, &mut out, &mut err);
     assert_eq!(rc, FFI_OK);
     assert!(!out.is_null());
     unsafe { did_x509_string_free(out) };
@@ -226,13 +217,7 @@ fn deep_build_from_chain_null_certs_only() {
     let mut out: *mut libc::c_char = ptr::null_mut();
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
 
-    let rc = impl_build_from_chain_inner(
-        ptr::null(),
-        lens.as_ptr(),
-        1,
-        &mut out,
-        &mut err,
-    );
+    let rc = impl_build_from_chain_inner(ptr::null(), lens.as_ptr(), 1, &mut out, &mut err);
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     if !err.is_null() {
         unsafe { did_x509_error_free(err) };
@@ -247,13 +232,7 @@ fn deep_build_from_chain_null_lens_only() {
     let mut out: *mut libc::c_char = ptr::null_mut();
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
 
-    let rc = impl_build_from_chain_inner(
-        certs.as_ptr(),
-        ptr::null(),
-        1,
-        &mut out,
-        &mut err,
-    );
+    let rc = impl_build_from_chain_inner(certs.as_ptr(), ptr::null(), 1, &mut out, &mut err);
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     if !err.is_null() {
         unsafe { did_x509_error_free(err) };
@@ -269,13 +248,7 @@ fn deep_build_from_chain_invalid_cert_data() {
     let mut out: *mut libc::c_char = ptr::null_mut();
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
 
-    let rc = impl_build_from_chain_inner(
-        certs.as_ptr(),
-        lens.as_ptr(),
-        1,
-        &mut out,
-        &mut err,
-    );
+    let rc = impl_build_from_chain_inner(certs.as_ptr(), lens.as_ptr(), 1, &mut out, &mut err);
     assert_eq!(rc, FFI_ERR_BUILD_FAILED);
     if !err.is_null() {
         unsafe { did_x509_error_free(err) };
@@ -622,49 +595,43 @@ fn deep_error_from_did_error_validate_variants() {
 fn deep_error_from_did_error_format_variants() {
     use did_x509::DidX509Error;
 
-    let err =
-        ErrorInner::from_did_error(&DidX509Error::InvalidPrefix("bad prefix".to_string()));
+    let err = ErrorInner::from_did_error(&DidX509Error::InvalidPrefix("bad prefix".to_string()));
     assert_eq!(err.code, FFI_ERR_PARSE_FAILED);
 
-    let err =
-        ErrorInner::from_did_error(&DidX509Error::InvalidFormat("bad format".to_string()));
+    let err = ErrorInner::from_did_error(&DidX509Error::InvalidFormat("bad format".to_string()));
     assert_eq!(err.code, FFI_ERR_PARSE_FAILED);
 
-    let err =
-        ErrorInner::from_did_error(&DidX509Error::UnsupportedVersion("99".to_string(), "0".to_string()));
-    assert_eq!(err.code, FFI_ERR_PARSE_FAILED);
-
-    let err =
-        ErrorInner::from_did_error(&DidX509Error::UnsupportedHashAlgorithm("sha999".to_string()));
-    assert_eq!(err.code, FFI_ERR_PARSE_FAILED);
-
-    let err =
-        ErrorInner::from_did_error(&DidX509Error::EmptyPolicy(0));
-    assert_eq!(err.code, FFI_ERR_PARSE_FAILED);
-
-    let err =
-        ErrorInner::from_did_error(&DidX509Error::InvalidPolicyFormat("bad".to_string()));
-    assert_eq!(err.code, FFI_ERR_PARSE_FAILED);
-
-    let err = ErrorInner::from_did_error(&DidX509Error::DuplicateSubjectPolicyKey(
-        "CN".to_string(),
+    let err = ErrorInner::from_did_error(&DidX509Error::UnsupportedVersion(
+        "99".to_string(),
+        "0".to_string(),
     ));
     assert_eq!(err.code, FFI_ERR_PARSE_FAILED);
 
-    let err =
-        ErrorInner::from_did_error(&DidX509Error::InvalidSanPolicyFormat("bad".to_string()));
+    let err = ErrorInner::from_did_error(&DidX509Error::UnsupportedHashAlgorithm(
+        "sha999".to_string(),
+    ));
+    assert_eq!(err.code, FFI_ERR_PARSE_FAILED);
+
+    let err = ErrorInner::from_did_error(&DidX509Error::EmptyPolicy(0));
+    assert_eq!(err.code, FFI_ERR_PARSE_FAILED);
+
+    let err = ErrorInner::from_did_error(&DidX509Error::InvalidPolicyFormat("bad".to_string()));
     assert_eq!(err.code, FFI_ERR_PARSE_FAILED);
 
     let err =
-        ErrorInner::from_did_error(&DidX509Error::InvalidSanType("bad".to_string()));
+        ErrorInner::from_did_error(&DidX509Error::DuplicateSubjectPolicyKey("CN".to_string()));
     assert_eq!(err.code, FFI_ERR_PARSE_FAILED);
 
-    let err =
-        ErrorInner::from_did_error(&DidX509Error::PercentDecodingError("bad%".to_string()));
+    let err = ErrorInner::from_did_error(&DidX509Error::InvalidSanPolicyFormat("bad".to_string()));
     assert_eq!(err.code, FFI_ERR_PARSE_FAILED);
 
-    let err =
-        ErrorInner::from_did_error(&DidX509Error::InvalidHexCharacter('z'));
+    let err = ErrorInner::from_did_error(&DidX509Error::InvalidSanType("bad".to_string()));
+    assert_eq!(err.code, FFI_ERR_PARSE_FAILED);
+
+    let err = ErrorInner::from_did_error(&DidX509Error::PercentDecodingError("bad%".to_string()));
+    assert_eq!(err.code, FFI_ERR_PARSE_FAILED);
+
+    let err = ErrorInner::from_did_error(&DidX509Error::InvalidHexCharacter('z'));
     assert_eq!(err.code, FFI_ERR_PARSE_FAILED);
 
     let err = ErrorInner::from_did_error(&DidX509Error::FingerprintLengthMismatch(
@@ -779,14 +746,7 @@ fn deep_build_eku_empty_cert_zero_len() {
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
 
     // null cert pointer with zero length is allowed — produces a DID with empty fingerprint
-    let rc = impl_build_with_eku_inner(
-        ptr::null(),
-        0,
-        ekus.as_ptr(),
-        1,
-        &mut out,
-        &mut err,
-    );
+    let rc = impl_build_with_eku_inner(ptr::null(), 0, ekus.as_ptr(), 1, &mut out, &mut err);
     // Should succeed (empty cert is technically allowed by the API)
     assert_eq!(rc, FFI_OK);
     if !out.is_null() {

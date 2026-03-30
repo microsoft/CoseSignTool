@@ -10,3 +10,6 @@ test = false
 [dependencies]
 cose_sign1_validation = { path = "../core" }
 cose_sign1_validation_primitives = { path = "../primitives" }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly)'] }

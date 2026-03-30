@@ -8,25 +8,25 @@ use crate::models::{SubjectAlternativeName, X509Name};
 pub struct CertificateInfo {
     /// The subject Distinguished Name
     pub subject: X509Name,
-    
+
     /// The issuer Distinguished Name
     pub issuer: X509Name,
-    
+
     /// The certificate fingerprint (SHA-256 hash)
     pub fingerprint: Vec<u8>,
-    
+
     /// The certificate fingerprint as hex string
     pub fingerprint_hex: String,
-    
+
     /// Subject Alternative Names
     pub subject_alternative_names: Vec<SubjectAlternativeName>,
-    
+
     /// Extended Key Usage OIDs
     pub extended_key_usage: Vec<String>,
-    
+
     /// Whether this is a CA certificate
     pub is_ca: bool,
-    
+
     /// Fulcio issuer value, if present
     pub fulcio_issuer: Option<String>,
 }

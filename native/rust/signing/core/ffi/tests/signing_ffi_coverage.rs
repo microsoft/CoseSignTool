@@ -20,9 +20,7 @@ fn error_message(err: *const CoseSign1SigningErrorHandle) -> Option<String> {
     if msg.is_null() {
         return None;
     }
-    let s = unsafe { CStr::from_ptr(msg) }
-        .to_string_lossy()
-        .to_string();
+    let s = unsafe { CStr::from_ptr(msg) }.to_string_lossy().to_string();
     unsafe { cose_sign1_string_free(msg) };
     Some(s)
 }
@@ -113,9 +111,8 @@ fn ffi_headermap_set_text_invalid_utf8() {
 
     // Invalid UTF-8 + null terminator
     let invalid = [0xC0u8, 0xAF, 0x00];
-    let rc = unsafe {
-        cose_headermap_set_text(headers, 3, invalid.as_ptr() as *const libc::c_char)
-    };
+    let rc =
+        unsafe { cose_headermap_set_text(headers, 3, invalid.as_ptr() as *const libc::c_char) };
     assert_eq!(rc, COSE_SIGN1_SIGNING_ERR_INVALID_ARGUMENT);
 
     unsafe { cose_headermap_free(headers) };
@@ -153,7 +150,13 @@ fn ffi_sign_with_failing_callback_key() {
     let mut key: *mut CoseKeyHandle = ptr::null_mut();
     let key_type = b"EC2\0".as_ptr() as *const libc::c_char;
     let rc = unsafe {
-        cose_key_from_callback(-7, key_type, failing_sign_callback, ptr::null_mut(), &mut key)
+        cose_key_from_callback(
+            -7,
+            key_type,
+            failing_sign_callback,
+            ptr::null_mut(),
+            &mut key,
+        )
     };
     assert_eq!(rc, COSE_SIGN1_SIGNING_OK);
 
@@ -401,9 +404,8 @@ fn ffi_builder_set_unprotected_null_headers() {
 #[test]
 fn ffi_builder_set_external_aad_null_builder() {
     let aad = b"extra";
-    let rc = unsafe {
-        cose_sign1_builder_set_external_aad(ptr::null_mut(), aad.as_ptr(), aad.len())
-    };
+    let rc =
+        unsafe { cose_sign1_builder_set_external_aad(ptr::null_mut(), aad.as_ptr(), aad.len()) };
     assert_eq!(rc, COSE_SIGN1_SIGNING_ERR_NULL_POINTER);
 }
 
@@ -509,9 +511,7 @@ fn ffi_bytes_free_valid() {
 #[test]
 fn ffi_headermap_set_bytes_null_handle() {
     let data = b"test";
-    let rc = unsafe {
-        cose_headermap_set_bytes(ptr::null_mut(), 4, data.as_ptr(), data.len())
-    };
+    let rc = unsafe { cose_headermap_set_bytes(ptr::null_mut(), 4, data.as_ptr(), data.len()) };
     assert_eq!(rc, COSE_SIGN1_SIGNING_ERR_NULL_POINTER);
 }
 
@@ -550,9 +550,7 @@ fn ffi_error_message_with_nul_byte() {
 
     let msg = unsafe { cose_sign1_signing_error_message(err) };
     assert!(!msg.is_null());
-    let s = unsafe { CStr::from_ptr(msg) }
-        .to_string_lossy()
-        .to_string();
+    let s = unsafe { CStr::from_ptr(msg) }.to_string_lossy().to_string();
     assert!(s.contains("NUL"));
     unsafe { cose_sign1_string_free(msg) };
     unsafe { cose_sign1_signing_error_free(err) };

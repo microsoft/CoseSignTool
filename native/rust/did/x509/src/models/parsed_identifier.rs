@@ -8,13 +8,13 @@ use crate::models::DidX509Policy;
 pub struct DidX509ParsedIdentifier {
     /// The hash algorithm used for the CA fingerprint (e.g., "sha256")
     pub hash_algorithm: String,
-    
+
     /// The decoded CA fingerprint bytes
     pub ca_fingerprint: Vec<u8>,
-    
+
     /// The CA fingerprint as hex string
     pub ca_fingerprint_hex: String,
-    
+
     /// The list of policy constraints
     pub policies: Vec<DidX509Policy>,
 }
@@ -37,22 +37,30 @@ impl DidX509ParsedIdentifier {
 
     /// Check if a specific policy type exists
     pub fn has_eku_policy(&self) -> bool {
-        self.policies.iter().any(|p| matches!(p, DidX509Policy::Eku(_)))
+        self.policies
+            .iter()
+            .any(|p| matches!(p, DidX509Policy::Eku(_)))
     }
 
     /// Check if a subject policy exists
     pub fn has_subject_policy(&self) -> bool {
-        self.policies.iter().any(|p| matches!(p, DidX509Policy::Subject(_)))
+        self.policies
+            .iter()
+            .any(|p| matches!(p, DidX509Policy::Subject(_)))
     }
 
     /// Check if a SAN policy exists
     pub fn has_san_policy(&self) -> bool {
-        self.policies.iter().any(|p| matches!(p, DidX509Policy::San(_, _)))
+        self.policies
+            .iter()
+            .any(|p| matches!(p, DidX509Policy::San(_, _)))
     }
 
     /// Check if a Fulcio issuer policy exists
     pub fn has_fulcio_issuer_policy(&self) -> bool {
-        self.policies.iter().any(|p| matches!(p, DidX509Policy::FulcioIssuer(_)))
+        self.policies
+            .iter()
+            .any(|p| matches!(p, DidX509Policy::FulcioIssuer(_)))
     }
 
     /// Get the EKU policy if it exists

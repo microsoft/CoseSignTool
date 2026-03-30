@@ -111,7 +111,10 @@ fn raw_cwt_all_wellknown_int_claims() {
     assert_eq!(fact.iat, Some(1_650_000_000));
 
     assert!(matches!(fact.scalar_claims.get(&1), Some(CwtClaimScalar::Str(s)) if s == "issuer"));
-    assert!(matches!(fact.scalar_claims.get(&4), Some(CwtClaimScalar::I64(1_700_000_000))));
+    assert!(matches!(
+        fact.scalar_claims.get(&4),
+        Some(CwtClaimScalar::I64(1_700_000_000))
+    ));
 }
 
 // ---------------------------------------------------------------------------
@@ -169,8 +172,14 @@ fn raw_cwt_bool_values() {
     let subject = message_subject();
     let fact = extract_cwt_fact(&engine, &subject);
 
-    assert!(matches!(fact.scalar_claims.get(&100), Some(CwtClaimScalar::Bool(true))));
-    assert!(matches!(fact.scalar_claims.get(&101), Some(CwtClaimScalar::Bool(false))));
+    assert!(matches!(
+        fact.scalar_claims.get(&100),
+        Some(CwtClaimScalar::Bool(true))
+    ));
+    assert!(matches!(
+        fact.scalar_claims.get(&101),
+        Some(CwtClaimScalar::Bool(false))
+    ));
     assert!(fact.raw_claims.contains_key(&100));
     assert!(fact.raw_claims.contains_key(&101));
 }
@@ -200,7 +209,10 @@ fn raw_cwt_nonstandard_int_keys() {
     assert!(fact.iat.is_none());
 
     assert!(matches!(fact.scalar_claims.get(&999), Some(CwtClaimScalar::Str(s)) if s == "val999"));
-    assert!(matches!(fact.scalar_claims.get(&1000), Some(CwtClaimScalar::I64(42))));
+    assert!(matches!(
+        fact.scalar_claims.get(&1000),
+        Some(CwtClaimScalar::I64(42))
+    ));
     assert!(fact.raw_claims.contains_key(&999));
     assert!(fact.raw_claims.contains_key(&1000));
 }
@@ -353,9 +365,18 @@ fn raw_cwt_only_i64_values() {
     let subject = message_subject();
     let fact = extract_cwt_fact(&engine, &subject);
 
-    assert!(matches!(fact.scalar_claims.get(&10), Some(CwtClaimScalar::I64(100))));
-    assert!(matches!(fact.scalar_claims.get(&11), Some(CwtClaimScalar::I64(200))));
-    assert!(matches!(fact.scalar_claims.get(&12), Some(CwtClaimScalar::I64(300))));
+    assert!(matches!(
+        fact.scalar_claims.get(&10),
+        Some(CwtClaimScalar::I64(100))
+    ));
+    assert!(matches!(
+        fact.scalar_claims.get(&11),
+        Some(CwtClaimScalar::I64(200))
+    ));
+    assert!(matches!(
+        fact.scalar_claims.get(&12),
+        Some(CwtClaimScalar::I64(300))
+    ));
     assert!(fact.iss.is_none());
 }
 
@@ -384,7 +405,10 @@ fn cwt_claims_map_with_bool_value_encode_recursive() {
     let subject = message_subject();
     let fact = extract_cwt_fact(&engine, &subject);
 
-    assert!(matches!(fact.scalar_claims.get(&100), Some(CwtClaimScalar::Bool(true))));
+    assert!(matches!(
+        fact.scalar_claims.get(&100),
+        Some(CwtClaimScalar::Bool(true))
+    ));
     assert!(fact.raw_claims.contains_key(&100));
 }
 
@@ -399,10 +423,7 @@ fn cwt_claims_map_with_null_value_encode_recursive() {
 
     parsed.protected.insert(
         CoseHeaderLabel::Int(15),
-        CoseHeaderValue::Map(vec![(
-            CoseHeaderLabel::Int(300),
-            CoseHeaderValue::Null,
-        )]),
+        CoseHeaderValue::Map(vec![(CoseHeaderLabel::Int(300), CoseHeaderValue::Null)]),
     );
 
     let producer = Arc::new(CoseSign1MessageFactProducer::new());
@@ -476,7 +497,10 @@ fn cwt_claims_map_with_uint_value_extract_i64() {
     let fact = extract_cwt_fact(&engine, &subject);
 
     assert_eq!(fact.exp, Some(12345));
-    assert!(matches!(fact.scalar_claims.get(&4), Some(CwtClaimScalar::I64(12345))));
+    assert!(matches!(
+        fact.scalar_claims.get(&4),
+        Some(CwtClaimScalar::I64(12345))
+    ));
 }
 
 // ---------------------------------------------------------------------------
@@ -490,10 +514,9 @@ fn cwt_claims_not_map_not_raw_marks_error() {
     let mut parsed = CoseSign1Message::parse(&cose_bytes).unwrap();
 
     // Set label 15 to a scalar Int — neither Map nor Raw
-    parsed.protected.insert(
-        CoseHeaderLabel::Int(15),
-        CoseHeaderValue::Int(42),
-    );
+    parsed
+        .protected
+        .insert(CoseHeaderLabel::Int(15), CoseHeaderValue::Int(42));
 
     let producer = Arc::new(CoseSign1MessageFactProducer::new());
     let engine = TrustFactEngine::new(vec![producer])
@@ -502,7 +525,10 @@ fn cwt_claims_not_map_not_raw_marks_error() {
     let subject = message_subject();
 
     // CwtClaimsPresentFact should still be true
-    let present = match engine.get_fact_set::<CwtClaimsPresentFact>(&subject).unwrap() {
+    let present = match engine
+        .get_fact_set::<CwtClaimsPresentFact>(&subject)
+        .unwrap()
+    {
         TrustFactSet::Available(v) => v.into_iter().next().expect("one CwtClaimsPresentFact"),
         other => panic!("expected Available, got {other:?}"),
     };
@@ -535,7 +561,10 @@ fn raw_cwt_claims_present_fact_is_true() {
     let engine = engine_with_raw_cwt(cwt_raw);
     let subject = message_subject();
 
-    let present = match engine.get_fact_set::<CwtClaimsPresentFact>(&subject).unwrap() {
+    let present = match engine
+        .get_fact_set::<CwtClaimsPresentFact>(&subject)
+        .unwrap()
+    {
         TrustFactSet::Available(v) => v.into_iter().next().expect("one CwtClaimsPresentFact"),
         other => panic!("expected Available, got {other:?}"),
     };

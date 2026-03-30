@@ -199,7 +199,11 @@ impl std::fmt::Display for TrustPlanCompileError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::MissingRequiredTrustPacks { missing } => {
-                write!(f, "trust plan requires fact types not provided by configured trust packs: {}", missing)
+                write!(
+                    f,
+                    "trust plan requires fact types not provided by configured trust packs: {}",
+                    missing
+                )
             }
         }
     }

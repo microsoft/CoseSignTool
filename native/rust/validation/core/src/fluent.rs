@@ -18,11 +18,10 @@ use std::sync::Arc;
 
 // Core validation entrypoints
 pub use crate::validator::{
-    CoseSign1ValidationError, CoseSign1ValidationOptions, CoseSign1ValidationResult,
-    CoseSign1Validator, CounterSignature, CounterSignatureResolutionResult,
-    CounterSignatureResolver,
-    PostSignatureValidationContext, PostSignatureValidator, CoseKeyResolutionResult,
-    CoseKeyResolver, ValidationFailure, ValidationResult, ValidationResultKind,
+    CoseKeyResolutionResult, CoseKeyResolver, CoseSign1ValidationError, CoseSign1ValidationOptions,
+    CoseSign1ValidationResult, CoseSign1Validator, CounterSignature,
+    CounterSignatureResolutionResult, CounterSignatureResolver, PostSignatureValidationContext,
+    PostSignatureValidator, ValidationFailure, ValidationResult, ValidationResultKind,
 };
 
 // CoseKey from primitives (replacing SigningKey)
@@ -55,11 +54,10 @@ pub use crate::message_facts::fluent_ext::*;
 
 // Common fact types used for scoping and advanced inspection.
 pub use crate::message_facts::{
-    ContentTypeFact, CoseSign1MessageBytesFact,
-    CoseSign1MessagePartsFact, CounterSignatureEnvelopeIntegrityFact,
-    CounterSignatureSigningKeySubjectFact, CounterSignatureSubjectFact, CwtClaimsFact,
-    CwtClaimsPresentFact, DetachedPayloadPresentFact, PrimarySigningKeySubjectFact,
-    UnknownCounterSignatureBytesFact, CwtClaimScalar,
+    ContentTypeFact, CoseSign1MessageBytesFact, CoseSign1MessagePartsFact,
+    CounterSignatureEnvelopeIntegrityFact, CounterSignatureSigningKeySubjectFact,
+    CounterSignatureSubjectFact, CwtClaimScalar, CwtClaimsFact, CwtClaimsPresentFact,
+    DetachedPayloadPresentFact, PrimarySigningKeySubjectFact, UnknownCounterSignatureBytesFact,
 };
 pub use cbor_primitives::RawCbor;
 

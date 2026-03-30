@@ -6,7 +6,9 @@
 
 use cose_sign1_validation_primitives::decision::TrustDecision;
 use cose_sign1_validation_primitives::error::TrustError;
-use cose_sign1_validation_primitives::evaluation_options::{CoseHeaderLocation, TrustEvaluationOptions};
+use cose_sign1_validation_primitives::evaluation_options::{
+    CoseHeaderLocation, TrustEvaluationOptions,
+};
 use cose_sign1_validation_primitives::facts::{FactKey, TrustFactEngine, TrustFactSet};
 use cose_sign1_validation_primitives::field::Field;
 use cose_sign1_validation_primitives::plan::CompiledTrustPlan;
@@ -18,8 +20,14 @@ use cose_sign1_validation_primitives::subject::TrustSubject;
 #[test]
 fn error_display_all_variants() {
     let cases: Vec<(TrustError, &str)> = vec![
-        (TrustError::FactProduction("fp".into()), "fact production failed: fp"),
-        (TrustError::RuleEvaluation("re".into()), "rule evaluation failed: re"),
+        (
+            TrustError::FactProduction("fp".into()),
+            "fact production failed: fp",
+        ),
+        (
+            TrustError::RuleEvaluation("re".into()),
+            "rule evaluation failed: re",
+        ),
         (TrustError::DeadlineExceeded, "deadline exceeded"),
     ];
     for (err, expected) in cases {
@@ -67,7 +75,9 @@ fn decision_denied_preserves_reasons() {
 
 #[test]
 fn fact_set_missing_is_missing() {
-    let fs: TrustFactSet<String> = TrustFactSet::Missing { reason: "gone".into() };
+    let fs: TrustFactSet<String> = TrustFactSet::Missing {
+        reason: "gone".into(),
+    };
     assert!(fs.is_missing());
     assert!(fs.as_available().is_none());
 }
@@ -115,7 +125,10 @@ fn compiled_plan_bypass_trust_returns_trusted() {
     let plan = CompiledTrustPlan::new(Vec::new(), Vec::new(), Vec::new(), Vec::new());
     let engine = TrustFactEngine::new(Vec::new());
     let subject = TrustSubject::message(b"msg");
-    let opts = TrustEvaluationOptions { bypass_trust: true, ..Default::default() };
+    let opts = TrustEvaluationOptions {
+        bypass_trust: true,
+        ..Default::default()
+    };
     let decision = plan.evaluate(&engine, &subject, &opts).unwrap();
     assert!(decision.is_trusted);
 }

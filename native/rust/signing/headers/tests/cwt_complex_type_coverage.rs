@@ -5,8 +5,8 @@
 //! CwtClaims::from_cbor_bytes — array/map element decoding with
 //! mixed types (text, bytes, bool) and empty collections.
 
-use cose_sign1_headers::cwt_claims::CwtClaims;
 use cbor_primitives::CborEncoder;
+use cose_sign1_headers::cwt_claims::CwtClaims;
 
 /// Helper: create a CBOR encoder via the provider.
 fn encoder() -> cbor_primitives_everparse::EverParseEncoder {

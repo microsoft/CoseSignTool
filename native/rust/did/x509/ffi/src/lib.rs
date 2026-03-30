@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 #![cfg_attr(coverage_nightly, feature(coverage_attribute))]
-
 #![deny(unsafe_op_in_unsafe_fn)]
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
@@ -376,10 +375,7 @@ pub fn impl_build_with_eku_inner(
             if oid_ptr.is_null() {
                 set_error(
                     out_error,
-                    ErrorInner::new(
-                        format!("eku_oids[{}] is null", i),
-                        FFI_ERR_NULL_POINTER,
-                    ),
+                    ErrorInner::new(format!("eku_oids[{}] is null", i), FFI_ERR_NULL_POINTER),
                 );
                 return FFI_ERR_NULL_POINTER;
             }
@@ -490,10 +486,7 @@ pub fn impl_build_from_chain_inner(
             if cert_ptr.is_null() && cert_len > 0 {
                 set_error(
                     out_error,
-                    ErrorInner::new(
-                        format!("chain_certs[{}] is null", i),
-                        FFI_ERR_NULL_POINTER,
-                    ),
+                    ErrorInner::new(format!("chain_certs[{}] is null", i), FFI_ERR_NULL_POINTER),
                 );
                 return FFI_ERR_NULL_POINTER;
             }
@@ -616,10 +609,7 @@ pub fn impl_validate_inner(
             if cert_ptr.is_null() && cert_len > 0 {
                 set_error(
                     out_error,
-                    ErrorInner::new(
-                        format!("chain_certs[{}] is null", i),
-                        FFI_ERR_NULL_POINTER,
-                    ),
+                    ErrorInner::new(format!("chain_certs[{}] is null", i), FFI_ERR_NULL_POINTER),
                 );
                 return FFI_ERR_NULL_POINTER;
             }
@@ -742,10 +732,7 @@ pub fn impl_resolve_inner(
             if cert_ptr.is_null() && cert_len > 0 {
                 set_error(
                     out_error,
-                    ErrorInner::new(
-                        format!("chain_certs[{}] is null", i),
-                        FFI_ERR_NULL_POINTER,
-                    ),
+                    ErrorInner::new(format!("chain_certs[{}] is null", i), FFI_ERR_NULL_POINTER),
                 );
                 return FFI_ERR_NULL_POINTER;
             }
@@ -758,29 +745,27 @@ pub fn impl_resolve_inner(
         }
 
         match DidX509Resolver::resolve(did_str, &certs) {
-            Ok(did_document) => {
-                match serde_json::to_string(&did_document) {
-                    Ok(json_str) => match std::ffi::CString::new(json_str) {
-                        Ok(c_str) => {
-                            unsafe {
-                                *out_did_document_json = c_str.into_raw();
-                            }
-                            FFI_OK
+            Ok(did_document) => match serde_json::to_string(&did_document) {
+                Ok(json_str) => match std::ffi::CString::new(json_str) {
+                    Ok(c_str) => {
+                        unsafe {
+                            *out_did_document_json = c_str.into_raw();
                         }
-                        Err(_) => handle_nul_byte(out_error, "DID document JSON"),
-                    },
-                    Err(err) => {
-                        set_error(
-                            out_error,
-                            ErrorInner::new(
-                                format!("JSON serialization failed: {}", err),
-                                FFI_ERR_RESOLVE_FAILED,
-                            ),
-                        );
-                        FFI_ERR_RESOLVE_FAILED
+                        FFI_OK
                     }
+                    Err(_) => handle_nul_byte(out_error, "DID document JSON"),
+                },
+                Err(err) => {
+                    set_error(
+                        out_error,
+                        ErrorInner::new(
+                            format!("JSON serialization failed: {}", err),
+                            FFI_ERR_RESOLVE_FAILED,
+                        ),
+                    );
+                    FFI_ERR_RESOLVE_FAILED
                 }
-            }
+            },
             Err(err) => {
                 set_error(out_error, ErrorInner::from_did_error(&err));
                 FFI_ERR_RESOLVE_FAILED

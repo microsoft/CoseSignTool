@@ -103,7 +103,10 @@ fn lazy_header_map_insert_and_get() {
     let label = CoseHeaderLabel::Int(42);
     let value = CoseHeaderValue::Int(99);
 
-    assert!(map.get(&label).is_none(), "label should not exist before insert");
+    assert!(
+        map.get(&label).is_none(),
+        "label should not exist before insert"
+    );
 
     map.insert(label.clone(), value.clone());
 
@@ -124,7 +127,10 @@ fn lazy_header_map_remove_returns_value() {
 
     let removed = map.remove(&label);
     assert_eq!(removed, Some(value));
-    assert!(map.get(&label).is_none(), "label should be gone after remove");
+    assert!(
+        map.get(&label).is_none(),
+        "label should be gone after remove"
+    );
 }
 
 #[test]

@@ -18,9 +18,7 @@ fn error_message(err: *const DidX509ErrorHandle) -> Option<String> {
     if msg.is_null() {
         return None;
     }
-    let s = unsafe { CStr::from_ptr(msg) }
-        .to_string_lossy()
-        .to_string();
+    let s = unsafe { CStr::from_ptr(msg) }.to_string_lossy().to_string();
     unsafe { did_x509_string_free(msg) };
     Some(s)
 }
@@ -89,7 +87,8 @@ fn ffi_parse_valid_did_string() {
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
 
     // Example DID:x509 string (simplified for testing)
-    let valid_did = CString::new("did:x509:0:sha256:WE69Dr_yGqMPE-KOhAqCag==::subject:CN%3DExample").unwrap();
+    let valid_did =
+        CString::new("did:x509:0:sha256:WE69Dr_yGqMPE-KOhAqCag==::subject:CN%3DExample").unwrap();
     let rc = unsafe { did_x509_parse(valid_did.as_ptr(), &mut handle, &mut err) };
 
     // Note: This might fail with parse error depending on exact format expected
@@ -138,14 +137,7 @@ fn ffi_build_with_eku_null_inputs() {
 
     // Null out_did_string should fail
     let rc = unsafe {
-        did_x509_build_with_eku(
-            ptr::null(),
-            0,
-            ptr::null(),
-            0,
-            ptr::null_mut(),
-            &mut err,
-        )
+        did_x509_build_with_eku(ptr::null(), 0, ptr::null(), 0, ptr::null_mut(), &mut err)
     };
     assert_eq!(rc, DID_X509_ERR_NULL_POINTER);
     assert!(!err.is_null());

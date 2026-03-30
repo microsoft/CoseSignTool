@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-use cose_sign1_headers::{CwtClaims, CwtClaimValue, CWTClaimsHeaderLabels, HeaderError};
+use cose_sign1_headers::{CWTClaimsHeaderLabels, CwtClaimValue, CwtClaims, HeaderError};
 
 #[test]
 fn test_cwt_claims_label_constants() {
@@ -24,10 +24,10 @@ fn test_cwt_claims_default_subject() {
 #[test]
 fn test_cwt_claims_empty_roundtrip() {
     let claims = CwtClaims::new();
-    
+
     let bytes = claims.to_cbor_bytes().unwrap();
     let decoded = CwtClaims::from_cbor_bytes(&bytes).unwrap();
-    
+
     assert_eq!(decoded.issuer, None);
     assert_eq!(decoded.subject, None);
     assert_eq!(decoded.audience, None);
@@ -47,13 +47,16 @@ fn test_cwt_claims_standard_claims_roundtrip() {
         .with_expiration_time(1234567890)
         .with_not_before(1234567800)
         .with_issued_at(1234567850);
-    
+
     let bytes = claims.to_cbor_bytes().unwrap();
     let decoded = CwtClaims::from_cbor_bytes(&bytes).unwrap();
-    
+
     assert_eq!(decoded.issuer, Some("https://example.com".to_string()));
     assert_eq!(decoded.subject, Some("user@example.com".to_string()));
-    assert_eq!(decoded.audience, Some("https://api.example.com".to_string()));
+    assert_eq!(
+        decoded.audience,
+        Some("https://api.example.com".to_string())
+    );
     assert_eq!(decoded.expiration_time, Some(1234567890));
     assert_eq!(decoded.not_before, Some(1234567800));
     assert_eq!(decoded.issued_at, Some(1234567850));
@@ -65,21 +68,21 @@ fn test_cwt_claims_with_cwt_id() {
     let claims = CwtClaims::new()
         .with_subject("test")
         .with_cwt_id(cti.clone());
-    
+
     let bytes = claims.to_cbor_bytes().unwrap();
     let decoded = CwtClaims::from_cbor_bytes(&bytes).unwrap();
-    
+
     assert_eq!(decoded.cwt_id, Some(cti));
 }
 
 #[test]
 fn test_cwt_claims_custom_text_claim() {
-    let claims = CwtClaims::new()
-        .with_custom_claim(100, CwtClaimValue::Text("custom value".to_string()));
-    
+    let claims =
+        CwtClaims::new().with_custom_claim(100, CwtClaimValue::Text("custom value".to_string()));
+
     let bytes = claims.to_cbor_bytes().unwrap();
     let decoded = CwtClaims::from_cbor_bytes(&bytes).unwrap();
-    
+
     assert_eq!(
         decoded.custom_claims.get(&100),
         Some(&CwtClaimValue::Text("custom value".to_string()))
@@ -88,12 +91,11 @@ fn test_cwt_claims_custom_text_claim() {
 
 #[test]
 fn test_cwt_claims_custom_integer_claim() {
-    let claims = CwtClaims::new()
-        .with_custom_claim(101, CwtClaimValue::Integer(42));
-    
+    let claims = CwtClaims::new().with_custom_claim(101, CwtClaimValue::Integer(42));
+
     let bytes = claims.to_cbor_bytes().unwrap();
     let decoded = CwtClaims::from_cbor_bytes(&bytes).unwrap();
-    
+
     assert_eq!(
         decoded.custom_claims.get(&101),
         Some(&CwtClaimValue::Integer(42))
@@ -103,12 +105,11 @@ fn test_cwt_claims_custom_integer_claim() {
 #[test]
 fn test_cwt_claims_custom_bytes_claim() {
     let data = vec![0xDE, 0xAD, 0xBE, 0xEF];
-    let claims = CwtClaims::new()
-        .with_custom_claim(102, CwtClaimValue::Bytes(data.clone()));
-    
+    let claims = CwtClaims::new().with_custom_claim(102, CwtClaimValue::Bytes(data.clone()));
+
     let bytes = claims.to_cbor_bytes().unwrap();
     let decoded = CwtClaims::from_cbor_bytes(&bytes).unwrap();
-    
+
     assert_eq!(
         decoded.custom_claims.get(&102),
         Some(&CwtClaimValue::Bytes(data))
@@ -117,12 +118,11 @@ fn test_cwt_claims_custom_bytes_claim() {
 
 #[test]
 fn test_cwt_claims_custom_bool_claim() {
-    let claims = CwtClaims::new()
-        .with_custom_claim(103, CwtClaimValue::Bool(true));
-    
+    let claims = CwtClaims::new().with_custom_claim(103, CwtClaimValue::Bool(true));
+
     let bytes = claims.to_cbor_bytes().unwrap();
     let decoded = CwtClaims::from_cbor_bytes(&bytes).unwrap();
-    
+
     assert_eq!(
         decoded.custom_claims.get(&103),
         Some(&CwtClaimValue::Bool(true))
@@ -136,10 +136,10 @@ fn test_cwt_claims_multiple_custom_claims() {
         .with_custom_claim(200, CwtClaimValue::Text("claim1".to_string()))
         .with_custom_claim(201, CwtClaimValue::Integer(123))
         .with_custom_claim(202, CwtClaimValue::Bool(false));
-    
+
     let bytes = claims.to_cbor_bytes().unwrap();
     let decoded = CwtClaims::from_cbor_bytes(&bytes).unwrap();
-    
+
     assert_eq!(decoded.custom_claims.len(), 3);
     assert_eq!(
         decoded.custom_claims.get(&200),
@@ -168,13 +168,19 @@ fn test_cwt_claims_full_roundtrip() {
         .with_cwt_id(cti.clone())
         .with_custom_claim(500, CwtClaimValue::Text("custom".to_string()))
         .with_custom_claim(501, CwtClaimValue::Integer(-42));
-    
+
     let bytes = claims.to_cbor_bytes().unwrap();
     let decoded = CwtClaims::from_cbor_bytes(&bytes).unwrap();
-    
-    assert_eq!(decoded.issuer, Some("https://issuer.example.com".to_string()));
+
+    assert_eq!(
+        decoded.issuer,
+        Some("https://issuer.example.com".to_string())
+    );
     assert_eq!(decoded.subject, Some("sub@example.com".to_string()));
-    assert_eq!(decoded.audience, Some("https://audience.example.com".to_string()));
+    assert_eq!(
+        decoded.audience,
+        Some("https://audience.example.com".to_string())
+    );
     assert_eq!(decoded.expiration_time, Some(9999999999));
     assert_eq!(decoded.not_before, Some(1000000000));
     assert_eq!(decoded.issued_at, Some(1500000000));
@@ -185,7 +191,7 @@ fn test_cwt_claims_full_roundtrip() {
 #[test]
 fn test_cwt_claims_new_all_none() {
     let claims = CwtClaims::new();
-    
+
     // Verify all fields are None/empty after creation
     assert!(claims.issuer.is_none());
     assert!(claims.subject.is_none());
@@ -209,7 +215,7 @@ fn test_cwt_claims_fluent_builder_chaining() {
         .with_issued_at(123456750)
         .with_cwt_id(vec![1, 2, 3])
         .with_custom_claim(100, CwtClaimValue::Text("test".to_string()));
-    
+
     assert_eq!(claims.issuer, Some("issuer".to_string()));
     assert_eq!(claims.subject, Some("subject".to_string()));
     assert_eq!(claims.audience, Some("audience".to_string()));
@@ -224,10 +230,10 @@ fn test_cwt_claims_fluent_builder_chaining() {
 fn test_cwt_claims_from_cbor_invalid_data() {
     // Test with invalid CBOR data (not a map)
     let invalid_cbor = vec![0x01]; // Integer 1 instead of a map
-    
+
     let result = CwtClaims::from_cbor_bytes(&invalid_cbor);
     assert!(result.is_err());
-    
+
     if let Err(HeaderError::CborDecodingError(msg)) = result {
         assert!(msg.contains("Expected CBOR map"));
     } else {
@@ -239,7 +245,7 @@ fn test_cwt_claims_from_cbor_invalid_data() {
 fn test_cwt_claims_from_cbor_empty_data() {
     // Test with empty data
     let empty_data = vec![];
-    
+
     let result = CwtClaims::from_cbor_bytes(&empty_data);
     assert!(result.is_err());
 }
@@ -250,15 +256,16 @@ fn test_cwt_claims_from_cbor_non_integer_label() {
     // Map with 1 entry: "invalid_label" -> "value"
     let invalid_cbor = vec![
         0xa1, // map(1)
-        0x6d, // text(13) 
-        0x69, 0x6e, 0x76, 0x61, 0x6c, 0x69, 0x64, 0x5f, 0x6c, 0x61, 0x62, 0x65, 0x6c, // "invalid_label"
+        0x6d, // text(13)
+        0x69, 0x6e, 0x76, 0x61, 0x6c, 0x69, 0x64, 0x5f, 0x6c, 0x61, 0x62, 0x65,
+        0x6c, // "invalid_label"
         0x65, // text(5)
-        0x76, 0x61, 0x6c, 0x75, 0x65 // "value"
+        0x76, 0x61, 0x6c, 0x75, 0x65, // "value"
     ];
-    
+
     let result = CwtClaims::from_cbor_bytes(&invalid_cbor);
     assert!(result.is_err());
-    
+
     if let Err(HeaderError::CborDecodingError(msg)) = result {
         assert!(msg.contains("CWT claim label must be integer"));
     } else {
@@ -274,16 +281,16 @@ fn test_cwt_claim_value_variants() {
     let bytes = CwtClaimValue::Bytes(vec![1, 2, 3]);
     let bool_val = CwtClaimValue::Bool(true);
     let float = CwtClaimValue::Float(1.23);
-    
+
     // Test Clone
     let text_clone = text.clone();
     assert_eq!(text, text_clone);
-    
+
     // Test Debug
     let debug_str = format!("{:?}", text);
     assert!(debug_str.contains("Text"));
     assert!(debug_str.contains("test"));
-    
+
     // Test PartialEq - different variants should not be equal
     assert_ne!(text, integer);
     assert_ne!(integer, bytes);
@@ -300,12 +307,11 @@ fn test_cwt_claims_default_subject_constant() {
 #[test]
 fn test_cwt_claims_custom_float_claim_encoding_unsupported() {
     // Test that float encoding fails gracefully since it's not supported
-    let claims = CwtClaims::new()
-        .with_custom_claim(104, CwtClaimValue::Float(3.14159));
-    
+    let claims = CwtClaims::new().with_custom_claim(104, CwtClaimValue::Float(3.14159));
+
     let result = claims.to_cbor_bytes();
     assert!(result.is_err());
-    
+
     if let Err(HeaderError::CborEncodingError(msg)) = result {
         assert!(msg.contains("floating-point"));
     } else {
@@ -315,12 +321,11 @@ fn test_cwt_claims_custom_float_claim_encoding_unsupported() {
 
 #[test]
 fn test_cwt_claims_custom_negative_integer() {
-    let claims = CwtClaims::new()
-        .with_custom_claim(-100, CwtClaimValue::Integer(-42));
-    
+    let claims = CwtClaims::new().with_custom_claim(-100, CwtClaimValue::Integer(-42));
+
     let bytes = claims.to_cbor_bytes().unwrap();
     let decoded = CwtClaims::from_cbor_bytes(&bytes).unwrap();
-    
+
     assert_eq!(
         decoded.custom_claims.get(&-100),
         Some(&CwtClaimValue::Integer(-42))
@@ -334,17 +339,17 @@ fn test_cwt_claims_custom_claims_sorted_encoding() {
         .with_custom_claim(300, CwtClaimValue::Text("third".to_string()))
         .with_custom_claim(100, CwtClaimValue::Text("first".to_string()))
         .with_custom_claim(200, CwtClaimValue::Text("second".to_string()));
-    
+
     let bytes1 = claims.to_cbor_bytes().unwrap();
-    
+
     // Create same claims in different order
     let claims2 = CwtClaims::new()
         .with_custom_claim(100, CwtClaimValue::Text("first".to_string()))
         .with_custom_claim(200, CwtClaimValue::Text("second".to_string()))
         .with_custom_claim(300, CwtClaimValue::Text("third".to_string()));
-    
+
     let bytes2 = claims2.to_cbor_bytes().unwrap();
-    
+
     // Should produce identical CBOR due to deterministic encoding
     assert_eq!(bytes1, bytes2);
 }
@@ -353,10 +358,10 @@ fn test_cwt_claims_custom_claims_sorted_encoding() {
 fn test_cwt_claims_from_cbor_corrupted_data() {
     // Test with truncated CBOR data
     let corrupted_cbor = vec![0xa1, 0x01]; // Map(1), key 1, but missing value
-    
+
     let result = CwtClaims::from_cbor_bytes(&corrupted_cbor);
     assert!(result.is_err());
-    
+
     if let Err(HeaderError::CborDecodingError(_)) = result {
         // Expected
     } else {
@@ -366,12 +371,12 @@ fn test_cwt_claims_from_cbor_corrupted_data() {
 
 #[test]
 fn test_cwt_claims_merge_custom_claims() {
-    let mut claims = CwtClaims::new()
-        .with_custom_claim(100, CwtClaimValue::Text("original".to_string()));
-    
+    let mut claims =
+        CwtClaims::new().with_custom_claim(100, CwtClaimValue::Text("original".to_string()));
+
     // Overwrite existing claim
     claims = claims.with_custom_claim(100, CwtClaimValue::Text("updated".to_string()));
-    
+
     assert_eq!(claims.custom_claims.len(), 1);
     assert_eq!(
         claims.custom_claims.get(&100),
@@ -382,22 +387,25 @@ fn test_cwt_claims_merge_custom_claims() {
 #[test]
 fn test_cwt_claims_builder_method_coverage() {
     let original_claims = CwtClaims::new();
-    
+
     // Test with_expiration method coverage
     let claims_with_exp = original_claims.clone().with_expiration_time(9999999999);
     assert_eq!(claims_with_exp.expiration_time, Some(9999999999));
-    
-    // Test with_not_before method coverage 
+
+    // Test with_not_before method coverage
     let claims_with_nbf = original_claims.clone().with_not_before(1111111111);
     assert_eq!(claims_with_nbf.not_before, Some(1111111111));
-    
+
     // Test with_issued_at method coverage
     let claims_with_iat = original_claims.clone().with_issued_at(2222222222);
     assert_eq!(claims_with_iat.issued_at, Some(2222222222));
-    
+
     // Test with_audience method coverage
     let claims_with_aud = original_claims.clone().with_audience("test.audience.com");
-    assert_eq!(claims_with_aud.audience, Some("test.audience.com".to_string()));
+    assert_eq!(
+        claims_with_aud.audience,
+        Some("test.audience.com".to_string())
+    );
 }
 
 #[test]
@@ -405,7 +413,7 @@ fn test_cwt_claims_comprehensive_cbor_roundtrip() {
     // Test roundtrip with all claim types
     let claims = CwtClaims::new()
         .with_issuer("comprehensive-issuer")
-        .with_subject("comprehensive-subject") 
+        .with_subject("comprehensive-subject")
         .with_audience("comprehensive-audience")
         .with_expiration_time(2000000000)
         .with_not_before(1900000000)
@@ -415,36 +423,59 @@ fn test_cwt_claims_comprehensive_cbor_roundtrip() {
         .with_custom_claim(201, CwtClaimValue::Integer(-12345))
         .with_custom_claim(202, CwtClaimValue::Bytes(vec![0xFF, 0xFE, 0xFD]))
         .with_custom_claim(203, CwtClaimValue::Bool(false));
-    
+
     // Serialize to CBOR
-    let cbor_bytes = claims.to_cbor_bytes().expect("serialization should succeed");
-    
+    let cbor_bytes = claims
+        .to_cbor_bytes()
+        .expect("serialization should succeed");
+
     // Deserialize from CBOR
-    let decoded_claims = CwtClaims::from_cbor_bytes(&cbor_bytes)
-        .expect("deserialization should succeed");
-    
+    let decoded_claims =
+        CwtClaims::from_cbor_bytes(&cbor_bytes).expect("deserialization should succeed");
+
     // Verify all fields are preserved
-    assert_eq!(decoded_claims.issuer, Some("comprehensive-issuer".to_string()));
-    assert_eq!(decoded_claims.subject, Some("comprehensive-subject".to_string()));
-    assert_eq!(decoded_claims.audience, Some("comprehensive-audience".to_string()));
+    assert_eq!(
+        decoded_claims.issuer,
+        Some("comprehensive-issuer".to_string())
+    );
+    assert_eq!(
+        decoded_claims.subject,
+        Some("comprehensive-subject".to_string())
+    );
+    assert_eq!(
+        decoded_claims.audience,
+        Some("comprehensive-audience".to_string())
+    );
     assert_eq!(decoded_claims.expiration_time, Some(2000000000));
     assert_eq!(decoded_claims.not_before, Some(1900000000));
     assert_eq!(decoded_claims.issued_at, Some(1950000000));
     assert_eq!(decoded_claims.cwt_id, Some(vec![0xAA, 0xBB, 0xCC, 0xDD]));
-    
+
     // Verify custom claims
     assert_eq!(decoded_claims.custom_claims.len(), 4);
-    assert_eq!(decoded_claims.custom_claims.get(&200), Some(&CwtClaimValue::Text("text-claim".to_string())));
-    assert_eq!(decoded_claims.custom_claims.get(&201), Some(&CwtClaimValue::Integer(-12345)));
-    assert_eq!(decoded_claims.custom_claims.get(&202), Some(&CwtClaimValue::Bytes(vec![0xFF, 0xFE, 0xFD])));
-    assert_eq!(decoded_claims.custom_claims.get(&203), Some(&CwtClaimValue::Bool(false)));
+    assert_eq!(
+        decoded_claims.custom_claims.get(&200),
+        Some(&CwtClaimValue::Text("text-claim".to_string()))
+    );
+    assert_eq!(
+        decoded_claims.custom_claims.get(&201),
+        Some(&CwtClaimValue::Integer(-12345))
+    );
+    assert_eq!(
+        decoded_claims.custom_claims.get(&202),
+        Some(&CwtClaimValue::Bytes(vec![0xFF, 0xFE, 0xFD]))
+    );
+    assert_eq!(
+        decoded_claims.custom_claims.get(&203),
+        Some(&CwtClaimValue::Bool(false))
+    );
 }
 
 #[test]
 fn test_cwt_claims_with_all_fields_set() {
     // Create claims with all possible fields populated to test coverage
     let mut claims = CwtClaims::new();
-    
+
     // Set all standard fields manually for coverage
     claims.issuer = Some("manual-issuer".to_string());
     claims.subject = Some("manual-subject".to_string());
@@ -453,20 +484,27 @@ fn test_cwt_claims_with_all_fields_set() {
     claims.not_before = Some(2900000000);
     claims.issued_at = Some(2950000000);
     claims.cwt_id = Some(vec![0x11, 0x22, 0x33]);
-    
+
     // Add custom claims
-    claims.custom_claims.insert(301, CwtClaimValue::Text("field-301".to_string()));
-    claims.custom_claims.insert(302, CwtClaimValue::Integer(99999));
-    
+    claims
+        .custom_claims
+        .insert(301, CwtClaimValue::Text("field-301".to_string()));
+    claims
+        .custom_claims
+        .insert(302, CwtClaimValue::Integer(99999));
+
     // Serialize and check success
     let cbor_result = claims.to_cbor_bytes();
-    assert!(cbor_result.is_ok(), "Serialization with all fields should succeed");
-    
+    assert!(
+        cbor_result.is_ok(),
+        "Serialization with all fields should succeed"
+    );
+
     // Test that we can deserialize it back
     let cbor_bytes = cbor_result.unwrap();
     let decoded = CwtClaims::from_cbor_bytes(&cbor_bytes);
     assert!(decoded.is_ok(), "Deserialization should succeed");
-    
+
     let decoded_claims = decoded.unwrap();
     assert_eq!(decoded_claims.issuer, claims.issuer);
     assert_eq!(decoded_claims.subject, claims.subject);
@@ -483,12 +521,12 @@ fn test_cwt_claims_builder_with_string_references() {
     // Test builder methods with string references
     let issuer = "test-issuer".to_string();
     let subject = "test-subject";
-    
+
     let claims = CwtClaims::new()
         .with_issuer(&issuer)
         .with_subject(subject)
         .with_audience("test-audience");
-    
+
     assert_eq!(claims.issuer, Some(issuer));
     assert_eq!(claims.subject, Some("test-subject".to_string()));
     assert_eq!(claims.audience, Some("test-audience".to_string()));
@@ -500,10 +538,10 @@ fn test_cwt_claims_empty_string_values() {
         .with_issuer("")
         .with_subject("")
         .with_audience("");
-    
+
     let bytes = claims.to_cbor_bytes().unwrap();
     let decoded = CwtClaims::from_cbor_bytes(&bytes).unwrap();
-    
+
     assert_eq!(decoded.issuer, Some("".to_string()));
     assert_eq!(decoded.subject, Some("".to_string()));
     assert_eq!(decoded.audience, Some("".to_string()));
@@ -515,10 +553,10 @@ fn test_cwt_claims_zero_timestamps() {
         .with_expiration_time(0)
         .with_not_before(0)
         .with_issued_at(0);
-    
+
     let bytes = claims.to_cbor_bytes().unwrap();
     let decoded = CwtClaims::from_cbor_bytes(&bytes).unwrap();
-    
+
     assert_eq!(decoded.expiration_time, Some(0));
     assert_eq!(decoded.not_before, Some(0));
     assert_eq!(decoded.issued_at, Some(0));
@@ -530,10 +568,10 @@ fn test_cwt_claims_negative_timestamps() {
         .with_expiration_time(-1000)
         .with_not_before(-2000)
         .with_issued_at(-1500);
-    
+
     let bytes = claims.to_cbor_bytes().unwrap();
     let decoded = CwtClaims::from_cbor_bytes(&bytes).unwrap();
-    
+
     assert_eq!(decoded.expiration_time, Some(-1000));
     assert_eq!(decoded.not_before, Some(-2000));
     assert_eq!(decoded.issued_at, Some(-1500));
@@ -544,10 +582,10 @@ fn test_cwt_claims_empty_byte_strings() {
     let claims = CwtClaims::new()
         .with_cwt_id(vec![])
         .with_custom_claim(105, CwtClaimValue::Bytes(vec![]));
-    
+
     let bytes = claims.to_cbor_bytes().unwrap();
     let decoded = CwtClaims::from_cbor_bytes(&bytes).unwrap();
-    
+
     assert_eq!(decoded.cwt_id, Some(vec![]));
     assert_eq!(
         decoded.custom_claims.get(&105),
@@ -558,12 +596,12 @@ fn test_cwt_claims_empty_byte_strings() {
 #[test]
 fn test_cwt_claims_very_large_custom_label() {
     let large_label = i64::MAX;
-    let claims = CwtClaims::new()
-        .with_custom_claim(large_label, CwtClaimValue::Text("large".to_string()));
-    
+    let claims =
+        CwtClaims::new().with_custom_claim(large_label, CwtClaimValue::Text("large".to_string()));
+
     let bytes = claims.to_cbor_bytes().unwrap();
     let decoded = CwtClaims::from_cbor_bytes(&bytes).unwrap();
-    
+
     assert_eq!(
         decoded.custom_claims.get(&large_label),
         Some(&CwtClaimValue::Text("large".to_string()))
@@ -573,12 +611,12 @@ fn test_cwt_claims_very_large_custom_label() {
 #[test]
 fn test_cwt_claims_very_small_custom_label() {
     let small_label = i64::MIN;
-    let claims = CwtClaims::new()
-        .with_custom_claim(small_label, CwtClaimValue::Text("small".to_string()));
-    
+    let claims =
+        CwtClaims::new().with_custom_claim(small_label, CwtClaimValue::Text("small".to_string()));
+
     let bytes = claims.to_cbor_bytes().unwrap();
     let decoded = CwtClaims::from_cbor_bytes(&bytes).unwrap();
-    
+
     assert_eq!(
         decoded.custom_claims.get(&small_label),
         Some(&CwtClaimValue::Text("small".to_string()))
@@ -596,10 +634,10 @@ fn test_cwt_claims_from_cbor_with_array_value() {
         0x01, // unsigned(1)
         0x02, // unsigned(2)
     ];
-    
+
     let result = CwtClaims::from_cbor_bytes(&cbor_with_array);
     assert!(result.is_ok(), "Should skip array values");
-    
+
     let claims = result.unwrap();
     // Array should be skipped, so custom_claims should be empty
     assert!(claims.custom_claims.is_empty());
@@ -617,10 +655,10 @@ fn test_cwt_claims_from_cbor_with_map_value() {
         0x65, // text(5)
         0x76, 0x61, 0x6c, 0x75, 0x65, // "value"
     ];
-    
+
     let result = CwtClaims::from_cbor_bytes(&cbor_with_map);
     assert!(result.is_ok(), "Should skip map values");
-    
+
     let claims = result.unwrap();
     // Map should be skipped, so custom_claims should be empty
     assert!(claims.custom_claims.is_empty());
@@ -636,10 +674,10 @@ fn test_cwt_claims_from_cbor_with_unsupported_tagged_value() {
         0xc0, // tag(0)
         0x19, 0x04, 0xd2, // unsigned(1234)
     ];
-    
+
     let result = CwtClaims::from_cbor_bytes(&cbor_with_tagged);
     assert!(result.is_err(), "Should fail on unsupported tagged type");
-    
+
     if let Err(HeaderError::CborDecodingError(msg)) = result {
         assert!(msg.contains("Unsupported CWT claim value type"));
     } else {
@@ -658,10 +696,10 @@ fn test_cwt_claims_from_cbor_with_indefinite_length_map() {
         0x68, 0x65, 0x6c, 0x6c, 0x6f, // "hello"
         0xff, // break
     ];
-    
+
     let result = CwtClaims::from_cbor_bytes(&cbor_indefinite);
     assert!(result.is_err(), "Should reject indefinite-length maps");
-    
+
     if let Err(HeaderError::CborDecodingError(msg)) = result {
         assert!(msg.contains("Indefinite-length maps not supported"));
     } else {
@@ -682,12 +720,15 @@ fn test_cwt_claims_from_cbor_with_multiple_arrays() {
         0x83, // array(3)
         0x03, 0x04, 0x05, // [3, 4, 5]
     ];
-    
+
     let result = CwtClaims::from_cbor_bytes(&cbor_multi_arrays);
     assert!(result.is_ok(), "Should skip multiple arrays");
-    
+
     let claims = result.unwrap();
-    assert!(claims.custom_claims.is_empty(), "Both arrays should be skipped");
+    assert!(
+        claims.custom_claims.is_empty(),
+        "Both arrays should be skipped"
+    );
 }
 
 #[test]
@@ -720,10 +761,13 @@ fn test_cwt_claims_from_cbor_with_mixed_standard_and_custom() {
         0x82, // array(2)
         0x01, 0x02, // [1, 2]
     ];
-    
+
     let result = CwtClaims::from_cbor_bytes(&cbor_mixed);
-    assert!(result.is_ok(), "Should decode standard claims and skip array");
-    
+    assert!(
+        result.is_ok(),
+        "Should decode standard claims and skip array"
+    );
+
     let claims = result.unwrap();
     assert_eq!(claims.issuer, Some("test-iss".to_string()));
     assert_eq!(claims.subject, Some("test-sub".to_string()));
@@ -746,10 +790,10 @@ fn test_cwt_claims_from_cbor_with_nested_arrays() {
         0x01, 0x02, 0x03, // [1,2,3]
         0xf5, // true
     ];
-    
+
     let result = CwtClaims::from_cbor_bytes(&cbor_nested_array);
     assert!(result.is_ok(), "Should skip nested array");
-    
+
     let claims = result.unwrap();
     assert!(claims.custom_claims.is_empty());
 }
@@ -767,10 +811,10 @@ fn test_cwt_claims_from_cbor_with_nested_maps() {
         0x74, 0x65, 0x78, 0x74, // "text"
         0x03, 0xf5, // 3: true
     ];
-    
+
     let result = CwtClaims::from_cbor_bytes(&cbor_nested_map);
     assert!(result.is_ok(), "Should skip nested map");
-    
+
     let claims = result.unwrap();
     assert!(claims.custom_claims.is_empty());
 }
@@ -782,9 +826,9 @@ fn test_cwt_claims_clone() {
         .with_issuer("test")
         .with_subject("subject")
         .with_custom_claim(100, CwtClaimValue::Text("value".to_string()));
-    
+
     let cloned = claims.clone();
-    
+
     assert_eq!(cloned.issuer, claims.issuer);
     assert_eq!(cloned.subject, claims.subject);
     assert_eq!(cloned.custom_claims, claims.custom_claims);
@@ -796,7 +840,7 @@ fn test_cwt_claims_debug() {
     let claims = CwtClaims::new()
         .with_issuer("debug-test")
         .with_subject("debug-subject");
-    
+
     let debug_str = format!("{:?}", claims);
     assert!(debug_str.contains("issuer"));
     assert!(debug_str.contains("debug-test"));
@@ -806,7 +850,7 @@ fn test_cwt_claims_debug() {
 fn test_cwt_claims_default() {
     // Test Default trait coverage
     let claims = CwtClaims::default();
-    
+
     assert!(claims.issuer.is_none());
     assert!(claims.subject.is_none());
     assert!(claims.audience.is_none());

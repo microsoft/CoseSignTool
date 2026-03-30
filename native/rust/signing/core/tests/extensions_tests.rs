@@ -3,17 +3,12 @@
 
 //! Tests for signature format and extensions.
 
-use cose_sign1_signing::{
-    SignatureFormat, IndirectSignatureHeaderLabels, CoseHeaderLocation,
-};
 use cose_sign1_primitives::CoseHeaderLabel;
+use cose_sign1_signing::{CoseHeaderLocation, IndirectSignatureHeaderLabels, SignatureFormat};
 
 #[test]
 fn test_signature_format_variants() {
-    assert_eq!(
-        format!("{:?}", SignatureFormat::Direct),
-        "Direct"
-    );
+    assert_eq!(format!("{:?}", SignatureFormat::Direct), "Direct");
     assert_eq!(
         format!("{:?}", SignatureFormat::IndirectHashLegacy),
         "IndirectHashLegacy"
@@ -49,41 +44,38 @@ fn test_indirect_signature_header_labels() {
 
     // Verify the correct integer values
     match payload_hash_alg {
-        CoseHeaderLabel::Int(258) => {},
+        CoseHeaderLabel::Int(258) => {}
         _ => panic!("Expected PayloadHashAlg to be Int(258)"),
     }
 
     match preimage_content_type {
-        CoseHeaderLabel::Int(259) => {},
+        CoseHeaderLabel::Int(259) => {}
         _ => panic!("Expected PreimageContentType to be Int(259)"),
     }
 
     match payload_location {
-        CoseHeaderLabel::Int(260) => {},
+        CoseHeaderLabel::Int(260) => {}
         _ => panic!("Expected PayloadLocation to be Int(260)"),
     }
 }
 
 #[test]
 fn test_cose_header_location_variants() {
-    assert_eq!(
-        format!("{:?}", CoseHeaderLocation::Protected),
-        "Protected"
-    );
+    assert_eq!(format!("{:?}", CoseHeaderLocation::Protected), "Protected");
     assert_eq!(
         format!("{:?}", CoseHeaderLocation::Unprotected),
         "Unprotected"
     );
-    assert_eq!(
-        format!("{:?}", CoseHeaderLocation::Any),
-        "Any"
-    );
+    assert_eq!(format!("{:?}", CoseHeaderLocation::Any), "Any");
 }
 
 #[test]
 fn test_cose_header_location_equality() {
     assert_eq!(CoseHeaderLocation::Protected, CoseHeaderLocation::Protected);
-    assert_ne!(CoseHeaderLocation::Protected, CoseHeaderLocation::Unprotected);
+    assert_ne!(
+        CoseHeaderLocation::Protected,
+        CoseHeaderLocation::Unprotected
+    );
 }
 
 #[test]

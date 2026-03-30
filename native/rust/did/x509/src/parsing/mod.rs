@@ -4,5 +4,5 @@
 pub mod parser;
 pub mod percent_encoding;
 
-pub use parser::{DidX509Parser, is_valid_oid, is_valid_base64url};
-pub use percent_encoding::{percent_encode, percent_decode};
+pub use parser::{is_valid_base64url, is_valid_oid, DidX509Parser};
+pub use percent_encoding::{percent_decode, percent_encode};

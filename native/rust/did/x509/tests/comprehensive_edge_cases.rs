@@ -3,12 +3,12 @@
 
 //! Additional test coverage for DID x509 library targeting specific uncovered paths
 
-use did_x509::error::DidX509Error;
-use did_x509::models::{SanType, DidX509ValidationResult, CertificateInfo, X509Name};
-use did_x509::parsing::{DidX509Parser, percent_encode, percent_decode};
 use did_x509::builder::DidX509Builder;
-use did_x509::validator::DidX509Validator;
+use did_x509::error::DidX509Error;
+use did_x509::models::{CertificateInfo, DidX509ValidationResult, SanType, X509Name};
+use did_x509::parsing::{percent_decode, percent_encode, DidX509Parser};
 use did_x509::resolver::DidX509Resolver;
+use did_x509::validator::DidX509Validator;
 use did_x509::x509_extensions::{extract_extended_key_usage, is_ca_certificate};
 
 // Valid test fingerprints
@@ -70,7 +70,7 @@ fn test_parser_case_sensitivity() {
     let did = format!("DID:X509:0:SHA256:{}::eku:1.2.3.4", FP256);
     let result = DidX509Parser::parse(&did);
     assert!(result.is_ok());
-    
+
     // Hash algorithm should be lowercase in result
     let parsed = result.unwrap();
     assert_eq!(parsed.hash_algorithm, "sha256");
@@ -91,7 +91,14 @@ fn test_parser_sha384_length_validation() {
     let wrong_length_fp = "AAsWISw3Qk1YY255hI-apbC7xtHc5_L9CBMeKTQ_SlVga3aBjJeirbjDztnk7_o"; // 63 chars instead of 64
     let did = format!("did:x509:0:sha384:{}::eku:1.2.3.4", wrong_length_fp);
     let result = DidX509Parser::parse(&did);
-    assert_eq!(result, Err(DidX509Error::FingerprintLengthMismatch("sha384".to_string(), 64, 63)));
+    assert_eq!(
+        result,
+        Err(DidX509Error::FingerprintLengthMismatch(
+            "sha384".to_string(),
+            64,
+            63
+        ))
+    );
 }
 
 #[test]
@@ -107,7 +114,10 @@ fn test_parser_invalid_policy_format() {
     // Test policy without colon separator
     let did = format!("did:x509:0:sha256:{}::invalidpolicy", FP256);
     let result = DidX509Parser::parse(&did);
-    assert_eq!(result, Err(DidX509Error::InvalidPolicyFormat("name:value".to_string())));
+    assert_eq!(
+        result,
+        Err(DidX509Error::InvalidPolicyFormat("name:value".to_string()))
+    );
 }
 
 #[test]
@@ -115,7 +125,10 @@ fn test_parser_empty_policy_name() {
     // Test policy with empty name - caught as InvalidPolicyFormat first
     let did = format!("did:x509:0:sha256:{}:::1.2.3.4", FP256);
     let result = DidX509Parser::parse(&did);
-    assert_eq!(result, Err(DidX509Error::InvalidPolicyFormat("name:value".to_string())));
+    assert_eq!(
+        result,
+        Err(DidX509Error::InvalidPolicyFormat("name:value".to_string()))
+    );
 }
 
 #[test]
@@ -139,15 +152,24 @@ fn test_parser_empty_subject_key() {
     // Test subject policy with empty key - caught as InvalidPolicyFormat first
     let did = format!("did:x509:0:sha256:{}::subject::value1", FP256);
     let result = DidX509Parser::parse(&did);
-    assert_eq!(result, Err(DidX509Error::InvalidPolicyFormat("name:value".to_string())));
+    assert_eq!(
+        result,
+        Err(DidX509Error::InvalidPolicyFormat("name:value".to_string()))
+    );
 }
 
 #[test]
 fn test_parser_duplicate_subject_key() {
     // Test subject policy with duplicate key
-    let did = format!("did:x509:0:sha256:{}::subject:key1:value1:key1:value2", FP256);
+    let did = format!(
+        "did:x509:0:sha256:{}::subject:key1:value1:key1:value2",
+        FP256
+    );
     let result = DidX509Parser::parse(&did);
-    assert_eq!(result, Err(DidX509Error::DuplicateSubjectPolicyKey("key1".to_string())));
+    assert_eq!(
+        result,
+        Err(DidX509Error::DuplicateSubjectPolicyKey("key1".to_string()))
+    );
 }
 
 #[test]
@@ -155,7 +177,12 @@ fn test_parser_invalid_san_policy_format() {
     // Test SAN policy with wrong format (missing type or value)
     let did = format!("did:x509:0:sha256:{}::san:email", FP256);
     let result = DidX509Parser::parse(&did);
-    assert_eq!(result, Err(DidX509Error::InvalidSanPolicyFormat("type:value".to_string())));
+    assert_eq!(
+        result,
+        Err(DidX509Error::InvalidSanPolicyFormat(
+            "type:value".to_string()
+        ))
+    );
 }
 
 #[test]
@@ -163,7 +190,10 @@ fn test_parser_invalid_san_type() {
     // Test SAN policy with invalid type
     let did = format!("did:x509:0:sha256:{}::san:invalid:test@example.com", FP256);
     let result = DidX509Parser::parse(&did);
-    assert_eq!(result, Err(DidX509Error::InvalidSanType("invalid".to_string())));
+    assert_eq!(
+        result,
+        Err(DidX509Error::InvalidSanType("invalid".to_string()))
+    );
 }
 
 #[test]
@@ -188,7 +218,7 @@ fn test_percent_encoding_edge_cases() {
     let input = "test@example.com";
     let encoded = percent_encode(input);
     assert_eq!(encoded, "test%40example.com");
-    
+
     let decoded = percent_decode(&encoded).unwrap();
     assert_eq!(decoded, input);
 }
@@ -237,13 +267,8 @@ fn test_resolver_edge_cases() {
 #[test]
 fn test_san_type_display() {
     // Test SanType display formatting for coverage
-    let types = vec![
-        SanType::Email,
-        SanType::Dns,
-        SanType::Uri,
-        SanType::Dn,
-    ];
-    
+    let types = vec![SanType::Email, SanType::Dns, SanType::Uri, SanType::Dn];
+
     for san_type in types {
         let formatted = format!("{:?}", san_type);
         assert!(!formatted.is_empty());
@@ -258,7 +283,7 @@ fn test_validation_result_coverage() {
         errors: vec!["test error".to_string()],
         matched_ca_index: Some(0),
     };
-    
+
     assert!(result.is_valid);
     assert_eq!(result.errors.len(), 1);
     assert_eq!(result.matched_ca_index, Some(0));
@@ -269,7 +294,7 @@ fn test_certificate_info_coverage() {
     // Test CertificateInfo fields
     let subject = X509Name::new(vec![]);
     let issuer = X509Name::new(vec![]);
-    
+
     let info = CertificateInfo::new(
         subject,
         issuer,
@@ -280,7 +305,7 @@ fn test_certificate_info_coverage() {
         false,
         None,
     );
-    
+
     assert!(!info.fingerprint_hex.is_empty());
     assert_eq!(info.extended_key_usage.len(), 1);
     assert!(!info.is_ca);

@@ -5,22 +5,24 @@
 // Re-enable after the extension packs layer is merged.
 #![cfg(feature = "_extension_packs_available")]
 
-use cose_sign1_validation::fluent::*;
-use cose_sign1_validation_test_utils::SimpleTrustPack;
 use cbor_primitives::{CborEncoder, CborProvider};
 use cbor_primitives_everparse::EverParseCborProvider;
 use cose_sign1_transparent_mst::validation::fluent_ext::MstCounterSignatureScopeRulesExt;
 use cose_sign1_transparent_mst::validation::pack::{MstTrustPack, MST_RECEIPT_HEADER_LABEL};
+use cose_sign1_validation::fluent::*;
 use cose_sign1_validation_primitives::facts::{TrustFactEngine, TrustFactSet};
 use cose_sign1_validation_primitives::subject::TrustSubject;
 use cose_sign1_validation_primitives::CoseSign1Message;
+use cose_sign1_validation_test_utils::SimpleTrustPack;
 use std::sync::Arc;
 
 struct TestVerifier;
 
 impl CryptoVerifier for TestVerifier {
-    fn algorithm(&self) -> i64 { -7 }
-    
+    fn algorithm(&self) -> i64 {
+        -7
+    }
+
     fn verify(&self, _data: &[u8], _signature: &[u8]) -> Result<bool, CryptoError> {
         Ok(true)
     }

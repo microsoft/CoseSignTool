@@ -10,7 +10,9 @@
 //! - File operations with non-existent files
 
 use cose_sign1_signing_ffi::error::{cose_sign1_signing_error_free, CoseSign1SigningErrorHandle};
-use cose_sign1_signing_ffi::types::{CoseKeyHandle, CoseSign1SigningServiceHandle, CoseSign1FactoryHandle};
+use cose_sign1_signing_ffi::types::{
+    CoseKeyHandle, CoseSign1FactoryHandle, CoseSign1SigningServiceHandle,
+};
 use cose_sign1_signing_ffi::*;
 
 use std::ptr;
@@ -89,10 +91,14 @@ unsafe extern "C" fn mock_sign_callback_normal(
 }
 
 // Helper to create a key
-fn create_key(algorithm: i64, key_type_str: &str, callback: CoseSignCallback) -> *mut CoseKeyHandle {
+fn create_key(
+    algorithm: i64,
+    key_type_str: &str,
+    callback: CoseSignCallback,
+) -> *mut CoseKeyHandle {
     let mut key: *mut CoseKeyHandle = ptr::null_mut();
     let key_type = std::ffi::CString::new(key_type_str).unwrap();
-    
+
     let rc = unsafe {
         cose_key_from_callback(
             algorithm,
@@ -111,7 +117,7 @@ fn create_key(algorithm: i64, key_type_str: &str, callback: CoseSignCallback) ->
 fn create_service(key: *const CoseKeyHandle) -> *mut CoseSign1SigningServiceHandle {
     let mut service: *mut CoseSign1SigningServiceHandle = ptr::null_mut();
     let mut error: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
-    
+
     let rc = unsafe { cose_sign1_signing_service_create(key, &mut service, &mut error) };
     assert_eq!(rc, 0);
     assert!(!service.is_null());
@@ -123,7 +129,7 @@ fn create_service(key: *const CoseKeyHandle) -> *mut CoseSign1SigningServiceHand
 fn create_factory(service: *const CoseSign1SigningServiceHandle) -> *mut CoseSign1FactoryHandle {
     let mut factory: *mut CoseSign1FactoryHandle = ptr::null_mut();
     let mut error: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
-    
+
     let rc = unsafe { cose_sign1_factory_create(service, &mut factory, &mut error) };
     assert_eq!(rc, 0);
     assert!(!factory.is_null());
@@ -319,7 +325,7 @@ fn test_callback_reader_negative_returns_io_error() {
     // Attempt to sign a non-existent file
     let file_path = CString::new("/non/existent/file.bin").unwrap();
     let content_type = CString::new("application/octet-stream").unwrap();
-    
+
     let mut out_cose_bytes: *mut u8 = ptr::null_mut();
     let mut out_cose_len: u32 = 0;
     let mut sign_error: *mut CoseSign1SigningErrorHandle = ptr::null_mut();

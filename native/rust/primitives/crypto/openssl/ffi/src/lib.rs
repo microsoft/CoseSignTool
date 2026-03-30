@@ -310,7 +310,6 @@ pub unsafe extern "C" fn cose_crypto_openssl_signer_from_der(
 /// - `out_signer` must be a valid, non-null, aligned pointer
 /// - Caller owns the returned signer and must free it with `cose_crypto_signer_free`
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_crypto_openssl_signer_from_pem(
     provider: *const cose_crypto_provider_t,
     private_key_pem: *const u8,
@@ -352,7 +351,6 @@ pub unsafe extern "C" fn cose_crypto_openssl_signer_from_pem(
 /// - `out_verifier` must be a valid, non-null, aligned pointer
 /// - Caller owns the returned verifier and must free it with `cose_crypto_verifier_free`
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_crypto_openssl_verifier_from_pem(
     provider: *const cose_crypto_provider_t,
     public_key_pem: *const u8,

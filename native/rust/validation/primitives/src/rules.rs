@@ -16,11 +16,11 @@ use crate::error::TrustError;
 use crate::fact_properties::{FactProperties, FactValue, FactValueOwned};
 use crate::facts::{FactKey, TrustFactEngine, TrustFactSet};
 use crate::subject::TrustSubject;
-use std::sync::Mutex;
 #[cfg(feature = "regex")]
 use regex::Regex;
 use std::any::Any;
 use std::sync::Arc;
+use std::sync::Mutex;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OnEmptyBehavior {
@@ -776,11 +776,14 @@ impl TrustRule for AuditedRule {
         subject: &TrustSubject,
     ) -> Result<TrustDecision, TrustError> {
         let decision = self.inner.evaluate(engine, subject)?;
-        self.audit.lock().expect("lock poisoned").push(AuditEvent::RuleEvaluated {
-            subject: subject.id,
-            rule_name: self.inner.name(),
-            decision: decision.clone(),
-        });
+        self.audit
+            .lock()
+            .expect("lock poisoned")
+            .push(AuditEvent::RuleEvaluated {
+                subject: subject.id,
+                rule_name: self.inner.name(),
+                decision: decision.clone(),
+            });
         Ok(decision)
     }
 }

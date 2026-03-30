@@ -1,7 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-use cose_sign1_validation_primitives::evaluation_options::{CoseHeaderLocation, TrustEvaluationOptions};
+use cose_sign1_validation_primitives::evaluation_options::{
+    CoseHeaderLocation, TrustEvaluationOptions,
+};
 use cose_sign1_validation_primitives::ids::{
     sha256_domain_separated, sha256_of_bytes, sha256_of_concat, SubjectId,
 };

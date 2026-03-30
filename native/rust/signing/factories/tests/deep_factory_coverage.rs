@@ -25,9 +25,9 @@ use cose_sign1_primitives::{
     CoseHeaderMap, CoseHeaderValue, CoseSign1Message, CryptoError, CryptoSigner, MemoryPayload,
 };
 use cose_sign1_signing::{
-    CoseSigner, HeaderContributor, HeaderContributorContext, HeaderMergeStrategy,
-    SigningContext, SigningError, SigningService, SigningServiceMetadata,
     transparency::{TransparencyError, TransparencyProvider, TransparencyValidationResult},
+    CoseSigner, HeaderContributor, HeaderContributorContext, HeaderMergeStrategy, SigningContext,
+    SigningError, SigningService, SigningServiceMetadata,
 };
 
 // ---------------------------------------------------------------------------
@@ -182,7 +182,11 @@ fn create_bytes_with_additional_header_contributor() {
         }));
 
     let result = factory.create_bytes(b"payload", "text/plain", Some(opts));
-    assert!(result.is_ok(), "create_bytes with contributor: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "create_bytes with contributor: {:?}",
+        result.err()
+    );
     let bytes = result.unwrap();
     let msg = CoseSign1Message::parse(&bytes).unwrap();
 
@@ -217,7 +221,9 @@ fn create_returns_parsed_message() {
     let factory = DirectSignatureFactory::new(service());
     let opts = DirectSignatureOptions::new().with_embed_payload(true);
 
-    let msg = factory.create(b"parse me", "text/plain", Some(opts)).unwrap();
+    let msg = factory
+        .create(b"parse me", "text/plain", Some(opts))
+        .unwrap();
     assert!(msg.payload().is_some());
     assert_eq!(msg.payload().unwrap(), b"parse me");
 }
@@ -284,7 +290,11 @@ fn create_streaming_bytes_with_header_contributor() {
         }));
 
     let result = factory.create_streaming_bytes(payload, "text/plain", Some(opts));
-    assert!(result.is_ok(), "streaming with contributor: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "streaming with contributor: {:?}",
+        result.err()
+    );
     let bytes = result.unwrap();
     let msg = CoseSign1Message::parse(&bytes).unwrap();
     let label = cose_sign1_primitives::CoseHeaderLabel::Int(77);
@@ -361,10 +371,17 @@ fn create_streaming_bytes_with_transparency() {
     let opts = DirectSignatureOptions::new().with_embed_payload(true);
 
     let result = factory.create_streaming_bytes(payload, "text/plain", Some(opts));
-    assert!(result.is_ok(), "streaming with transparency: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "streaming with transparency: {:?}",
+        result.err()
+    );
     let bytes = result.unwrap();
     let tail = String::from_utf8_lossy(&bytes);
-    assert!(tail.contains("stream-tp-proof"), "transparency proof not appended");
+    assert!(
+        tail.contains("stream-tp-proof"),
+        "transparency proof not appended"
+    );
 }
 
 #[test]

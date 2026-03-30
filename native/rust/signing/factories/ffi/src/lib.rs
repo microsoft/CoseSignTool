@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 #![cfg_attr(coverage_nightly, feature(coverage_attribute))]
-
 #![deny(unsafe_op_in_unsafe_fn)]
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
@@ -39,8 +38,8 @@ use std::sync::Arc;
 use cose_sign1_primitives::CryptoSigner;
 
 use crate::error::{
-    set_error, ErrorInner, FFI_ERR_FACTORY_FAILED, FFI_ERR_INVALID_ARGUMENT,
-    FFI_ERR_NULL_POINTER, FFI_ERR_PANIC, FFI_OK,
+    set_error, ErrorInner, FFI_ERR_FACTORY_FAILED, FFI_ERR_INVALID_ARGUMENT, FFI_ERR_NULL_POINTER,
+    FFI_ERR_PANIC, FFI_OK,
 };
 use crate::types::{
     factory_handle_to_inner, factory_inner_to_handle, message_inner_to_handle,
@@ -55,15 +54,16 @@ pub use crate::types::{
 
 // Re-export error types for library users
 pub use crate::error::{
-    CoseSign1FactoriesErrorHandle, FFI_ERR_FACTORY_FAILED as COSE_SIGN1_FACTORIES_ERR_FACTORY_FAILED,
+    CoseSign1FactoriesErrorHandle,
+    FFI_ERR_FACTORY_FAILED as COSE_SIGN1_FACTORIES_ERR_FACTORY_FAILED,
     FFI_ERR_INVALID_ARGUMENT as COSE_SIGN1_FACTORIES_ERR_INVALID_ARGUMENT,
     FFI_ERR_NULL_POINTER as COSE_SIGN1_FACTORIES_ERR_NULL_POINTER,
     FFI_ERR_PANIC as COSE_SIGN1_FACTORIES_ERR_PANIC, FFI_OK as COSE_SIGN1_FACTORIES_OK,
 };
 
 pub use crate::error::{
-    cose_sign1_factories_error_code, cose_sign1_factories_error_free, cose_sign1_factories_error_message,
-    cose_sign1_factories_string_free,
+    cose_sign1_factories_error_code, cose_sign1_factories_error_free,
+    cose_sign1_factories_error_message, cose_sign1_factories_string_free,
 };
 
 /// ABI version for this library.
@@ -129,9 +129,11 @@ pub fn impl_sign_direct_detached_inner(
     payload: &[u8],
     content_type: &str,
 ) -> Result<Vec<u8>, ErrorInner> {
-    let mut options = cose_sign1_factories::direct::DirectSignatureOptions::default();
-    options.embed_payload = false;
-    
+    let options = cose_sign1_factories::direct::DirectSignatureOptions {
+        embed_payload: false,
+        ..Default::default()
+    };
+
     factory
         .factory
         .create_direct_bytes(payload, content_type, Some(options))
@@ -145,15 +147,21 @@ pub fn impl_sign_direct_file_inner(
     content_type: &str,
 ) -> Result<Vec<u8>, ErrorInner> {
     // Create FilePayload
-    let file_payload = cose_sign1_primitives::FilePayload::new(file_path)
-        .map_err(|e| ErrorInner::new(format!("failed to open file: {}", e), FFI_ERR_INVALID_ARGUMENT))?;
-    
+    let file_payload = cose_sign1_primitives::FilePayload::new(file_path).map_err(|e| {
+        ErrorInner::new(
+            format!("failed to open file: {}", e),
+            FFI_ERR_INVALID_ARGUMENT,
+        )
+    })?;
+
     let payload_arc: Arc<dyn cose_sign1_primitives::StreamingPayload> = Arc::new(file_payload);
 
     // Create options with detached=true for streaming
-    let mut options = cose_sign1_factories::direct::DirectSignatureOptions::default();
-    options.embed_payload = false; // Force detached for streaming
-    
+    let options = cose_sign1_factories::direct::DirectSignatureOptions {
+        embed_payload: false, // Force detached for streaming
+        ..Default::default()
+    };
+
     factory
         .factory
         .create_direct_streaming_bytes(payload_arc, content_type, Some(options))
@@ -167,9 +175,11 @@ pub fn impl_sign_direct_streaming_inner(
     content_type: &str,
 ) -> Result<Vec<u8>, ErrorInner> {
     // Create options with detached=true
-    let mut options = cose_sign1_factories::direct::DirectSignatureOptions::default();
-    options.embed_payload = false;
-    
+    let options = cose_sign1_factories::direct::DirectSignatureOptions {
+        embed_payload: false,
+        ..Default::default()
+    };
+
     factory
         .factory
         .create_direct_streaming_bytes(payload, content_type, Some(options))
@@ -195,11 +205,15 @@ pub fn impl_sign_indirect_file_inner(
     content_type: &str,
 ) -> Result<Vec<u8>, ErrorInner> {
     // Create FilePayload
-    let file_payload = cose_sign1_primitives::FilePayload::new(file_path)
-        .map_err(|e| ErrorInner::new(format!("failed to open file: {}", e), FFI_ERR_INVALID_ARGUMENT))?;
-    
+    let file_payload = cose_sign1_primitives::FilePayload::new(file_path).map_err(|e| {
+        ErrorInner::new(
+            format!("failed to open file: {}", e),
+            FFI_ERR_INVALID_ARGUMENT,
+        )
+    })?;
+
     let payload_arc: Arc<dyn cose_sign1_primitives::StreamingPayload> = Arc::new(file_payload);
-    
+
     factory
         .factory
         .create_indirect_streaming_bytes(payload_arc, content_type, None)
@@ -357,8 +371,7 @@ pub unsafe extern "C" fn cose_sign1_factories_create_from_crypto_signer(
         let signer_box = unsafe {
             Box::from_raw(signer_handle as *mut Box<dyn crypto_primitives::CryptoSigner>)
         };
-        let signer_arc: std::sync::Arc<dyn crypto_primitives::CryptoSigner> =
-            (*signer_box).into();
+        let signer_arc: std::sync::Arc<dyn crypto_primitives::CryptoSigner> = (*signer_box).into();
 
         match impl_create_from_crypto_signer_inner(signer_arc) {
             Ok(inner) => {
@@ -441,10 +454,7 @@ pub unsafe extern "C" fn cose_sign1_factories_create_with_transparency(
                 }
                 // Take ownership of the provider
                 let provider_inner = unsafe {
-                    Box::from_raw(
-                        provider_handle
-                            as *mut crate::types::TransparencyProviderInner,
-                    )
+                    Box::from_raw(provider_handle as *mut crate::types::TransparencyProviderInner)
                 };
                 provider_vec.push(provider_inner.provider);
             }
@@ -807,11 +817,8 @@ pub unsafe extern "C" fn cose_sign1_factories_sign_direct_file(
 ///
 /// - `buffer` must be valid for writes of `buffer_len` bytes
 /// - `user_data` is the opaque pointer passed to the signing function
-pub type CoseReadCallback = unsafe extern "C" fn(
-    buffer: *mut u8,
-    buffer_len: usize,
-    user_data: *mut libc::c_void,
-) -> i64;
+pub type CoseReadCallback =
+    unsafe extern "C" fn(buffer: *mut u8, buffer_len: usize, user_data: *mut libc::c_void) -> i64;
 
 /// Adapter for callback-based streaming payload.
 pub struct CallbackStreamingPayload {
@@ -1298,7 +1305,6 @@ pub unsafe extern "C" fn cose_sign1_factories_sign_indirect_streaming(
 /// - `out_message` must be valid for writes
 /// - Caller owns the returned handle and must free it with `cose_sign1_message_free`
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_sign1_factories_sign_direct_to_message(
     factory: *const CoseSign1FactoriesHandle,
     payload: *const u8,
@@ -1351,7 +1357,7 @@ pub unsafe extern "C" fn cose_sign1_factories_sign_direct_to_message(
         };
 
         match impl_sign_direct_inner(factory_inner, payload_bytes, content_type_str) {
-            Ok(bytes) => unsafe { write_signed_message(bytes, out_message, out_error) }
+            Ok(bytes) => unsafe { write_signed_message(bytes, out_message, out_error) },
             Err(err) => {
                 set_error(out_error, err);
                 FFI_ERR_FACTORY_FAILED
@@ -1381,7 +1387,6 @@ pub unsafe extern "C" fn cose_sign1_factories_sign_direct_to_message(
 /// - `out_message` must be valid for writes
 /// - Caller owns the returned handle and must free it with `cose_sign1_message_free`
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_sign1_factories_sign_direct_detached_to_message(
     factory: *const CoseSign1FactoriesHandle,
     payload: *const u8,
@@ -1434,7 +1439,7 @@ pub unsafe extern "C" fn cose_sign1_factories_sign_direct_detached_to_message(
         };
 
         match impl_sign_direct_detached_inner(factory_inner, payload_bytes, content_type_str) {
-            Ok(bytes) => unsafe { write_signed_message(bytes, out_message, out_error) }
+            Ok(bytes) => unsafe { write_signed_message(bytes, out_message, out_error) },
             Err(err) => {
                 set_error(out_error, err);
                 FFI_ERR_FACTORY_FAILED
@@ -1464,7 +1469,6 @@ pub unsafe extern "C" fn cose_sign1_factories_sign_direct_detached_to_message(
 /// - `out_message` must be valid for writes
 /// - Caller owns the returned handle and must free it with `cose_sign1_message_free`
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_sign1_factories_sign_direct_file_to_message(
     factory: *const CoseSign1FactoriesHandle,
     file_path: *const libc::c_char,
@@ -1522,7 +1526,7 @@ pub unsafe extern "C" fn cose_sign1_factories_sign_direct_file_to_message(
         };
 
         match impl_sign_direct_file_inner(factory_inner, path_str, content_type_str) {
-            Ok(bytes) => unsafe { write_signed_message(bytes, out_message, out_error) }
+            Ok(bytes) => unsafe { write_signed_message(bytes, out_message, out_error) },
             Err(err) => {
                 set_error(out_error, err);
                 FFI_ERR_FACTORY_FAILED
@@ -1554,7 +1558,6 @@ pub unsafe extern "C" fn cose_sign1_factories_sign_direct_file_to_message(
 /// - `out_message` must be valid for writes
 /// - Caller owns the returned handle and must free it with `cose_sign1_message_free`
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_sign1_factories_sign_direct_streaming_to_message(
     factory: *const CoseSign1FactoriesHandle,
     read_callback: CoseReadCallback,
@@ -1605,7 +1608,7 @@ pub unsafe extern "C" fn cose_sign1_factories_sign_direct_streaming_to_message(
         let payload_arc: Arc<dyn cose_sign1_primitives::StreamingPayload> = Arc::new(payload);
 
         match impl_sign_direct_streaming_inner(factory_inner, payload_arc, content_type_str) {
-            Ok(bytes) => unsafe { write_signed_message(bytes, out_message, out_error) }
+            Ok(bytes) => unsafe { write_signed_message(bytes, out_message, out_error) },
             Err(err) => {
                 set_error(out_error, err);
                 FFI_ERR_FACTORY_FAILED
@@ -1635,7 +1638,6 @@ pub unsafe extern "C" fn cose_sign1_factories_sign_direct_streaming_to_message(
 /// - `out_message` must be valid for writes
 /// - Caller owns the returned handle and must free it with `cose_sign1_message_free`
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_sign1_factories_sign_indirect_to_message(
     factory: *const CoseSign1FactoriesHandle,
     payload: *const u8,
@@ -1688,7 +1690,7 @@ pub unsafe extern "C" fn cose_sign1_factories_sign_indirect_to_message(
         };
 
         match impl_sign_indirect_inner(factory_inner, payload_bytes, content_type_str) {
-            Ok(bytes) => unsafe { write_signed_message(bytes, out_message, out_error) }
+            Ok(bytes) => unsafe { write_signed_message(bytes, out_message, out_error) },
             Err(err) => {
                 set_error(out_error, err);
                 FFI_ERR_FACTORY_FAILED
@@ -1718,7 +1720,6 @@ pub unsafe extern "C" fn cose_sign1_factories_sign_indirect_to_message(
 /// - `out_message` must be valid for writes
 /// - Caller owns the returned handle and must free it with `cose_sign1_message_free`
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_sign1_factories_sign_indirect_file_to_message(
     factory: *const CoseSign1FactoriesHandle,
     file_path: *const libc::c_char,
@@ -1776,7 +1777,7 @@ pub unsafe extern "C" fn cose_sign1_factories_sign_indirect_file_to_message(
         };
 
         match impl_sign_indirect_file_inner(factory_inner, path_str, content_type_str) {
-            Ok(bytes) => unsafe { write_signed_message(bytes, out_message, out_error) }
+            Ok(bytes) => unsafe { write_signed_message(bytes, out_message, out_error) },
             Err(err) => {
                 set_error(out_error, err);
                 FFI_ERR_FACTORY_FAILED
@@ -1808,7 +1809,6 @@ pub unsafe extern "C" fn cose_sign1_factories_sign_indirect_file_to_message(
 /// - `out_message` must be valid for writes
 /// - Caller owns the returned handle and must free it with `cose_sign1_message_free`
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub unsafe extern "C" fn cose_sign1_factories_sign_indirect_streaming_to_message(
     factory: *const CoseSign1FactoriesHandle,
     read_callback: CoseReadCallback,
@@ -1859,7 +1859,7 @@ pub unsafe extern "C" fn cose_sign1_factories_sign_indirect_streaming_to_message
         let payload_arc: Arc<dyn cose_sign1_primitives::StreamingPayload> = Arc::new(payload);
 
         match impl_sign_indirect_streaming_inner(factory_inner, payload_arc, content_type_str) {
-            Ok(bytes) => unsafe { write_signed_message(bytes, out_message, out_error) }
+            Ok(bytes) => unsafe { write_signed_message(bytes, out_message, out_error) },
             Err(err) => {
                 set_error(out_error, err);
                 FFI_ERR_FACTORY_FAILED
@@ -1897,7 +1897,7 @@ pub unsafe extern "C" fn cose_sign1_factories_bytes_free(ptr: *mut u8, len: u32)
         return;
     }
     unsafe {
-        drop(Box::from_raw(slice::from_raw_parts_mut(
+        drop(Box::from_raw(std::ptr::slice_from_raw_parts_mut(
             ptr,
             len as usize,
         )));
@@ -1932,12 +1932,12 @@ impl cose_sign1_signing::SigningService for SimpleSigningService {
         _context: &cose_sign1_signing::SigningContext,
     ) -> Result<cose_sign1_signing::CoseSigner, cose_sign1_signing::SigningError> {
         use cose_sign1_primitives::CoseHeaderMap;
-        
+
         // Convert Arc to Box for the signer
         let key_box: Box<dyn CryptoSigner> = Box::new(SimpleKeyWrapper {
             key: self.key.clone(),
         });
-        
+
         // Create a CoseSigner with empty header maps
         let signer = cose_sign1_signing::CoseSigner::new(
             key_box,
@@ -1991,7 +1991,10 @@ impl CryptoSigner for SimpleKeyWrapper {
         self.key.supports_streaming()
     }
 
-    fn sign_init(&self) -> Result<Box<dyn crypto_primitives::SigningContext>, cose_sign1_primitives::CryptoError> {
+    fn sign_init(
+        &self,
+    ) -> Result<Box<dyn crypto_primitives::SigningContext>, cose_sign1_primitives::CryptoError>
+    {
         self.key.sign_init()
     }
 }

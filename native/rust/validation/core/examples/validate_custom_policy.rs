@@ -3,9 +3,11 @@
 
 use std::sync::Arc;
 
-use cose_sign1_validation::fluent::*;
 use cose_sign1_certificates::validation::fluent_ext::PrimarySigningKeyScopeRulesExt;
-use cose_sign1_certificates::validation::pack::{CertificateTrustOptions, X509CertificateTrustPack};
+use cose_sign1_certificates::validation::pack::{
+    CertificateTrustOptions, X509CertificateTrustPack,
+};
+use cose_sign1_validation::fluent::*;
 use cose_sign1_validation_primitives::CoseHeaderLocation;
 
 fn main() {
@@ -33,8 +35,8 @@ fn main() {
 
         let cose = std::fs::read(testdata_dir.join("UnitTestSignatureWithCRL.cose"))
             .expect("read cose testdata");
-        let payload =
-            std::fs::read(testdata_dir.join("UnitTestPayload.json")).expect("read payload testdata");
+        let payload = std::fs::read(testdata_dir.join("UnitTestPayload.json"))
+            .expect("read payload testdata");
         (cose, Some(payload))
     };
 
@@ -49,7 +51,8 @@ fn main() {
     let trust_packs: Vec<Arc<dyn CoseSign1TrustPack>> = vec![cert_pack];
 
     // 2) Custom plan
-    let plan = TrustPlanBuilder::new(trust_packs).for_primary_signing_key(|key| {
+    let plan = TrustPlanBuilder::new(trust_packs)
+        .for_primary_signing_key(|key| {
             key.require_x509_chain_trusted()
                 .and()
                 .require_signing_certificate_present()
@@ -69,13 +72,19 @@ fn main() {
 
     // 4) Validate
     let result = validator
-        .validate_bytes(cbor_primitives_everparse::EverParseCborProvider, Arc::from(cose_bytes.into_boxed_slice()))
+        .validate_bytes(
+            cbor_primitives_everparse::EverParseCborProvider,
+            Arc::from(cose_bytes.into_boxed_slice()),
+        )
         .expect("validation pipeline error");
 
     println!("resolution: {:?}", result.resolution.kind);
     println!("trust: {:?}", result.trust.kind);
     println!("signature: {:?}", result.signature.kind);
-    println!("post_signature_policy: {:?}", result.post_signature_policy.kind);
+    println!(
+        "post_signature_policy: {:?}",
+        result.post_signature_policy.kind
+    );
     println!("overall: {:?}", result.overall.kind);
 
     if result.overall.is_valid() {

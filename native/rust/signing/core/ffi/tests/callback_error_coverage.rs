@@ -4,19 +4,15 @@
 //! Test coverage for callback error paths in signing FFI
 
 use cose_sign1_signing_ffi::{
-    error::{
-        FFI_ERR_NULL_POINTER,
-        CoseSign1SigningErrorHandle,
-    },
-    types::{
-        CoseSign1FactoryHandle,
-        CoseKeyHandle,
-    },
-    impl_factory_sign_direct_streaming_inner,
-    impl_key_from_callback_inner,
+    error::{CoseSign1SigningErrorHandle, FFI_ERR_NULL_POINTER},
+    impl_factory_sign_direct_streaming_inner, impl_key_from_callback_inner,
+    types::{CoseKeyHandle, CoseSign1FactoryHandle},
 };
-use std::{ffi::{c_void, CString}, ptr};
 use libc::c_char;
+use std::{
+    ffi::{c_void, CString},
+    ptr,
+};
 
 // Callback type definitions
 type CoseSignCallback = unsafe extern "C" fn(
@@ -27,11 +23,8 @@ type CoseSignCallback = unsafe extern "C" fn(
     user_data: *mut c_void,
 ) -> i32;
 
-type CoseReadCallback = unsafe extern "C" fn(
-    buffer: *mut u8,
-    buffer_len: usize,
-    user_data: *mut c_void,
-) -> i64;
+type CoseReadCallback =
+    unsafe extern "C" fn(buffer: *mut u8, buffer_len: usize, user_data: *mut c_void) -> i64;
 
 // Test callback that returns error codes (for CallbackKey error path testing)
 unsafe extern "C" fn error_callback_sign(
@@ -79,7 +72,7 @@ fn test_callback_key_error_return_code() {
     // Test CallbackKey error path when callback returns non-zero
     let mut out_key: *mut CoseKeyHandle = ptr::null_mut();
     let key_type = CString::new("EC").unwrap();
-    
+
     let result = impl_key_from_callback_inner(
         -7, // ES256 algorithm
         key_type.as_ptr(),
@@ -87,12 +80,12 @@ fn test_callback_key_error_return_code() {
         ptr::null_mut(), // user_data
         &mut out_key,
     );
-    
+
     // Should succeed in creating the key handle
     // The error_callback will be invoked during actual signing, not during key creation
     assert_eq!(result, 0); // FFI_OK
     assert!(!out_key.is_null());
-    
+
     // Clean up
     if !out_key.is_null() {
         unsafe { cose_sign1_signing_ffi::cose_key_free(out_key) };
@@ -104,7 +97,7 @@ fn test_callback_key_null_signature() {
     // Test CallbackKey error path when callback returns success but null signature
     let mut out_key: *mut CoseKeyHandle = ptr::null_mut();
     let key_type = CString::new("EC").unwrap();
-    
+
     let result = impl_key_from_callback_inner(
         -7, // ES256 algorithm
         key_type.as_ptr(),
@@ -112,12 +105,12 @@ fn test_callback_key_null_signature() {
         ptr::null_mut(), // user_data
         &mut out_key,
     );
-    
+
     // Should succeed in creating the key handle
     // The null_signature_callback will be invoked during actual signing, not during key creation
     assert_eq!(result, 0); // FFI_OK
     assert!(!out_key.is_null());
-    
+
     // Clean up
     if !out_key.is_null() {
         unsafe { cose_sign1_signing_ffi::cose_key_free(out_key) };
@@ -130,29 +123,29 @@ fn test_callback_reader_error_return() {
     let mut out_cose_bytes: *mut u8 = ptr::null_mut();
     let mut out_cose_len: u32 = 0;
     let mut out_error: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
-    
+
     let content_type = b"application/test\0".as_ptr() as *const c_char;
-    
+
     let result = impl_factory_sign_direct_streaming_inner(
         ptr::null(), // factory (null will fail early, but we want to test callback reader)
         error_read_callback,
-        100, // payload_len
+        100,             // payload_len
         ptr::null_mut(), // user_data
         content_type,
         &mut out_cose_bytes,
         &mut out_cose_len,
         &mut out_error,
     );
-    
+
     // Should fail due to null factory first, but this tests the callback path exists
     assert_eq!(result, FFI_ERR_NULL_POINTER);
 }
 
-#[test] 
+#[test]
 fn test_null_pointers_in_callbacks() {
     // Test null pointer handling in callback-based functions
     let key_type = CString::new("EC").unwrap();
-    
+
     // Test with null output key pointer
     let result = impl_key_from_callback_inner(
         -7, // ES256 algorithm
@@ -161,19 +154,19 @@ fn test_null_pointers_in_callbacks() {
         ptr::null_mut(), // user_data
         ptr::null_mut(), // null out_key
     );
-    
+
     assert_eq!(result, FFI_ERR_NULL_POINTER);
-    
+
     // Test with null key_type pointer
     let mut out_key: *mut CoseKeyHandle = ptr::null_mut();
     let result2 = impl_key_from_callback_inner(
-        -7, // ES256 algorithm
+        -7,          // ES256 algorithm
         ptr::null(), // null key_type
         error_callback_sign,
         ptr::null_mut(), // user_data
         &mut out_key,
     );
-    
+
     assert_eq!(result2, FFI_ERR_NULL_POINTER);
     assert!(out_key.is_null());
 }
@@ -184,7 +177,7 @@ fn test_null_pointer_streaming() {
     let mut out_cose_bytes: *mut u8 = ptr::null_mut();
     let mut out_cose_len: u32 = 0;
     let mut out_error: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
-    
+
     // Test with null factory
     let result = impl_factory_sign_direct_streaming_inner(
         ptr::null(), // null factory
@@ -196,7 +189,7 @@ fn test_null_pointer_streaming() {
         &mut out_cose_len,
         &mut out_error,
     );
-    
+
     assert_eq!(result, FFI_ERR_NULL_POINTER);
 }
 
@@ -206,9 +199,9 @@ fn test_invalid_callback_streaming_parameters() {
     let mut out_cose_bytes: *mut u8 = ptr::null_mut();
     let mut out_cose_len: u32 = 0;
     let mut out_error: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
-    
+
     let content_type = b"application/test\0".as_ptr() as *const c_char;
-    
+
     let result = impl_factory_sign_direct_streaming_inner(
         ptr::null(), // null factory
         error_read_callback,
@@ -219,7 +212,7 @@ fn test_invalid_callback_streaming_parameters() {
         &mut out_cose_len,
         &mut out_error,
     );
-    
+
     // Should fail with null pointer error
     assert_eq!(result, FFI_ERR_NULL_POINTER);
 }

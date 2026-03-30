@@ -9,20 +9,20 @@
 //!          san_parser.rs (various SAN types),
 //!          validator.rs (multiple policy validation).
 
+use did_x509::builder::DidX509Builder;
 use did_x509::error::DidX509Error;
 use did_x509::resolver::DidX509Resolver;
 use did_x509::validator::DidX509Validator;
-use did_x509::builder::DidX509Builder;
 
 // Helper: generate a self-signed EC P-256 cert with code signing EKU
 fn make_ec_leaf() -> Vec<u8> {
+    use openssl::asn1::Asn1Time;
     use openssl::ec::{EcGroup, EcKey};
+    use openssl::hash::MessageDigest;
     use openssl::nid::Nid;
     use openssl::pkey::PKey;
-    use openssl::x509::{X509Builder, X509NameBuilder};
-    use openssl::asn1::Asn1Time;
-    use openssl::hash::MessageDigest;
     use openssl::x509::extension::ExtendedKeyUsage;
+    use openssl::x509::{X509Builder, X509NameBuilder};
 
     let group = EcGroup::from_curve_name(Nid::X9_62_PRIME256V1).unwrap();
     let ec_key = EcKey::generate(&group).unwrap();
@@ -31,7 +31,9 @@ fn make_ec_leaf() -> Vec<u8> {
     let mut builder = X509Builder::new().unwrap();
     builder.set_version(2).unwrap();
     let mut name_builder = X509NameBuilder::new().unwrap();
-    name_builder.append_entry_by_text("CN", "Test Leaf").unwrap();
+    name_builder
+        .append_entry_by_text("CN", "Test Leaf")
+        .unwrap();
     name_builder.append_entry_by_text("O", "TestOrg").unwrap();
     let name = name_builder.build();
     builder.set_subject_name(&name).unwrap();
@@ -51,12 +53,12 @@ fn make_ec_leaf() -> Vec<u8> {
 
 // Helper: generate a self-signed RSA cert
 fn make_rsa_leaf() -> Vec<u8> {
-    use openssl::rsa::Rsa;
-    use openssl::pkey::PKey;
-    use openssl::x509::{X509Builder, X509NameBuilder};
     use openssl::asn1::Asn1Time;
     use openssl::hash::MessageDigest;
+    use openssl::pkey::PKey;
+    use openssl::rsa::Rsa;
     use openssl::x509::extension::ExtendedKeyUsage;
+    use openssl::x509::{X509Builder, X509NameBuilder};
 
     let rsa = Rsa::generate(2048).unwrap();
     let pkey = PKey::from_rsa(rsa).unwrap();
@@ -156,7 +158,10 @@ fn build_did_with_sha384() {
     let cert_der = make_ec_leaf();
     let chain = vec![cert_der.as_slice()];
     let did = DidX509Builder::build_from_chain_with_eku(&chain).unwrap();
-    assert!(did.starts_with("did:x509:"), "DID should start with did:x509:");
+    assert!(
+        did.starts_with("did:x509:"),
+        "DID should start with did:x509:"
+    );
 }
 
 // ============================================================================
@@ -171,7 +176,11 @@ fn policy_subject_validation() {
     // Build DID with subject policy including CN
     let did = DidX509Builder::build_from_chain_with_eku(&chain).unwrap();
     // The DID should contain the EKU policy
-    assert!(did.contains("eku"), "DID should contain EKU policy: {}", did);
+    assert!(
+        did.contains("eku"),
+        "DID should contain EKU policy: {}",
+        did
+    );
 }
 
 // ============================================================================
@@ -180,10 +189,8 @@ fn policy_subject_validation() {
 
 #[test]
 fn validate_empty_chain_errors() {
-    let result = DidX509Validator::validate(
-        "did:x509:0:sha256:aGVsbG8::eku:1.3.6.1.5.5.7.3.3",
-        &[],
-    );
+    let result =
+        DidX509Validator::validate("did:x509:0:sha256:aGVsbG8::eku:1.3.6.1.5.5.7.3.3", &[]);
     assert!(result.is_err());
 }
 
@@ -198,7 +205,9 @@ fn did_document_has_correct_structure() {
     let did = DidX509Builder::build_from_chain_with_eku(&chain).unwrap();
 
     let doc = DidX509Resolver::resolve(&did, &chain).unwrap();
-    assert!(doc.context.contains(&"https://www.w3.org/ns/did/v1".to_string()));
+    assert!(doc
+        .context
+        .contains(&"https://www.w3.org/ns/did/v1".to_string()));
     assert_eq!(doc.id, did);
     assert!(!doc.assertion_method.is_empty());
     assert_eq!(doc.verification_method[0].type_, "JsonWebKey2020");

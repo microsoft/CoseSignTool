@@ -4,9 +4,9 @@
 //! Targeted coverage tests for CWT claims — exercises ALL claim value types
 //! and round-trip encoding/decoding paths.
 
-use cose_sign1_headers::{CwtClaims, CwtClaimValue};
 use cbor_primitives::CborEncoder;
 use cbor_primitives_everparse::EverParseCborProvider;
+use cose_sign1_headers::{CwtClaimValue, CwtClaims};
 
 // ========================================================================
 // Round-trip: ALL standard claims populated
@@ -42,11 +42,16 @@ fn round_trip_all_standard_claims() {
 #[test]
 fn round_trip_custom_text_claim() {
     let mut claims = CwtClaims::new();
-    claims.custom_claims.insert(100, CwtClaimValue::Text("hello".into()));
+    claims
+        .custom_claims
+        .insert(100, CwtClaimValue::Text("hello".into()));
 
     let bytes = claims.to_cbor_bytes().unwrap();
     let decoded = CwtClaims::from_cbor_bytes(&bytes).unwrap();
-    assert_eq!(decoded.custom_claims.get(&100), Some(&CwtClaimValue::Text("hello".into())));
+    assert_eq!(
+        decoded.custom_claims.get(&100),
+        Some(&CwtClaimValue::Text("hello".into()))
+    );
 }
 
 #[test]
@@ -56,17 +61,25 @@ fn round_trip_custom_integer_claim() {
 
     let bytes = claims.to_cbor_bytes().unwrap();
     let decoded = CwtClaims::from_cbor_bytes(&bytes).unwrap();
-    assert_eq!(decoded.custom_claims.get(&200), Some(&CwtClaimValue::Integer(42)));
+    assert_eq!(
+        decoded.custom_claims.get(&200),
+        Some(&CwtClaimValue::Integer(42))
+    );
 }
 
 #[test]
 fn round_trip_custom_bytes_claim() {
     let mut claims = CwtClaims::new();
-    claims.custom_claims.insert(300, CwtClaimValue::Bytes(vec![0xAA, 0xBB]));
+    claims
+        .custom_claims
+        .insert(300, CwtClaimValue::Bytes(vec![0xAA, 0xBB]));
 
     let bytes = claims.to_cbor_bytes().unwrap();
     let decoded = CwtClaims::from_cbor_bytes(&bytes).unwrap();
-    assert_eq!(decoded.custom_claims.get(&300), Some(&CwtClaimValue::Bytes(vec![0xAA, 0xBB])));
+    assert_eq!(
+        decoded.custom_claims.get(&300),
+        Some(&CwtClaimValue::Bytes(vec![0xAA, 0xBB]))
+    );
 }
 
 #[test]
@@ -77,8 +90,14 @@ fn round_trip_custom_bool_claim() {
 
     let bytes = claims.to_cbor_bytes().unwrap();
     let decoded = CwtClaims::from_cbor_bytes(&bytes).unwrap();
-    assert_eq!(decoded.custom_claims.get(&400), Some(&CwtClaimValue::Bool(true)));
-    assert_eq!(decoded.custom_claims.get(&401), Some(&CwtClaimValue::Bool(false)));
+    assert_eq!(
+        decoded.custom_claims.get(&400),
+        Some(&CwtClaimValue::Bool(true))
+    );
+    assert_eq!(
+        decoded.custom_claims.get(&401),
+        Some(&CwtClaimValue::Bool(false))
+    );
 }
 
 #[test]
@@ -94,9 +113,13 @@ fn encode_custom_float_claim_unsupported() {
 fn round_trip_multiple_custom_claims() {
     let mut claims = CwtClaims::new();
     claims.issuer = Some("iss".into());
-    claims.custom_claims.insert(10, CwtClaimValue::Text("ten".into()));
+    claims
+        .custom_claims
+        .insert(10, CwtClaimValue::Text("ten".into()));
     claims.custom_claims.insert(20, CwtClaimValue::Integer(20));
-    claims.custom_claims.insert(30, CwtClaimValue::Bytes(vec![0x30]));
+    claims
+        .custom_claims
+        .insert(30, CwtClaimValue::Bytes(vec![0x30]));
     claims.custom_claims.insert(40, CwtClaimValue::Bool(true));
 
     let bytes = claims.to_cbor_bytes().unwrap();
@@ -207,10 +230,15 @@ fn encode_empty_claims() {
 #[test]
 fn round_trip_negative_label_custom_claim() {
     let mut claims = CwtClaims::new();
-    claims.custom_claims.insert(-100, CwtClaimValue::Text("negative".into()));
+    claims
+        .custom_claims
+        .insert(-100, CwtClaimValue::Text("negative".into()));
     let bytes = claims.to_cbor_bytes().unwrap();
     let decoded = CwtClaims::from_cbor_bytes(&bytes).unwrap();
-    assert_eq!(decoded.custom_claims.get(&-100), Some(&CwtClaimValue::Text("negative".into())));
+    assert_eq!(
+        decoded.custom_claims.get(&-100),
+        Some(&CwtClaimValue::Text("negative".into()))
+    );
 }
 
 // ========================================================================

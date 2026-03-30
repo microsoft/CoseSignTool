@@ -133,9 +133,7 @@ fn result_free_null() {
 #[test]
 fn result_is_success_null_result() {
     let mut out_ok = true;
-    let status = unsafe {
-        cose_sign1_validation_result_is_success(ptr::null(), &mut out_ok)
-    };
+    let status = unsafe { cose_sign1_validation_result_is_success(ptr::null(), &mut out_ok) };
     assert_eq!(status, cose_status_t::COSE_ERR);
 }
 
@@ -146,9 +144,7 @@ fn result_is_success_null_out() {
         ok: true,
         failure_message: None,
     }));
-    let status = unsafe {
-        cose_sign1_validation_result_is_success(result, ptr::null_mut())
-    };
+    let status = unsafe { cose_sign1_validation_result_is_success(result, ptr::null_mut()) };
     assert_eq!(status, cose_status_t::COSE_ERR);
     unsafe { cose_sign1_validation_result_free(result) };
 }
@@ -160,9 +156,7 @@ fn result_is_success_true() {
         failure_message: None,
     }));
     let mut out_ok = false;
-    let status = unsafe {
-        cose_sign1_validation_result_is_success(result, &mut out_ok)
-    };
+    let status = unsafe { cose_sign1_validation_result_is_success(result, &mut out_ok) };
     assert_eq!(status, cose_status_t::COSE_OK);
     assert!(out_ok);
     unsafe { cose_sign1_validation_result_free(result) };
@@ -175,9 +169,7 @@ fn result_is_success_false() {
         failure_message: Some("validation failed".to_string()),
     }));
     let mut out_ok = true;
-    let status = unsafe {
-        cose_sign1_validation_result_is_success(result, &mut out_ok)
-    };
+    let status = unsafe { cose_sign1_validation_result_is_success(result, &mut out_ok) };
     assert_eq!(status, cose_status_t::COSE_OK);
     assert!(!out_ok);
     unsafe { cose_sign1_validation_result_free(result) };
@@ -277,8 +269,8 @@ fn validate_bytes_with_detached_payload() {
 
     // Minimal COSE_Sign1: Tag(18), [bstr(prot), map(unprot), bstr(payload), bstr(sig)]
     let cose = vec![
-        0xD2, 0x84, 0x43, 0xA1, 0x01, 0x26, 0xA0, 0x44, 0x74, 0x65, 0x73, 0x74,
-        0x44, 0x73, 0x69, 0x67, 0x21,
+        0xD2, 0x84, 0x43, 0xA1, 0x01, 0x26, 0xA0, 0x44, 0x74, 0x65, 0x73, 0x74, 0x44, 0x73, 0x69,
+        0x67, 0x21,
     ];
     let payload = b"detached-content";
     let mut result: *mut cose_sign1_validation_result_t = ptr::null_mut();
@@ -328,8 +320,8 @@ fn builder_build_and_validate() {
 
     // Validate with minimal COSE_Sign1
     let cose = vec![
-        0xD2, 0x84, 0x43, 0xA1, 0x01, 0x26, 0xA0, 0x44, 0x74, 0x65, 0x73, 0x74,
-        0x44, 0x73, 0x69, 0x67, 0x21,
+        0xD2, 0x84, 0x43, 0xA1, 0x01, 0x26, 0xA0, 0x44, 0x74, 0x65, 0x73, 0x74, 0x44, 0x73, 0x69,
+        0x67, 0x21,
     ];
     let mut result: *mut cose_sign1_validation_result_t = ptr::null_mut();
     let status = unsafe {

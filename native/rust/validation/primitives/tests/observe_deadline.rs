@@ -63,7 +63,7 @@ impl TrustFactProducer for ObserveAfterDeadlineProducer {
 fn observe_returns_deadline_exceeded_when_deadline_passed() {
     // Set a timeout of 1ns so the deadline is already exceeded before produce() runs.
     let engine = TrustFactEngine::new(vec![
-        Arc::new(ObserveAfterDeadlineProducer) as Arc<dyn TrustFactProducer>,
+        Arc::new(ObserveAfterDeadlineProducer) as Arc<dyn TrustFactProducer>
     ])
     .with_timeout(Duration::from_nanos(1));
 
@@ -85,7 +85,7 @@ fn observe_returns_deadline_exceeded_when_deadline_passed() {
 fn observe_succeeds_when_no_deadline() {
     // Sanity check: without a deadline, observe works fine.
     let engine = TrustFactEngine::new(vec![
-        Arc::new(ObserveAfterDeadlineProducer) as Arc<dyn TrustFactProducer>,
+        Arc::new(ObserveAfterDeadlineProducer) as Arc<dyn TrustFactProducer>
     ]);
 
     let subject = TrustSubject::message(b"observe_no_deadline");

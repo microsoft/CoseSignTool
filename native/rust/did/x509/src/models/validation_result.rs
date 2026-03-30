@@ -6,10 +6,10 @@
 pub struct DidX509ValidationResult {
     /// Whether the validation succeeded
     pub is_valid: bool,
-    
+
     /// List of validation errors (empty if valid)
     pub errors: Vec<String>,
-    
+
     /// Index of the CA certificate that matched the fingerprint, if found
     pub matched_ca_index: Option<usize>,
 }

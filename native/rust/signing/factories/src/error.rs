@@ -34,7 +34,11 @@ impl std::fmt::Display for FactoryError {
             Self::CborError(msg) => write!(f, "CBOR error: {}", msg),
             Self::TransparencyFailed(msg) => write!(f, "Transparency failed: {}", msg),
             Self::PayloadTooLargeForEmbedding(size, max) => {
-                write!(f, "Payload too large for embedding: {} bytes (max {})", size, max)
+                write!(
+                    f,
+                    "Payload too large for embedding: {} bytes (max {})",
+                    size, max
+                )
             }
         }
     }

@@ -19,9 +19,7 @@ fn error_message(err: *const CoseSign1SigningErrorHandle) -> Option<String> {
     if msg.is_null() {
         return None;
     }
-    let s = unsafe { CStr::from_ptr(msg) }
-        .to_string_lossy()
-        .to_string();
+    let s = unsafe { CStr::from_ptr(msg) }.to_string_lossy().to_string();
     unsafe { cose_sign1_string_free(msg) };
     Some(s)
 }
@@ -236,8 +234,7 @@ fn ffi_impl_headermap_len_null_safety() {
 #[test]
 fn ffi_impl_headermap_set_bytes_null_handle() {
     let data = b"test";
-    let rc =
-        unsafe { cose_headermap_set_bytes(ptr::null_mut(), 4, data.as_ptr(), data.len()) };
+    let rc = unsafe { cose_headermap_set_bytes(ptr::null_mut(), 4, data.as_ptr(), data.len()) };
     assert_eq!(rc, COSE_SIGN1_SIGNING_ERR_NULL_POINTER);
 }
 
@@ -262,7 +259,13 @@ fn ffi_impl_key_from_callback() {
 fn ffi_impl_key_from_callback_null_output() {
     let key_type = b"EC2\0".as_ptr() as *const libc::c_char;
     let rc = unsafe {
-        cose_key_from_callback(-7, key_type, mock_sign_callback, ptr::null_mut(), ptr::null_mut())
+        cose_key_from_callback(
+            -7,
+            key_type,
+            mock_sign_callback,
+            ptr::null_mut(),
+            ptr::null_mut(),
+        )
     };
     assert_eq!(rc, COSE_SIGN1_SIGNING_ERR_NULL_POINTER);
 }
@@ -271,7 +274,13 @@ fn ffi_impl_key_from_callback_null_output() {
 fn ffi_impl_key_from_callback_null_key_type() {
     let mut key: *mut CoseKeyHandle = ptr::null_mut();
     let rc = unsafe {
-        cose_key_from_callback(-7, ptr::null(), mock_sign_callback, ptr::null_mut(), &mut key)
+        cose_key_from_callback(
+            -7,
+            ptr::null(),
+            mock_sign_callback,
+            ptr::null_mut(),
+            &mut key,
+        )
     };
     assert_eq!(rc, COSE_SIGN1_SIGNING_ERR_NULL_POINTER);
     assert!(key.is_null());
@@ -506,7 +515,10 @@ fn ffi_impl_sign_detached() {
 
     // The output should contain null payload (0xF6)
     let output = unsafe { std::slice::from_raw_parts(out_bytes, out_len) };
-    assert!(output.windows(1).any(|w| w[0] == 0xF6), "Expected null payload marker");
+    assert!(
+        output.windows(1).any(|w| w[0] == 0xF6),
+        "Expected null payload marker"
+    );
 
     unsafe {
         cose_sign1_bytes_free(out_bytes, out_len);

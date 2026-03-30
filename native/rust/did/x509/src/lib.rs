@@ -32,14 +32,14 @@ pub mod san_parser;
 pub mod validator;
 pub mod x509_extensions;
 
+pub use builder::DidX509Builder;
 pub use constants::*;
 pub use did_document::{DidDocument, VerificationMethod};
 pub use error::DidX509Error;
 pub use models::{
-    CertificateInfo, DidX509ParsedIdentifier, DidX509Policy, DidX509ValidationResult,
-    SanType, SubjectAlternativeName, X509Name,
+    CertificateInfo, DidX509ParsedIdentifier, DidX509Policy, DidX509ValidationResult, SanType,
+    SubjectAlternativeName, X509Name,
 };
 pub use parsing::{percent_decode, percent_encode, DidX509Parser};
-pub use builder::DidX509Builder;
 pub use resolver::DidX509Resolver;
 pub use validator::DidX509Validator;

@@ -197,8 +197,7 @@ fn deadline_exceeded_after_producer_runs() {
 
 #[test]
 fn mark_error_causes_get_fact_set_to_return_error() {
-    let engine =
-        TrustFactEngine::new(vec![Arc::new(ErrorProducer) as Arc<dyn TrustFactProducer>]);
+    let engine = TrustFactEngine::new(vec![Arc::new(ErrorProducer) as Arc<dyn TrustFactProducer>]);
     let subject = TrustSubject::message(b"error_fact_set");
 
     let fact_set = engine.get_fact_set::<AlphaFact>(&subject).unwrap();
@@ -212,8 +211,7 @@ fn mark_error_causes_get_fact_set_to_return_error() {
 
 #[test]
 fn mark_error_causes_get_facts_to_return_err() {
-    let engine =
-        TrustFactEngine::new(vec![Arc::new(ErrorProducer) as Arc<dyn TrustFactProducer>]);
+    let engine = TrustFactEngine::new(vec![Arc::new(ErrorProducer) as Arc<dyn TrustFactProducer>]);
     let subject = TrustSubject::message(b"error_get_facts");
 
     let result = engine.get_facts::<AlphaFact>(&subject);
@@ -312,8 +310,7 @@ fn has_fact_returns_false_when_facts_missing() {
 
 #[test]
 fn has_fact_returns_err_when_facts_errored() {
-    let engine =
-        TrustFactEngine::new(vec![Arc::new(ErrorProducer) as Arc<dyn TrustFactProducer>]);
+    let engine = TrustFactEngine::new(vec![Arc::new(ErrorProducer) as Arc<dyn TrustFactProducer>]);
     let subject = TrustSubject::message(b"has_fact_error");
 
     let result = engine.has_fact::<AlphaFact>(&subject);
@@ -348,9 +345,7 @@ fn trust_fact_set_is_missing_returns_false_for_error() {
 
 #[test]
 fn trust_fact_set_as_available_returns_some_for_available() {
-    let fact = Arc::new(AlphaFact {
-        value: "x".into(),
-    });
+    let fact = Arc::new(AlphaFact { value: "x".into() });
     let set: TrustFactSet<AlphaFact> = TrustFactSet::Available(vec![fact]);
     let slice = set.as_available().unwrap();
     assert_eq!(slice.len(), 1);

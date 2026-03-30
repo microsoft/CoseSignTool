@@ -152,9 +152,7 @@ impl TrustFactProducer for DerivedFactProducer {
 
     fn produce(&self, ctx: &mut TrustFactContext<'_>) -> Result<(), TrustError> {
         for s in &self.subjects {
-            ctx.observe(DerivedFact {
-                subject: s.clone(),
-            })?;
+            ctx.observe(DerivedFact { subject: s.clone() })?;
         }
         ctx.mark_produced(FactKey::of::<DerivedFact>());
         Ok(())
@@ -291,13 +289,9 @@ fn trust_plan_builder_new_and_or_operators() {
     let subject = TrustSubject::root("Message", b"seed");
 
     let plan = TrustPlanBuilder::new()
-        .for_message(|m| {
-            m.require::<RichFact>(|w| w.r#true(Field::new("flag")))
-        })
+        .for_message(|m| m.require::<RichFact>(|w| w.r#true(Field::new("flag"))))
         .or()
-        .for_message(|m| {
-            m.require::<RichFact>(|w| w.r#false(Field::new("flag")))
-        })
+        .for_message(|m| m.require::<RichFact>(|w| w.r#false(Field::new("flag"))))
         .compile();
 
     let d = plan
@@ -315,9 +309,7 @@ fn trust_plan_builder_and_group() {
     let subject = TrustSubject::root("Message", b"seed");
 
     let plan = TrustPlanBuilder::new()
-        .for_message(|m| {
-            m.require::<RichFact>(|w| w.r#true(Field::new("flag")))
-        })
+        .for_message(|m| m.require::<RichFact>(|w| w.r#true(Field::new("flag"))))
         .and_group(|g| {
             g.for_message(|m| {
                 m.require::<RichFact>(|w| w.str_contains(Field::new("name"), "hello"))
@@ -366,15 +358,16 @@ fn scope_rules_require_optional_allows_when_missing() {
     let subject = TrustSubject::root("Message", b"seed");
 
     let plan = TrustPlanBuilder::new()
-        .for_message(|m| {
-            m.require_optional::<RichFact>(|w| w.r#true(Field::new("flag")))
-        })
+        .for_message(|m| m.require_optional::<RichFact>(|w| w.r#true(Field::new("flag"))))
         .compile();
 
     let d = plan
         .evaluate(&engine, &subject, &TrustEvaluationOptions::default())
         .unwrap();
-    assert!(d.is_trusted, "require_optional with missing fact should allow");
+    assert!(
+        d.is_trusted,
+        "require_optional with missing fact should allow"
+    );
 }
 
 #[test]
@@ -393,16 +386,17 @@ fn scope_rules_require_optional_denies_when_fact_present_but_mismatch() {
     let subject = TrustSubject::root("Message", b"seed");
 
     let plan = TrustPlanBuilder::new()
-        .for_message(|m| {
-            m.require_optional::<RichFact>(|w| w.r#true(Field::new("flag")))
-        })
+        .for_message(|m| m.require_optional::<RichFact>(|w| w.r#true(Field::new("flag"))))
         .compile();
 
     let d = plan
         .evaluate(&engine, &subject, &TrustEvaluationOptions::default())
         .unwrap();
     // With MissingBehavior::Allow, no-match also returns trusted
-    assert!(d.is_trusted, "require_optional with non-matching fact should allow");
+    assert!(
+        d.is_trusted,
+        "require_optional with non-matching fact should allow"
+    );
 }
 
 #[test]
@@ -434,9 +428,7 @@ fn scope_rules_require_rule_with_required_facts() {
     let custom_rule: TrustRuleRef = allow_all("custom_allow");
 
     let plan = TrustPlanBuilder::new()
-        .for_message(|m| {
-            m.require_rule(custom_rule, vec![FactKey::of::<RichFact>()])
-        })
+        .for_message(|m| m.require_rule(custom_rule, vec![FactKey::of::<RichFact>()]))
         .compile();
 
     let d = plan
@@ -543,9 +535,7 @@ fn compile_dnf_single_term_returns_that_term() {
     let subject = TrustSubject::root("Message", b"seed");
 
     let plan = TrustPlanBuilder::new()
-        .for_message(|m| {
-            m.require::<RichFact>(|w| w.r#true(Field::new("flag")))
-        })
+        .for_message(|m| m.require::<RichFact>(|w| w.r#true(Field::new("flag"))))
         .compile();
 
     let d = plan
@@ -596,9 +586,7 @@ fn where_false_predicate() {
     let subject = TrustSubject::root("Message", b"seed");
 
     let plan = TrustPlanBuilder::new()
-        .for_message(|m| {
-            m.require::<RichFact>(|w| w.r#false(Field::new("flag")))
-        })
+        .for_message(|m| m.require::<RichFact>(|w| w.r#false(Field::new("flag"))))
         .compile();
 
     let d = plan
@@ -615,9 +603,7 @@ fn where_false_predicate_denies_when_true() {
     let subject = TrustSubject::root("Message", b"seed");
 
     let plan = TrustPlanBuilder::new()
-        .for_message(|m| {
-            m.require::<RichFact>(|w| w.r#false(Field::new("flag")))
-        })
+        .for_message(|m| m.require::<RichFact>(|w| w.r#false(Field::new("flag"))))
         .compile();
 
     let d = plan
@@ -635,9 +621,7 @@ fn where_usize_eq_predicate() {
     let subject = TrustSubject::root("Message", b"seed");
 
     let plan = TrustPlanBuilder::new()
-        .for_message(|m| {
-            m.require::<RichFact>(|w| w.usize_eq(Field::new("size"), 10))
-        })
+        .for_message(|m| m.require::<RichFact>(|w| w.usize_eq(Field::new("size"), 10)))
         .compile();
 
     let d = plan
@@ -654,9 +638,7 @@ fn where_usize_eq_denies_mismatch() {
     let subject = TrustSubject::root("Message", b"seed");
 
     let plan = TrustPlanBuilder::new()
-        .for_message(|m| {
-            m.require::<RichFact>(|w| w.usize_eq(Field::new("size"), 99))
-        })
+        .for_message(|m| m.require::<RichFact>(|w| w.usize_eq(Field::new("size"), 99)))
         .compile();
 
     let d = plan
@@ -674,9 +656,7 @@ fn where_u32_eq_predicate() {
     let subject = TrustSubject::root("Message", b"seed");
 
     let plan = TrustPlanBuilder::new()
-        .for_message(|m| {
-            m.require::<RichFact>(|w| w.u32_eq(Field::new("code"), 200))
-        })
+        .for_message(|m| m.require::<RichFact>(|w| w.u32_eq(Field::new("code"), 200)))
         .compile();
 
     let d = plan
@@ -693,9 +673,7 @@ fn where_u32_eq_denies_mismatch() {
     let subject = TrustSubject::root("Message", b"seed");
 
     let plan = TrustPlanBuilder::new()
-        .for_message(|m| {
-            m.require::<RichFact>(|w| w.u32_eq(Field::new("code"), 404))
-        })
+        .for_message(|m| m.require::<RichFact>(|w| w.u32_eq(Field::new("code"), 404)))
         .compile();
 
     let d = plan
@@ -713,9 +691,7 @@ fn where_i64_ge_predicate() {
     let subject = TrustSubject::root("Message", b"seed");
 
     let plan = TrustPlanBuilder::new()
-        .for_message(|m| {
-            m.require::<RichFact>(|w| w.i64_ge(Field::new("count"), 40))
-        })
+        .for_message(|m| m.require::<RichFact>(|w| w.i64_ge(Field::new("count"), 40)))
         .compile();
 
     let d = plan
@@ -732,9 +708,7 @@ fn where_i64_ge_denies_below() {
     let subject = TrustSubject::root("Message", b"seed");
 
     let plan = TrustPlanBuilder::new()
-        .for_message(|m| {
-            m.require::<RichFact>(|w| w.i64_ge(Field::new("count"), 100))
-        })
+        .for_message(|m| m.require::<RichFact>(|w| w.i64_ge(Field::new("count"), 100)))
         .compile();
 
     let d = plan
@@ -752,9 +726,7 @@ fn where_i64_le_predicate() {
     let subject = TrustSubject::root("Message", b"seed");
 
     let plan = TrustPlanBuilder::new()
-        .for_message(|m| {
-            m.require::<RichFact>(|w| w.i64_le(Field::new("count"), 50))
-        })
+        .for_message(|m| m.require::<RichFact>(|w| w.i64_le(Field::new("count"), 50)))
         .compile();
 
     let d = plan
@@ -771,9 +743,7 @@ fn where_i64_le_denies_above() {
     let subject = TrustSubject::root("Message", b"seed");
 
     let plan = TrustPlanBuilder::new()
-        .for_message(|m| {
-            m.require::<RichFact>(|w| w.i64_le(Field::new("count"), 10))
-        })
+        .for_message(|m| m.require::<RichFact>(|w| w.i64_le(Field::new("count"), 10)))
         .compile();
 
     let d = plan
@@ -791,9 +761,7 @@ fn where_str_eq_predicate() {
     let subject = TrustSubject::root("Message", b"seed");
 
     let plan = TrustPlanBuilder::new()
-        .for_message(|m| {
-            m.require::<RichFact>(|w| w.str_eq(Field::new("name"), "hello-world"))
-        })
+        .for_message(|m| m.require::<RichFact>(|w| w.str_eq(Field::new("name"), "hello-world")))
         .compile();
 
     let d = plan
@@ -810,15 +778,16 @@ fn where_str_eq_denies_mismatch() {
     let subject = TrustSubject::root("Message", b"seed");
 
     let plan = TrustPlanBuilder::new()
-        .for_message(|m| {
-            m.require::<RichFact>(|w| w.str_eq(Field::new("name"), "wrong"))
-        })
+        .for_message(|m| m.require::<RichFact>(|w| w.str_eq(Field::new("name"), "wrong")))
         .compile();
 
     let d = plan
         .evaluate(&engine, &subject, &TrustEvaluationOptions::default())
         .unwrap();
-    assert!(!d.is_trusted, "str_eq 'wrong' should not match 'hello-world'");
+    assert!(
+        !d.is_trusted,
+        "str_eq 'wrong' should not match 'hello-world'"
+    );
 }
 
 // ===========================================================================
@@ -857,7 +826,10 @@ fn context_cose_sign1_bytes_none_when_not_set() {
     let _ = engine.get_fact_set::<RichFact>(&subject);
 
     let result = probe_result.lock().unwrap();
-    assert!(!result.has_bytes, "context should not have cose_sign1_bytes");
+    assert!(
+        !result.has_bytes,
+        "context should not have cose_sign1_bytes"
+    );
 }
 
 #[test]
@@ -946,7 +918,9 @@ fn context_get_facts_and_get_fact_set_delegate_to_engine() {
 #[test]
 fn require_fact_matches_missing_denies() {
     // rules.rs require_fact_matches: Missing path (L559-562).
-    let engine = TrustFactEngine::new(vec![Arc::new(RichFactMissingProducer) as Arc<dyn TrustFactProducer>]);
+    let engine = TrustFactEngine::new(vec![
+        Arc::new(RichFactMissingProducer) as Arc<dyn TrustFactProducer>
+    ]);
     let subject = TrustSubject::root("Message", b"seed");
 
     let rule = require_fact_matches::<RichFact, _>(
@@ -965,7 +939,9 @@ fn require_fact_matches_missing_denies() {
 
 #[test]
 fn require_fact_matches_error_denies() {
-    let engine = TrustFactEngine::new(vec![Arc::new(RichFactErrorProducer) as Arc<dyn TrustFactProducer>]);
+    let engine = TrustFactEngine::new(vec![
+        Arc::new(RichFactErrorProducer) as Arc<dyn TrustFactProducer>
+    ]);
     let subject = TrustSubject::root("Message", b"seed");
 
     let rule = require_fact_matches::<RichFact, _>(
@@ -985,7 +961,9 @@ fn require_fact_matches_error_denies() {
 #[test]
 fn require_fact_property_missing_denies() {
     // rules.rs require_fact_property: Missing path (L506-510).
-    let engine = TrustFactEngine::new(vec![Arc::new(RichFactMissingProducer) as Arc<dyn TrustFactProducer>]);
+    let engine = TrustFactEngine::new(vec![
+        Arc::new(RichFactMissingProducer) as Arc<dyn TrustFactProducer>
+    ]);
     let subject = TrustSubject::root("Message", b"seed");
 
     let rule = require_fact_property::<RichFact, _>(
@@ -1005,7 +983,9 @@ fn require_fact_property_missing_denies() {
 
 #[test]
 fn require_fact_property_error_denies() {
-    let engine = TrustFactEngine::new(vec![Arc::new(RichFactErrorProducer) as Arc<dyn TrustFactProducer>]);
+    let engine = TrustFactEngine::new(vec![
+        Arc::new(RichFactErrorProducer) as Arc<dyn TrustFactProducer>
+    ]);
     let subject = TrustSubject::root("Message", b"seed");
 
     let rule = require_fact_property::<RichFact, _>(
@@ -1053,7 +1033,9 @@ fn require_fact_property_unknown_property_denies() {
 #[test]
 fn require_fact_matches_with_missing_behavior_allow_missing() {
     // rules.rs L604-606: Missing + Allow → trusted.
-    let engine = TrustFactEngine::new(vec![Arc::new(RichFactMissingProducer) as Arc<dyn TrustFactProducer>]);
+    let engine = TrustFactEngine::new(vec![
+        Arc::new(RichFactMissingProducer) as Arc<dyn TrustFactProducer>
+    ]);
     let subject = TrustSubject::root("Message", b"seed");
 
     let rule = require_fact_matches_with_missing_behavior::<RichFact, _>(
@@ -1071,7 +1053,9 @@ fn require_fact_matches_with_missing_behavior_allow_missing() {
 #[test]
 fn require_fact_matches_with_missing_behavior_allow_error() {
     // rules.rs: Error + Allow → trusted.
-    let engine = TrustFactEngine::new(vec![Arc::new(RichFactErrorProducer) as Arc<dyn TrustFactProducer>]);
+    let engine = TrustFactEngine::new(vec![
+        Arc::new(RichFactErrorProducer) as Arc<dyn TrustFactProducer>
+    ]);
     let subject = TrustSubject::root("Message", b"seed");
 
     let rule = require_fact_matches_with_missing_behavior::<RichFact, _>(
@@ -1775,9 +1759,7 @@ fn for_primary_signing_key_scope_evaluates() {
     let subject = TrustSubject::root("Message", b"seed");
 
     let plan = TrustPlanBuilder::new()
-        .for_primary_signing_key(|k| {
-            k.require::<RichFact>(|w| w.r#true(Field::new("flag")))
-        })
+        .for_primary_signing_key(|k| k.require::<RichFact>(|w| w.r#true(Field::new("flag"))))
         .compile();
 
     let d = plan
@@ -1812,7 +1794,9 @@ fn scope_rules_allow_all() {
 
 #[test]
 fn has_fact_on_error_propagates() {
-    let engine = TrustFactEngine::new(vec![Arc::new(RichFactErrorProducer) as Arc<dyn TrustFactProducer>]);
+    let engine = TrustFactEngine::new(vec![
+        Arc::new(RichFactErrorProducer) as Arc<dyn TrustFactProducer>
+    ]);
     let subject = TrustSubject::root("Message", b"seed");
 
     let result = engine.has_fact::<RichFact>(&subject);
@@ -1860,31 +1844,19 @@ fn fact_selector_convenience_methods() {
 
     // where_usize
     let sel = FactSelector::first().where_usize("size", 10);
-    let rule = require_fact_matches::<RichFact, _>(
-        "sel_usize",
-        |s: &TrustSubject| s.clone(),
-        sel,
-        "fail",
-    );
+    let rule =
+        require_fact_matches::<RichFact, _>("sel_usize", |s: &TrustSubject| s.clone(), sel, "fail");
     assert!(rule.evaluate(&engine, &subject).unwrap().is_trusted);
 
     // where_u32
     let sel = FactSelector::first().where_u32("code", 200);
-    let rule = require_fact_matches::<RichFact, _>(
-        "sel_u32",
-        |s: &TrustSubject| s.clone(),
-        sel,
-        "fail",
-    );
+    let rule =
+        require_fact_matches::<RichFact, _>("sel_u32", |s: &TrustSubject| s.clone(), sel, "fail");
     assert!(rule.evaluate(&engine, &subject).unwrap().is_trusted);
 
     // where_i64
     let sel = FactSelector::first().where_i64("count", 42);
-    let rule = require_fact_matches::<RichFact, _>(
-        "sel_i64",
-        |s: &TrustSubject| s.clone(),
-        sel,
-        "fail",
-    );
+    let rule =
+        require_fact_matches::<RichFact, _>("sel_i64", |s: &TrustSubject| s.clone(), sel, "fail");
     assert!(rule.evaluate(&engine, &subject).unwrap().is_trusted);
 }

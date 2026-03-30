@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 #![cfg_attr(coverage_nightly, feature(coverage_attribute))]
-
 #![deny(unsafe_op_in_unsafe_fn)]
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
@@ -60,13 +59,12 @@ pub use crate::error::{
     CoseCwtErrorHandle, FFI_ERR_CBOR_DECODE_FAILED as COSE_CWT_ERR_CBOR_DECODE_FAILED,
     FFI_ERR_CBOR_ENCODE_FAILED as COSE_CWT_ERR_CBOR_ENCODE_FAILED,
     FFI_ERR_INVALID_ARGUMENT as COSE_CWT_ERR_INVALID_ARGUMENT,
-    FFI_ERR_NULL_POINTER as COSE_CWT_ERR_NULL_POINTER,
-    FFI_ERR_PANIC as COSE_CWT_ERR_PANIC, FFI_OK as COSE_CWT_OK,
+    FFI_ERR_NULL_POINTER as COSE_CWT_ERR_NULL_POINTER, FFI_ERR_PANIC as COSE_CWT_ERR_PANIC,
+    FFI_OK as COSE_CWT_OK,
 };
 
 pub use crate::error::{
-    cose_cwt_error_code, cose_cwt_error_free, cose_cwt_error_message,
-    cose_cwt_string_free,
+    cose_cwt_error_code, cose_cwt_error_free, cose_cwt_error_message, cose_cwt_string_free,
 };
 
 /// ABI version for this library.
@@ -85,9 +83,7 @@ pub extern "C" fn cose_cwt_claims_abi_version() -> u32 {
 // ============================================================================
 
 /// Inner implementation for cose_cwt_claims_create.
-pub fn impl_cwt_claims_create_inner(
-    out_handle: *mut *mut CoseCwtClaimsHandle,
-) -> i32 {
+pub fn impl_cwt_claims_create_inner(out_handle: *mut *mut CoseCwtClaimsHandle) -> i32 {
     let result = catch_unwind(AssertUnwindSafe(|| {
         if out_handle.is_null() {
             return FFI_ERR_NULL_POINTER;
@@ -172,10 +168,7 @@ pub unsafe extern "C" fn cose_cwt_claims_set_issuer(
 ) -> i32 {
     let result = impl_cwt_claims_set_issuer_inner(handle, issuer);
     if result != FFI_OK && !out_error.is_null() {
-        set_error(
-            out_error,
-            ErrorInner::new("Failed to set issuer", result),
-        );
+        set_error(out_error, ErrorInner::new("Failed to set issuer", result));
     }
     result
 }
@@ -221,10 +214,7 @@ pub unsafe extern "C" fn cose_cwt_claims_set_subject(
 ) -> i32 {
     let result = impl_cwt_claims_set_subject_inner(handle, subject);
     if result != FFI_OK && !out_error.is_null() {
-        set_error(
-            out_error,
-            ErrorInner::new("Failed to set subject", result),
-        );
+        set_error(out_error, ErrorInner::new("Failed to set subject", result));
     }
     result
 }
@@ -384,10 +374,7 @@ pub unsafe extern "C" fn cose_cwt_claims_set_audience(
 ) -> i32 {
     let result = impl_cwt_claims_set_audience_inner(handle, audience);
     if result != FFI_OK && !out_error.is_null() {
-        set_error(
-            out_error,
-            ErrorInner::new("Failed to set audience", result),
-        );
+        set_error(out_error, ErrorInner::new("Failed to set audience", result));
     }
     result
 }
@@ -724,7 +711,7 @@ pub unsafe extern "C" fn cose_cwt_bytes_free(ptr: *mut u8, len: u32) {
         return;
     }
     unsafe {
-        drop(Box::from_raw(slice::from_raw_parts_mut(
+        drop(Box::from_raw(std::ptr::slice_from_raw_parts_mut(
             ptr,
             len as usize,
         )));

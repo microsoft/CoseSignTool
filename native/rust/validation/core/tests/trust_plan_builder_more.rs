@@ -7,9 +7,11 @@ use cose_sign1_validation::fluent::{
 };
 use cose_sign1_validation_primitives::error::TrustError;
 use cose_sign1_validation_primitives::fact_properties::{FactProperties, FactValue};
-use cose_sign1_validation_primitives::facts::{FactKey, TrustFactContext, TrustFactEngine, TrustFactProducer};
-use cose_sign1_validation_primitives::fluent::HasTrustSubject;
+use cose_sign1_validation_primitives::facts::{
+    FactKey, TrustFactContext, TrustFactEngine, TrustFactProducer,
+};
 use cose_sign1_validation_primitives::field::Field;
+use cose_sign1_validation_primitives::fluent::HasTrustSubject;
 use cose_sign1_validation_primitives::subject::TrustSubject;
 use std::sync::Arc;
 
@@ -77,7 +79,9 @@ impl TrustFactProducer for MarkerProducer {
 
         if requested == FactKey::of::<MarkerFact>() {
             // Provide the marker fact for both counter-signature subjects.
-            if ctx.subject().kind == "CounterSignature" || ctx.subject().kind == "CounterSignatureCoseKey" {
+            if ctx.subject().kind == "CounterSignature"
+                || ctx.subject().kind == "CounterSignatureCoseKey"
+            {
                 ctx.observe(MarkerFact { ok: true })?;
             }
             ctx.mark_produced(FactKey::of::<MarkerFact>());
@@ -100,7 +104,9 @@ impl CoseSign1TrustPack for MarkerPack {
         Arc::new(MarkerProducer)
     }
 
-    fn default_trust_plan(&self) -> Option<cose_sign1_validation_primitives::plan::CompiledTrustPlan> {
+    fn default_trust_plan(
+        &self,
+    ) -> Option<cose_sign1_validation_primitives::plan::CompiledTrustPlan> {
         // Default plan exercises counter-signature scope; this is used via `CoseSign1Validator::new`.
         let bundled = TrustPlanBuilder::new(vec![Arc::new(self.clone())])
             .for_counter_signature(|cs| {
@@ -136,7 +142,8 @@ fn trust_plan_builder_scopes_evaluate_and_cover_subject_derivation() {
         .expect("plan compiles");
 
     // Evaluate with a local engine to ensure the scopes enumerate derived subjects.
-    let producers: Vec<Arc<dyn TrustFactProducer>> = packs.iter().map(|p| p.fact_producer()).collect();
+    let producers: Vec<Arc<dyn TrustFactProducer>> =
+        packs.iter().map(|p| p.fact_producer()).collect();
     let engine = TrustFactEngine::new(producers);
     let message = TrustSubject::message(b"seed");
 

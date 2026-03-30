@@ -1,7 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-
 //! Targeted coverage tests for cose_sign1_factories.
 //!
 //! Covers uncovered lines:
@@ -16,18 +15,18 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use cose_sign1_factories::{
-    CoseSign1MessageFactory, FactoryError, SignatureFactoryProvider,
     direct::{DirectSignatureFactory, DirectSignatureOptions},
     indirect::{
         HashAlgorithm, HashEnvelopeHeaderContributor, IndirectSignatureFactory,
         IndirectSignatureOptions,
     },
+    CoseSign1MessageFactory, FactoryError, SignatureFactoryProvider,
 };
 use cose_sign1_primitives::{
     CoseHeaderMap, CoseSign1Message, CryptoError, CryptoSigner, MemoryPayload,
 };
 use cose_sign1_signing::{
-    CoseSigner, HeaderMergeStrategy, HeaderContributor, SigningContext, SigningError,
+    CoseSigner, HeaderContributor, HeaderMergeStrategy, SigningContext, SigningError,
     SigningService, SigningServiceMetadata,
 };
 
@@ -102,7 +101,11 @@ fn router_create_direct_streaming() {
 
     let result: Result<CoseSign1Message, FactoryError> =
         factory.create_direct_streaming(payload, "text/plain", Some(opts));
-    assert!(result.is_ok(), "create_direct_streaming failed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "create_direct_streaming failed: {:?}",
+        result.err()
+    );
 }
 
 /// Exercises create_direct_streaming_bytes (factory.rs L224-L233).
@@ -114,7 +117,11 @@ fn router_create_direct_streaming_bytes() {
 
     let result: Result<Vec<u8>, FactoryError> =
         factory.create_direct_streaming_bytes(payload, "text/plain", Some(opts));
-    assert!(result.is_ok(), "create_direct_streaming_bytes failed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "create_direct_streaming_bytes failed: {:?}",
+        result.err()
+    );
     assert!(!result.unwrap().is_empty());
 }
 
@@ -128,7 +135,11 @@ fn router_create_indirect_streaming() {
 
     let result: Result<CoseSign1Message, FactoryError> =
         factory.create_indirect_streaming(payload, "application/octet-stream", Some(opts));
-    assert!(result.is_ok(), "create_indirect_streaming failed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "create_indirect_streaming failed: {:?}",
+        result.err()
+    );
 }
 
 /// Exercises create_indirect_streaming_bytes (factory.rs L259-L267).
@@ -141,7 +152,11 @@ fn router_create_indirect_streaming_bytes() {
 
     let result: Result<Vec<u8>, FactoryError> =
         factory.create_indirect_streaming_bytes(payload, "application/octet-stream", Some(opts));
-    assert!(result.is_ok(), "create_indirect_streaming_bytes failed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "create_indirect_streaming_bytes failed: {:?}",
+        result.err()
+    );
     assert!(!result.unwrap().is_empty());
 }
 
@@ -181,7 +196,11 @@ fn indirect_streaming_sha384() {
 
     let result: Result<Vec<u8>, FactoryError> =
         factory.create_streaming_bytes(payload, "text/plain", Some(opts));
-    assert!(result.is_ok(), "sha384 streaming failed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "sha384 streaming failed: {:?}",
+        result.err()
+    );
 }
 
 /// Exercises streaming Sha512 hash path (indirect/factory.rs ~L208-L220).
@@ -197,7 +216,11 @@ fn indirect_streaming_sha512() {
 
     let result: Result<Vec<u8>, FactoryError> =
         factory.create_streaming_bytes(payload, "text/plain", Some(opts));
-    assert!(result.is_ok(), "sha512 streaming failed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "sha512 streaming failed: {:?}",
+        result.err()
+    );
 }
 
 /// Exercises IndirectSignatureFactory::create_streaming (indirect/factory.rs L265, L267).
@@ -211,7 +234,11 @@ fn indirect_create_streaming_returns_message() {
 
     let result: Result<CoseSign1Message, FactoryError> =
         factory.create_streaming(payload, "text/plain", Some(opts));
-    assert!(result.is_ok(), "create_streaming failed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "create_streaming failed: {:?}",
+        result.err()
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -231,7 +258,11 @@ fn indirect_create_bytes_sha384() {
 
     let result: Result<Vec<u8>, FactoryError> =
         factory.create_bytes(b"sha384-payload", "text/plain", Some(opts));
-    assert!(result.is_ok(), "sha384 create_bytes failed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "sha384 create_bytes failed: {:?}",
+        result.err()
+    );
 }
 
 /// Exercises Sha512 hash for non-streaming indirect create_bytes.
@@ -246,7 +277,11 @@ fn indirect_create_bytes_sha512() {
 
     let result: Result<Vec<u8>, FactoryError> =
         factory.create_bytes(b"sha512-payload", "text/plain", Some(opts));
-    assert!(result.is_ok(), "sha512 create_bytes failed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "sha512 create_bytes failed: {:?}",
+        result.err()
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -256,11 +291,7 @@ fn indirect_create_bytes_sha512() {
 /// Exercises the merge_strategy method on HashEnvelopeHeaderContributor.
 #[test]
 fn hash_envelope_contributor_merge_strategy_is_replace() {
-    let contributor = HashEnvelopeHeaderContributor::new(
-        HashAlgorithm::Sha256,
-        "text/plain",
-        None,
-    );
+    let contributor = HashEnvelopeHeaderContributor::new(HashAlgorithm::Sha256, "text/plain", None);
     assert_eq!(contributor.merge_strategy(), HeaderMergeStrategy::Replace);
 }
 
@@ -291,7 +322,11 @@ fn indirect_with_payload_location() {
 
     let result: Result<Vec<u8>, FactoryError> =
         factory.create_bytes(b"with-location", "text/plain", Some(opts));
-    assert!(result.is_ok(), "payload_location create_bytes failed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "payload_location create_bytes failed: {:?}",
+        result.err()
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -309,7 +344,11 @@ fn direct_factory_with_additional_data() {
 
     let result: Result<Vec<u8>, FactoryError> =
         factory.create_bytes(b"payload-with-aad", "text/plain", Some(opts));
-    assert!(result.is_ok(), "aad create_bytes failed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "aad create_bytes failed: {:?}",
+        result.err()
+    );
 }
 
 /// Exercises direct factory create_bytes with detached payload (embed_payload = false).
@@ -321,7 +360,11 @@ fn direct_factory_detached_payload() {
 
     let result: Result<Vec<u8>, FactoryError> =
         factory.create_bytes(b"detached-payload", "text/plain", Some(opts));
-    assert!(result.is_ok(), "detached create_bytes failed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "detached create_bytes failed: {:?}",
+        result.err()
+    );
 }
 
 /// Exercises direct factory create (not create_bytes) returning CoseSign1Message.
@@ -363,8 +406,7 @@ impl SignatureFactoryProvider for SimpleCustomFactory {
     ) -> Result<CoseSign1Message, FactoryError> {
         let bytes: Vec<u8> = self.create_bytes_dyn(payload, content_type, options)?;
         // This will fail to parse as valid COSE, which is fine — we test the error path
-        CoseSign1Message::parse(&bytes)
-            .map_err(|e| FactoryError::SigningFailed(e.to_string()))
+        CoseSign1Message::parse(&bytes).map_err(|e| FactoryError::SigningFailed(e.to_string()))
     }
 }
 

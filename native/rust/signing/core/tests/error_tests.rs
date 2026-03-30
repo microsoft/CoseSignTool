@@ -12,7 +12,9 @@ fn test_signing_error_variants() {
     assert!(key_err.to_string().contains("test key error"));
 
     let header_err = SigningError::HeaderContributionFailed("header fail".to_string());
-    assert!(header_err.to_string().contains("Header contribution failed"));
+    assert!(header_err
+        .to_string()
+        .contains("Header contribution failed"));
 
     let signing_err = SigningError::SigningFailed("signing fail".to_string());
     assert!(signing_err.to_string().contains("Signing failed"));

@@ -8,14 +8,14 @@
 //! - indirect_signature.rs: header_i64 Uint, SHA384/SHA512 hashing, content-type stripping
 //! - trust_plan_builder.rs: from_parts, and_group, TrustPlanCompileError Display
 
-use cose_sign1_validation::fluent::*;
-use cose_sign1_validation_test_utils::SimpleTrustPack;
 use cbor_primitives::{CborEncoder, CborProvider};
 use cbor_primitives_everparse::EverParseCborProvider;
 use cose_sign1_primitives::payload::Payload;
 use cose_sign1_primitives::CoseSign1Message;
+use cose_sign1_validation::fluent::*;
 use cose_sign1_validation_primitives::facts::{TrustFactEngine, TrustFactSet};
 use cose_sign1_validation_primitives::subject::TrustSubject;
+use cose_sign1_validation_test_utils::SimpleTrustPack;
 use sha2::Digest;
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -102,13 +102,8 @@ impl CounterSignatureResolver for FailingCounterSigResolver {
     }
 }
 
-fn simple_pack_with_resolver(
-    resolver: Arc<dyn CoseKeyResolver>,
-) -> Arc<dyn CoseSign1TrustPack> {
-    Arc::new(
-        SimpleTrustPack::no_facts("test_pack")
-            .with_cose_key_resolver(resolver),
-    )
+fn simple_pack_with_resolver(resolver: Arc<dyn CoseKeyResolver>) -> Arc<dyn CoseSign1TrustPack> {
+    Arc::new(SimpleTrustPack::no_facts("test_pack").with_cose_key_resolver(resolver))
 }
 
 /// Build a minimal COSE_Sign1 with alg=-7 protected header, empty unprotected, payload, and dummy sig.
@@ -116,7 +111,7 @@ fn build_minimal_cose_sign1(payload: Option<&[u8]>) -> Vec<u8> {
     let p = EverParseCborProvider;
     let mut phdr = p.encoder();
     phdr.encode_map(1).unwrap();
-    phdr.encode_i64(1).unwrap();  // alg label
+    phdr.encode_i64(1).unwrap(); // alg label
     phdr.encode_i64(-7).unwrap(); // ES256
     let protected_bytes = phdr.into_bytes();
 
@@ -171,9 +166,7 @@ enum CborHeaderEntry {
     Bstr(Vec<u8>),
 }
 
-fn make_validator(
-    resolver: Arc<dyn CoseKeyResolver>,
-) -> CoseSign1Validator {
+fn make_validator(resolver: Arc<dyn CoseKeyResolver>) -> CoseSign1Validator {
     let pack = simple_pack_with_resolver(resolver);
     let bundled = TrustPlanBuilder::new(vec![pack])
         .for_message(|m| m.allow_all())
@@ -301,8 +294,7 @@ async fn validate_async_post_signature_runs() {
     // Ensure the async post-signature stage actually runs (code coverage for
     // run_post_signature_stage_async).
     let pack = Arc::new(
-        SimpleTrustPack::no_facts("test")
-            .with_cose_key_resolver(Arc::new(AlwaysTrueKeyResolver)),
+        SimpleTrustPack::no_facts("test").with_cose_key_resolver(Arc::new(AlwaysTrueKeyResolver)),
     ) as Arc<dyn CoseSign1TrustPack>;
 
     let bundled = TrustPlanBuilder::new(vec![pack])
@@ -378,17 +370,17 @@ fn validator_algorithm_mismatch() {
     let r = result.unwrap();
     assert!(r.signature.is_failure());
     let msg = &r.signature.failures[0].message;
-    assert!(msg.contains("algorithm"), "Expected algorithm mismatch: {msg}");
+    assert!(
+        msg.contains("algorithm"),
+        "Expected algorithm mismatch: {msg}"
+    );
 }
 
 #[test]
 fn validator_skip_post_signature_validation() {
-    let validator = make_validator_with_options(
-        Arc::new(AlwaysTrueKeyResolver),
-        |opts| {
-            opts.skip_post_signature_validation = true;
-        },
-    );
+    let validator = make_validator_with_options(Arc::new(AlwaysTrueKeyResolver), |opts| {
+        opts.skip_post_signature_validation = true;
+    });
 
     let cose_bytes = build_minimal_cose_sign1(Some(b"payload"));
     let bytes_arc: Arc<[u8]> = Arc::from(cose_bytes.into_boxed_slice());
@@ -415,20 +407,26 @@ fn cose_sign1_validation_error_display() {
 #[test]
 fn validation_result_not_applicable_empty_reason() {
     let r = ValidationResult::not_applicable("test", Some(""));
-    assert!(!r.metadata.contains_key(ValidationResult::METADATA_REASON_KEY));
+    assert!(!r
+        .metadata
+        .contains_key(ValidationResult::METADATA_REASON_KEY));
 }
 
 #[test]
 fn validation_result_not_applicable_whitespace_reason() {
     let r = ValidationResult::not_applicable("test", Some("   "));
-    assert!(!r.metadata.contains_key(ValidationResult::METADATA_REASON_KEY));
+    assert!(!r
+        .metadata
+        .contains_key(ValidationResult::METADATA_REASON_KEY));
 }
 
 #[test]
 fn validation_result_not_applicable_valid_reason() {
     let r = ValidationResult::not_applicable("test", Some("skipped"));
     assert_eq!(
-        r.metadata.get(ValidationResult::METADATA_REASON_KEY).unwrap(),
+        r.metadata
+            .get(ValidationResult::METADATA_REASON_KEY)
+            .unwrap(),
         "skipped"
     );
 }
@@ -638,8 +636,14 @@ fn encode_value_recursive_null_undefined_float_tagged() {
     assert!(!claims.is_empty());
     assert_eq!(claims[0].iss.as_deref(), Some("my-iss"));
     // Claim 43 should be Bool(true)
-    assert_eq!(claims[0].scalar_claims.get(&43), Some(&CwtClaimScalar::Bool(true)));
-    assert_eq!(claims[0].scalar_claims.get(&44), Some(&CwtClaimScalar::Bool(false)));
+    assert_eq!(
+        claims[0].scalar_claims.get(&43),
+        Some(&CwtClaimScalar::Bool(true))
+    );
+    assert_eq!(
+        claims[0].scalar_claims.get(&44),
+        Some(&CwtClaimScalar::Bool(false))
+    );
     // Claim 42 (null) should have raw bytes but no scalar
     assert!(claims[0].raw_claims.contains_key(&42));
     assert!(!claims[0].scalar_claims.contains_key(&42));
@@ -716,14 +720,26 @@ fn cwt_claim_scalar_via_get_property() {
     assert!(matches!(fact.get_property("iss"), Some(FactValue::Str(_))));
     assert!(fact.get_property("sub").is_none());
     assert!(matches!(fact.get_property("aud"), Some(FactValue::Str(_))));
-    assert!(matches!(fact.get_property("exp"), Some(FactValue::I64(100))));
+    assert!(matches!(
+        fact.get_property("exp"),
+        Some(FactValue::I64(100))
+    ));
     assert!(matches!(fact.get_property("nbf"), Some(FactValue::I64(50))));
     assert!(matches!(fact.get_property("iat"), Some(FactValue::I64(75))));
 
     // claim_<label> access
-    assert!(matches!(fact.get_property("claim_42"), Some(FactValue::Str(_))));
-    assert!(matches!(fact.get_property("claim_43"), Some(FactValue::I64(999))));
-    assert!(matches!(fact.get_property("claim_44"), Some(FactValue::Bool(true))));
+    assert!(matches!(
+        fact.get_property("claim_42"),
+        Some(FactValue::Str(_))
+    ));
+    assert!(matches!(
+        fact.get_property("claim_43"),
+        Some(FactValue::I64(999))
+    ));
+    assert!(matches!(
+        fact.get_property("claim_44"),
+        Some(FactValue::Bool(true))
+    ));
 
     // Invalid label format returns None
     assert!(fact.get_property("claim_notanumber").is_none());
@@ -757,7 +773,10 @@ fn cwt_claims_fact_claim_value_accessors() {
             let mut m = BTreeMap::new();
             let mut bool_enc = p.encoder();
             bool_enc.encode_bool(true).unwrap();
-            m.insert("flag".to_string(), Arc::from(bool_enc.into_bytes().into_boxed_slice()));
+            m.insert(
+                "flag".to_string(),
+                Arc::from(bool_enc.into_bytes().into_boxed_slice()),
+            );
             m
         },
         iss: None,
@@ -883,21 +902,17 @@ fn build_indirect_cose_with_hash(
 #[test]
 fn indirect_signature_legacy_sha384() {
     let detached = b"test payload for sha384";
-    let (cose_bytes, _) = build_indirect_cose_with_hash(
-        "application/test+hash-SHA384",
-        "SHA384",
-        detached,
-    );
+    let (cose_bytes, _) =
+        build_indirect_cose_with_hash("application/test+hash-SHA384", "SHA384", detached);
     let bytes_arc: Arc<[u8]> = Arc::from(cose_bytes.into_boxed_slice());
 
-    let validator = make_validator_with_options(
-        Arc::new(AlwaysTrueKeyResolver),
-        |opts| {
-            opts.detached_payload = Some(Payload::Bytes(detached.to_vec()));
-        },
-    );
+    let validator = make_validator_with_options(Arc::new(AlwaysTrueKeyResolver), |opts| {
+        opts.detached_payload = Some(Payload::Bytes(detached.to_vec()));
+    });
 
-    let result = validator.validate_bytes(EverParseCborProvider, bytes_arc).unwrap();
+    let result = validator
+        .validate_bytes(EverParseCborProvider, bytes_arc)
+        .unwrap();
     // Post-signature should pass if indirect signature matches
     assert!(
         result.overall.is_valid(),
@@ -909,21 +924,17 @@ fn indirect_signature_legacy_sha384() {
 #[test]
 fn indirect_signature_legacy_sha512() {
     let detached = b"test payload for sha512";
-    let (cose_bytes, _) = build_indirect_cose_with_hash(
-        "application/test+hash-SHA512",
-        "SHA512",
-        detached,
-    );
+    let (cose_bytes, _) =
+        build_indirect_cose_with_hash("application/test+hash-SHA512", "SHA512", detached);
     let bytes_arc: Arc<[u8]> = Arc::from(cose_bytes.into_boxed_slice());
 
-    let validator = make_validator_with_options(
-        Arc::new(AlwaysTrueKeyResolver),
-        |opts| {
-            opts.detached_payload = Some(Payload::Bytes(detached.to_vec()));
-        },
-    );
+    let validator = make_validator_with_options(Arc::new(AlwaysTrueKeyResolver), |opts| {
+        opts.detached_payload = Some(Payload::Bytes(detached.to_vec()));
+    });
 
-    let result = validator.validate_bytes(EverParseCborProvider, bytes_arc).unwrap();
+    let result = validator
+        .validate_bytes(EverParseCborProvider, bytes_arc)
+        .unwrap();
     assert!(
         result.overall.is_valid(),
         "SHA512 indirect signature should validate: {:?}",
@@ -955,15 +966,18 @@ fn indirect_signature_cose_hash_envelope_sha384() {
     let cose_bytes = enc.into_bytes();
 
     let bytes_arc: Arc<[u8]> = Arc::from(cose_bytes.into_boxed_slice());
-    let validator = make_validator_with_options(
-        Arc::new(AlwaysTrueKeyResolver),
-        |opts| {
-            opts.detached_payload = Some(Payload::Bytes(detached.to_vec()));
-        },
-    );
+    let validator = make_validator_with_options(Arc::new(AlwaysTrueKeyResolver), |opts| {
+        opts.detached_payload = Some(Payload::Bytes(detached.to_vec()));
+    });
 
-    let result = validator.validate_bytes(EverParseCborProvider, bytes_arc).unwrap();
-    assert!(result.overall.is_valid(), "CoseHashEnvelope SHA384: {:?}", result);
+    let result = validator
+        .validate_bytes(EverParseCborProvider, bytes_arc)
+        .unwrap();
+    assert!(
+        result.overall.is_valid(),
+        "CoseHashEnvelope SHA384: {:?}",
+        result
+    );
 }
 
 #[test]
@@ -989,15 +1003,18 @@ fn indirect_signature_cose_hash_envelope_sha512() {
     let cose_bytes = enc.into_bytes();
 
     let bytes_arc: Arc<[u8]> = Arc::from(cose_bytes.into_boxed_slice());
-    let validator = make_validator_with_options(
-        Arc::new(AlwaysTrueKeyResolver),
-        |opts| {
-            opts.detached_payload = Some(Payload::Bytes(detached.to_vec()));
-        },
-    );
+    let validator = make_validator_with_options(Arc::new(AlwaysTrueKeyResolver), |opts| {
+        opts.detached_payload = Some(Payload::Bytes(detached.to_vec()));
+    });
 
-    let result = validator.validate_bytes(EverParseCborProvider, bytes_arc).unwrap();
-    assert!(result.overall.is_valid(), "CoseHashEnvelope SHA512: {:?}", result);
+    let result = validator
+        .validate_bytes(EverParseCborProvider, bytes_arc)
+        .unwrap();
+    assert!(
+        result.overall.is_valid(),
+        "CoseHashEnvelope SHA512: {:?}",
+        result
+    );
 }
 
 #[test]
@@ -1047,7 +1064,10 @@ fn indirect_signature_content_type_stripping_legacy_hash() {
     let cose_bytes = build_cose_with_protected_entries(
         &[
             (1, CborHeaderEntry::I64(-7)),
-            (3, CborHeaderEntry::Text("application/vnd.example+hash-SHA256".to_string())),
+            (
+                3,
+                CborHeaderEntry::Text("application/vnd.example+hash-SHA256".to_string()),
+            ),
         ],
         Some(b"payload"),
     );
@@ -1087,14 +1107,13 @@ fn indirect_signature_header_i64_uint_branch() {
     let cose_bytes = enc.into_bytes();
 
     let bytes_arc: Arc<[u8]> = Arc::from(cose_bytes.into_boxed_slice());
-    let validator = make_validator_with_options(
-        Arc::new(AlwaysTrueKeyResolver),
-        |opts| {
-            opts.detached_payload = Some(Payload::Bytes(b"detached".to_vec()));
-        },
-    );
+    let validator = make_validator_with_options(Arc::new(AlwaysTrueKeyResolver), |opts| {
+        opts.detached_payload = Some(Payload::Bytes(b"detached".to_vec()));
+    });
 
-    let result = validator.validate_bytes(EverParseCborProvider, bytes_arc).unwrap();
+    let result = validator
+        .validate_bytes(EverParseCborProvider, bytes_arc)
+        .unwrap();
     // Should fail with unsupported algorithm, but exercises the Uint branch in header_i64
     let post = &result.post_signature_policy;
     // The result depends on whether the post-validator fires correctly
@@ -1125,14 +1144,13 @@ fn indirect_signature_hash_mismatch() {
     let cose_bytes = enc.into_bytes();
 
     let bytes_arc: Arc<[u8]> = Arc::from(cose_bytes.into_boxed_slice());
-    let validator = make_validator_with_options(
-        Arc::new(AlwaysTrueKeyResolver),
-        |opts| {
-            opts.detached_payload = Some(Payload::Bytes(detached.to_vec()));
-        },
-    );
+    let validator = make_validator_with_options(Arc::new(AlwaysTrueKeyResolver), |opts| {
+        opts.detached_payload = Some(Payload::Bytes(detached.to_vec()));
+    });
 
-    let result = validator.validate_bytes(EverParseCborProvider, bytes_arc).unwrap();
+    let result = validator
+        .validate_bytes(EverParseCborProvider, bytes_arc)
+        .unwrap();
     assert!(result.post_signature_policy.is_failure());
     let msg = &result.post_signature_policy.failures[0].message;
     assert!(
@@ -1183,9 +1201,7 @@ fn trust_plan_and_group() {
     let pack = simple_pack_with_resolver(Arc::new(AlwaysTrueKeyResolver));
 
     let bundled = TrustPlanBuilder::new(vec![pack])
-        .and_group(|inner| {
-            inner.for_message(|m| m.allow_all())
-        })
+        .and_group(|inner| inner.for_message(|m| m.allow_all()))
         .compile()
         .unwrap();
 
@@ -1233,7 +1249,9 @@ fn validator_detached_payload_missing_when_message_is_detached() {
     let bytes_arc: Arc<[u8]> = Arc::from(cose_bytes.into_boxed_slice());
 
     let validator = make_validator(Arc::new(AlwaysTrueKeyResolver));
-    let result = validator.validate_bytes(EverParseCborProvider, bytes_arc).unwrap();
+    let result = validator
+        .validate_bytes(EverParseCborProvider, bytes_arc)
+        .unwrap();
     assert!(result.signature.is_failure());
     assert!(result.signature.failures[0].message.contains("payload"));
 }
@@ -1255,7 +1273,9 @@ fn validator_advanced_constructor() {
     let cose_bytes = build_minimal_cose_sign1(Some(b"payload"));
     let bytes_arc: Arc<[u8]> = Arc::from(cose_bytes.into_boxed_slice());
 
-    let result = validator.validate_bytes(EverParseCborProvider, bytes_arc).unwrap();
+    let result = validator
+        .validate_bytes(EverParseCborProvider, bytes_arc)
+        .unwrap();
     assert!(result.overall.is_valid());
 }
 
@@ -1365,10 +1385,8 @@ fn cose_key_resolution_result_constructors() {
     assert!(success.is_success);
     assert!(success.cose_key.is_some());
 
-    let failure = CoseKeyResolutionResult::failure(
-        Some("CODE".to_string()),
-        Some("msg".to_string()),
-    );
+    let failure =
+        CoseKeyResolutionResult::failure(Some("CODE".to_string()), Some("msg".to_string()));
     assert!(!failure.is_success);
     assert!(failure.cose_key.is_none());
     assert_eq!(failure.error_code.as_deref(), Some("CODE"));

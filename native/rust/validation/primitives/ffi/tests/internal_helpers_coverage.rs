@@ -43,9 +43,7 @@ fn test_to_new_utf8_via_pack_name() {
 
     // Get the pack count to ensure we have at least one pack
     let mut pack_count: usize = 0;
-    let status = unsafe {
-        cose_sign1_trust_plan_builder_pack_count(plan_builder, &mut pack_count)
-    };
+    let status = unsafe { cose_sign1_trust_plan_builder_pack_count(plan_builder, &mut pack_count) };
     assert_eq!(status, cose_status_t::COSE_OK);
 
     if pack_count > 0 {
@@ -62,9 +60,7 @@ fn test_to_new_utf8_via_pack_name() {
     }
 
     // Test with an out-of-bounds index to exercise the error path
-    let name_ptr = unsafe {
-        cose_sign1_trust_plan_builder_pack_name_utf8(plan_builder, 999)
-    };
+    let name_ptr = unsafe { cose_sign1_trust_plan_builder_pack_name_utf8(plan_builder, 999) };
     assert!(name_ptr.is_null()); // Should return null for out-of-bounds
 
     // Cleanup
@@ -89,19 +85,17 @@ fn test_to_new_utf8_multiple_packs() {
     assert_eq!(status, cose_status_t::COSE_OK);
 
     let mut pack_count: usize = 0;
-    let status = unsafe {
-        cose_sign1_trust_plan_builder_pack_count(plan_builder, &mut pack_count)
-    };
+    let status = unsafe { cose_sign1_trust_plan_builder_pack_count(plan_builder, &mut pack_count) };
     assert_eq!(status, cose_status_t::COSE_OK);
 
     // Test all available packs to ensure to_new_utf8 is called for each
     for i in 0..pack_count {
         let name_ptr = unsafe { cose_sign1_trust_plan_builder_pack_name_utf8(plan_builder, i) };
         assert!(!name_ptr.is_null());
-        
+
         let name = unsafe { CStr::from_ptr(name_ptr) };
         assert!(!name.to_bytes().is_empty());
-        
+
         unsafe { cose_string_free(name_ptr) };
     }
 
@@ -129,12 +123,10 @@ fn test_collect_default_plan_for_pack_via_add_all() {
 
     // This internally calls collect_default_plan_for_pack for each pack
     let status = unsafe { cose_sign1_trust_plan_builder_add_all_pack_default_plans(plan_builder) };
-    
+
     // May succeed or fail depending on whether packs provide defaults
     // The key is that collect_default_plan_for_pack gets called
-    assert!(
-        status == cose_status_t::COSE_OK || status == cose_status_t::COSE_ERR
-    );
+    assert!(status == cose_status_t::COSE_OK || status == cose_status_t::COSE_ERR);
 
     // Cleanup
     unsafe {
@@ -160,15 +152,15 @@ fn test_compile_or_selected() {
     assert_eq!(status, cose_status_t::COSE_OK);
 
     // Try to add all pack default plans - this exercises collect_default_plan_for_pack
-    let add_status = unsafe { cose_sign1_trust_plan_builder_add_all_pack_default_plans(plan_builder) };
-    
+    let add_status =
+        unsafe { cose_sign1_trust_plan_builder_add_all_pack_default_plans(plan_builder) };
+
     // Only test compile if we successfully added plans
     if add_status == cose_status_t::COSE_OK {
         // Now compile with OR - this calls compile_or_selected
         let mut compiled_plan: *mut cose_sign1_compiled_trust_plan_t = ptr::null_mut();
-        let status = unsafe {
-            cose_sign1_trust_plan_builder_compile_or(plan_builder, &mut compiled_plan)
-        };
+        let status =
+            unsafe { cose_sign1_trust_plan_builder_compile_or(plan_builder, &mut compiled_plan) };
 
         if status == cose_status_t::COSE_OK {
             assert!(!compiled_plan.is_null());
@@ -203,15 +195,15 @@ fn test_compile_and_selected() {
     assert_eq!(status, cose_status_t::COSE_OK);
 
     // Try to add all pack default plans - this exercises collect_default_plan_for_pack
-    let add_status = unsafe { cose_sign1_trust_plan_builder_add_all_pack_default_plans(plan_builder) };
+    let add_status =
+        unsafe { cose_sign1_trust_plan_builder_add_all_pack_default_plans(plan_builder) };
 
     // Only test compile if we successfully added plans
     if add_status == cose_status_t::COSE_OK {
         // Now compile with AND - this calls compile_and_selected
         let mut compiled_plan: *mut cose_sign1_compiled_trust_plan_t = ptr::null_mut();
-        let status = unsafe {
-            cose_sign1_trust_plan_builder_compile_and(plan_builder, &mut compiled_plan)
-        };
+        let status =
+            unsafe { cose_sign1_trust_plan_builder_compile_and(plan_builder, &mut compiled_plan) };
 
         if status == cose_status_t::COSE_OK {
             assert!(!compiled_plan.is_null());
@@ -245,15 +237,15 @@ fn test_compile_and_with_multiple_plans() {
     assert_eq!(status, cose_status_t::COSE_OK);
 
     // Add all available pack default plans
-    let add_status = unsafe { cose_sign1_trust_plan_builder_add_all_pack_default_plans(plan_builder) };
+    let add_status =
+        unsafe { cose_sign1_trust_plan_builder_add_all_pack_default_plans(plan_builder) };
 
     // Only test if we successfully added plans
     if add_status == cose_status_t::COSE_OK {
         // First, try compile to OR
         let mut or_plan: *mut cose_sign1_compiled_trust_plan_t = ptr::null_mut();
-        let status = unsafe {
-            cose_sign1_trust_plan_builder_compile_or(plan_builder, &mut or_plan)
-        };
+        let status =
+            unsafe { cose_sign1_trust_plan_builder_compile_or(plan_builder, &mut or_plan) };
         if status == cose_status_t::COSE_OK {
             assert!(!or_plan.is_null());
             unsafe { cose_sign1_compiled_trust_plan_free(or_plan) };
@@ -270,12 +262,12 @@ fn test_compile_and_with_multiple_plans() {
         assert_eq!(status, cose_status_t::COSE_OK);
 
         // Add plans and compile with AND
-        let add_status2 = unsafe { cose_sign1_trust_plan_builder_add_all_pack_default_plans(plan_builder2) };
+        let add_status2 =
+            unsafe { cose_sign1_trust_plan_builder_add_all_pack_default_plans(plan_builder2) };
         if add_status2 == cose_status_t::COSE_OK {
             let mut and_plan: *mut cose_sign1_compiled_trust_plan_t = ptr::null_mut();
-            let status = unsafe {
-                cose_sign1_trust_plan_builder_compile_and(plan_builder2, &mut and_plan)
-            };
+            let status =
+                unsafe { cose_sign1_trust_plan_builder_compile_and(plan_builder2, &mut and_plan) };
             if status == cose_status_t::COSE_OK {
                 assert!(!and_plan.is_null());
                 unsafe { cose_sign1_compiled_trust_plan_free(and_plan) };
@@ -310,17 +302,13 @@ fn test_compile_empty_plans() {
 
     // Compile OR with empty plans - should fail
     let mut or_plan: *mut cose_sign1_compiled_trust_plan_t = ptr::null_mut();
-    let status = unsafe {
-        cose_sign1_trust_plan_builder_compile_or(plan_builder, &mut or_plan)
-    };
+    let status = unsafe { cose_sign1_trust_plan_builder_compile_or(plan_builder, &mut or_plan) };
     assert_ne!(status, cose_status_t::COSE_OK); // Should fail with empty plans
     assert!(or_plan.is_null());
 
     // Compile AND with empty plans - should fail
     let mut and_plan: *mut cose_sign1_compiled_trust_plan_t = ptr::null_mut();
-    let status = unsafe {
-        cose_sign1_trust_plan_builder_compile_and(plan_builder, &mut and_plan)
-    };
+    let status = unsafe { cose_sign1_trust_plan_builder_compile_and(plan_builder, &mut and_plan) };
     assert_ne!(status, cose_status_t::COSE_OK); // Should fail with empty plans
     assert!(and_plan.is_null());
 
@@ -346,7 +334,8 @@ fn test_clear_and_recompile() {
     assert_eq!(status, cose_status_t::COSE_OK);
 
     // Add some plans
-    let add_status = unsafe { cose_sign1_trust_plan_builder_add_all_pack_default_plans(plan_builder) };
+    let add_status =
+        unsafe { cose_sign1_trust_plan_builder_add_all_pack_default_plans(plan_builder) };
 
     // Clear the selected plans
     let status = unsafe { cose_sign1_trust_plan_builder_clear_selected_plans(plan_builder) };

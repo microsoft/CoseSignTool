@@ -11,7 +11,7 @@ use did_x509_ffi::error::{
 use did_x509_ffi::types::DidX509ParsedHandle;
 use did_x509_ffi::*;
 
-use rcgen::{CertificateParams, DnType, KeyPair, ExtendedKeyUsagePurpose};
+use rcgen::{CertificateParams, DnType, ExtendedKeyUsagePurpose, KeyPair};
 use std::ffi::CString;
 use std::ptr;
 
@@ -50,9 +50,11 @@ fn get_test_cert_bytes() -> Vec<u8> {
 // Generate a valid certificate for tests requiring valid certs
 fn generate_valid_cert() -> Vec<u8> {
     let mut params = CertificateParams::default();
-    params.distinguished_name.push(DnType::CommonName, "FFI Test Cert");
+    params
+        .distinguished_name
+        .push(DnType::CommonName, "FFI Test Cert");
     params.extended_key_usages = vec![ExtendedKeyUsagePurpose::CodeSigning];
-    
+
     let key = KeyPair::generate().unwrap();
     params.self_signed(&key).unwrap().der().to_vec()
 }
@@ -65,9 +67,9 @@ fn generate_valid_cert() -> Vec<u8> {
 fn test_parse_null_out_handle() {
     let did_string = CString::new(VALID_DID).unwrap();
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_parse_inner(did_string.as_ptr(), ptr::null_mut(), &mut err);
-    
+
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     free_error(err);
 }
@@ -76,9 +78,9 @@ fn test_parse_null_out_handle() {
 fn test_parse_null_did_string() {
     let mut handle: *mut DidX509ParsedHandle = ptr::null_mut();
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_parse_inner(ptr::null(), &mut handle, &mut err);
-    
+
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     free_error(err);
 }
@@ -87,15 +89,15 @@ fn test_parse_null_did_string() {
 fn test_parse_invalid_utf8() {
     let mut handle: *mut DidX509ParsedHandle = ptr::null_mut();
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
-    
+
     let invalid_utf8 = [0xC0u8, 0xAF, 0x00];
-    
+
     let rc = impl_parse_inner(
         invalid_utf8.as_ptr() as *const libc::c_char,
         &mut handle,
         &mut err,
     );
-    
+
     assert_eq!(rc, FFI_ERR_INVALID_ARGUMENT);
     free_error(err);
 }
@@ -105,9 +107,9 @@ fn test_parse_invalid_did_format() {
     let mut handle: *mut DidX509ParsedHandle = ptr::null_mut();
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
     let invalid_did = CString::new("not-a-did").unwrap();
-    
+
     let rc = impl_parse_inner(invalid_did.as_ptr(), &mut handle, &mut err);
-    
+
     assert_eq!(rc, FFI_ERR_PARSE_FAILED);
     free_error(err);
 }
@@ -119,13 +121,13 @@ fn test_parse_invalid_did_format() {
 #[test]
 fn test_parsed_get_fingerprint_null_out() {
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_parsed_get_fingerprint_inner(
         0x1 as *const DidX509ParsedHandle, // Non-null but invalid
         ptr::null_mut(),
         &mut err,
     );
-    
+
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     free_error(err);
 }
@@ -134,9 +136,9 @@ fn test_parsed_get_fingerprint_null_out() {
 fn test_parsed_get_fingerprint_null_handle() {
     let mut out_fp: *const libc::c_char = ptr::null();
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_parsed_get_fingerprint_inner(ptr::null(), &mut out_fp, &mut err);
-    
+
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     free_error(err);
 }
@@ -148,13 +150,13 @@ fn test_parsed_get_fingerprint_null_handle() {
 #[test]
 fn test_parsed_get_hash_algorithm_null_out() {
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_parsed_get_hash_algorithm_inner(
         0x1 as *const DidX509ParsedHandle,
         ptr::null_mut(),
         &mut err,
     );
-    
+
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     free_error(err);
 }
@@ -163,9 +165,9 @@ fn test_parsed_get_hash_algorithm_null_out() {
 fn test_parsed_get_hash_algorithm_null_handle() {
     let mut out_alg: *const libc::c_char = ptr::null();
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_parsed_get_hash_algorithm_inner(ptr::null(), &mut out_alg, &mut err);
-    
+
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     free_error(err);
 }
@@ -176,20 +178,17 @@ fn test_parsed_get_hash_algorithm_null_handle() {
 
 #[test]
 fn test_parsed_get_policy_count_null_out() {
-    let rc = impl_parsed_get_policy_count_inner(
-        0x1 as *const DidX509ParsedHandle,
-        ptr::null_mut(),
-    );
-    
+    let rc = impl_parsed_get_policy_count_inner(0x1 as *const DidX509ParsedHandle, ptr::null_mut());
+
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
 }
 
 #[test]
 fn test_parsed_get_policy_count_null_handle() {
     let mut count: u32 = 0;
-    
+
     let rc = impl_parsed_get_policy_count_inner(ptr::null(), &mut count);
-    
+
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
 }
 
@@ -203,7 +202,7 @@ fn test_build_with_eku_null_out_did_string() {
     let eku1 = CString::new("1.3.6.1.5.5.7.3.3").unwrap();
     let eku_ptrs = [eku1.as_ptr()];
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_build_with_eku_inner(
         cert_bytes.as_ptr(),
         cert_bytes.len() as u32,
@@ -212,7 +211,7 @@ fn test_build_with_eku_null_out_did_string() {
         ptr::null_mut(),
         &mut err,
     );
-    
+
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     free_error(err);
 }
@@ -223,7 +222,7 @@ fn test_build_with_eku_null_cert_nonzero_len() {
     let eku_ptrs = [eku1.as_ptr()];
     let mut out_did: *mut libc::c_char = ptr::null_mut();
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_build_with_eku_inner(
         ptr::null(),
         100, // Non-zero len with null cert
@@ -232,7 +231,7 @@ fn test_build_with_eku_null_cert_nonzero_len() {
         &mut out_did,
         &mut err,
     );
-    
+
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     free_error(err);
 }
@@ -242,7 +241,7 @@ fn test_build_with_eku_null_eku_oids_nonzero_count() {
     let cert_bytes = get_test_cert_bytes();
     let mut out_did: *mut libc::c_char = ptr::null_mut();
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_build_with_eku_inner(
         cert_bytes.as_ptr(),
         cert_bytes.len() as u32,
@@ -251,7 +250,7 @@ fn test_build_with_eku_null_eku_oids_nonzero_count() {
         &mut out_did,
         &mut err,
     );
-    
+
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     free_error(err);
 }
@@ -262,7 +261,7 @@ fn test_build_with_eku_null_eku_oid_entry() {
     let eku_ptrs: [*const libc::c_char; 2] = [ptr::null(), ptr::null()];
     let mut out_did: *mut libc::c_char = ptr::null_mut();
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_build_with_eku_inner(
         cert_bytes.as_ptr(),
         cert_bytes.len() as u32,
@@ -271,7 +270,7 @@ fn test_build_with_eku_null_eku_oid_entry() {
         &mut out_did,
         &mut err,
     );
-    
+
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     free_error(err);
 }
@@ -283,7 +282,7 @@ fn test_build_with_eku_invalid_utf8_eku() {
     let eku_ptrs: [*const libc::c_char; 1] = [invalid_utf8.as_ptr() as *const libc::c_char];
     let mut out_did: *mut libc::c_char = ptr::null_mut();
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_build_with_eku_inner(
         cert_bytes.as_ptr(),
         cert_bytes.len() as u32,
@@ -292,7 +291,7 @@ fn test_build_with_eku_invalid_utf8_eku() {
         &mut out_did,
         &mut err,
     );
-    
+
     assert_eq!(rc, FFI_ERR_INVALID_ARGUMENT);
     free_error(err);
 }
@@ -304,7 +303,7 @@ fn test_build_with_eku_invalid_cert() {
     let eku_ptrs = [eku1.as_ptr()];
     let mut out_did: *mut libc::c_char = ptr::null_mut();
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_build_with_eku_inner(
         cert_bytes.as_ptr(),
         cert_bytes.len() as u32,
@@ -313,7 +312,7 @@ fn test_build_with_eku_invalid_cert() {
         &mut out_did,
         &mut err,
     );
-    
+
     // This succeeds because the cert bytes hash, EKU doesn't require parsing a real cert
     // Just verify some result is returned (may succeed or fail depending on implementation)
     assert!(rc == 0 || rc < 0);
@@ -333,7 +332,7 @@ fn test_build_from_chain_null_out_did_string() {
     let cert_ptrs = [cert_bytes.as_ptr()];
     let cert_lens = [cert_bytes.len() as u32];
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_build_from_chain_inner(
         cert_ptrs.as_ptr(),
         cert_lens.as_ptr(),
@@ -341,7 +340,7 @@ fn test_build_from_chain_null_out_did_string() {
         ptr::null_mut(),
         &mut err,
     );
-    
+
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     free_error(err);
 }
@@ -351,15 +350,10 @@ fn test_build_from_chain_null_chain_certs() {
     let cert_lens = [100u32];
     let mut out_did: *mut libc::c_char = ptr::null_mut();
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
-    
-    let rc = impl_build_from_chain_inner(
-        ptr::null(),
-        cert_lens.as_ptr(),
-        1,
-        &mut out_did,
-        &mut err,
-    );
-    
+
+    let rc =
+        impl_build_from_chain_inner(ptr::null(), cert_lens.as_ptr(), 1, &mut out_did, &mut err);
+
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     free_error(err);
 }
@@ -370,15 +364,10 @@ fn test_build_from_chain_null_cert_lens() {
     let cert_ptrs = [cert_bytes.as_ptr()];
     let mut out_did: *mut libc::c_char = ptr::null_mut();
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
-    
-    let rc = impl_build_from_chain_inner(
-        cert_ptrs.as_ptr(),
-        ptr::null(),
-        1,
-        &mut out_did,
-        &mut err,
-    );
-    
+
+    let rc =
+        impl_build_from_chain_inner(cert_ptrs.as_ptr(), ptr::null(), 1, &mut out_did, &mut err);
+
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     free_error(err);
 }
@@ -389,7 +378,7 @@ fn test_build_from_chain_null_cert_entry() {
     let cert_lens = [100u32];
     let mut out_did: *mut libc::c_char = ptr::null_mut();
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_build_from_chain_inner(
         cert_ptrs.as_ptr(),
         cert_lens.as_ptr(),
@@ -397,7 +386,7 @@ fn test_build_from_chain_null_cert_entry() {
         &mut out_did,
         &mut err,
     );
-    
+
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     free_error(err);
 }
@@ -406,7 +395,7 @@ fn test_build_from_chain_null_cert_entry() {
 fn test_build_from_chain_empty_chain() {
     let mut out_did: *mut libc::c_char = ptr::null_mut();
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_build_from_chain_inner(
         ptr::null(),
         ptr::null(),
@@ -414,7 +403,7 @@ fn test_build_from_chain_empty_chain() {
         &mut out_did,
         &mut err,
     );
-    
+
     // Should fail with null pointer error (null ptrs with zero count triggers that check)
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     free_error(err);
@@ -431,7 +420,7 @@ fn test_resolve_null_out_did_doc() {
     let chain_ptrs = [chain.as_ptr()];
     let chain_lens = [chain.len() as u32];
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_resolve_inner(
         did_string.as_ptr(),
         chain_ptrs.as_ptr(),
@@ -440,7 +429,7 @@ fn test_resolve_null_out_did_doc() {
         ptr::null_mut(),
         &mut err,
     );
-    
+
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     free_error(err);
 }
@@ -452,7 +441,7 @@ fn test_resolve_null_did_string() {
     let chain_lens = [chain.len() as u32];
     let mut out_doc: *mut libc::c_char = ptr::null_mut();
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_resolve_inner(
         ptr::null(),
         chain_ptrs.as_ptr(),
@@ -461,7 +450,7 @@ fn test_resolve_null_did_string() {
         &mut out_doc,
         &mut err,
     );
-    
+
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     free_error(err);
 }
@@ -473,9 +462,9 @@ fn test_resolve_invalid_utf8_did() {
     let chain_lens = [chain.len() as u32];
     let mut out_doc: *mut libc::c_char = ptr::null_mut();
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
-    
+
     let invalid_utf8 = [0xC0u8, 0xAF, 0x00];
-    
+
     let rc = impl_resolve_inner(
         invalid_utf8.as_ptr() as *const libc::c_char,
         chain_ptrs.as_ptr(),
@@ -484,7 +473,7 @@ fn test_resolve_invalid_utf8_did() {
         &mut out_doc,
         &mut err,
     );
-    
+
     assert_eq!(rc, FFI_ERR_INVALID_ARGUMENT);
     free_error(err);
 }
@@ -494,7 +483,7 @@ fn test_resolve_null_chain_nonzero_count() {
     let did_string = CString::new(VALID_DID).unwrap();
     let mut out_doc: *mut libc::c_char = ptr::null_mut();
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_resolve_inner(
         did_string.as_ptr(),
         ptr::null(),
@@ -503,7 +492,7 @@ fn test_resolve_null_chain_nonzero_count() {
         &mut out_doc,
         &mut err,
     );
-    
+
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     free_error(err);
 }
@@ -516,7 +505,7 @@ fn test_resolve_zero_chain_count() {
     let chain_lens = [chain.len() as u32];
     let mut out_doc: *mut libc::c_char = ptr::null_mut();
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_resolve_inner(
         did_string.as_ptr(),
         chain_ptrs.as_ptr(),
@@ -525,7 +514,7 @@ fn test_resolve_zero_chain_count() {
         &mut out_doc,
         &mut err,
     );
-    
+
     assert_eq!(rc, FFI_ERR_INVALID_ARGUMENT);
     free_error(err);
 }
@@ -541,7 +530,7 @@ fn test_validate_null_out_result() {
     let chain_ptrs = [chain.as_ptr()];
     let chain_lens = [chain.len() as u32];
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_validate_inner(
         did_string.as_ptr(),
         chain_ptrs.as_ptr(),
@@ -550,7 +539,7 @@ fn test_validate_null_out_result() {
         ptr::null_mut(),
         &mut err,
     );
-    
+
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     free_error(err);
 }
@@ -562,7 +551,7 @@ fn test_validate_null_did_string() {
     let chain_lens = [chain.len() as u32];
     let mut out_result: i32 = 0;
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_validate_inner(
         ptr::null(),
         chain_ptrs.as_ptr(),
@@ -571,7 +560,7 @@ fn test_validate_null_did_string() {
         &mut out_result,
         &mut err,
     );
-    
+
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     free_error(err);
 }
@@ -583,9 +572,9 @@ fn test_validate_invalid_utf8_did() {
     let chain_lens = [chain.len() as u32];
     let mut out_result: i32 = 0;
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
-    
+
     let invalid_utf8 = [0xC0u8, 0xAF, 0x00];
-    
+
     let rc = impl_validate_inner(
         invalid_utf8.as_ptr() as *const libc::c_char,
         chain_ptrs.as_ptr(),
@@ -594,7 +583,7 @@ fn test_validate_invalid_utf8_did() {
         &mut out_result,
         &mut err,
     );
-    
+
     assert_eq!(rc, FFI_ERR_INVALID_ARGUMENT);
     free_error(err);
 }
@@ -604,7 +593,7 @@ fn test_validate_null_chain_nonzero_count() {
     let did_string = CString::new(VALID_DID).unwrap();
     let mut out_result: i32 = 0;
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_validate_inner(
         did_string.as_ptr(),
         ptr::null(),
@@ -613,7 +602,7 @@ fn test_validate_null_chain_nonzero_count() {
         &mut out_result,
         &mut err,
     );
-    
+
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     free_error(err);
 }
@@ -626,7 +615,7 @@ fn test_validate_zero_chain_count() {
     let chain_lens = [chain.len() as u32];
     let mut out_result: i32 = 0;
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_validate_inner(
         did_string.as_ptr(),
         chain_ptrs.as_ptr(),
@@ -635,7 +624,7 @@ fn test_validate_zero_chain_count() {
         &mut out_result,
         &mut err,
     );
-    
+
     assert_eq!(rc, FFI_ERR_INVALID_ARGUMENT);
     free_error(err);
 }
@@ -681,12 +670,12 @@ fn test_parsed_free_null_safe() {
 #[test]
 fn test_error_inner_from_did_error_coverage() {
     use did_x509_ffi::error::ErrorInner;
-    
+
     // Test various error creation paths
     let err = ErrorInner::new("test error", -99);
     assert_eq!(err.message, "test error");
     assert_eq!(err.code, -99);
-    
+
     let err = ErrorInner::null_pointer("param");
     assert!(err.message.contains("param"));
     assert_eq!(err.code, FFI_ERR_NULL_POINTER);
@@ -695,7 +684,7 @@ fn test_error_inner_from_did_error_coverage() {
 #[test]
 fn test_error_set_error_null_out() {
     use did_x509_ffi::error::{set_error, ErrorInner};
-    
+
     // Setting error with null out_error should not crash
     set_error(ptr::null_mut(), ErrorInner::new("test", -1));
 }
@@ -703,19 +692,19 @@ fn test_error_set_error_null_out() {
 #[test]
 fn test_error_set_error_valid_out() {
     use did_x509_ffi::error::{set_error, ErrorInner};
-    
+
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
     set_error(&mut err, ErrorInner::new("test message", -42));
-    
+
     assert!(!err.is_null());
-    
+
     let code = unsafe { did_x509_error_code(err) };
     assert_eq!(code, -42);
-    
+
     let msg = unsafe { did_x509_error_message(err) };
     assert!(!msg.is_null());
     free_string(msg as *mut libc::c_char);
-    
+
     free_error(err);
 }
 

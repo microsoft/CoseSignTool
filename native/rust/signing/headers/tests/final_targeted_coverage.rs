@@ -12,7 +12,7 @@
 
 use cbor_primitives::{CborEncoder, CborProvider};
 use cbor_primitives_everparse::EverParseCborProvider;
-use cose_sign1_headers::{CwtClaimValue, CwtClaims, CWTClaimsHeaderLabels};
+use cose_sign1_headers::{CWTClaimsHeaderLabels, CwtClaimValue, CwtClaims};
 
 // ---------------------------------------------------------------------------
 // Round-trip: every standard field + every custom claim type
@@ -42,7 +42,10 @@ fn roundtrip_all_standard_fields_and_custom_claim_types() {
     // Standard fields
     assert_eq!(decoded.issuer.as_deref(), Some("https://issuer.example"));
     assert_eq!(decoded.subject.as_deref(), Some("subject@example"));
-    assert_eq!(decoded.audience.as_deref(), Some("https://audience.example"));
+    assert_eq!(
+        decoded.audience.as_deref(),
+        Some("https://audience.example")
+    );
     assert_eq!(decoded.expiration_time, Some(1_700_000_000));
     assert_eq!(decoded.not_before, Some(1_699_000_000));
     assert_eq!(decoded.issued_at, Some(1_698_500_000));
@@ -252,8 +255,7 @@ fn roundtrip_cwt_id_only() {
 
 #[test]
 fn roundtrip_bool_false_custom_claim() {
-    let claims = CwtClaims::new()
-        .with_custom_claim(600, CwtClaimValue::Bool(false));
+    let claims = CwtClaims::new().with_custom_claim(600, CwtClaimValue::Bool(false));
 
     let bytes = claims.to_cbor_bytes().unwrap();
     let decoded = CwtClaims::from_cbor_bytes(&bytes).unwrap();

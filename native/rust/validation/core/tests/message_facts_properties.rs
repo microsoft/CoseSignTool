@@ -1,12 +1,12 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+use cbor_primitives::{CborEncoder, CborProvider};
+use cbor_primitives_everparse::EverParseCborProvider;
 use cose_sign1_validation::fluent::{CwtClaimScalar, CwtClaimsFact, RawCbor};
 use cose_sign1_validation_primitives::fact_properties::{FactProperties, FactValue};
 use std::collections::BTreeMap;
 use std::sync::Arc;
-use cbor_primitives::{CborEncoder, CborProvider};
-use cbor_primitives_everparse::EverParseCborProvider;
 
 fn encode_cbor_i64(n: i64) -> Arc<[u8]> {
     let p = EverParseCborProvider;
@@ -26,7 +26,7 @@ fn encode_cbor_text(s: &str) -> Arc<[u8]> {
 fn cbor_value_reader_decode_is_best_effort() {
     let bytes = encode_cbor_i64(123);
     let r = RawCbor::new(bytes.as_ref());
-    
+
     use cbor_primitives::{CborDecoder, CborProvider};
     let provider = cbor_primitives_everparse::EverParseCborProvider;
     let mut d = provider.decoder(r.as_bytes());
@@ -83,12 +83,15 @@ fn cwt_claims_fact_property_accessors_cover_standard_and_scalar_claims() {
 
     use cbor_primitives::{CborDecoder, CborProvider};
     let provider = cbor_primitives_everparse::EverParseCborProvider;
-    
+
     let mut d1 = provider.decoder(fact.claim_value_i64(6).unwrap().as_bytes());
     assert_eq!(d1.decode_i64().ok(), Some(555));
-    
+
     let mut d2 = provider.decoder(fact.claim_value_text("custom").unwrap().as_bytes());
-    assert_eq!(d2.decode_tstr().ok().map(|s| s.to_string()).as_deref(), Some("v"));
-    
+    assert_eq!(
+        d2.decode_tstr().ok().map(|s| s.to_string()).as_deref(),
+        Some("v")
+    );
+
     assert_eq!(fact.claim_value_text("missing"), None);
 }

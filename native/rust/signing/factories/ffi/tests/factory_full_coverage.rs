@@ -8,9 +8,9 @@
 
 use cose_sign1_factories_ffi::*;
 use std::ffi::{CStr, CString};
+use std::io::Write;
 use std::ptr;
 use tempfile::NamedTempFile;
-use std::io::Write;
 
 /// Helper to get error message from an error handle.
 fn error_message(err: *const CoseSign1FactoriesErrorHandle) -> Option<String> {
@@ -21,9 +21,7 @@ fn error_message(err: *const CoseSign1FactoriesErrorHandle) -> Option<String> {
     if msg.is_null() {
         return None;
     }
-    let s = unsafe { CStr::from_ptr(msg) }
-        .to_string_lossy()
-        .to_string();
+    let s = unsafe { CStr::from_ptr(msg) }.to_string_lossy().to_string();
     unsafe { cose_sign1_factories_string_free(msg) };
     Some(s)
 }
@@ -38,7 +36,10 @@ fn create_test_crypto_signer() -> *mut CryptoSignerHandle {
 }
 
 /// Creates a factory from the test crypto signer.
-fn create_test_factory() -> (*mut CoseSign1FactoriesHandle, *mut CoseSign1FactoriesErrorHandle) {
+fn create_test_factory() -> (
+    *mut CoseSign1FactoriesHandle,
+    *mut CoseSign1FactoriesErrorHandle,
+) {
     let signer = create_test_crypto_signer();
     if signer.is_null() {
         return (ptr::null_mut(), ptr::null_mut());
@@ -47,9 +48,8 @@ fn create_test_factory() -> (*mut CoseSign1FactoriesHandle, *mut CoseSign1Factor
     let mut factory: *mut CoseSign1FactoriesHandle = ptr::null_mut();
     let mut err: *mut CoseSign1FactoriesErrorHandle = ptr::null_mut();
 
-    let rc = unsafe {
-        cose_sign1_factories_create_from_crypto_signer(signer, &mut factory, &mut err)
-    };
+    let rc =
+        unsafe { cose_sign1_factories_create_from_crypto_signer(signer, &mut factory, &mut err) };
 
     if rc != COSE_SIGN1_FACTORIES_OK {
         return (ptr::null_mut(), err);
@@ -66,7 +66,7 @@ unsafe extern "C" fn test_read_callback(
 ) -> i64 {
     let data = user_data as *const &[u8];
     let source = unsafe { &**data };
-    
+
     let to_copy = std::cmp::min(buffer_len, source.len());
     if to_copy > 0 {
         unsafe {
@@ -102,7 +102,7 @@ fn ffi_null_free_is_safe() {
 }
 
 // ============================================================================
-// Factory creation null-input tests  
+// Factory creation null-input tests
 // ============================================================================
 
 #[test]
@@ -111,12 +111,8 @@ fn ffi_create_from_crypto_signer_null_outputs() {
     let mut err: *mut CoseSign1FactoriesErrorHandle = ptr::null_mut();
 
     // Null out_factory should fail
-    let rc = unsafe { 
-        cose_sign1_factories_create_from_crypto_signer(
-            signer, 
-            ptr::null_mut(), 
-            &mut err
-        ) 
+    let rc = unsafe {
+        cose_sign1_factories_create_from_crypto_signer(signer, ptr::null_mut(), &mut err)
     };
     assert_eq!(rc, COSE_SIGN1_FACTORIES_ERR_NULL_POINTER);
     assert!(!err.is_null());
@@ -134,12 +130,8 @@ fn ffi_create_from_crypto_signer_null_signer() {
     let mut err: *mut CoseSign1FactoriesErrorHandle = ptr::null_mut();
 
     // Null signer_handle should fail
-    let rc = unsafe { 
-        cose_sign1_factories_create_from_crypto_signer(
-            ptr::null_mut(), 
-            &mut factory, 
-            &mut err
-        ) 
+    let rc = unsafe {
+        cose_sign1_factories_create_from_crypto_signer(ptr::null_mut(), &mut factory, &mut err)
     };
     assert_eq!(rc, COSE_SIGN1_FACTORIES_ERR_NULL_POINTER);
     assert!(factory.is_null());
@@ -153,7 +145,7 @@ fn ffi_create_from_crypto_signer_null_signer() {
 // Signing function null-input tests
 // ============================================================================
 
-#[test] 
+#[test]
 fn ffi_sign_direct_null_factory() {
     let payload = b"test payload";
     let content_type = CString::new("application/cbor").unwrap();
@@ -227,7 +219,7 @@ fn ffi_sign_direct_null_payload_nonzero_len() {
         cose_sign1_factories_sign_direct(
             factory,
             ptr::null(), // null payload
-            10, // non-zero length
+            10,          // non-zero length
             content_type.as_ptr(),
             &mut out_bytes,
             &mut out_len,
@@ -334,7 +326,9 @@ fn ffi_sign_direct_file_happy_path() {
     // Create a temporary file
     let mut temp_file = NamedTempFile::new().expect("Failed to create temp file");
     let test_content = b"file content for signing";
-    temp_file.write_all(test_content).expect("Failed to write temp file");
+    temp_file
+        .write_all(test_content)
+        .expect("Failed to write temp file");
     temp_file.flush().expect("Failed to flush temp file");
 
     let file_path = CString::new(temp_file.path().to_string_lossy().as_ref()).unwrap();
@@ -375,7 +369,7 @@ fn ffi_sign_direct_streaming_happy_path() {
     let test_data = b"streaming test data";
     let data_ref = &test_data[..];
     let user_data = &data_ref as *const _ as *mut libc::c_void;
-    
+
     let content_type = CString::new("application/octet-stream").unwrap();
     let mut out_bytes: *mut u8 = ptr::null_mut();
     let mut out_len: u32 = 0;
@@ -450,7 +444,9 @@ fn ffi_sign_indirect_file_happy_path() {
 
     let mut temp_file = NamedTempFile::new().expect("Failed to create temp file");
     let test_content = b"indirect file content";
-    temp_file.write_all(test_content).expect("Failed to write temp file");
+    temp_file
+        .write_all(test_content)
+        .expect("Failed to write temp file");
     temp_file.flush().expect("Failed to flush temp file");
 
     let file_path = CString::new(temp_file.path().to_string_lossy().as_ref()).unwrap();
@@ -491,7 +487,7 @@ fn ffi_sign_indirect_streaming_happy_path() {
     let test_data = b"indirect streaming data";
     let data_ref = &test_data[..];
     let user_data = &data_ref as *const _ as *mut libc::c_void;
-    
+
     let content_type = CString::new("application/x-binary").unwrap();
     let mut out_bytes: *mut u8 = ptr::null_mut();
     let mut out_len: u32 = 0;
@@ -683,14 +679,10 @@ fn ffi_error_handling() {
     let mut err: *mut CoseSign1FactoriesErrorHandle = ptr::null_mut();
 
     // Trigger an error with null signer
-    let rc = unsafe { 
-        cose_sign1_factories_create_from_crypto_signer(
-            ptr::null_mut(), 
-            &mut factory, 
-            &mut err
-        ) 
+    let rc = unsafe {
+        cose_sign1_factories_create_from_crypto_signer(ptr::null_mut(), &mut factory, &mut err)
     };
-    
+
     assert!(rc < 0);
     assert!(!err.is_null());
 

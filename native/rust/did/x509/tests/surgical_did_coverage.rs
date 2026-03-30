@@ -64,10 +64,7 @@ fn build_ec_leaf_cert_with_cn(cn: &str) -> Vec<u8> {
         .set_serial_number(&BigNum::from_u32(1).unwrap().to_asn1_integer().unwrap())
         .unwrap();
 
-    let eku = ExtendedKeyUsage::new()
-        .code_signing()
-        .build()
-        .unwrap();
+    let eku = ExtendedKeyUsage::new().code_signing().build().unwrap();
     builder.append_extension(eku).unwrap();
 
     builder.sign(&pkey, MessageDigest::sha256()).unwrap();
@@ -98,10 +95,7 @@ fn build_rsa_leaf_cert() -> Vec<u8> {
         .set_serial_number(&BigNum::from_u32(2).unwrap().to_asn1_integer().unwrap())
         .unwrap();
 
-    let eku = ExtendedKeyUsage::new()
-        .code_signing()
-        .build()
-        .unwrap();
+    let eku = ExtendedKeyUsage::new().code_signing().build().unwrap();
     builder.append_extension(eku).unwrap();
 
     builder.sign(&pkey, MessageDigest::sha256()).unwrap();
@@ -133,10 +127,7 @@ fn build_ec_cert_with_san_dns(dns: &str) -> Vec<u8> {
         .set_serial_number(&BigNum::from_u32(3).unwrap().to_asn1_integer().unwrap())
         .unwrap();
 
-    let eku = ExtendedKeyUsage::new()
-        .code_signing()
-        .build()
-        .unwrap();
+    let eku = ExtendedKeyUsage::new().code_signing().build().unwrap();
     builder.append_extension(eku).unwrap();
 
     let san = SubjectAlternativeName::new()
@@ -174,10 +165,7 @@ fn build_ec_cert_with_san_email(email: &str) -> Vec<u8> {
         .set_serial_number(&BigNum::from_u32(4).unwrap().to_asn1_integer().unwrap())
         .unwrap();
 
-    let eku = ExtendedKeyUsage::new()
-        .code_signing()
-        .build()
-        .unwrap();
+    let eku = ExtendedKeyUsage::new().code_signing().build().unwrap();
     builder.append_extension(eku).unwrap();
 
     let san = SubjectAlternativeName::new()
@@ -215,10 +203,7 @@ fn build_ec_cert_with_san_uri(uri: &str) -> Vec<u8> {
         .set_serial_number(&BigNum::from_u32(5).unwrap().to_asn1_integer().unwrap())
         .unwrap();
 
-    let eku = ExtendedKeyUsage::new()
-        .code_signing()
-        .build()
-        .unwrap();
+    let eku = ExtendedKeyUsage::new().code_signing().build().unwrap();
     builder.append_extension(eku).unwrap();
 
     let san = SubjectAlternativeName::new()
@@ -319,10 +304,7 @@ fn build_ec_cert_with_subject(cn: &str, org: &str, ou: &str) -> Vec<u8> {
         .set_serial_number(&BigNum::from_u32(6).unwrap().to_asn1_integer().unwrap())
         .unwrap();
 
-    let eku = ExtendedKeyUsage::new()
-        .code_signing()
-        .build()
-        .unwrap();
+    let eku = ExtendedKeyUsage::new().code_signing().build().unwrap();
     builder.append_extension(eku).unwrap();
 
     builder.sign(&pkey, MessageDigest::sha256()).unwrap();
@@ -336,8 +318,7 @@ fn sha256_fingerprint_b64url(data: &[u8]) -> String {
 }
 
 fn base64url_encode(data: &[u8]) -> String {
-    const ALPHABET: &[u8; 64] =
-        b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
     let mut out = String::with_capacity((data.len() + 2) / 3 * 4);
     let mut i = 0;
     while i + 2 < data.len() {
@@ -465,10 +446,8 @@ fn validate_subject_matching() {
     // Exercises validate_subject happy path and value comparison lines 56-71
     let cert_der = build_ec_cert_with_subject("TestCN", "TestOrg", "TestOU");
     let (_, cert) = x509_parser::parse_x509_certificate(&cert_der).unwrap();
-    let result = policy_validators::validate_subject(
-        &cert,
-        &[("CN".to_string(), "TestCN".to_string())],
-    );
+    let result =
+        policy_validators::validate_subject(&cert, &[("CN".to_string(), "TestCN".to_string())]);
     assert!(result.is_ok());
 }
 
@@ -477,10 +456,8 @@ fn validate_subject_value_mismatch() {
     // Exercises validate_subject lines 80-86: attribute found but value doesn't match
     let cert_der = build_ec_cert_with_subject("ActualCN", "ActualOrg", "ActualOU");
     let (_, cert) = x509_parser::parse_x509_certificate(&cert_der).unwrap();
-    let result = policy_validators::validate_subject(
-        &cert,
-        &[("CN".to_string(), "WrongCN".to_string())],
-    );
+    let result =
+        policy_validators::validate_subject(&cert, &[("CN".to_string(), "WrongCN".to_string())]);
     assert!(result.is_err());
     let err_msg = result.unwrap_err().to_string();
     assert!(err_msg.contains("value mismatch"));
@@ -491,10 +468,8 @@ fn validate_subject_attribute_not_found() {
     // Exercises validate_subject lines 74-77: attribute not in cert subject
     let cert_der = build_ec_leaf_cert_with_cn("OnlyCN");
     let (_, cert) = x509_parser::parse_x509_certificate(&cert_der).unwrap();
-    let result = policy_validators::validate_subject(
-        &cert,
-        &[("O".to_string(), "SomeOrg".to_string())],
-    );
+    let result =
+        policy_validators::validate_subject(&cert, &[("O".to_string(), "SomeOrg".to_string())]);
     assert!(result.is_err());
     let err_msg = result.unwrap_err().to_string();
     assert!(err_msg.contains("not found"));
@@ -505,10 +480,8 @@ fn validate_subject_unknown_attribute_label() {
     // Exercises validate_subject lines 47-50: unknown attribute label → error
     let cert_der = build_ec_leaf_cert_with_cn("Test");
     let (_, cert) = x509_parser::parse_x509_certificate(&cert_der).unwrap();
-    let result = policy_validators::validate_subject(
-        &cert,
-        &[("BOGUS".to_string(), "value".to_string())],
-    );
+    let result =
+        policy_validators::validate_subject(&cert, &[("BOGUS".to_string(), "value".to_string())]);
     assert!(result.is_err());
     let err_msg = result.unwrap_err().to_string();
     assert!(err_msg.contains("Unknown attribute"));
@@ -570,8 +543,7 @@ fn validate_san_uri_type() {
     // Exercises SAN URI path in san_parser
     let cert_der = build_ec_cert_with_san_uri("https://example.com/id");
     let (_, cert) = x509_parser::parse_x509_certificate(&cert_der).unwrap();
-    let result =
-        policy_validators::validate_san(&cert, &SanType::Uri, "https://example.com/id");
+    let result = policy_validators::validate_san(&cert, &SanType::Uri, "https://example.com/id");
     assert!(result.is_ok());
 }
 
@@ -1106,10 +1078,7 @@ fn parser_subject_policy_odd_components() {
     assert!(result.is_err());
     match result.unwrap_err() {
         DidX509Error::InvalidSubjectPolicyComponents => {}
-        other => panic!(
-            "Expected InvalidSubjectPolicyComponents, got: {:?}",
-            other
-        ),
+        other => panic!("Expected InvalidSubjectPolicyComponents, got: {:?}", other),
     }
 }
 
@@ -1138,10 +1107,7 @@ fn parser_subject_policy_duplicate_key() {
     assert!(result.is_err());
     match result.unwrap_err() {
         DidX509Error::DuplicateSubjectPolicyKey(_) => {}
-        other => panic!(
-            "Expected DuplicateSubjectPolicyKey, got: {:?}",
-            other
-        ),
+        other => panic!("Expected DuplicateSubjectPolicyKey, got: {:?}", other),
     }
 }
 
@@ -1188,10 +1154,7 @@ fn parser_san_percent_encoded_value() {
     // Exercises parse_san_policy line 259: percent_decode on SAN value
     let cert = build_ec_leaf_cert_with_cn("Test");
     let fp = sha256_fingerprint_b64url(&cert);
-    let did = format!(
-        "did:x509:0:sha256:{}::san:email:user%40example.com",
-        fp
-    );
+    let did = format!("did:x509:0:sha256:{}::san:email:user%40example.com", fp);
     let result = DidX509Parser::parse(&did);
     assert!(result.is_ok());
 }

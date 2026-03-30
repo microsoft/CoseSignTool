@@ -2,12 +2,16 @@
 // Licensed under the MIT License.
 
 use cose_sign1_validation_primitives::error::TrustError;
-use cose_sign1_validation_primitives::fact_properties::{FactProperties, FactValue, FactValueOwned};
-use cose_sign1_validation_primitives::facts::{FactKey, TrustFactContext, TrustFactEngine, TrustFactProducer};
+use cose_sign1_validation_primitives::fact_properties::{
+    FactProperties, FactValue, FactValueOwned,
+};
+use cose_sign1_validation_primitives::facts::{
+    FactKey, TrustFactContext, TrustFactEngine, TrustFactProducer,
+};
 use cose_sign1_validation_primitives::rules::{
-    require_any, require_bool, require_fact_matches_with_missing_behavior, require_fact_property,
-    require_fact_matches, require_fact_property_eq, require_present, FactSelector, MissingBehavior,
-    PropertyPredicate,
+    require_any, require_bool, require_fact_matches, require_fact_matches_with_missing_behavior,
+    require_fact_property, require_fact_property_eq, require_present, FactSelector,
+    MissingBehavior, PropertyPredicate,
 };
 use cose_sign1_validation_primitives::subject::TrustSubject;
 use std::borrow::Cow;
@@ -29,7 +33,8 @@ impl TrustFactProducer for BoolFactProducer {
 
     fn provides(&self) -> &'static [FactKey] {
         static ONCE: std::sync::OnceLock<Vec<FactKey>> = std::sync::OnceLock::new();
-        ONCE.get_or_init(|| vec![FactKey::of::<BoolFact>()]).as_slice()
+        ONCE.get_or_init(|| vec![FactKey::of::<BoolFact>()])
+            .as_slice()
     }
 
     fn produce(&self, ctx: &mut TrustFactContext<'_>) -> Result<(), TrustError> {
@@ -58,12 +63,8 @@ fn require_any_present_bool_cover_available_missing_and_error_branches() {
 
     // Available: predicate matches one element.
     let engine = TrustFactEngine::new(vec![Arc::new(BoolFactProducer { mode: "available" })]);
-    let rule = require_any::<BoolFact, _, _>(
-        "any_ok",
-        |s: &TrustSubject| s.clone(),
-        |f| f.ok,
-        "NoMatch",
-    );
+    let rule =
+        require_any::<BoolFact, _, _>("any_ok", |s: &TrustSubject| s.clone(), |f| f.ok, "NoMatch");
     assert!(rule.evaluate(&engine, &subject).unwrap().is_trusted);
 
     // Available: predicate matches none.
@@ -131,7 +132,8 @@ impl TrustFactProducer for PropsProducer {
 
     fn provides(&self) -> &'static [FactKey] {
         static ONCE: std::sync::OnceLock<Vec<FactKey>> = std::sync::OnceLock::new();
-        ONCE.get_or_init(|| vec![FactKey::of::<PropsFact>()]).as_slice()
+        ONCE.get_or_init(|| vec![FactKey::of::<PropsFact>()])
+            .as_slice()
     }
 
     fn produce(&self, ctx: &mut TrustFactContext<'_>) -> Result<(), TrustError> {
@@ -296,7 +298,12 @@ fn property_predicates_cover_unhit_variants_and_type_mismatches() {
         PropertyPredicate::StrContains("10".to_string()),
         "NoMatch",
     );
-    assert!(!type_mismatch.evaluate(&engine, &subject).unwrap().is_trusted);
+    assert!(
+        !type_mismatch
+            .evaluate(&engine, &subject)
+            .unwrap()
+            .is_trusted
+    );
 }
 
 #[test]
@@ -339,7 +346,8 @@ impl TrustFactProducer for MissingProducer {
 
     fn provides(&self) -> &'static [FactKey] {
         static ONCE: std::sync::OnceLock<Vec<FactKey>> = std::sync::OnceLock::new();
-        ONCE.get_or_init(|| vec![FactKey::of::<MissingFact>()]).as_slice()
+        ONCE.get_or_init(|| vec![FactKey::of::<MissingFact>()])
+            .as_slice()
     }
 
     fn produce(&self, ctx: &mut TrustFactContext<'_>) -> Result<(), TrustError> {
@@ -475,7 +483,12 @@ fn property_predicate_type_mismatch_paths_are_exercised() {
         PropertyPredicate::StrStartsWith("1".to_string()),
         "NoMatch",
     );
-    assert!(!starts_on_num.evaluate(&engine, &subject).unwrap().is_trusted);
+    assert!(
+        !starts_on_num
+            .evaluate(&engine, &subject)
+            .unwrap()
+            .is_trusted
+    );
 
     let ends_on_num = require_fact_property::<PropsFact, _>(
         "ends_on_num",

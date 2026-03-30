@@ -5,12 +5,12 @@
 //! Targets uncovered lines in lib.rs factory/service/streaming code.
 
 use cose_sign1_signing_ffi::error::{
-    cose_sign1_signing_error_free, CoseSign1SigningErrorHandle,
-    FFI_ERR_INVALID_ARGUMENT, FFI_ERR_NULL_POINTER, FFI_ERR_FACTORY_FAILED,
+    cose_sign1_signing_error_free, CoseSign1SigningErrorHandle, FFI_ERR_FACTORY_FAILED,
+    FFI_ERR_INVALID_ARGUMENT, FFI_ERR_NULL_POINTER,
 };
 use cose_sign1_signing_ffi::types::{
-    CoseSign1BuilderHandle, CoseHeaderMapHandle, CoseKeyHandle,
-    CoseSign1SigningServiceHandle, CoseSign1FactoryHandle,
+    CoseHeaderMapHandle, CoseKeyHandle, CoseSign1BuilderHandle, CoseSign1FactoryHandle,
+    CoseSign1SigningServiceHandle,
 };
 use cose_sign1_signing_ffi::*;
 
@@ -89,7 +89,7 @@ unsafe extern "C" fn mock_read_callback(
     if data.is_null() {
         return 0;
     }
-    
+
     // Fill buffer with test data (simple pattern)
     let to_read = buffer_len.min(4);
     if to_read > 0 {
@@ -151,12 +151,12 @@ fn test_signing_service_create_success() {
     let key = create_mock_key();
     let mut service: *mut CoseSign1SigningServiceHandle = ptr::null_mut();
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_signing_service_create_inner(key, &mut service, &mut err);
-    
+
     assert_eq!(rc, 0);
     assert!(!service.is_null());
-    
+
     free_error(err);
     free_service(service);
 }
@@ -165,9 +165,9 @@ fn test_signing_service_create_success() {
 fn test_signing_service_create_null_out_service() {
     let key = create_mock_key();
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_signing_service_create_inner(key, ptr::null_mut(), &mut err);
-    
+
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     free_error(err);
     free_key(key);
@@ -177,9 +177,9 @@ fn test_signing_service_create_null_out_service() {
 fn test_signing_service_create_null_key() {
     let mut service: *mut CoseSign1SigningServiceHandle = ptr::null_mut();
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_signing_service_create_inner(ptr::null(), &mut service, &mut err);
-    
+
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     free_error(err);
 }
@@ -193,12 +193,12 @@ fn test_factory_create_success() {
     let service = create_mock_service();
     let mut factory: *mut CoseSign1FactoryHandle = ptr::null_mut();
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_factory_create_inner(service, &mut factory, &mut err);
-    
+
     assert_eq!(rc, 0);
     assert!(!factory.is_null());
-    
+
     free_error(err);
     free_factory(factory);
     free_service(service);
@@ -208,9 +208,9 @@ fn test_factory_create_success() {
 fn test_factory_create_null_out_factory() {
     let service = create_mock_service();
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_factory_create_inner(service, ptr::null_mut(), &mut err);
-    
+
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     free_error(err);
     free_service(service);
@@ -220,9 +220,9 @@ fn test_factory_create_null_out_factory() {
 fn test_factory_create_null_service() {
     let mut factory: *mut CoseSign1FactoryHandle = ptr::null_mut();
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_factory_create_inner(ptr::null(), &mut factory, &mut err);
-    
+
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     assert!(factory.is_null());
     free_error(err);
@@ -238,7 +238,7 @@ fn test_factory_sign_direct_null_output() {
     let content_type = CString::new("application/octet-stream").unwrap();
     let payload = b"test payload";
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_factory_sign_direct_inner(
         factory,
         payload.as_ptr(),
@@ -248,7 +248,7 @@ fn test_factory_sign_direct_null_output() {
         ptr::null_mut(),
         &mut err,
     );
-    
+
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     free_error(err);
     free_factory(factory);
@@ -261,7 +261,7 @@ fn test_factory_sign_direct_null_factory() {
     let mut out_bytes: *mut u8 = ptr::null_mut();
     let mut out_len: u32 = 0;
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_factory_sign_direct_inner(
         ptr::null(),
         payload.as_ptr(),
@@ -271,7 +271,7 @@ fn test_factory_sign_direct_null_factory() {
         &mut out_len,
         &mut err,
     );
-    
+
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     free_error(err);
 }
@@ -283,7 +283,7 @@ fn test_factory_sign_direct_null_payload_nonzero_len() {
     let mut out_bytes: *mut u8 = ptr::null_mut();
     let mut out_len: u32 = 0;
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_factory_sign_direct_inner(
         factory,
         ptr::null(),
@@ -293,7 +293,7 @@ fn test_factory_sign_direct_null_payload_nonzero_len() {
         &mut out_len,
         &mut err,
     );
-    
+
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     free_error(err);
     free_factory(factory);
@@ -306,7 +306,7 @@ fn test_factory_sign_direct_null_content_type() {
     let mut out_bytes: *mut u8 = ptr::null_mut();
     let mut out_len: u32 = 0;
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_factory_sign_direct_inner(
         factory,
         payload.as_ptr(),
@@ -316,7 +316,7 @@ fn test_factory_sign_direct_null_content_type() {
         &mut out_len,
         &mut err,
     );
-    
+
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     free_error(err);
     free_factory(factory);
@@ -329,10 +329,10 @@ fn test_factory_sign_direct_invalid_utf8_content_type() {
     let mut out_bytes: *mut u8 = ptr::null_mut();
     let mut out_len: u32 = 0;
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
-    
+
     // Invalid UTF-8 sequence
     let invalid_utf8 = [0xC0u8, 0xAF, 0x00];
-    
+
     let rc = impl_factory_sign_direct_inner(
         factory,
         payload.as_ptr(),
@@ -342,7 +342,7 @@ fn test_factory_sign_direct_invalid_utf8_content_type() {
         &mut out_len,
         &mut err,
     );
-    
+
     assert_eq!(rc, FFI_ERR_INVALID_ARGUMENT);
     free_error(err);
     free_factory(factory);
@@ -358,7 +358,7 @@ fn test_factory_sign_indirect_null_output() {
     let content_type = CString::new("application/octet-stream").unwrap();
     let payload = b"test payload";
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_factory_sign_indirect_inner(
         factory,
         payload.as_ptr(),
@@ -368,7 +368,7 @@ fn test_factory_sign_indirect_null_output() {
         ptr::null_mut(),
         &mut err,
     );
-    
+
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     free_error(err);
     free_factory(factory);
@@ -381,7 +381,7 @@ fn test_factory_sign_indirect_null_factory() {
     let mut out_bytes: *mut u8 = ptr::null_mut();
     let mut out_len: u32 = 0;
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_factory_sign_indirect_inner(
         ptr::null(),
         payload.as_ptr(),
@@ -391,7 +391,7 @@ fn test_factory_sign_indirect_null_factory() {
         &mut out_len,
         &mut err,
     );
-    
+
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     free_error(err);
 }
@@ -403,7 +403,7 @@ fn test_factory_sign_indirect_null_payload_nonzero_len() {
     let mut out_bytes: *mut u8 = ptr::null_mut();
     let mut out_len: u32 = 0;
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_factory_sign_indirect_inner(
         factory,
         ptr::null(),
@@ -413,7 +413,7 @@ fn test_factory_sign_indirect_null_payload_nonzero_len() {
         &mut out_len,
         &mut err,
     );
-    
+
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     free_error(err);
     free_factory(factory);
@@ -426,7 +426,7 @@ fn test_factory_sign_indirect_null_content_type() {
     let mut out_bytes: *mut u8 = ptr::null_mut();
     let mut out_len: u32 = 0;
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_factory_sign_indirect_inner(
         factory,
         payload.as_ptr(),
@@ -436,7 +436,7 @@ fn test_factory_sign_indirect_null_content_type() {
         &mut out_len,
         &mut err,
     );
-    
+
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     free_error(err);
     free_factory(factory);
@@ -449,9 +449,9 @@ fn test_factory_sign_indirect_invalid_utf8_content_type() {
     let mut out_bytes: *mut u8 = ptr::null_mut();
     let mut out_len: u32 = 0;
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
-    
+
     let invalid_utf8 = [0xC0u8, 0xAF, 0x00];
-    
+
     let rc = impl_factory_sign_indirect_inner(
         factory,
         payload.as_ptr(),
@@ -461,7 +461,7 @@ fn test_factory_sign_indirect_invalid_utf8_content_type() {
         &mut out_len,
         &mut err,
     );
-    
+
     assert_eq!(rc, FFI_ERR_INVALID_ARGUMENT);
     free_error(err);
     free_factory(factory);
@@ -477,7 +477,7 @@ fn test_factory_sign_direct_file_null_output() {
     let file_path = CString::new("/nonexistent/path").unwrap();
     let content_type = CString::new("application/octet-stream").unwrap();
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_factory_sign_direct_file_inner(
         factory,
         file_path.as_ptr(),
@@ -486,7 +486,7 @@ fn test_factory_sign_direct_file_null_output() {
         ptr::null_mut(),
         &mut err,
     );
-    
+
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     free_error(err);
     free_factory(factory);
@@ -499,7 +499,7 @@ fn test_factory_sign_direct_file_null_factory() {
     let mut out_bytes: *mut u8 = ptr::null_mut();
     let mut out_len: u32 = 0;
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_factory_sign_direct_file_inner(
         ptr::null(),
         file_path.as_ptr(),
@@ -508,7 +508,7 @@ fn test_factory_sign_direct_file_null_factory() {
         &mut out_len,
         &mut err,
     );
-    
+
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     free_error(err);
 }
@@ -520,7 +520,7 @@ fn test_factory_sign_direct_file_null_file_path() {
     let mut out_bytes: *mut u8 = ptr::null_mut();
     let mut out_len: u32 = 0;
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_factory_sign_direct_file_inner(
         factory,
         ptr::null(),
@@ -529,7 +529,7 @@ fn test_factory_sign_direct_file_null_file_path() {
         &mut out_len,
         &mut err,
     );
-    
+
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     free_error(err);
     free_factory(factory);
@@ -542,7 +542,7 @@ fn test_factory_sign_direct_file_null_content_type() {
     let mut out_bytes: *mut u8 = ptr::null_mut();
     let mut out_len: u32 = 0;
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_factory_sign_direct_file_inner(
         factory,
         file_path.as_ptr(),
@@ -551,7 +551,7 @@ fn test_factory_sign_direct_file_null_content_type() {
         &mut out_len,
         &mut err,
     );
-    
+
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     free_error(err);
     free_factory(factory);
@@ -564,9 +564,9 @@ fn test_factory_sign_direct_file_invalid_utf8_path() {
     let mut out_bytes: *mut u8 = ptr::null_mut();
     let mut out_len: u32 = 0;
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
-    
+
     let invalid_utf8 = [0xC0u8, 0xAF, 0x00];
-    
+
     let rc = impl_factory_sign_direct_file_inner(
         factory,
         invalid_utf8.as_ptr() as *const libc::c_char,
@@ -575,7 +575,7 @@ fn test_factory_sign_direct_file_invalid_utf8_path() {
         &mut out_len,
         &mut err,
     );
-    
+
     assert_eq!(rc, FFI_ERR_INVALID_ARGUMENT);
     free_error(err);
     free_factory(factory);
@@ -588,9 +588,9 @@ fn test_factory_sign_direct_file_invalid_utf8_content_type() {
     let mut out_bytes: *mut u8 = ptr::null_mut();
     let mut out_len: u32 = 0;
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
-    
+
     let invalid_utf8 = [0xC0u8, 0xAF, 0x00];
-    
+
     let rc = impl_factory_sign_direct_file_inner(
         factory,
         file_path.as_ptr(),
@@ -599,7 +599,7 @@ fn test_factory_sign_direct_file_invalid_utf8_content_type() {
         &mut out_len,
         &mut err,
     );
-    
+
     assert_eq!(rc, FFI_ERR_INVALID_ARGUMENT);
     free_error(err);
     free_factory(factory);
@@ -613,7 +613,7 @@ fn test_factory_sign_direct_file_nonexistent_file() {
     let mut out_bytes: *mut u8 = ptr::null_mut();
     let mut out_len: u32 = 0;
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_factory_sign_direct_file_inner(
         factory,
         file_path.as_ptr(),
@@ -622,7 +622,7 @@ fn test_factory_sign_direct_file_nonexistent_file() {
         &mut out_len,
         &mut err,
     );
-    
+
     // Should fail with invalid argument (file not found)
     assert_eq!(rc, FFI_ERR_INVALID_ARGUMENT);
     free_error(err);
@@ -639,7 +639,7 @@ fn test_factory_sign_indirect_file_null_output() {
     let file_path = CString::new("/nonexistent/path").unwrap();
     let content_type = CString::new("application/octet-stream").unwrap();
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_factory_sign_indirect_file_inner(
         factory,
         file_path.as_ptr(),
@@ -648,7 +648,7 @@ fn test_factory_sign_indirect_file_null_output() {
         ptr::null_mut(),
         &mut err,
     );
-    
+
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     free_error(err);
     free_factory(factory);
@@ -661,7 +661,7 @@ fn test_factory_sign_indirect_file_null_factory() {
     let mut out_bytes: *mut u8 = ptr::null_mut();
     let mut out_len: u32 = 0;
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_factory_sign_indirect_file_inner(
         ptr::null(),
         file_path.as_ptr(),
@@ -670,7 +670,7 @@ fn test_factory_sign_indirect_file_null_factory() {
         &mut out_len,
         &mut err,
     );
-    
+
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     free_error(err);
 }
@@ -682,7 +682,7 @@ fn test_factory_sign_indirect_file_null_file_path() {
     let mut out_bytes: *mut u8 = ptr::null_mut();
     let mut out_len: u32 = 0;
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_factory_sign_indirect_file_inner(
         factory,
         ptr::null(),
@@ -691,7 +691,7 @@ fn test_factory_sign_indirect_file_null_file_path() {
         &mut out_len,
         &mut err,
     );
-    
+
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     free_error(err);
     free_factory(factory);
@@ -704,7 +704,7 @@ fn test_factory_sign_indirect_file_null_content_type() {
     let mut out_bytes: *mut u8 = ptr::null_mut();
     let mut out_len: u32 = 0;
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_factory_sign_indirect_file_inner(
         factory,
         file_path.as_ptr(),
@@ -713,7 +713,7 @@ fn test_factory_sign_indirect_file_null_content_type() {
         &mut out_len,
         &mut err,
     );
-    
+
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     free_error(err);
     free_factory(factory);
@@ -726,9 +726,9 @@ fn test_factory_sign_indirect_file_invalid_utf8_path() {
     let mut out_bytes: *mut u8 = ptr::null_mut();
     let mut out_len: u32 = 0;
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
-    
+
     let invalid_utf8 = [0xC0u8, 0xAF, 0x00];
-    
+
     let rc = impl_factory_sign_indirect_file_inner(
         factory,
         invalid_utf8.as_ptr() as *const libc::c_char,
@@ -737,7 +737,7 @@ fn test_factory_sign_indirect_file_invalid_utf8_path() {
         &mut out_len,
         &mut err,
     );
-    
+
     assert_eq!(rc, FFI_ERR_INVALID_ARGUMENT);
     free_error(err);
     free_factory(factory);
@@ -750,9 +750,9 @@ fn test_factory_sign_indirect_file_invalid_utf8_content_type() {
     let mut out_bytes: *mut u8 = ptr::null_mut();
     let mut out_len: u32 = 0;
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
-    
+
     let invalid_utf8 = [0xC0u8, 0xAF, 0x00];
-    
+
     let rc = impl_factory_sign_indirect_file_inner(
         factory,
         file_path.as_ptr(),
@@ -761,7 +761,7 @@ fn test_factory_sign_indirect_file_invalid_utf8_content_type() {
         &mut out_len,
         &mut err,
     );
-    
+
     assert_eq!(rc, FFI_ERR_INVALID_ARGUMENT);
     free_error(err);
     free_factory(factory);
@@ -775,7 +775,7 @@ fn test_factory_sign_indirect_file_nonexistent_file() {
     let mut out_bytes: *mut u8 = ptr::null_mut();
     let mut out_len: u32 = 0;
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_factory_sign_indirect_file_inner(
         factory,
         file_path.as_ptr(),
@@ -784,7 +784,7 @@ fn test_factory_sign_indirect_file_nonexistent_file() {
         &mut out_len,
         &mut err,
     );
-    
+
     // Should fail with invalid argument (file not found)
     assert_eq!(rc, FFI_ERR_INVALID_ARGUMENT);
     free_error(err);
@@ -800,7 +800,7 @@ fn test_factory_sign_direct_streaming_null_output() {
     let factory = create_mock_factory();
     let content_type = CString::new("application/octet-stream").unwrap();
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_factory_sign_direct_streaming_inner(
         factory,
         mock_read_callback,
@@ -811,7 +811,7 @@ fn test_factory_sign_direct_streaming_null_output() {
         ptr::null_mut(),
         &mut err,
     );
-    
+
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     free_error(err);
     free_factory(factory);
@@ -823,7 +823,7 @@ fn test_factory_sign_direct_streaming_null_factory() {
     let mut out_bytes: *mut u8 = ptr::null_mut();
     let mut out_len: u32 = 0;
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_factory_sign_direct_streaming_inner(
         ptr::null(),
         mock_read_callback,
@@ -834,7 +834,7 @@ fn test_factory_sign_direct_streaming_null_factory() {
         &mut out_len,
         &mut err,
     );
-    
+
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     free_error(err);
 }
@@ -845,7 +845,7 @@ fn test_factory_sign_direct_streaming_null_content_type() {
     let mut out_bytes: *mut u8 = ptr::null_mut();
     let mut out_len: u32 = 0;
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_factory_sign_direct_streaming_inner(
         factory,
         mock_read_callback,
@@ -856,7 +856,7 @@ fn test_factory_sign_direct_streaming_null_content_type() {
         &mut out_len,
         &mut err,
     );
-    
+
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     free_error(err);
     free_factory(factory);
@@ -868,9 +868,9 @@ fn test_factory_sign_direct_streaming_invalid_utf8_content_type() {
     let mut out_bytes: *mut u8 = ptr::null_mut();
     let mut out_len: u32 = 0;
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
-    
+
     let invalid_utf8 = [0xC0u8, 0xAF, 0x00];
-    
+
     let rc = impl_factory_sign_direct_streaming_inner(
         factory,
         mock_read_callback,
@@ -881,7 +881,7 @@ fn test_factory_sign_direct_streaming_invalid_utf8_content_type() {
         &mut out_len,
         &mut err,
     );
-    
+
     assert_eq!(rc, FFI_ERR_INVALID_ARGUMENT);
     free_error(err);
     free_factory(factory);
@@ -896,7 +896,7 @@ fn test_factory_sign_indirect_streaming_null_output() {
     let factory = create_mock_factory();
     let content_type = CString::new("application/octet-stream").unwrap();
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_factory_sign_indirect_streaming_inner(
         factory,
         mock_read_callback,
@@ -907,7 +907,7 @@ fn test_factory_sign_indirect_streaming_null_output() {
         ptr::null_mut(),
         &mut err,
     );
-    
+
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     free_error(err);
     free_factory(factory);
@@ -919,7 +919,7 @@ fn test_factory_sign_indirect_streaming_null_factory() {
     let mut out_bytes: *mut u8 = ptr::null_mut();
     let mut out_len: u32 = 0;
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_factory_sign_indirect_streaming_inner(
         ptr::null(),
         mock_read_callback,
@@ -930,7 +930,7 @@ fn test_factory_sign_indirect_streaming_null_factory() {
         &mut out_len,
         &mut err,
     );
-    
+
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     free_error(err);
 }
@@ -941,7 +941,7 @@ fn test_factory_sign_indirect_streaming_null_content_type() {
     let mut out_bytes: *mut u8 = ptr::null_mut();
     let mut out_len: u32 = 0;
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_factory_sign_indirect_streaming_inner(
         factory,
         mock_read_callback,
@@ -952,7 +952,7 @@ fn test_factory_sign_indirect_streaming_null_content_type() {
         &mut out_len,
         &mut err,
     );
-    
+
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     free_error(err);
     free_factory(factory);
@@ -964,9 +964,9 @@ fn test_factory_sign_indirect_streaming_invalid_utf8_content_type() {
     let mut out_bytes: *mut u8 = ptr::null_mut();
     let mut out_len: u32 = 0;
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
-    
+
     let invalid_utf8 = [0xC0u8, 0xAF, 0x00];
-    
+
     let rc = impl_factory_sign_indirect_streaming_inner(
         factory,
         mock_read_callback,
@@ -977,7 +977,7 @@ fn test_factory_sign_indirect_streaming_invalid_utf8_content_type() {
         &mut out_len,
         &mut err,
     );
-    
+
     assert_eq!(rc, FFI_ERR_INVALID_ARGUMENT);
     free_error(err);
     free_factory(factory);
@@ -994,7 +994,7 @@ fn test_factory_sign_direct_empty_payload() {
     let mut out_bytes: *mut u8 = ptr::null_mut();
     let mut out_len: u32 = 0;
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
-    
+
     // Empty payload (null pointer with zero length)
     let rc = impl_factory_sign_direct_inner(
         factory,
@@ -1005,7 +1005,7 @@ fn test_factory_sign_direct_empty_payload() {
         &mut out_len,
         &mut err,
     );
-    
+
     // Should fail because our mock callback doesn't do real signing
     assert!(rc != 0 || rc == FFI_ERR_FACTORY_FAILED);
     free_error(err);
@@ -1022,7 +1022,7 @@ fn test_factory_sign_indirect_empty_payload() {
     let mut out_bytes: *mut u8 = ptr::null_mut();
     let mut out_len: u32 = 0;
     let mut err: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
-    
+
     let rc = impl_factory_sign_indirect_inner(
         factory,
         ptr::null(),
@@ -1032,7 +1032,7 @@ fn test_factory_sign_indirect_empty_payload() {
         &mut out_len,
         &mut err,
     );
-    
+
     // Should fail because our mock callback doesn't do real signing
     assert!(rc != 0 || rc == FFI_ERR_FACTORY_FAILED);
     free_error(err);
@@ -1057,10 +1057,11 @@ fn test_headermap_set_bytes_null_headers() {
 fn test_headermap_set_text_invalid_utf8() {
     let mut headers: *mut CoseHeaderMapHandle = ptr::null_mut();
     impl_headermap_new_inner(&mut headers);
-    
+
     let invalid_utf8 = [0xC0u8, 0xAF, 0x00];
-    let rc = impl_headermap_set_text_inner(headers, 200, invalid_utf8.as_ptr() as *const libc::c_char);
+    let rc =
+        impl_headermap_set_text_inner(headers, 200, invalid_utf8.as_ptr() as *const libc::c_char);
     assert_eq!(rc, FFI_ERR_INVALID_ARGUMENT);
-    
+
     free_headers(headers);
 }

@@ -15,3 +15,6 @@ did_x509 = { path = "../../did/x509" }
 
 [dev-dependencies]
 cbor_primitives_everparse = { path = "../../primitives/cbor/everparse" }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly)'] }

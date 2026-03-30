@@ -4,11 +4,11 @@
 //! Additional coverage for `CoseSign1MessageFactProducer` paths not exercised
 //! by the existing `message_fact_producer_more` tests.
 
+use cbor_primitives::{CborEncoder, CborProvider};
+use cbor_primitives_everparse::EverParseCborProvider;
 use cose_sign1_validation::fluent::*;
 use cose_sign1_validation_primitives::facts::{TrustFactEngine, TrustFactSet};
 use cose_sign1_validation_primitives::subject::TrustSubject;
-use cbor_primitives::{CborEncoder, CborProvider};
-use cbor_primitives_everparse::EverParseCborProvider;
 use std::sync::Arc;
 
 // ---------------------------------------------------------------------------
@@ -86,9 +86,7 @@ fn build_cose_sign1_with_raw_protected(
 
 /// Build an engine with the given COSE bytes pre-parsed.
 fn engine_with_parsed(cose_bytes: &[u8]) -> TrustFactEngine {
-    let parsed = cose_sign1_primitives::CoseSign1Message::parse(cose_bytes,
-    )
-    .expect("parse");
+    let parsed = cose_sign1_primitives::CoseSign1Message::parse(cose_bytes).expect("parse");
 
     let producer = Arc::new(CoseSign1MessageFactProducer::new());
     TrustFactEngine::new(vec![producer])
@@ -376,11 +374,7 @@ fn cwt_claims_map_stores_unknown_int_and_text_keys() {
 
 #[test]
 fn content_type_is_absent_when_header_is_missing() {
-    let cose_bytes = build_cose_sign1(
-        &[(1, CborValue::I64(-7))],
-        &[],
-        Some(b"payload"),
-    );
+    let cose_bytes = build_cose_sign1(&[(1, CborValue::I64(-7))], &[], Some(b"payload"));
     let engine = engine_with_parsed(&cose_bytes);
     let subject = message_subject();
 
@@ -398,7 +392,10 @@ fn content_type_is_absent_when_header_is_missing() {
 #[test]
 fn content_type_returns_plain_value_without_hash_suffix() {
     let cose_bytes = build_cose_sign1(
-        &[(1, CborValue::I64(-7)), (3, CborValue::Text("application/octet-stream"))],
+        &[
+            (1, CborValue::I64(-7)),
+            (3, CborValue::Text("application/octet-stream")),
+        ],
         &[],
         Some(b"payload"),
     );
@@ -475,15 +472,14 @@ fn content_type_reads_integer_preimage_from_unprotected() {
 
 #[test]
 fn cwt_claims_present_is_false_when_no_label_15() {
-    let cose_bytes = build_cose_sign1(
-        &[(1, CborValue::I64(-7))],
-        &[],
-        Some(b"payload"),
-    );
+    let cose_bytes = build_cose_sign1(&[(1, CborValue::I64(-7))], &[], Some(b"payload"));
     let engine = engine_with_parsed(&cose_bytes);
     let subject = message_subject();
 
-    let present = match engine.get_fact_set::<CwtClaimsPresentFact>(&subject).unwrap() {
+    let present = match engine
+        .get_fact_set::<CwtClaimsPresentFact>(&subject)
+        .unwrap()
+    {
         TrustFactSet::Available(v) => v.into_iter().next().expect("one CwtClaimsPresentFact"),
         other => panic!("expected Available, got {other:?}"),
     };
@@ -611,16 +607,18 @@ fn cwt_claims_map_extracts_i64_from_uint_value() {
 
 #[test]
 fn detached_payload_present_true_when_payload_is_null() {
-    let cose_bytes = build_cose_sign1(
-        &[(1, CborValue::I64(-7))],
-        &[],
-        None,
-    );
+    let cose_bytes = build_cose_sign1(&[(1, CborValue::I64(-7))], &[], None);
     let engine = engine_with_parsed(&cose_bytes);
     let subject = message_subject();
 
-    let dp = match engine.get_fact_set::<DetachedPayloadPresentFact>(&subject).unwrap() {
-        TrustFactSet::Available(v) => v.into_iter().next().expect("one DetachedPayloadPresentFact"),
+    let dp = match engine
+        .get_fact_set::<DetachedPayloadPresentFact>(&subject)
+        .unwrap()
+    {
+        TrustFactSet::Available(v) => v
+            .into_iter()
+            .next()
+            .expect("one DetachedPayloadPresentFact"),
         other => panic!("expected Available, got {other:?}"),
     };
     assert!(dp.present);
@@ -628,16 +626,18 @@ fn detached_payload_present_true_when_payload_is_null() {
 
 #[test]
 fn detached_payload_present_false_when_payload_exists() {
-    let cose_bytes = build_cose_sign1(
-        &[(1, CborValue::I64(-7))],
-        &[],
-        Some(b"data"),
-    );
+    let cose_bytes = build_cose_sign1(&[(1, CborValue::I64(-7))], &[], Some(b"data"));
     let engine = engine_with_parsed(&cose_bytes);
     let subject = message_subject();
 
-    let dp = match engine.get_fact_set::<DetachedPayloadPresentFact>(&subject).unwrap() {
-        TrustFactSet::Available(v) => v.into_iter().next().expect("one DetachedPayloadPresentFact"),
+    let dp = match engine
+        .get_fact_set::<DetachedPayloadPresentFact>(&subject)
+        .unwrap()
+    {
+        TrustFactSet::Available(v) => v
+            .into_iter()
+            .next()
+            .expect("one DetachedPayloadPresentFact"),
         other => panic!("expected Available, got {other:?}"),
     };
     assert!(!dp.present);
@@ -662,7 +662,9 @@ fn non_message_subject_produces_empty_fact_sets_for_all_fact_types() {
     let subject = TrustSubject::root("SigningKey", b"seed");
 
     // Every fact type the producer provides should be Available(empty).
-    let bytes = engine.get_fact_set::<CoseSign1MessageBytesFact>(&subject).unwrap();
+    let bytes = engine
+        .get_fact_set::<CoseSign1MessageBytesFact>(&subject)
+        .unwrap();
     assert!(matches!(bytes, TrustFactSet::Available(v) if v.is_empty()));
 
     let ct = engine.get_fact_set::<ContentTypeFact>(&subject).unwrap();
@@ -671,13 +673,19 @@ fn non_message_subject_produces_empty_fact_sets_for_all_fact_types() {
     let cwt = engine.get_fact_set::<CwtClaimsFact>(&subject).unwrap();
     assert!(matches!(cwt, TrustFactSet::Available(v) if v.is_empty()));
 
-    let cwtp = engine.get_fact_set::<CwtClaimsPresentFact>(&subject).unwrap();
+    let cwtp = engine
+        .get_fact_set::<CwtClaimsPresentFact>(&subject)
+        .unwrap();
     assert!(matches!(cwtp, TrustFactSet::Available(v) if v.is_empty()));
 
-    let dp = engine.get_fact_set::<DetachedPayloadPresentFact>(&subject).unwrap();
+    let dp = engine
+        .get_fact_set::<DetachedPayloadPresentFact>(&subject)
+        .unwrap();
     assert!(matches!(dp, TrustFactSet::Available(v) if v.is_empty()));
 
-    let psk = engine.get_fact_set::<PrimarySigningKeySubjectFact>(&subject).unwrap();
+    let psk = engine
+        .get_fact_set::<PrimarySigningKeySubjectFact>(&subject)
+        .unwrap();
     assert!(matches!(psk, TrustFactSet::Available(v) if v.is_empty()));
 }
 
@@ -691,7 +699,9 @@ fn missing_bytes_marks_cwt_claims_and_present_as_missing() {
     let engine = TrustFactEngine::new(vec![producer]);
     let subject = message_subject();
 
-    let cwtp = engine.get_fact_set::<CwtClaimsPresentFact>(&subject).unwrap();
+    let cwtp = engine
+        .get_fact_set::<CwtClaimsPresentFact>(&subject)
+        .unwrap();
     assert!(matches!(cwtp, TrustFactSet::Missing { .. }));
 
     let cwt = engine.get_fact_set::<CwtClaimsFact>(&subject).unwrap();
@@ -743,15 +753,13 @@ fn cwt_claims_map_handles_null_value() {
 
 #[test]
 fn primary_signing_key_subject_is_produced() {
-    let cose_bytes = build_cose_sign1(
-        &[(1, CborValue::I64(-7))],
-        &[],
-        Some(b"payload"),
-    );
+    let cose_bytes = build_cose_sign1(&[(1, CborValue::I64(-7))], &[], Some(b"payload"));
     let engine = engine_with_parsed(&cose_bytes);
     let subject = message_subject();
 
-    let psk = engine.get_facts::<PrimarySigningKeySubjectFact>(&subject).unwrap();
+    let psk = engine
+        .get_facts::<PrimarySigningKeySubjectFact>(&subject)
+        .unwrap();
     assert_eq!(1, psk.len());
     assert_eq!("PrimarySigningKey", psk[0].subject.kind);
 }

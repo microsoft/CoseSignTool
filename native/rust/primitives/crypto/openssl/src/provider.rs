@@ -58,8 +58,9 @@ impl OpenSslCryptoProvider {
         &self,
         private_key_pem: &[u8],
     ) -> Result<Box<dyn CryptoSigner>, CryptoError> {
-        let pkey = openssl::pkey::PKey::private_key_from_pem(private_key_pem)
-            .map_err(|e| CryptoError::InvalidKey(format!("Failed to parse PEM private key: {}", e)))?;
+        let pkey = openssl::pkey::PKey::private_key_from_pem(private_key_pem).map_err(|e| {
+            CryptoError::InvalidKey(format!("Failed to parse PEM private key: {}", e))
+        })?;
 
         let cose_algorithm = detect_algorithm_from_private_key(&pkey)?;
         let signer = EvpSigner::from_pem(private_key_pem, cose_algorithm)?;
@@ -73,8 +74,9 @@ impl OpenSslCryptoProvider {
         &self,
         public_key_pem: &[u8],
     ) -> Result<Box<dyn CryptoVerifier>, CryptoError> {
-        let pkey = openssl::pkey::PKey::public_key_from_pem(public_key_pem)
-            .map_err(|e| CryptoError::InvalidKey(format!("Failed to parse PEM public key: {}", e)))?;
+        let pkey = openssl::pkey::PKey::public_key_from_pem(public_key_pem).map_err(|e| {
+            CryptoError::InvalidKey(format!("Failed to parse PEM public key: {}", e))
+        })?;
 
         let cose_algorithm = detect_algorithm_from_public_key(&pkey)?;
         let verifier = EvpVerifier::from_pem(public_key_pem, cose_algorithm)?;

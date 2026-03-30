@@ -7,26 +7,11 @@ use cose_sign1_signing::{CryptographicKeyType, SigningKeyMetadata, SigningServic
 
 #[test]
 fn test_cryptographic_key_type_variants() {
-    assert_eq!(
-        format!("{:?}", CryptographicKeyType::Rsa),
-        "Rsa"
-    );
-    assert_eq!(
-        format!("{:?}", CryptographicKeyType::Ecdsa),
-        "Ecdsa"
-    );
-    assert_eq!(
-        format!("{:?}", CryptographicKeyType::EdDsa),
-        "EdDsa"
-    );
-    assert_eq!(
-        format!("{:?}", CryptographicKeyType::MlDsa),
-        "MlDsa"
-    );
-    assert_eq!(
-        format!("{:?}", CryptographicKeyType::Other),
-        "Other"
-    );
+    assert_eq!(format!("{:?}", CryptographicKeyType::Rsa), "Rsa");
+    assert_eq!(format!("{:?}", CryptographicKeyType::Ecdsa), "Ecdsa");
+    assert_eq!(format!("{:?}", CryptographicKeyType::EdDsa), "EdDsa");
+    assert_eq!(format!("{:?}", CryptographicKeyType::MlDsa), "MlDsa");
+    assert_eq!(format!("{:?}", CryptographicKeyType::Other), "Other");
 }
 
 #[test]
@@ -55,12 +40,22 @@ fn test_signing_key_metadata_new() {
 fn test_signing_key_metadata_additional_metadata() {
     let mut metadata = SigningKeyMetadata::new(None, -7, CryptographicKeyType::Ecdsa, false);
 
-    metadata.additional_metadata.insert("key1".to_string(), "value1".to_string());
-    metadata.additional_metadata.insert("key2".to_string(), "value2".to_string());
+    metadata
+        .additional_metadata
+        .insert("key1".to_string(), "value1".to_string());
+    metadata
+        .additional_metadata
+        .insert("key2".to_string(), "value2".to_string());
 
     assert_eq!(metadata.additional_metadata.len(), 2);
-    assert_eq!(metadata.additional_metadata.get("key1"), Some(&"value1".to_string()));
-    assert_eq!(metadata.additional_metadata.get("key2"), Some(&"value2".to_string()));
+    assert_eq!(
+        metadata.additional_metadata.get("key1"),
+        Some(&"value1".to_string())
+    );
+    assert_eq!(
+        metadata.additional_metadata.get("key2"),
+        Some(&"value2".to_string())
+    );
 }
 
 #[test]
@@ -77,26 +72,27 @@ fn test_signing_service_metadata_new() {
 
 #[test]
 fn test_signing_service_metadata_additional_metadata() {
-    let mut metadata = SigningServiceMetadata::new(
-        "Test Service".to_string(),
-        "Description".to_string(),
-    );
+    let mut metadata =
+        SigningServiceMetadata::new("Test Service".to_string(), "Description".to_string());
 
-    metadata.additional_metadata.insert("version".to_string(), "1.0".to_string());
-    metadata.additional_metadata.insert("provider".to_string(), "test".to_string());
+    metadata
+        .additional_metadata
+        .insert("version".to_string(), "1.0".to_string());
+    metadata
+        .additional_metadata
+        .insert("provider".to_string(), "test".to_string());
 
     assert_eq!(metadata.additional_metadata.len(), 2);
-    assert_eq!(metadata.additional_metadata.get("version"), Some(&"1.0".to_string()));
+    assert_eq!(
+        metadata.additional_metadata.get("version"),
+        Some(&"1.0".to_string())
+    );
 }
 
 #[test]
 fn test_signing_key_metadata_clone() {
-    let metadata = SigningKeyMetadata::new(
-        Some(vec![1, 2, 3]),
-        -7,
-        CryptographicKeyType::Ecdsa,
-        true,
-    );
+    let metadata =
+        SigningKeyMetadata::new(Some(vec![1, 2, 3]), -7, CryptographicKeyType::Ecdsa, true);
 
     let cloned = metadata.clone();
     assert_eq!(cloned.key_id, metadata.key_id);

@@ -1,14 +1,14 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-use cose_sign1_validation::fluent::*;
-use cose_sign1_validation_test_utils::SimpleTrustPack;
-use cose_sign1_validation_primitives::policy::TrustPolicyBuilder;
-use cose_sign1_validation_primitives::CoseSign1Message;
-use cose_sign1_primitives::error::PayloadError;
-use cose_sign1_primitives::sig_structure::SizedRead;
 use cbor_primitives::{CborEncoder, CborProvider};
 use cbor_primitives_everparse::EverParseCborProvider;
+use cose_sign1_primitives::error::PayloadError;
+use cose_sign1_primitives::sig_structure::SizedRead;
+use cose_sign1_validation::fluent::*;
+use cose_sign1_validation_primitives::policy::TrustPolicyBuilder;
+use cose_sign1_validation_primitives::CoseSign1Message;
+use cose_sign1_validation_test_utils::SimpleTrustPack;
 use std::io::Cursor;
 use std::sync::Arc;
 
@@ -76,8 +76,7 @@ fn validator_with(
 
     if let Some(resolver) = resolver {
         trust_packs.push(Arc::new(
-            SimpleTrustPack::no_facts("test_signing_key_resolver")
-                .with_cose_key_resolver(resolver),
+            SimpleTrustPack::no_facts("test_signing_key_resolver").with_cose_key_resolver(resolver),
         ));
     }
 
@@ -114,8 +113,10 @@ impl CoseKeyResolver for StaticKeyResolver {
 
 struct AlwaysTrueVerifier;
 impl CryptoVerifier for AlwaysTrueVerifier {
-    fn algorithm(&self) -> i64 { -7 }
-    
+    fn algorithm(&self) -> i64 {
+        -7
+    }
+
     fn verify(&self, _data: &[u8], _signature: &[u8]) -> Result<bool, CryptoError> {
         Ok(true)
     }
@@ -123,8 +124,10 @@ impl CryptoVerifier for AlwaysTrueVerifier {
 
 struct AlwaysFalseVerifier;
 impl CryptoVerifier for AlwaysFalseVerifier {
-    fn algorithm(&self) -> i64 { -7 }
-    
+    fn algorithm(&self) -> i64 {
+        -7
+    }
+
     fn verify(&self, _data: &[u8], _signature: &[u8]) -> Result<bool, CryptoError> {
         Ok(false)
     }
@@ -132,8 +135,10 @@ impl CryptoVerifier for AlwaysFalseVerifier {
 
 struct ErrorVerifier;
 impl CryptoVerifier for ErrorVerifier {
-    fn algorithm(&self) -> i64 { -7 }
-    
+    fn algorithm(&self) -> i64 {
+        -7
+    }
+
     fn verify(&self, _data: &[u8], _signature: &[u8]) -> Result<bool, CryptoError> {
         Err(CryptoError::VerificationFailed("boom".to_string()))
     }
@@ -141,18 +146,23 @@ impl CryptoVerifier for ErrorVerifier {
 
 struct StreamingTrueVerifier;
 impl CryptoVerifier for StreamingTrueVerifier {
-    fn algorithm(&self) -> i64 { -7 }
-    
+    fn algorithm(&self) -> i64 {
+        -7
+    }
+
     fn verify(&self, _data: &[u8], _signature: &[u8]) -> Result<bool, CryptoError> {
         // If streaming isn't used, we want to fail this test.
         Ok(false)
     }
-    
+
     fn supports_streaming(&self) -> bool {
         true
     }
-    
-    fn verify_init(&self, _signature: &[u8]) -> Result<Box<dyn crypto_primitives::VerifyingContext>, CryptoError> {
+
+    fn verify_init(
+        &self,
+        _signature: &[u8],
+    ) -> Result<Box<dyn crypto_primitives::VerifyingContext>, CryptoError> {
         Ok(Box::new(StreamingTrueContext))
     }
 }
@@ -162,7 +172,7 @@ impl crypto_primitives::VerifyingContext for StreamingTrueContext {
     fn update(&mut self, _chunk: &[u8]) -> Result<(), CryptoError> {
         Ok(())
     }
-    
+
     fn finalize(self: Box<Self>) -> Result<bool, CryptoError> {
         Ok(true)
     }
@@ -280,7 +290,10 @@ fn validate_bytes_embedded_payload_signature_success_and_failure_paths() {
             o.trust_evaluation_options.bypass_trust = true;
         });
         let result = v
-            .validate_bytes(EverParseCborProvider, Arc::from(cose.clone().into_boxed_slice()))
+            .validate_bytes(
+                EverParseCborProvider,
+                Arc::from(cose.clone().into_boxed_slice()),
+            )
             .unwrap();
         assert_eq!(ValidationResultKind::Success, result.signature.kind);
         assert_eq!(ValidationResultKind::Success, result.overall.kind);
@@ -295,7 +308,10 @@ fn validate_bytes_embedded_payload_signature_success_and_failure_paths() {
             o.trust_evaluation_options.bypass_trust = true;
         });
         let result = v
-            .validate_bytes(EverParseCborProvider, Arc::from(cose.clone().into_boxed_slice()))
+            .validate_bytes(
+                EverParseCborProvider,
+                Arc::from(cose.clone().into_boxed_slice()),
+            )
             .unwrap();
         assert_eq!(ValidationResultKind::Failure, result.signature.kind);
         assert_eq!(
@@ -317,7 +333,10 @@ fn validate_bytes_embedded_payload_signature_success_and_failure_paths() {
             o.trust_evaluation_options.bypass_trust = true;
         });
         let result = v
-            .validate_bytes(EverParseCborProvider, Arc::from(cose.clone().into_boxed_slice()))
+            .validate_bytes(
+                EverParseCborProvider,
+                Arc::from(cose.clone().into_boxed_slice()),
+            )
             .unwrap();
         assert_eq!(ValidationResultKind::Failure, result.signature.kind);
         assert_eq!(
@@ -403,7 +422,10 @@ fn validate_bytes_post_signature_skip_honors_option() {
         });
 
         let result = v
-            .validate_bytes(EverParseCborProvider, Arc::from(cose.clone().into_boxed_slice()))
+            .validate_bytes(
+                EverParseCborProvider,
+                Arc::from(cose.clone().into_boxed_slice()),
+            )
             .unwrap();
         assert_eq!(
             ValidationResultKind::Failure,
@@ -423,7 +445,10 @@ fn validate_bytes_post_signature_skip_honors_option() {
         });
 
         let result = v
-            .validate_bytes(EverParseCborProvider, Arc::from(cose.clone().into_boxed_slice()))
+            .validate_bytes(
+                EverParseCborProvider,
+                Arc::from(cose.clone().into_boxed_slice()),
+            )
             .unwrap();
         assert_eq!(ValidationResultKind::Success, result.overall.kind);
     }

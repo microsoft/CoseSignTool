@@ -121,9 +121,7 @@ fn build_with_eku_null_cert_returns_error() {
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
 
     // Null cert with non-zero length
-    let rc = impl_build_with_eku_inner(
-        ptr::null(), 10, &oid_ptr, 1, &mut out_did, &mut err,
-    );
+    let rc = impl_build_with_eku_inner(ptr::null(), 10, &oid_ptr, 1, &mut out_did, &mut err);
     assert_ne!(rc, DID_X509_OK);
     if !err.is_null() {
         unsafe { did_x509_error_free(err) };
@@ -139,7 +137,12 @@ fn validate_with_null_did_returns_error() {
     let cert_len: u32 = 1;
 
     let rc = impl_validate_inner(
-        ptr::null(), &cert_ptr as *const *const u8, &cert_len, 1, &mut is_valid, &mut err,
+        ptr::null(),
+        &cert_ptr as *const *const u8,
+        &cert_len,
+        1,
+        &mut is_valid,
+        &mut err,
     );
     assert_eq!(rc, DID_X509_ERR_NULL_POINTER);
     if !err.is_null() {
@@ -156,7 +159,12 @@ fn resolve_with_null_did_returns_error() {
     let cert_len: u32 = 1;
 
     let rc = impl_resolve_inner(
-        ptr::null(), &cert_ptr as *const *const u8, &cert_len, 1, &mut out_json, &mut err,
+        ptr::null(),
+        &cert_ptr as *const *const u8,
+        &cert_len,
+        1,
+        &mut out_json,
+        &mut err,
     );
     assert_eq!(rc, DID_X509_ERR_NULL_POINTER);
     if !err.is_null() {

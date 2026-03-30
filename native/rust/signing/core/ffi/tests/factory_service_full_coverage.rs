@@ -25,9 +25,7 @@ fn error_message(err: *const CoseSign1SigningErrorHandle) -> Option<String> {
     if msg.is_null() {
         return None;
     }
-    let s = unsafe { CStr::from_ptr(msg) }
-        .to_string_lossy()
-        .to_string();
+    let s = unsafe { CStr::from_ptr(msg) }.to_string_lossy().to_string();
     unsafe { cose_sign1_string_free(msg) };
     Some(s)
 }
@@ -95,19 +93,15 @@ unsafe extern "C" fn read_callback(
     let state = &mut *(user_data as *mut CallbackState);
     let remaining = state.data.len() - state.offset;
     let to_copy = remaining.min(buffer_len);
-    
+
     if to_copy == 0 {
         return 0; // EOF
     }
-    
+
     unsafe {
-        ptr::copy_nonoverlapping(
-            state.data[state.offset..].as_ptr(),
-            buffer,
-            to_copy,
-        );
+        ptr::copy_nonoverlapping(state.data[state.offset..].as_ptr(), buffer, to_copy);
     }
-    
+
     state.offset += to_copy;
     to_copy as i64
 }
@@ -135,7 +129,7 @@ fn test_comprehensive_service_lifecycle() {
     unsafe {
         let key = create_mock_key();
         let service = create_signing_service(key);
-        
+
         // Free service and key
         cose_sign1_signing_service_free(service);
         cose_key_free(key);
@@ -147,14 +141,19 @@ fn test_comprehensive_factory_lifecycle_from_service() {
     unsafe {
         let key = create_mock_key();
         let service = create_signing_service(key);
-        
+
         let mut factory: *mut CoseSign1FactoryHandle = ptr::null_mut();
         let mut error: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
 
         // Create factory from service
         let rc = cose_sign1_factory_create(service, &mut factory, &mut error);
-        
-        assert_eq!(rc, COSE_SIGN1_SIGNING_OK, "Error: {:?}", error_message(error));
+
+        assert_eq!(
+            rc,
+            COSE_SIGN1_SIGNING_OK,
+            "Error: {:?}",
+            error_message(error)
+        );
         assert!(!factory.is_null());
         assert!(error.is_null());
 
@@ -170,7 +169,7 @@ fn test_comprehensive_factory_sign_direct_happy_path() {
     unsafe {
         let key = create_mock_key();
         let service = create_signing_service(key);
-        
+
         let mut factory: *mut CoseSign1FactoryHandle = ptr::null_mut();
         let mut error: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
 
@@ -192,11 +191,16 @@ fn test_comprehensive_factory_sign_direct_happy_path() {
             &mut error,
         );
 
-        assert_eq!(rc, COSE_SIGN1_SIGNING_ERR_FACTORY_FAILED, "Error: {:?}", error_message(error));
+        assert_eq!(
+            rc,
+            COSE_SIGN1_SIGNING_ERR_FACTORY_FAILED,
+            "Error: {:?}",
+            error_message(error)
+        );
         assert!(out_bytes.is_null());
         assert_eq!(out_len, 0);
         assert!(!error.is_null());
-        
+
         let msg = error_message(error).unwrap_or_default();
         assert!(msg.contains("factory failed") && msg.contains("verification not supported"));
 
@@ -213,7 +217,7 @@ fn test_comprehensive_factory_sign_indirect_happy_path() {
     unsafe {
         let key = create_mock_key();
         let service = create_signing_service(key);
-        
+
         let mut factory: *mut CoseSign1FactoryHandle = ptr::null_mut();
         let mut error: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
 
@@ -235,11 +239,16 @@ fn test_comprehensive_factory_sign_indirect_happy_path() {
             &mut error,
         );
 
-        assert_eq!(rc, COSE_SIGN1_SIGNING_ERR_FACTORY_FAILED, "Error: {:?}", error_message(error));
+        assert_eq!(
+            rc,
+            COSE_SIGN1_SIGNING_ERR_FACTORY_FAILED,
+            "Error: {:?}",
+            error_message(error)
+        );
         assert!(out_bytes.is_null());
         assert_eq!(out_len, 0);
         assert!(!error.is_null());
-        
+
         let msg = error_message(error).unwrap_or_default();
         assert!(msg.contains("factory failed") && msg.contains("verification not supported"));
 
@@ -256,7 +265,7 @@ fn test_comprehensive_factory_sign_direct_file_happy_path() {
     unsafe {
         let key = create_mock_key();
         let service = create_signing_service(key);
-        
+
         let mut factory: *mut CoseSign1FactoryHandle = ptr::null_mut();
         let mut error: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
 
@@ -268,7 +277,7 @@ fn test_comprehensive_factory_sign_direct_file_happy_path() {
         let payload = b"File-based comprehensive payload for COSE Sign1";
         temp_file.write_all(payload).unwrap();
         temp_file.flush().unwrap();
-        
+
         let file_path = CString::new(temp_file.path().to_str().unwrap()).unwrap();
         let content_type = CString::new("application/octet-stream").unwrap();
         let mut out_bytes: *mut u8 = ptr::null_mut();
@@ -284,11 +293,16 @@ fn test_comprehensive_factory_sign_direct_file_happy_path() {
         );
 
         // FFI signing service doesn't support post-sign verification, so factory operations fail
-        assert_eq!(rc, COSE_SIGN1_SIGNING_ERR_FACTORY_FAILED, "Error: {:?}", error_message(error));
+        assert_eq!(
+            rc,
+            COSE_SIGN1_SIGNING_ERR_FACTORY_FAILED,
+            "Error: {:?}",
+            error_message(error)
+        );
         assert!(out_bytes.is_null());
         assert_eq!(out_len, 0);
         assert!(!error.is_null());
-        
+
         let msg = error_message(error).unwrap_or_default();
         assert!(msg.contains("factory failed") && msg.contains("verification not supported"));
 
@@ -305,7 +319,7 @@ fn test_comprehensive_factory_sign_indirect_file_happy_path() {
     unsafe {
         let key = create_mock_key();
         let service = create_signing_service(key);
-        
+
         let mut factory: *mut CoseSign1FactoryHandle = ptr::null_mut();
         let mut error: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
 
@@ -317,7 +331,7 @@ fn test_comprehensive_factory_sign_indirect_file_happy_path() {
         let payload = b"File-based comprehensive indirect payload for COSE Sign1";
         temp_file.write_all(payload).unwrap();
         temp_file.flush().unwrap();
-        
+
         let file_path = CString::new(temp_file.path().to_str().unwrap()).unwrap();
         let content_type = CString::new("application/octet-stream").unwrap();
         let mut out_bytes: *mut u8 = ptr::null_mut();
@@ -333,11 +347,16 @@ fn test_comprehensive_factory_sign_indirect_file_happy_path() {
         );
 
         // FFI signing service doesn't support post-sign verification, so factory operations fail
-        assert_eq!(rc, COSE_SIGN1_SIGNING_ERR_FACTORY_FAILED, "Error: {:?}", error_message(error));
+        assert_eq!(
+            rc,
+            COSE_SIGN1_SIGNING_ERR_FACTORY_FAILED,
+            "Error: {:?}",
+            error_message(error)
+        );
         assert!(out_bytes.is_null());
         assert_eq!(out_len, 0);
         assert!(!error.is_null());
-        
+
         let msg = error_message(error).unwrap_or_default();
         assert!(msg.contains("factory failed") && msg.contains("verification not supported"));
 
@@ -354,7 +373,7 @@ fn test_comprehensive_factory_sign_direct_streaming_happy_path() {
     unsafe {
         let key = create_mock_key();
         let service = create_signing_service(key);
-        
+
         let mut factory: *mut CoseSign1FactoryHandle = ptr::null_mut();
         let mut error: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
 
@@ -366,7 +385,7 @@ fn test_comprehensive_factory_sign_direct_streaming_happy_path() {
             data: payload_data.to_vec(),
             offset: 0,
         };
-        
+
         let content_type = CString::new("application/octet-stream").unwrap();
         let mut out_bytes: *mut u8 = ptr::null_mut();
         let mut out_len: u32 = 0;
@@ -383,11 +402,16 @@ fn test_comprehensive_factory_sign_direct_streaming_happy_path() {
         );
 
         // FFI signing service doesn't support post-sign verification, so factory operations fail
-        assert_eq!(rc, COSE_SIGN1_SIGNING_ERR_FACTORY_FAILED, "Error: {:?}", error_message(error));
+        assert_eq!(
+            rc,
+            COSE_SIGN1_SIGNING_ERR_FACTORY_FAILED,
+            "Error: {:?}",
+            error_message(error)
+        );
         assert!(out_bytes.is_null());
         assert_eq!(out_len, 0);
         assert!(!error.is_null());
-        
+
         let msg = error_message(error).unwrap_or_default();
         assert!(msg.contains("factory failed") && msg.contains("verification not supported"));
 
@@ -404,7 +428,7 @@ fn test_comprehensive_factory_sign_indirect_streaming_happy_path() {
     unsafe {
         let key = create_mock_key();
         let service = create_signing_service(key);
-        
+
         let mut factory: *mut CoseSign1FactoryHandle = ptr::null_mut();
         let mut error: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
 
@@ -416,7 +440,7 @@ fn test_comprehensive_factory_sign_indirect_streaming_happy_path() {
             data: payload_data.to_vec(),
             offset: 0,
         };
-        
+
         let content_type = CString::new("application/octet-stream").unwrap();
         let mut out_bytes: *mut u8 = ptr::null_mut();
         let mut out_len: u32 = 0;
@@ -433,11 +457,16 @@ fn test_comprehensive_factory_sign_indirect_streaming_happy_path() {
         );
 
         // FFI signing service doesn't support post-sign verification, so factory operations fail
-        assert_eq!(rc, COSE_SIGN1_SIGNING_ERR_FACTORY_FAILED, "Error: {:?}", error_message(error));
+        assert_eq!(
+            rc,
+            COSE_SIGN1_SIGNING_ERR_FACTORY_FAILED,
+            "Error: {:?}",
+            error_message(error)
+        );
         assert!(out_bytes.is_null());
         assert_eq!(out_len, 0);
         assert!(!error.is_null());
-        
+
         let msg = error_message(error).unwrap_or_default();
         assert!(msg.contains("factory failed") && msg.contains("verification not supported"));
 
@@ -468,7 +497,7 @@ fn test_comprehensive_error_handling_null_inputs() {
             &mut out_len,
             &mut error,
         );
-        
+
         assert_eq!(rc, COSE_SIGN1_SIGNING_ERR_NULL_POINTER);
         assert!(!error.is_null());
         let msg = error_message(error).unwrap_or_default();
@@ -482,7 +511,7 @@ fn test_comprehensive_empty_payload() {
     unsafe {
         let key = create_mock_key();
         let service = create_signing_service(key);
-        
+
         let mut factory: *mut CoseSign1FactoryHandle = ptr::null_mut();
         let mut error: *mut CoseSign1SigningErrorHandle = ptr::null_mut();
 
@@ -505,11 +534,16 @@ fn test_comprehensive_empty_payload() {
         );
 
         // FFI signing service doesn't support post-sign verification, so factory operations fail
-        assert_eq!(rc, COSE_SIGN1_SIGNING_ERR_FACTORY_FAILED, "Error: {:?}", error_message(error));
+        assert_eq!(
+            rc,
+            COSE_SIGN1_SIGNING_ERR_FACTORY_FAILED,
+            "Error: {:?}",
+            error_message(error)
+        );
         assert!(out_bytes.is_null());
         assert_eq!(out_len, 0);
         assert!(!error.is_null());
-        
+
         let msg = error_message(error).unwrap_or_default();
         assert!(msg.contains("factory failed") && msg.contains("verification not supported"));
 

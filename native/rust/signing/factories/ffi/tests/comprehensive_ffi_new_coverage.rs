@@ -27,13 +27,12 @@ use cose_sign1_factories_ffi::types::{
 };
 use cose_sign1_factories_ffi::{
     cose_sign1_factories_bytes_free, cose_sign1_factories_error_code,
-    cose_sign1_factories_error_free, cose_sign1_factories_error_message,
-    cose_sign1_factories_free, cose_sign1_factories_sign_direct,
-    cose_sign1_factories_sign_direct_detached, cose_sign1_factories_sign_direct_file,
-    cose_sign1_factories_sign_direct_streaming, cose_sign1_factories_sign_indirect,
-    cose_sign1_factories_sign_indirect_file, cose_sign1_factories_sign_indirect_streaming,
-    cose_sign1_factories_string_free, CallbackReader, CallbackStreamingPayload,
-    CryptoSignerHandle, SimpleKeyWrapper, SimpleSigningService,
+    cose_sign1_factories_error_free, cose_sign1_factories_error_message, cose_sign1_factories_free,
+    cose_sign1_factories_sign_direct, cose_sign1_factories_sign_direct_detached,
+    cose_sign1_factories_sign_direct_file, cose_sign1_factories_sign_direct_streaming,
+    cose_sign1_factories_sign_indirect, cose_sign1_factories_sign_indirect_file,
+    cose_sign1_factories_sign_indirect_streaming, cose_sign1_factories_string_free, CallbackReader,
+    CallbackStreamingPayload, CryptoSignerHandle, SimpleKeyWrapper, SimpleSigningService,
 };
 use cose_sign1_factories_ffi::{
     cose_sign1_factories_create_from_crypto_signer,
@@ -150,7 +149,9 @@ impl cose_sign1_signing::SigningService for MockSigningService {
         let protected = cose_sign1_primitives::CoseHeaderMap::new();
         let unprotected = cose_sign1_primitives::CoseHeaderMap::new();
         Ok(cose_sign1_signing::CoseSigner::new(
-            signer, protected, unprotected,
+            signer,
+            protected,
+            unprotected,
         ))
     }
 
@@ -227,8 +228,7 @@ fn error_inner_null_pointer_message() {
 
 #[test]
 fn error_inner_from_factory_error() {
-    let factory_err =
-        cose_sign1_factories::FactoryError::SigningFailed("boom".into());
+    let factory_err = cose_sign1_factories::FactoryError::SigningFailed("boom".into());
     let e = ErrorInner::from_factory_error(&factory_err);
     assert_eq!(e.code, FFI_ERR_FACTORY_FAILED);
     assert!(!e.message.is_empty());
@@ -404,11 +404,7 @@ fn signing_service_handle_null_checked_via_create() {
     let mut factory: *mut CoseSign1FactoriesHandle = ptr::null_mut();
     let mut err: *mut CoseSign1FactoriesErrorHandle = ptr::null_mut();
     let rc = unsafe {
-        cose_sign1_factories_create_from_signing_service(
-            ptr::null(),
-            &mut factory,
-            &mut err,
-        )
+        cose_sign1_factories_create_from_signing_service(ptr::null(), &mut factory, &mut err)
     };
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     if !err.is_null() {
@@ -568,8 +564,7 @@ fn callback_reader_sized_read_len() {
 fn impl_create_from_signing_service_inner_success() {
     let service = Arc::new(MockSigningService) as Arc<dyn cose_sign1_signing::SigningService>;
     let svc_inner = SigningServiceInner { service };
-    let result =
-        cose_sign1_factories_ffi::impl_create_from_signing_service_inner(&svc_inner);
+    let result = cose_sign1_factories_ffi::impl_create_from_signing_service_inner(&svc_inner);
     assert!(result.is_ok());
 }
 
@@ -584,8 +579,7 @@ fn impl_create_from_crypto_signer_inner_success() {
 fn impl_create_with_transparency_inner_empty_providers() {
     let service = Arc::new(MockSigningService) as Arc<dyn cose_sign1_signing::SigningService>;
     let svc_inner = SigningServiceInner { service };
-    let result =
-        cose_sign1_factories_ffi::impl_create_with_transparency_inner(&svc_inner, vec![]);
+    let result = cose_sign1_factories_ffi::impl_create_with_transparency_inner(&svc_inner, vec![]);
     assert!(result.is_ok());
 }
 
@@ -595,8 +589,11 @@ fn impl_sign_direct_inner_with_mock_signer() {
     let factory = cose_sign1_factories::CoseSign1MessageFactory::new(service);
     let fi = FactoryInner { factory };
 
-    let result =
-        cose_sign1_factories_ffi::impl_sign_direct_inner(&fi, b"payload", "application/octet-stream");
+    let result = cose_sign1_factories_ffi::impl_sign_direct_inner(
+        &fi,
+        b"payload",
+        "application/octet-stream",
+    );
     // The mock returns a fake signature so factory may fail at COSE serialisation; either outcome exercises the code.
     let _outcome = result.is_ok() || result.is_err();
 }
@@ -641,11 +638,7 @@ fn impl_sign_direct_file_inner_with_real_file() {
     std::io::Write::write_all(&mut tmp, b"file content").unwrap();
     let path = tmp.path().to_str().unwrap().to_string();
 
-    let _result = cose_sign1_factories_ffi::impl_sign_direct_file_inner(
-        &fi,
-        &path,
-        "text/plain",
-    );
+    let _result = cose_sign1_factories_ffi::impl_sign_direct_file_inner(&fi, &path, "text/plain");
 }
 
 #[test]
@@ -710,8 +703,7 @@ fn impl_sign_indirect_file_inner_real_file() {
     std::io::Write::write_all(&mut tmp, b"indirect file").unwrap();
     let path = tmp.path().to_str().unwrap().to_string();
 
-    let _result =
-        cose_sign1_factories_ffi::impl_sign_indirect_file_inner(&fi, &path, "text/plain");
+    let _result = cose_sign1_factories_ffi::impl_sign_indirect_file_inner(&fi, &path, "text/plain");
 }
 
 #[test]
@@ -1262,7 +1254,12 @@ fn ffi_sign_direct_file_nonexistent_file() {
     assert_eq!(rc, FFI_ERR_FACTORY_FAILED);
     assert!(!err.is_null());
     let msg = get_error_message(err).unwrap_or_default();
-    assert!(msg.contains("file") || msg.contains("open") || msg.contains("not found") || msg.contains("No such"));
+    assert!(
+        msg.contains("file")
+            || msg.contains("open")
+            || msg.contains("not found")
+            || msg.contains("No such")
+    );
     unsafe {
         cose_sign1_factories_error_free(err);
         cose_sign1_factories_free(factory);
@@ -1503,11 +1500,7 @@ fn ffi_sign_indirect_streaming_null_content_type() {
 fn ffi_create_from_signing_service_null_out_factory() {
     let mut err: *mut CoseSign1FactoriesErrorHandle = ptr::null_mut();
     let rc = unsafe {
-        cose_sign1_factories_create_from_signing_service(
-            ptr::null(),
-            ptr::null_mut(),
-            &mut err,
-        )
+        cose_sign1_factories_create_from_signing_service(ptr::null(), ptr::null_mut(), &mut err)
     };
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     if !err.is_null() {
@@ -1522,11 +1515,7 @@ fn ffi_create_from_signing_service_null_service() {
     let mut factory: *mut CoseSign1FactoriesHandle = ptr::null_mut();
     let mut err: *mut CoseSign1FactoriesErrorHandle = ptr::null_mut();
     let rc = unsafe {
-        cose_sign1_factories_create_from_signing_service(
-            ptr::null(),
-            &mut factory,
-            &mut err,
-        )
+        cose_sign1_factories_create_from_signing_service(ptr::null(), &mut factory, &mut err)
     };
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     assert!(factory.is_null());
@@ -1541,11 +1530,7 @@ fn ffi_create_from_signing_service_null_service() {
 fn ffi_create_from_crypto_signer_null_out_factory() {
     let mut err: *mut CoseSign1FactoriesErrorHandle = ptr::null_mut();
     let rc = unsafe {
-        cose_sign1_factories_create_from_crypto_signer(
-            ptr::null_mut(),
-            ptr::null_mut(),
-            &mut err,
-        )
+        cose_sign1_factories_create_from_crypto_signer(ptr::null_mut(), ptr::null_mut(), &mut err)
     };
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     if !err.is_null() {
@@ -1560,11 +1545,7 @@ fn ffi_create_from_crypto_signer_null_signer() {
     let mut factory: *mut CoseSign1FactoriesHandle = ptr::null_mut();
     let mut err: *mut CoseSign1FactoriesErrorHandle = ptr::null_mut();
     let rc = unsafe {
-        cose_sign1_factories_create_from_crypto_signer(
-            ptr::null_mut(),
-            &mut factory,
-            &mut err,
-        )
+        cose_sign1_factories_create_from_crypto_signer(ptr::null_mut(), &mut factory, &mut err)
     };
     assert_eq!(rc, FFI_ERR_NULL_POINTER);
     assert!(factory.is_null());
@@ -1674,9 +1655,8 @@ fn ffi_create_from_crypto_signer_happy_path() {
     let mut factory: *mut CoseSign1FactoriesHandle = ptr::null_mut();
     let mut err: *mut CoseSign1FactoriesErrorHandle = ptr::null_mut();
 
-    let rc = unsafe {
-        cose_sign1_factories_create_from_crypto_signer(signer, &mut factory, &mut err)
-    };
+    let rc =
+        unsafe { cose_sign1_factories_create_from_crypto_signer(signer, &mut factory, &mut err) };
     assert_eq!(rc, FFI_OK);
     assert!(!factory.is_null());
     if !err.is_null() {

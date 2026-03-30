@@ -1,19 +1,19 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-use x509_parser::prelude::*;
-use sha2::{Sha256, Sha384, Sha512, Digest};
+use crate::error::DidX509Error;
 use crate::models::*;
 use crate::parsing::DidX509Parser;
-use crate::error::DidX509Error;
 use crate::policy_validators;
+use sha2::{Digest, Sha256, Sha384, Sha512};
+use x509_parser::prelude::*;
 
 /// Validator for DID:x509 identifiers against certificate chains
 pub struct DidX509Validator;
 
 impl DidX509Validator {
     /// Validate a DID:x509 string against a certificate chain.
-    /// 
+    ///
     /// # Arguments
     /// * `did` - The DID:x509 string to validate
     /// * `chain` - DER-encoded certificate chain (leaf-first order)
@@ -23,15 +23,16 @@ impl DidX509Validator {
     pub fn validate(did: &str, chain: &[&[u8]]) -> Result<DidX509ValidationResult, DidX509Error> {
         // 1. Parse the DID
         let parsed = DidX509Parser::parse(did)?;
-        
+
         // 2. Validate chain is not empty
         if chain.is_empty() {
             return Err(DidX509Error::InvalidChain("Empty chain".into()));
         }
 
         // 3. Find the CA cert in chain matching the fingerprint
-        let ca_index = Self::find_ca_by_fingerprint(chain, &parsed.hash_algorithm, &parsed.ca_fingerprint)?;
-        
+        let ca_index =
+            Self::find_ca_by_fingerprint(chain, &parsed.hash_algorithm, &parsed.ca_fingerprint)?;
+
         // 4. Parse the leaf certificate
         let leaf_der = chain[0];
         let (_, leaf_cert) = X509Certificate::from_der(leaf_der)
@@ -55,9 +56,9 @@ impl DidX509Validator {
 
     /// Find the CA certificate in the chain that matches the fingerprint
     fn find_ca_by_fingerprint(
-        chain: &[&[u8]], 
-        hash_alg: &str, 
-        expected: &[u8]
+        chain: &[&[u8]],
+        hash_alg: &str,
+        expected: &[u8],
     ) -> Result<usize, DidX509Error> {
         for (i, cert_der) in chain.iter().enumerate() {
             let fingerprint = match hash_alg {

@@ -141,7 +141,10 @@ impl CoseData {
     /// Wraps an existing `Arc<[u8]>`.
     pub fn from_arc(arc: Arc<[u8]>) -> Self {
         let len = arc.len();
-        Self::Buffered { raw: arc, range: 0..len }
+        Self::Buffered {
+            raw: arc,
+            range: 0..len,
+        }
     }
 
     /// Wraps a sub-range of an existing `Arc<[u8]>` — **zero-copy**.
@@ -157,7 +160,9 @@ impl CoseData {
         debug_assert!(
             range.end <= arc.len(),
             "CoseData::from_arc_range: range {}..{} out of bounds for len {}",
-            range.start, range.end, arc.len()
+            range.start,
+            range.end,
+            arc.len()
         );
         Self::Buffered { raw: arc, range }
     }

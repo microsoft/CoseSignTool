@@ -3,14 +3,15 @@
 
 use did_x509::{
     builder::DidX509Builder,
+    constants::*,
     models::policy::{DidX509Policy, SanType},
     parsing::DidX509Parser,
-    constants::*,
     DidX509Error,
 };
 
 // Inline base64 utilities for tests
-const BASE64_STANDARD: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+const BASE64_STANDARD: &[u8; 64] =
+    b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 fn base64_decode(input: &str, alphabet: &[u8; 64]) -> Result<Vec<u8>, String> {
     let mut lookup = [0xFFu8; 256];
@@ -75,7 +76,7 @@ YqKYqA==
         .filter(|line| !line.contains("BEGIN") && !line.contains("END"))
         .collect();
     let cert_base64 = cert_lines.join("");
-    
+
     // Decode base64 to DER
     base64_standard_decode(&cert_base64).expect("Failed to decode test certificate")
 }
@@ -108,9 +109,9 @@ AwEwDQYJKoZIhvcNAQELBQADggEBAA==
 fn test_build_with_eku_policy() {
     let ca_cert = create_test_cert_der();
     let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.2".to_string()]);
-    
+
     let did = DidX509Builder::build_sha256(&ca_cert, &[policy]).unwrap();
-    
+
     assert!(did.starts_with("did:x509:0:sha256:"));
     assert!(did.contains("::eku:1.3.6.1.5.5.7.3.2"));
 }
@@ -122,9 +123,9 @@ fn test_build_with_multiple_eku_oids() {
         "1.3.6.1.5.5.7.3.2".to_string(),
         "1.3.6.1.5.5.7.3.3".to_string(),
     ]);
-    
+
     let did = DidX509Builder::build_sha256(&ca_cert, &[policy]).unwrap();
-    
+
     assert!(did.contains("::eku:1.3.6.1.5.5.7.3.2:1.3.6.1.5.5.7.3.3"));
 }
 
@@ -135,9 +136,9 @@ fn test_build_with_subject_policy() {
         ("CN".to_string(), "example.com".to_string()),
         ("O".to_string(), "Example Org".to_string()),
     ]);
-    
+
     let did = DidX509Builder::build_sha256(&ca_cert, &[policy]).unwrap();
-    
+
     assert!(did.starts_with("did:x509:0:sha256:"));
     assert!(did.contains("::subject:CN:example.com:O:Example%20Org"));
 }
@@ -146,9 +147,9 @@ fn test_build_with_subject_policy() {
 fn test_build_with_san_email_policy() {
     let ca_cert = create_test_cert_der();
     let policy = DidX509Policy::San(SanType::Email, "test@example.com".to_string());
-    
+
     let did = DidX509Builder::build_sha256(&ca_cert, &[policy]).unwrap();
-    
+
     assert!(did.contains("::san:email:test%40example.com"));
 }
 
@@ -156,9 +157,9 @@ fn test_build_with_san_email_policy() {
 fn test_build_with_san_dns_policy() {
     let ca_cert = create_test_cert_der();
     let policy = DidX509Policy::San(SanType::Dns, "example.com".to_string());
-    
+
     let did = DidX509Builder::build_sha256(&ca_cert, &[policy]).unwrap();
-    
+
     assert!(did.contains("::san:dns:example.com"));
 }
 
@@ -166,9 +167,9 @@ fn test_build_with_san_dns_policy() {
 fn test_build_with_san_uri_policy() {
     let ca_cert = create_test_cert_der();
     let policy = DidX509Policy::San(SanType::Uri, "https://example.com/path".to_string());
-    
+
     let did = DidX509Builder::build_sha256(&ca_cert, &[policy]).unwrap();
-    
+
     assert!(did.contains("::san:uri:https%3A%2F%2Fexample.com%2Fpath"));
 }
 
@@ -176,9 +177,9 @@ fn test_build_with_san_uri_policy() {
 fn test_build_with_fulcio_issuer_policy() {
     let ca_cert = create_test_cert_der();
     let policy = DidX509Policy::FulcioIssuer("accounts.google.com".to_string());
-    
+
     let did = DidX509Builder::build_sha256(&ca_cert, &[policy]).unwrap();
-    
+
     assert!(did.contains("::fulcio-issuer:accounts.google.com"));
 }
 
@@ -189,9 +190,9 @@ fn test_build_with_multiple_policies() {
         DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.2".to_string()]),
         DidX509Policy::Subject(vec![("CN".to_string(), "test".to_string())]),
     ];
-    
+
     let did = DidX509Builder::build_sha256(&ca_cert, &policies).unwrap();
-    
+
     assert!(did.contains("::eku:1.3.6.1.5.5.7.3.2::subject:CN:test"));
 }
 
@@ -199,9 +200,9 @@ fn test_build_with_multiple_policies() {
 fn test_build_with_sha256() {
     let ca_cert = create_test_cert_der();
     let policy = DidX509Policy::Eku(vec!["1.2.3.4".to_string()]);
-    
+
     let did = DidX509Builder::build(&ca_cert, &[policy], HASH_ALGORITHM_SHA256).unwrap();
-    
+
     assert!(did.starts_with("did:x509:0:sha256:"));
     // SHA-256 produces 32 bytes = 43 base64url chars (without padding)
     let parts: Vec<&str> = did.split("::").collect();
@@ -213,9 +214,9 @@ fn test_build_with_sha256() {
 fn test_build_with_sha384() {
     let ca_cert = create_test_cert_der();
     let policy = DidX509Policy::Eku(vec!["1.2.3.4".to_string()]);
-    
+
     let did = DidX509Builder::build(&ca_cert, &[policy], HASH_ALGORITHM_SHA384).unwrap();
-    
+
     assert!(did.starts_with("did:x509:0:sha384:"));
     // SHA-384 produces 48 bytes = 64 base64url chars (without padding)
     let parts: Vec<&str> = did.split("::").collect();
@@ -227,9 +228,9 @@ fn test_build_with_sha384() {
 fn test_build_with_sha512() {
     let ca_cert = create_test_cert_der();
     let policy = DidX509Policy::Eku(vec!["1.2.3.4".to_string()]);
-    
+
     let did = DidX509Builder::build(&ca_cert, &[policy], HASH_ALGORITHM_SHA512).unwrap();
-    
+
     assert!(did.starts_with("did:x509:0:sha512:"));
     // SHA-512 produces 64 bytes = 86 base64url chars (without padding)
     let parts: Vec<&str> = did.split("::").collect();
@@ -241,9 +242,9 @@ fn test_build_with_sha512() {
 fn test_build_with_invalid_hash_algorithm() {
     let ca_cert = create_test_cert_der();
     let policy = DidX509Policy::Eku(vec!["1.2.3.4".to_string()]);
-    
+
     let result = DidX509Builder::build(&ca_cert, &[policy], "sha1");
-    
+
     assert!(result.is_err());
     assert_eq!(
         result.unwrap_err(),
@@ -256,10 +257,10 @@ fn test_build_from_chain() {
     let leaf_cert = create_test_leaf_cert_with_eku();
     let ca_cert = create_test_cert_der();
     let chain: Vec<&[u8]> = vec![&leaf_cert, &ca_cert];
-    
+
     let policy = DidX509Policy::Eku(vec!["1.2.3.4".to_string()]);
     let did = DidX509Builder::build_from_chain(&chain, &[policy]).unwrap();
-    
+
     // Should use the last cert (CA) for fingerprint
     assert!(did.starts_with("did:x509:0:sha256:"));
     assert!(did.contains("::eku:1.2.3.4"));
@@ -269,9 +270,9 @@ fn test_build_from_chain() {
 fn test_build_from_chain_empty() {
     let chain: Vec<&[u8]> = vec![];
     let policy = DidX509Policy::Eku(vec!["1.2.3.4".to_string()]);
-    
+
     let result = DidX509Builder::build_from_chain(&chain, &[policy]);
-    
+
     assert!(result.is_err());
     assert_eq!(
         result.unwrap_err(),
@@ -283,10 +284,10 @@ fn test_build_from_chain_empty() {
 fn test_build_from_chain_single_cert() {
     let ca_cert = create_test_cert_der();
     let chain: Vec<&[u8]> = vec![&ca_cert];
-    
+
     let policy = DidX509Policy::Eku(vec!["1.2.3.4".to_string()]);
     let did = DidX509Builder::build_from_chain(&chain, &[policy]).unwrap();
-    
+
     assert!(did.starts_with("did:x509:0:sha256:"));
 }
 
@@ -301,23 +302,23 @@ fn test_roundtrip_build_and_parse() {
         ]),
         DidX509Policy::San(SanType::Dns, "example.com".to_string()),
     ];
-    
+
     let did = DidX509Builder::build_sha256(&ca_cert, &policies).unwrap();
-    
+
     // Parse the built DID
     let parsed = DidX509Parser::parse(&did).unwrap();
-    
+
     // Verify structure
     assert_eq!(parsed.hash_algorithm, HASH_ALGORITHM_SHA256);
     assert_eq!(parsed.policies.len(), 3);
-    
+
     // Verify EKU policy
     if let DidX509Policy::Eku(oids) = &parsed.policies[0] {
         assert_eq!(oids, &vec!["1.3.6.1.5.5.7.3.2".to_string()]);
     } else {
         panic!("Expected EKU policy");
     }
-    
+
     // Verify Subject policy
     if let DidX509Policy::Subject(attrs) = &parsed.policies[1] {
         assert_eq!(attrs.len(), 2);
@@ -326,7 +327,7 @@ fn test_roundtrip_build_and_parse() {
     } else {
         panic!("Expected Subject policy");
     }
-    
+
     // Verify SAN policy
     if let DidX509Policy::San(san_type, value) = &parsed.policies[2] {
         assert_eq!(*san_type, SanType::Dns);
@@ -339,12 +340,13 @@ fn test_roundtrip_build_and_parse() {
 #[test]
 fn test_encode_policy_with_special_characters() {
     let ca_cert = create_test_cert_der();
-    let policy = DidX509Policy::Subject(vec![
-        ("CN".to_string(), "Test: Value, With Special/Chars".to_string()),
-    ]);
-    
+    let policy = DidX509Policy::Subject(vec![(
+        "CN".to_string(),
+        "Test: Value, With Special/Chars".to_string(),
+    )]);
+
     let did = DidX509Builder::build_sha256(&ca_cert, &[policy]).unwrap();
-    
+
     // Special characters should be percent-encoded
     assert!(did.contains("%3A")); // colon
     assert!(did.contains("%2C")); // comma

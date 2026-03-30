@@ -311,14 +311,20 @@ impl CoseSign1Message {
             .decode_bstr()
             .map_err(|e| CoseSign1Error::CborError(e.to_string()))?;
         let local_range = slice_range_in(protected_slice, data);
-        let protected = LazyHeaderMap::new(arc.clone(), offset + local_range.start..offset + local_range.end);
+        let protected = LazyHeaderMap::new(
+            arc.clone(),
+            offset + local_range.start..offset + local_range.end,
+        );
 
         // 2. Unprotected header (map)
         let unprotected_start = offset + decoder.position();
         let pre_decoded_map = Self::decode_unprotected_header(&mut decoder)?;
         let unprotected_end = offset + decoder.position();
-        let unprotected =
-            LazyHeaderMap::from_parsed(arc.clone(), unprotected_start..unprotected_end, pre_decoded_map);
+        let unprotected = LazyHeaderMap::from_parsed(
+            arc.clone(),
+            unprotected_start..unprotected_end,
+            pre_decoded_map,
+        );
 
         // 3. Payload (bstr or null)
         let payload_range = Self::decode_payload_range(&mut decoder, data)?

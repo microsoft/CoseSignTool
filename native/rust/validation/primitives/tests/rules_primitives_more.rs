@@ -4,11 +4,13 @@
 use cose_sign1_validation_primitives::decision::TrustDecision;
 use cose_sign1_validation_primitives::error::TrustError;
 use cose_sign1_validation_primitives::fact_properties::{FactProperties, FactValue};
-use cose_sign1_validation_primitives::facts::{FactKey, TrustFactContext, TrustFactEngine, TrustFactProducer, TrustFactSet};
+use cose_sign1_validation_primitives::facts::{
+    FactKey, TrustFactContext, TrustFactEngine, TrustFactProducer, TrustFactSet,
+};
 use cose_sign1_validation_primitives::rules::{
-    allow_all, all_of, any_of, not, not_with_reason, require_bool, require_fact_bool,
-    require_fact_matches, require_fact_matches_with_missing_behavior, require_present, FactSelector,
-    MissingBehavior, PropertyPredicate,
+    all_of, allow_all, any_of, not, not_with_reason, require_bool, require_fact_bool,
+    require_fact_matches, require_fact_matches_with_missing_behavior, require_present,
+    FactSelector, MissingBehavior, PropertyPredicate,
 };
 use cose_sign1_validation_primitives::subject::TrustSubject;
 use std::sync::Arc;
@@ -120,12 +122,8 @@ fn fact_selector_convenience_methods_and_fact_match_rules_are_exercised() {
         .where_i64("i", 123)
         .where_pred("name", PropertyPredicate::StrStartsWith("b".to_string()));
 
-    let rule = require_fact_matches::<ExampleFact, _>(
-        "match_fact",
-        |s| s.clone(),
-        selector,
-        "NoMatch",
-    );
+    let rule =
+        require_fact_matches::<ExampleFact, _>("match_fact", |s| s.clone(), selector, "NoMatch");
 
     let d = rule.evaluate(&engine, &subject).unwrap();
     assert!(d.is_trusted);
@@ -140,10 +138,12 @@ fn fact_selector_convenience_methods_and_fact_match_rules_are_exercised() {
         MissingBehavior::Allow,
         "Denied",
     );
-    assert!(allow_when_missing
-        .evaluate(&missing_engine, &subject)
-        .unwrap()
-        .is_trusted);
+    assert!(
+        allow_when_missing
+            .evaluate(&missing_engine, &subject)
+            .unwrap()
+            .is_trusted
+    );
 }
 
 #[test]
@@ -165,13 +165,8 @@ fn require_present_and_require_bool_cover_available_missing_and_error_paths() {
     let present = require_present::<ExampleFact, _>("present", |s| s.clone(), "Missing");
     assert!(present.evaluate(&engine, &subject).unwrap().is_trusted);
 
-    let rb = require_bool::<ExampleFact, _, _>(
-        "bool",
-        |s| s.clone(),
-        |f| f.flag,
-        true,
-        "FlagFalse",
-    );
+    let rb =
+        require_bool::<ExampleFact, _, _>("bool", |s| s.clone(), |f| f.flag, true, "FlagFalse");
     assert!(rb.evaluate(&engine, &subject).unwrap().is_trusted);
 
     // Missing path: a producer that declares the key but observes nothing.
@@ -196,5 +191,7 @@ fn require_present_and_require_bool_cover_available_missing_and_error_paths() {
         true,
         "Denied",
     );
-    let _ = fb.evaluate(&engine, &subject).unwrap_or(TrustDecision::trusted());
+    let _ = fb
+        .evaluate(&engine, &subject)
+        .unwrap_or(TrustDecision::trusted());
 }

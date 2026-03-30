@@ -66,6 +66,7 @@ fn mock_client(responses: Vec<MockResponse>) -> CodeTransparencyClient {
         CodeTransparencyClientConfig::default(),
         CodeTransparencyClientOptions {
             client_options: mock.into_client_options(),
+            ..Default::default()
         },
     )
 }
@@ -499,6 +500,7 @@ fn resolve_signing_key_offline_only_not_found() {
         },
         CodeTransparencyClientOptions {
             client_options: mock.into_client_options(),
+            ..Default::default()
         },
     );
     let err = client.resolve_signing_key("missing-kid").unwrap_err();
@@ -521,6 +523,7 @@ fn resolve_signing_key_fallback_to_network() {
         },
         CodeTransparencyClientOptions {
             client_options: mock.into_client_options(),
+            ..Default::default()
         },
     );
     let key = client.resolve_signing_key("net-key").unwrap();
@@ -538,6 +541,7 @@ fn resolve_signing_key_network_key_not_found() {
         CodeTransparencyClientConfig::default(),
         CodeTransparencyClientOptions {
             client_options: mock.into_client_options(),
+            ..Default::default()
         },
     );
     let err = client.resolve_signing_key("absent").unwrap_err();
@@ -690,6 +694,7 @@ fn resolve_signing_key_offline_found_skips_network() {
         },
         CodeTransparencyClientOptions {
             client_options: mock.into_client_options(),
+            ..Default::default()
         },
     );
     let key = client.resolve_signing_key("local-k").unwrap();
@@ -723,6 +728,7 @@ fn client_with_api_key_sends_request() {
         },
         CodeTransparencyClientOptions {
             client_options: mock.into_client_options(),
+            ..Default::default()
         },
     );
     // This exercises the pipeline with ApiKeyAuthPolicy
@@ -747,6 +753,7 @@ fn tnc_retry_succeeds_on_second_attempt() {
         CodeTransparencyClientConfig::default(),
         CodeTransparencyClientOptions {
             client_options: mock.into_client_options(),
+            ..Default::default()
         },
     );
     // get_entry_statement does GET /entries/{id}/statement which triggers TNC policy
@@ -765,6 +772,7 @@ fn tnc_non_503_passes_through() {
         CodeTransparencyClientConfig::default(),
         CodeTransparencyClientOptions {
             client_options: mock.into_client_options(),
+            ..Default::default()
         },
     );
     // GET /entries/x/statement → 404 passes through TNC policy
@@ -785,6 +793,7 @@ fn tnc_503_non_tnc_body_passes_through() {
         CodeTransparencyClientConfig::default(),
         CodeTransparencyClientOptions {
             client_options: mock.into_client_options(),
+            ..Default::default()
         },
     );
     let result = client.get_entry_statement("x");

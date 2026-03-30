@@ -13,6 +13,7 @@ test-utils = []
 [dependencies]
 azure_core.workspace = true
 async-trait.workspace = true
+time = "0.3"
 tokio.workspace = true
 url.workspace = true
 serde.workspace = true

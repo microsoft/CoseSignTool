@@ -148,6 +148,7 @@ fn verify_1ts_with_factory() {
                 CodeTransparencyClientConfig::default(),
                 CodeTransparencyClientOptions {
                     client_options: mock.into_client_options(),
+                    ..Default::default()
                 },
             )
         });

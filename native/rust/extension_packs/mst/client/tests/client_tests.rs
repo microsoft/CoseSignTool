@@ -40,6 +40,7 @@ fn mock_client(responses: Vec<MockResponse>) -> CodeTransparencyClient {
         CodeTransparencyClientConfig::default(),
         CodeTransparencyClientOptions {
             client_options: mock.into_client_options(),
+            ..Default::default()
         },
     )
 }
@@ -142,7 +143,7 @@ fn resolve_signing_key_offline() {
             offline_keys_behavior: OfflineKeysBehavior::OfflineOnly,
             ..Default::default()
         },
-        CodeTransparencyClientOptions { client_options: mock.into_client_options() },
+        CodeTransparencyClientOptions { client_options: mock.into_client_options(), ..Default::default() },
     );
     let key = client.resolve_signing_key("k1").unwrap();
     assert_eq!(key.kid, "k1");

@@ -100,6 +100,7 @@ fn make_mock_client(jwks_response: &str) -> CodeTransparencyClient {
         CodeTransparencyClientConfig::default(),
         CodeTransparencyClientOptions {
             client_options: mock.into_client_options(),
+            ..Default::default()
         },
     )
 }
@@ -116,6 +117,7 @@ fn make_factory_with_jwks(jwks_json: &str) -> Arc<dyn Fn(&str, &CodeTransparency
             CodeTransparencyClientConfig::default(),
             CodeTransparencyClientOptions {
                 client_options: mock.into_client_options(),
+                ..Default::default()
             },
         )
     })
@@ -130,6 +132,7 @@ fn make_failing_factory() -> Arc<dyn Fn(&str, &CodeTransparencyClientOptions) ->
             CodeTransparencyClientConfig::default(),
             CodeTransparencyClientOptions {
                 client_options: mock.into_client_options(),
+                ..Default::default()
             },
         )
     })

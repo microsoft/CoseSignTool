@@ -151,6 +151,7 @@ fn verify_1ts_with_mock_jwks_exercises_full_crypto_pipeline() {
                 CodeTransparencyClientConfig::default(),
                 CodeTransparencyClientOptions {
                     client_options: mock.into_client_options(),
+                    ..Default::default()
                 },
             )
         });
@@ -209,6 +210,7 @@ fn verify_2ts_with_mock_jwks_exercises_full_crypto_pipeline() {
                 CodeTransparencyClientConfig::default(),
                 CodeTransparencyClientOptions {
                     client_options: mock.into_client_options(),
+                    ..Default::default()
                 },
             )
         });

@@ -95,6 +95,7 @@ fn mock_client_with_responses(responses: Vec<MockResponse>) -> CodeTransparencyC
         CodeTransparencyClientConfig::default(),
         CodeTransparencyClientOptions {
             client_options: mock.into_client_options(),
+            ..Default::default()
         },
     )
 }
@@ -315,6 +316,7 @@ fn mst_provider_name() {
         CodeTransparencyClientConfig::default(),
         CodeTransparencyClientOptions {
             client_options: mock.into_client_options(),
+            ..Default::default()
         },
     );
     let provider = MstTransparencyProvider::new(client);

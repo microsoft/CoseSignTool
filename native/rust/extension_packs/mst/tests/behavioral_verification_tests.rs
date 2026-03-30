@@ -158,6 +158,7 @@ fn make_factory(jwks: &str) -> Arc<dyn Fn(&str, &CodeTransparencyClientOptions) 
             CodeTransparencyClientConfig::default(),
             CodeTransparencyClientOptions {
                 client_options: mock.into_client_options(),
+                ..Default::default()
             },
         )
     })

@@ -11,22 +11,34 @@ use crate::api_key_auth_policy::ApiKeyAuthPolicy;
 use crate::error::CodeTransparencyError;
 use crate::models::{JwksDocument, JsonWebKey};
 use crate::operation_status::OperationStatus;
+use crate::polling::MstPollingOptions;
 use crate::transaction_not_cached_policy::TransactionNotCachedPolicy;
 use azure_core::http::{
     Body, ClientOptions, Context, Method, Pipeline, Request,
-    poller::{Poller, PollerContinuation, PollerResult, PollerState, PollerStatus, StatusMonitor},
+    poller::{Poller, PollerContinuation, PollerOptions, PollerResult, PollerState, PollerStatus, StatusMonitor},
     RawResponse, Response,
 };
 use cbor_primitives::CborDecoder;
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use url::Url;
+
+/// Default polling interval for LRO operations (250 ms).
+///
+/// Matches the `TransactionNotCachedPolicy` retry interval for consistency.
+/// The Azure SDK default of 30 seconds is far too slow for MST operations
+/// where the service typically completes in well under 1 second.
+const DEFAULT_POLL_INTERVAL: std::time::Duration = std::time::Duration::from_millis(250);
 
 /// Options for creating a [`CodeTransparencyClient`].
 #[derive(Clone, Debug, Default)]
 pub struct CodeTransparencyClientOptions {
     /// Azure SDK client options (retry, per-call/per-try policies, transport).
     pub client_options: ClientOptions,
+    /// Polling options for LRO operations. Controls how fast the client polls
+    /// for operation completion after submitting an entry.
+    pub polling_options: MstPollingOptions,
 }
 
 /// Controls how offline keys interact with network JWKS fetching.
@@ -80,6 +92,7 @@ pub struct CodeTransparencyClient {
     endpoint: Url,
     config: CodeTransparencyClientConfig,
     pipeline: Pipeline,
+    polling_options: MstPollingOptions,
     runtime: tokio::runtime::Runtime,
 }
 
@@ -127,7 +140,7 @@ impl CodeTransparencyClient {
             .build()
             .expect("failed to create tokio runtime");
 
-        Self { endpoint, config, pipeline, runtime }
+        Self { endpoint, config, pipeline, polling_options: options.polling_options, runtime }
     }
 
     /// Creates a new client with an injected pipeline (for testing).
@@ -136,7 +149,7 @@ impl CodeTransparencyClient {
             .enable_all()
             .build()
             .expect("failed to create tokio runtime");
-        Self { endpoint, config, pipeline, runtime }
+        Self { endpoint, config, pipeline, polling_options: MstPollingOptions::default(), runtime }
     }
 
     /// Returns the service endpoint URL.
@@ -174,6 +187,17 @@ impl CodeTransparencyClient {
         let api_version = self.config.api_version.clone();
         let endpoint = self.endpoint.clone();
         let cose_owned = cose_bytes.to_vec();
+        let polling_opts = self.polling_options.clone();
+        let retry_count = Arc::new(AtomicU32::new(0));
+
+        // The azure_core Poller enforces a minimum frequency of 1 second, but
+        // the actual inter-poll delay is controlled by `retry_after` in
+        // PollerResult::InProgress which has no minimum. We set frequency to
+        // the minimum and compute the real delay from MstPollingOptions.
+        let poller_options = PollerOptions {
+            frequency: time::Duration::seconds(1),
+            context: Context::new(),
+        };
 
         Ok(Poller::new(
             move |poller_state: PollerState, poller_options| {
@@ -181,6 +205,8 @@ impl CodeTransparencyClient {
                 let api_version = api_version.clone();
                 let endpoint = endpoint.clone();
                 let cose_owned = cose_owned.clone();
+                let polling_opts = polling_opts.clone();
+                let retry_count = retry_count.clone();
 
                 Box::pin(async move {
                     let mut request = match poller_state {
@@ -253,9 +279,16 @@ impl CodeTransparencyClient {
                             poll_url.set_path(&format!("/operations/{}", operation_id));
                             poll_url.query_pairs_mut().append_pair("api-version", &api_version);
 
+                            // Compute the polling delay from MstPollingOptions.
+                            // This allows callers to configure fixed or exponential
+                            // back-off strategies. The default fallback is 250 ms.
+                            let attempt = retry_count.fetch_add(1, Ordering::Relaxed);
+                            let poll_delay = polling_opts.delay_for_retry(attempt, DEFAULT_POLL_INTERVAL);
+                            let retry_after = time::Duration::milliseconds(poll_delay.as_millis() as i64);
+
                             Ok(PollerResult::InProgress {
                                 response,
-                                retry_after: poller_options.frequency,
+                                retry_after,
                                 continuation: PollerContinuation::Links {
                                     next_link: poll_url,
                                     final_link: None,
@@ -265,7 +298,7 @@ impl CodeTransparencyClient {
                     }
                 })
             },
-            None,
+            Some(poller_options),
         ))
     }
 

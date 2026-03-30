@@ -1,0 +1,51 @@
+[package]
+name = "cose_sign1_validation"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+
+[lib]
+test = false
+
+[features]
+default = []
+legacy-sha1 = ["dep:sha1"]
+
+# Gate examples that need extension packs not yet merged
+[[example]]
+name = "detached_payload_provider"
+required-features = ["__example_certificates"]
+
+[[example]]
+name = "validate_smoke"
+required-features = ["__example_certificates"]
+
+[[example]]
+name = "validate_custom_policy"
+required-features = ["__example_certificates"]
+
+[dependencies]
+sha1 = { workspace = true, optional = true }
+sha2.workspace = true
+tracing = { workspace = true }
+
+cose_sign1_validation_primitives = { path = "../primitives" }
+cose_sign1_primitives = { path = "../../primitives/cose/sign1" }
+cbor_primitives = { path = "../../primitives/cbor" }
+crypto_primitives = { path = "../../primitives/crypto" }
+
+[dev-dependencies]
+anyhow.workspace = true
+sha1.workspace = true
+tokio = { workspace = true, features = ["macros", "rt"] }
+
+x509-parser.workspace = true
+
+cbor_primitives = { path = "../../primitives/cbor" }
+cbor_primitives_everparse = { path = "../../primitives/cbor/everparse" }
+
+# TODO: uncomment after extension packs layer is merged
+# cose_sign1_transparent_mst = { path = "../../extension_packs/mst" }
+# cose_sign1_certificates = { path = "../../extension_packs/certificates" }
+# cose_sign1_azure_key_vault = { path = "../../extension_packs/azure_key_vault" }
+cose_sign1_validation_test_utils = { path = "../test_utils" }

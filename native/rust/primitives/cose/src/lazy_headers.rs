@@ -109,4 +109,34 @@ impl LazyHeaderMap {
     pub fn is_parsed(&self) -> bool {
         self.parsed.get().is_some()
     }
+
+    /// Returns a reference to the parsed header map for the given label.
+    ///
+    /// Convenience delegate to [`CoseHeaderMap::get`].
+    pub fn get(&self, label: &crate::headers::CoseHeaderLabel) -> Option<&crate::headers::CoseHeaderValue> {
+        self.headers().get(label)
+    }
+
+    /// Inserts a header value, replacing any previous entry for that label.
+    ///
+    /// Forces parsing if not yet parsed, then mutates the cached map.
+    /// Note: this mutates the *parsed* representation only — the raw backing
+    /// bytes are not updated. Callers that need re-serialization should
+    /// rebuild the message via the builder.
+    pub fn insert(&mut self, label: crate::headers::CoseHeaderLabel, value: crate::headers::CoseHeaderValue) {
+        // Ensure the map is parsed before we take a mutable reference.
+        let _ = self.headers();
+        if let Some(map) = self.parsed.get_mut() {
+            map.insert(label, value);
+        }
+    }
+
+    /// Removes a header entry by label.
+    ///
+    /// Returns the removed value, or `None` if the label was not present.
+    /// Same caveats as [`insert`](Self::insert) regarding raw bytes.
+    pub fn remove(&mut self, label: &crate::headers::CoseHeaderLabel) -> Option<crate::headers::CoseHeaderValue> {
+        let _ = self.headers();
+        self.parsed.get_mut().and_then(|map| map.remove(label))
+    }
 }

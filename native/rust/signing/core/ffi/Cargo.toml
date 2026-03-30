@@ -1,0 +1,36 @@
+[package]
+name = "cose_sign1_signing_ffi"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+rust-version = "1.70"
+description = "C/C++ FFI for COSE_Sign1 message signing operations. Provides builder pattern and callback-based key support for C/C++ consumers."
+
+[lib]
+crate-type = ["cdylib", "staticlib", "rlib"]
+test = false
+
+[dependencies]
+cose_sign1_primitives = { path = "../../../primitives/cose/sign1" }
+cose_sign1_signing = { path = ".." }
+cose_sign1_factories = { path = "../../factories" }
+cbor_primitives = { path = "../../../primitives/cbor" }
+crypto_primitives = { path = "../../../primitives/crypto" }
+
+# CBOR provider — exactly one must be enabled (default: EverParse)
+cbor_primitives_everparse = { path = "../../../primitives/cbor/everparse", optional = true }
+
+libc = "0.2"
+once_cell.workspace = true
+
+[features]
+default = ["cbor-everparse"]
+cbor-everparse = ["dep:cbor_primitives_everparse"]
+
+[dev-dependencies]
+tempfile = "3"
+openssl = { workspace = true }
+cose_sign1_crypto_openssl_ffi = { path = "../../../primitives/crypto/openssl/ffi" }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }

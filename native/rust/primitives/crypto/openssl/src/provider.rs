@@ -49,6 +49,39 @@ impl CryptoProvider for OpenSslCryptoProvider {
     }
 }
 
+impl OpenSslCryptoProvider {
+    /// Creates a signer from a PEM-encoded private key.
+    ///
+    /// Auto-detects the COSE algorithm from the key type (EC → ES256,
+    /// RSA → RS256, Ed25519 → EdDSA).
+    pub fn signer_from_pem(
+        &self,
+        private_key_pem: &[u8],
+    ) -> Result<Box<dyn CryptoSigner>, CryptoError> {
+        let pkey = openssl::pkey::PKey::private_key_from_pem(private_key_pem)
+            .map_err(|e| CryptoError::InvalidKey(format!("Failed to parse PEM private key: {}", e)))?;
+
+        let cose_algorithm = detect_algorithm_from_private_key(&pkey)?;
+        let signer = EvpSigner::from_pem(private_key_pem, cose_algorithm)?;
+        Ok(Box::new(signer))
+    }
+
+    /// Creates a verifier from a PEM-encoded public key.
+    ///
+    /// Auto-detects the COSE algorithm from the key type.
+    pub fn verifier_from_pem(
+        &self,
+        public_key_pem: &[u8],
+    ) -> Result<Box<dyn CryptoVerifier>, CryptoError> {
+        let pkey = openssl::pkey::PKey::public_key_from_pem(public_key_pem)
+            .map_err(|e| CryptoError::InvalidKey(format!("Failed to parse PEM public key: {}", e)))?;
+
+        let cose_algorithm = detect_algorithm_from_public_key(&pkey)?;
+        let verifier = EvpVerifier::from_pem(public_key_pem, cose_algorithm)?;
+        Ok(Box::new(verifier))
+    }
+}
+
 /// Detects the COSE algorithm from a private key.
 fn detect_algorithm_from_private_key(
     pkey: &openssl::pkey::PKey<openssl::pkey::Private>,

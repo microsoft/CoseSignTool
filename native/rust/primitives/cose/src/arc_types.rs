@@ -69,6 +69,22 @@ impl ArcSlice {
     pub fn is_empty(&self) -> bool {
         self.range.is_empty()
     }
+
+    /// Returns the backing `Arc<[u8]>`.
+    ///
+    /// Use together with [`range`](Self::range) to share the buffer with
+    /// other zero-copy structures (e.g., parse a receipt into a
+    /// `CoseSign1Message` without copying).
+    #[inline]
+    pub fn arc(&self) -> &Arc<[u8]> {
+        &self.data
+    }
+
+    /// Returns the byte range within the backing `Arc`.
+    #[inline]
+    pub fn range(&self) -> &Range<usize> {
+        &self.range
+    }
 }
 
 impl AsRef<[u8]> for ArcSlice {

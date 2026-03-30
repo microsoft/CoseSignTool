@@ -108,9 +108,10 @@ pub use crate::error::{
 };
 
 pub use crate::message::{
-    cose_sign1_message_alg, cose_sign1_message_free, cose_sign1_message_is_detached,
-    cose_sign1_message_parse, cose_sign1_message_payload, cose_sign1_message_protected_bytes,
-    cose_sign1_message_signature, cose_sign1_message_verify, cose_sign1_message_verify_detached,
+    cose_sign1_message_alg, cose_sign1_message_as_bytes, cose_sign1_message_free,
+    cose_sign1_message_is_detached, cose_sign1_message_parse, cose_sign1_message_payload,
+    cose_sign1_message_protected_bytes, cose_sign1_message_signature, cose_sign1_message_verify,
+    cose_sign1_message_verify_detached,
 };
 
 /// ABI version for this library.

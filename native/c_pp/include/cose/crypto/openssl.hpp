@@ -69,13 +69,41 @@ public:
      * @return CryptoSignerHandle for signing operations
      */
     CryptoSignerHandle SignerFromDer(const std::vector<uint8_t>& private_key_der) const;
-    
+
+    /**
+     * @brief Create a signer from a PEM-encoded private key
+     * @param private_key_pem PEM-encoded private key bytes (including BEGIN/END markers)
+     * @return CryptoSignerHandle for signing operations
+     */
+    CryptoSignerHandle SignerFromPem(const std::vector<uint8_t>& private_key_pem) const;
+
+    /**
+     * @brief Create a signer from a PEM-encoded private key (string overload)
+     * @param private_key_pem PEM string (including BEGIN/END markers)
+     * @return CryptoSignerHandle for signing operations
+     */
+    CryptoSignerHandle SignerFromPem(const std::string& private_key_pem) const;
+
     /**
      * @brief Create a verifier from a DER-encoded public key
      * @param public_key_der DER-encoded public key bytes
      * @return CryptoVerifierHandle for verification operations
      */
     CryptoVerifierHandle VerifierFromDer(const std::vector<uint8_t>& public_key_der) const;
+
+    /**
+     * @brief Create a verifier from a PEM-encoded public key
+     * @param public_key_pem PEM-encoded public key bytes (including BEGIN/END markers)
+     * @return CryptoVerifierHandle for verification operations
+     */
+    CryptoVerifierHandle VerifierFromPem(const std::vector<uint8_t>& public_key_pem) const;
+
+    /**
+     * @brief Create a verifier from a PEM-encoded public key (string overload)
+     * @param public_key_pem PEM string (including BEGIN/END markers)
+     * @return CryptoVerifierHandle for verification operations
+     */
+    CryptoVerifierHandle VerifierFromPem(const std::string& public_key_pem) const;
     
     /**
      * @brief Get native handle for C API interop
@@ -324,6 +352,62 @@ inline CryptoVerifierHandle VerifierFromRsaJwk(
     ));
     if (!verifier) {
         throw cose_error("Failed to create RSA JWK verifier");
+    }
+    return CryptoVerifierHandle(verifier);
+}
+
+inline CryptoSignerHandle CryptoProvider::SignerFromPem(const std::vector<uint8_t>& private_key_pem) const {
+    cose_crypto_signer_t* signer = nullptr;
+    detail::ThrowIfNotOk(cose_crypto_openssl_signer_from_pem(
+        handle_,
+        private_key_pem.data(),
+        private_key_pem.size(),
+        &signer
+    ));
+    if (!signer) {
+        throw cose_error("Failed to create signer from PEM");
+    }
+    return CryptoSignerHandle(signer);
+}
+
+inline CryptoSignerHandle CryptoProvider::SignerFromPem(const std::string& private_key_pem) const {
+    cose_crypto_signer_t* signer = nullptr;
+    detail::ThrowIfNotOk(cose_crypto_openssl_signer_from_pem(
+        handle_,
+        reinterpret_cast<const uint8_t*>(private_key_pem.data()),
+        private_key_pem.size(),
+        &signer
+    ));
+    if (!signer) {
+        throw cose_error("Failed to create signer from PEM");
+    }
+    return CryptoSignerHandle(signer);
+}
+
+inline CryptoVerifierHandle CryptoProvider::VerifierFromPem(const std::vector<uint8_t>& public_key_pem) const {
+    cose_crypto_verifier_t* verifier = nullptr;
+    detail::ThrowIfNotOk(cose_crypto_openssl_verifier_from_pem(
+        handle_,
+        public_key_pem.data(),
+        public_key_pem.size(),
+        &verifier
+    ));
+    if (!verifier) {
+        throw cose_error("Failed to create verifier from PEM");
+    }
+    return CryptoVerifierHandle(verifier);
+}
+
+inline CryptoVerifierHandle CryptoProvider::VerifierFromPem(const std::string& public_key_pem) const {
+    cose_crypto_verifier_t* verifier = nullptr;
+    detail::ThrowIfNotOk(cose_crypto_openssl_verifier_from_pem(
+        handle_,
+        reinterpret_cast<const uint8_t*>(public_key_pem.data()),
+        public_key_pem.size(),
+        &verifier
+    ));
+    if (!verifier) {
+        throw cose_error("Failed to create verifier from PEM");
     }
     return CryptoVerifierHandle(verifier);
 }

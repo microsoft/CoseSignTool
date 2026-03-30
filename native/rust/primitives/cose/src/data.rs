@@ -50,10 +50,21 @@ impl<T: Read + Seek + Send> ReadSeek for T {}
 /// ```
 #[derive(Clone)]
 pub enum CoseData {
-    /// In-memory: entire CBOR message in a shared buffer.
+    /// In-memory: COSE message bytes in a shared buffer.
+    ///
+    /// The `range` field defines the logical view into `raw`. For top-level
+    /// messages this spans `0..raw.len()`. For sub-messages (e.g., receipts
+    /// embedded in a parent's unprotected header) it is a sub-range — enabling
+    /// zero-copy parsing that shares the parent's allocation.
+    ///
+    /// Sub-structure ranges (protected headers, payload, signature) are stored
+    /// as **absolute** offsets into `raw`, so [`slice`](Self::slice) indexes
+    /// directly without translation.
     Buffered {
-        /// The full raw CBOR bytes of the COSE message.
+        /// Shared backing buffer (may be the full parent message).
         raw: Arc<[u8]>,
+        /// Logical byte range of *this* message within `raw`.
+        range: Range<usize>,
     },
     /// Streaming: headers and signature buffered, payload accessed via seek.
     Streamed {
@@ -78,9 +89,10 @@ pub enum CoseData {
 impl std::fmt::Debug for CoseData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Buffered { raw } => f
+            Self::Buffered { raw, range } => f
                 .debug_struct("CoseData::Buffered")
-                .field("len", &raw.len())
+                .field("buf_len", &raw.len())
+                .field("range", range)
                 .finish(),
             Self::Streamed {
                 header_buf,
@@ -110,21 +122,44 @@ impl CoseData {
 
     /// Creates a new `CoseData` taking ownership of `data`.
     pub fn new(data: Vec<u8>) -> Self {
+        let len = data.len();
         Self::Buffered {
             raw: Arc::from(data),
+            range: 0..len,
         }
     }
 
     /// Creates a new `CoseData` by copying `data`.
     pub fn from_slice(data: &[u8]) -> Self {
+        let len = data.len();
         Self::Buffered {
             raw: Arc::from(data),
+            range: 0..len,
         }
     }
 
     /// Wraps an existing `Arc<[u8]>`.
     pub fn from_arc(arc: Arc<[u8]>) -> Self {
-        Self::Buffered { raw: arc }
+        let len = arc.len();
+        Self::Buffered { raw: arc, range: 0..len }
+    }
+
+    /// Wraps a sub-range of an existing `Arc<[u8]>` — **zero-copy**.
+    ///
+    /// The resulting `CoseData` shares the parent's allocation. All
+    /// sub-structure ranges (headers, payload, signature) are expected to
+    /// be **absolute** offsets into `raw` (i.e., already offset-adjusted).
+    ///
+    /// [`as_bytes`](Self::as_bytes) returns only the bytes within `range`.
+    /// [`slice`](Self::slice) indexes directly into `raw` using absolute
+    /// offsets.
+    pub fn from_arc_range(arc: Arc<[u8]>, range: Range<usize>) -> Self {
+        debug_assert!(
+            range.end <= arc.len(),
+            "CoseData::from_arc_range: range {}..{} out of bounds for len {}",
+            range.start, range.end, arc.len()
+        );
+        Self::Buffered { raw: arc, range }
     }
 
     // ========================================================================
@@ -263,25 +298,30 @@ impl CoseData {
     // Accessors (work for both variants)
     // ========================================================================
 
-    /// Returns the backing buffer bytes.
+    /// Returns the logical message bytes.
     ///
-    /// - **Buffered**: the full raw CBOR message.
+    /// - **Buffered**: the CBOR bytes within `range` (full buffer for
+    ///   top-level messages, sub-range for zero-copy sub-messages).
     /// - **Streamed**: the `header_buf` (protected + unprotected + signature).
     #[inline]
     pub fn as_bytes(&self) -> &[u8] {
         match self {
-            Self::Buffered { raw } => raw,
+            Self::Buffered { raw, range } => &raw[range.clone()],
             Self::Streamed { header_buf, .. } => header_buf,
         }
     }
 
-    /// Returns a sub-slice of the backing buffer.
+    /// Returns a sub-slice of the backing buffer using an **absolute** range.
     ///
-    /// Ranges are relative to the backing buffer (full message for
-    /// `Buffered`, `header_buf` for `Streamed`).
+    /// Sub-structure ranges (headers, payload, signature) are stored as
+    /// absolute offsets into the backing `Arc`, so this method indexes
+    /// directly without translation.
     #[inline]
     pub fn slice(&self, range: &Range<usize>) -> &[u8] {
-        &self.as_bytes()[range.clone()]
+        match self {
+            Self::Buffered { raw, .. } => &raw[range.clone()],
+            Self::Streamed { header_buf, .. } => &header_buf[range.clone()],
+        }
     }
 
     /// Returns a shared reference to the backing [`Arc`] for sub-structures
@@ -289,18 +329,18 @@ impl CoseData {
     #[inline]
     pub fn arc(&self) -> &Arc<[u8]> {
         match self {
-            Self::Buffered { raw } => raw,
+            Self::Buffered { raw, .. } => raw,
             Self::Streamed { header_buf, .. } => header_buf,
         }
     }
 
-    /// Returns the length of the backing buffer.
+    /// Returns the length of the logical message bytes.
     #[inline]
     pub fn len(&self) -> usize {
         self.as_bytes().len()
     }
 
-    /// Returns `true` if the backing buffer is empty.
+    /// Returns `true` if the logical message bytes are empty.
     #[inline]
     pub fn is_empty(&self) -> bool {
         self.as_bytes().is_empty()

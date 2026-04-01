@@ -177,7 +177,10 @@ fn builder_sign_to_message_happy_path() {
     };
 
     assert_eq!(rc, COSE_SIGN1_SIGNING_OK, "Error: {:?}", error_message(err));
-    assert!(!out_message.is_null(), "out_message should be non-null on success");
+    assert!(
+        !out_message.is_null(),
+        "out_message should be non-null on success"
+    );
 
     // Clean up (builder consumed by sign)
     unsafe {
@@ -1574,7 +1577,13 @@ fn builder_sign_to_message_sign_failure() {
     let mut key: *mut CoseKeyHandle = ptr::null_mut();
     let key_type = b"EC2\0".as_ptr() as *const libc::c_char;
     let rc = unsafe {
-        cose_key_from_callback(-7, key_type, failing_sign_callback, ptr::null_mut(), &mut key)
+        cose_key_from_callback(
+            -7,
+            key_type,
+            failing_sign_callback,
+            ptr::null_mut(),
+            &mut key,
+        )
     };
     assert_eq!(rc, COSE_SIGN1_SIGNING_OK);
 

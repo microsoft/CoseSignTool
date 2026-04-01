@@ -15,6 +15,7 @@ use cose_sign1_factories_ffi::error::{
     CoseSign1FactoriesErrorHandle, FFI_ERR_FACTORY_FAILED, FFI_ERR_NULL_POINTER, FFI_OK,
 };
 use cose_sign1_factories_ffi::{
+    CoseSign1FactoriesHandle, CoseSign1MessageHandle, CryptoSignerHandle,
     cose_sign1_factories_create_from_crypto_signer, cose_sign1_factories_error_free,
     cose_sign1_factories_error_message, cose_sign1_factories_free,
     cose_sign1_factories_sign_direct_detached_to_message,
@@ -24,7 +25,6 @@ use cose_sign1_factories_ffi::{
     cose_sign1_factories_sign_indirect_file_to_message,
     cose_sign1_factories_sign_indirect_streaming_to_message,
     cose_sign1_factories_sign_indirect_to_message, cose_sign1_factories_string_free,
-    CoseSign1FactoriesHandle, CoseSign1MessageHandle, CryptoSignerHandle,
 };
 
 use crypto_primitives::CryptoSigner;
@@ -90,9 +90,7 @@ unsafe fn free_message_handle(handle: *mut CoseSign1MessageHandle) {
         //
         // This mirrors what `cose_sign1_message_free` does in
         // cose_sign1_primitives_ffi.
-        drop(unsafe {
-            Box::from_raw(handle as *mut cose_sign1_primitives::CoseSign1Message)
-        });
+        drop(unsafe { Box::from_raw(handle as *mut cose_sign1_primitives::CoseSign1Message) });
     }
 }
 
@@ -1108,7 +1106,10 @@ fn sign_indirect_streaming_to_message_attempt_sign() {
     // Indirect streaming signing may succeed with the mock signer.
     // Handle both success and expected factory failure.
     if rc == 0 {
-        assert!(!out_message.is_null(), "Success must produce a message handle");
+        assert!(
+            !out_message.is_null(),
+            "Success must produce a message handle"
+        );
     } else {
         assert_eq!(rc, FFI_ERR_FACTORY_FAILED);
         assert!(!err.is_null());

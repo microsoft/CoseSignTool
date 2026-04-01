@@ -572,11 +572,10 @@ try {
     }
     if ($nightlyAvail) {
         $toolchainArg = '+nightly'
-        # Set RUSTFLAGS to enable coverage_nightly cfg so that
-        # #[cfg_attr(coverage_nightly, coverage(off))] attributes are activated.
-        # cargo-llvm-cov on nightly enables the coverage(off) attribute but the
-        # cfg flag must be passed explicitly.
-        $env:RUSTFLAGS = ($env:RUSTFLAGS, '--cfg coverage_nightly' | Where-Object { $_ }) -join ' '
+        # cargo-llvm-cov automatically sets --cfg coverage_nightly when using
+        # nightly, which activates #[cfg_attr(coverage_nightly, coverage(off))]
+        # attributes and properly excludes untestable functions from the
+        # coverage denominator.
         Write-Host "Using nightly toolchain for coverage (enables coverage(off) attribute)" -ForegroundColor Cyan
     } else {
         Write-Host "Nightly toolchain not found; using default (coverage(off) attributes will be ignored)" -ForegroundColor Yellow

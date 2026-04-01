@@ -52,8 +52,9 @@ TEST(SmokeC, BuilderCreatesAndBuilds) {
     assert_ok(cose_sign1_validator_builder_with_akv_pack(builder), "cose_sign1_validator_builder_with_akv_pack");
 #endif
 
-#ifdef COSE_HAS_TRUST_PACK
+#if defined(COSE_HAS_TRUST_PACK) && (defined(COSE_HAS_CERTIFICATES_PACK) || defined(COSE_HAS_MST_PACK) || defined(COSE_HAS_AKV_PACK))
     // Attach a bundled plan from pack defaults.
+    // Requires at least one extension pack to contribute default plans.
     {
         cose_sign1_trust_plan_builder_t* plan_builder = nullptr;
         cose_sign1_compiled_trust_plan_t* plan = nullptr;

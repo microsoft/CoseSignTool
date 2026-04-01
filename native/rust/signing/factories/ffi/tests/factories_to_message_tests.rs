@@ -15,7 +15,6 @@ use cose_sign1_factories_ffi::error::{
     CoseSign1FactoriesErrorHandle, FFI_ERR_FACTORY_FAILED, FFI_ERR_NULL_POINTER, FFI_OK,
 };
 use cose_sign1_factories_ffi::{
-    CoseSign1FactoriesHandle, CoseSign1MessageHandle, CryptoSignerHandle,
     cose_sign1_factories_create_from_crypto_signer, cose_sign1_factories_error_free,
     cose_sign1_factories_error_message, cose_sign1_factories_free,
     cose_sign1_factories_sign_direct_detached_to_message,
@@ -25,6 +24,7 @@ use cose_sign1_factories_ffi::{
     cose_sign1_factories_sign_indirect_file_to_message,
     cose_sign1_factories_sign_indirect_streaming_to_message,
     cose_sign1_factories_sign_indirect_to_message, cose_sign1_factories_string_free,
+    CoseSign1FactoriesHandle, CoseSign1MessageHandle, CryptoSignerHandle,
 };
 
 use crypto_primitives::CryptoSigner;

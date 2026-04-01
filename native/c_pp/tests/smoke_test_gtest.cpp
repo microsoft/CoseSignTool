@@ -84,6 +84,7 @@ TEST(Smoke, BundledTrustPlanCompilesAndAttaches) {
 #endif
 
 #ifdef COSE_HAS_TRUST_PACK
+TEST(Smoke, AllowAllAndDenyAllPlansCompile) {
     auto builder = cose::ValidatorBuilder();
     auto tp = cose::TrustPlanBuilder(builder);
 

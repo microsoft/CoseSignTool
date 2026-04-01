@@ -64,7 +64,7 @@ TEST(Smoke, AkvPackBuildsDefault) {
 }
 #endif
 
-#ifdef COSE_HAS_TRUST_PACK
+#if defined(COSE_HAS_TRUST_PACK) && (defined(COSE_HAS_CERTIFICATES_PACK) || defined(COSE_HAS_MST_PACK) || defined(COSE_HAS_AKV_PACK))
 TEST(Smoke, BundledTrustPlanCompilesAndAttaches) {
 #ifdef COSE_HAS_CERTIFICATES_PACK
     cose::ValidatorBuilder cert_builder;
@@ -81,8 +81,9 @@ TEST(Smoke, BundledTrustPlanCompilesAndAttaches) {
     auto validator = builder.Build();
     (void)validator;
 }
+#endif
 
-TEST(Smoke, AllowAllAndDenyAllPlansCompile) {
+#ifdef COSE_HAS_TRUST_PACK
     auto builder = cose::ValidatorBuilder();
     auto tp = cose::TrustPlanBuilder(builder);
 

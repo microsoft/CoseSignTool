@@ -74,8 +74,9 @@ int main(void) {
     }
     printf("✓ AKV pack added\n");
 #endif
-#ifdef COSE_HAS_TRUST_PACK
+#if defined(COSE_HAS_TRUST_PACK) && (defined(COSE_HAS_CERTIFICATES_PACK) || defined(COSE_HAS_MST_PACK) || defined(COSE_HAS_AKV_PACK))
     // Trust-plan authoring: build a bundled plan from pack defaults and attach it.
+    // Requires at least one extension pack to contribute default plans.
     {
         cose_sign1_trust_plan_builder_t* plan_builder = NULL;
         status = cose_sign1_trust_plan_builder_new_from_validator_builder(builder, &plan_builder);
@@ -161,7 +162,9 @@ int main(void) {
 
         printf("✓ Compiled trust plan attached\n");
     }
+#endif
 
+#ifdef COSE_HAS_TRUST_PACK
     // Trust-policy authoring: compile a small custom policy and attach it (overrides prior plan).
     {
         cose_sign1_trust_policy_builder_t* policy_builder = NULL;

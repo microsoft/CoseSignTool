@@ -71,8 +71,9 @@ int main() {
         }
 #endif
 
-#ifdef COSE_HAS_TRUST_PACK
+#if defined(COSE_HAS_TRUST_PACK) && (defined(COSE_HAS_CERTIFICATES_PACK) || defined(COSE_HAS_MST_PACK) || defined(COSE_HAS_AKV_PACK))
     // Test 7: Compile and attach a bundled trust plan
+    // Requires at least one extension pack to contribute default plans.
     {
 #ifdef COSE_HAS_CERTIFICATES_PACK
         auto builder = cose::ValidatorBuilderWithCertificates();
@@ -89,8 +90,9 @@ int main() {
         (void)validator;
         std::cout << "✓ Bundled trust plan compiled and attached\n";
     }
+#endif
 
-    // Test 8: AllowAll/DenyAll plan compilation (no attach)
+#ifdef COSE_HAS_TRUST_PACK
     {
         auto builder = cose::ValidatorBuilder();
         auto tp = cose::TrustPlanBuilder(builder);

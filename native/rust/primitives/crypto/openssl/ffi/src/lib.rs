@@ -301,7 +301,87 @@ pub unsafe extern "C" fn cose_crypto_openssl_signer_from_der(
     })
 }
 
-/// Sign data using the given signer.
+/// Create a signer from PEM-encoded private key bytes.
+///
+/// # Safety
+///
+/// - `provider` must be a valid provider handle
+/// - `private_key_pem` must be a valid pointer to `len` bytes of PEM data
+/// - `out_signer` must be a valid, non-null, aligned pointer
+/// - Caller owns the returned signer and must free it with `cose_crypto_signer_free`
+#[no_mangle]
+pub unsafe extern "C" fn cose_crypto_openssl_signer_from_pem(
+    provider: *const cose_crypto_provider_t,
+    private_key_pem: *const u8,
+    len: usize,
+    out_signer: *mut *mut cose_crypto_signer_t,
+) -> cose_status_t {
+    with_catch_unwind(|| {
+        if provider.is_null() {
+            anyhow::bail!("provider must not be null");
+        }
+        if private_key_pem.is_null() {
+            anyhow::bail!("private_key_pem must not be null");
+        }
+        if out_signer.is_null() {
+            anyhow::bail!("out_signer must not be null");
+        }
+
+        let provider_ref = unsafe { &*(provider as *const OpenSslCryptoProvider) };
+        let key_bytes = unsafe { slice::from_raw_parts(private_key_pem, len) };
+
+        let signer = provider_ref
+            .signer_from_pem(key_bytes)
+            .map_err(|e| anyhow::anyhow!("Failed to create signer from PEM: {}", e))?;
+
+        unsafe {
+            *out_signer = Box::into_raw(signer) as *mut cose_crypto_signer_t;
+        }
+
+        Ok(COSE_OK)
+    })
+}
+
+/// Create a verifier from PEM-encoded public key bytes.
+///
+/// # Safety
+///
+/// - `provider` must be a valid provider handle
+/// - `public_key_pem` must be a valid pointer to `len` bytes of PEM data
+/// - `out_verifier` must be a valid, non-null, aligned pointer
+/// - Caller owns the returned verifier and must free it with `cose_crypto_verifier_free`
+#[no_mangle]
+pub unsafe extern "C" fn cose_crypto_openssl_verifier_from_pem(
+    provider: *const cose_crypto_provider_t,
+    public_key_pem: *const u8,
+    len: usize,
+    out_verifier: *mut *mut cose_crypto_verifier_t,
+) -> cose_status_t {
+    with_catch_unwind(|| {
+        if provider.is_null() {
+            anyhow::bail!("provider must not be null");
+        }
+        if public_key_pem.is_null() {
+            anyhow::bail!("public_key_pem must not be null");
+        }
+        if out_verifier.is_null() {
+            anyhow::bail!("out_verifier must not be null");
+        }
+
+        let provider_ref = unsafe { &*(provider as *const OpenSslCryptoProvider) };
+        let key_bytes = unsafe { slice::from_raw_parts(public_key_pem, len) };
+
+        let verifier = provider_ref
+            .verifier_from_pem(key_bytes)
+            .map_err(|e| anyhow::anyhow!("Failed to create verifier from PEM: {}", e))?;
+
+        unsafe {
+            *out_verifier = Box::into_raw(verifier) as *mut cose_crypto_verifier_t;
+        }
+
+        Ok(COSE_OK)
+    })
+}
 ///
 /// # Safety
 ///

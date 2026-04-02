@@ -1,0 +1,20 @@
+[package]
+name = "cose_sign1_headers"
+edition.workspace = true
+license.workspace = true
+version = "0.1.0"
+
+[lib]
+test = false
+
+[dependencies]
+cose_sign1_primitives = { path = "../../primitives/cose/sign1" }
+cose_sign1_signing = { path = "../core" }
+cbor_primitives = { path = "../../primitives/cbor" }
+did_x509 = { path = "../../did/x509" }
+
+[dev-dependencies]
+cbor_primitives_everparse = { path = "../../primitives/cbor/everparse" }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly)'] }

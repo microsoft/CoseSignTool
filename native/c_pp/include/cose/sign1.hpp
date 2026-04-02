@@ -16,6 +16,28 @@
 #include <optional>
 #include <stdexcept>
 
+namespace cose {
+
+/**
+ * @brief Borrowed view of bytes owned by a Rust handle.
+ *
+ * Valid only while the owning handle is alive. Do NOT store a ByteView
+ * beyond the lifetime of the object it was obtained from.
+ */
+struct ByteView {
+    const uint8_t* data;
+    size_t size;
+
+    ByteView() : data(nullptr), size(0) {}
+    ByteView(const uint8_t* d, size_t s) : data(d), size(s) {}
+
+    bool empty() const { return size == 0; }
+    const uint8_t* begin() const { return data; }
+    const uint8_t* end() const { return data + size; }
+};
+
+} // namespace cose
+
 namespace cose::sign1 {
 
 /**
@@ -115,17 +137,19 @@ public:
     }
 
     /**
-     * @brief Get a byte string value from the header map
+     * @brief Get a byte string value from the header map (borrowed view)
+     *
+     * Lifetime: valid while this CoseHeaderMap handle is alive.
      * 
      * @param label Integer label for the header
-     * @return Optional containing the byte vector if found, empty otherwise
+     * @return Optional containing a borrowed byte view if found, empty otherwise
      */
-    std::optional<std::vector<uint8_t>> GetBytes(int64_t label) const {
+    std::optional<ByteView> GetBytes(int64_t label) const {
         const uint8_t* bytes = nullptr;
         size_t len = 0;
         int32_t status = cose_headermap_get_bytes(handle_, label, &bytes, &len);
         if (status == COSE_SIGN1_OK && bytes) {
-            return std::vector<uint8_t>(bytes, bytes + len);
+            return ByteView(bytes, len);
         }
         return std::nullopt;
     }
@@ -293,18 +317,20 @@ public:
     }
 
     /**
-     * @brief Get the embedded payload from the message
+     * @brief Get the embedded payload from the message (borrowed view)
+     *
+     * Lifetime: valid while this CoseSign1Message handle is alive.
      * 
-     * @return Optional containing the payload bytes if embedded, empty if detached
+     * @return Optional containing a borrowed byte view if embedded, empty if detached
      * @throws primitives_error if an error occurs (other than detached payload)
      */
-    std::optional<std::vector<uint8_t>> Payload() const {
+    std::optional<ByteView> Payload() const {
         const uint8_t* payload = nullptr;
         size_t len = 0;
         
         int32_t status = cose_sign1_message_payload(handle_, &payload, &len);
         if (status == COSE_SIGN1_OK && payload) {
-            return std::vector<uint8_t>(payload, payload + len);
+            return ByteView(payload, len);
         }
         
         // If payload is missing (detached), return empty optional
@@ -321,12 +347,14 @@ public:
     }
 
     /**
-     * @brief Get the protected headers bytes from the message
+     * @brief Get the protected headers bytes from the message (borrowed view)
+     *
+     * Lifetime: valid while this CoseSign1Message handle is alive.
      * 
-     * @return Vector containing the protected headers bytes
+     * @return Borrowed byte view of the protected headers bytes
      * @throws primitives_error if operation fails
      */
-    std::vector<uint8_t> ProtectedBytes() const {
+    ByteView ProtectedBytes() const {
         const uint8_t* bytes = nullptr;
         size_t len = 0;
         
@@ -339,16 +367,18 @@ public:
             throw primitives_error("Protected bytes pointer is null");
         }
         
-        return std::vector<uint8_t>(bytes, bytes + len);
+        return ByteView(bytes, len);
     }
 
     /**
-     * @brief Get the signature bytes from the message
+     * @brief Get the signature bytes from the message (borrowed view)
+     *
+     * Lifetime: valid while this CoseSign1Message handle is alive.
      * 
-     * @return Vector containing the signature bytes
+     * @return Borrowed byte view of the signature bytes
      * @throws primitives_error if operation fails
      */
-    std::vector<uint8_t> Signature() const {
+    ByteView Signature() const {
         const uint8_t* signature = nullptr;
         size_t len = 0;
         
@@ -361,8 +391,37 @@ public:
             throw primitives_error("Signature pointer is null");
         }
         
-        return std::vector<uint8_t>(signature, signature + len);
+        return ByteView(signature, len);
     }
+
+    /**
+     * @brief Get the full raw CBOR bytes of the message (borrowed view)
+     *
+     * Lifetime: valid while this CoseSign1Message handle is alive.
+     * 
+     * @return Borrowed byte view of the entire COSE_Sign1 CBOR
+     * @throws primitives_error if operation fails
+     */
+    ByteView AsBytes() const {
+        const uint8_t* bytes = nullptr;
+        size_t len = 0;
+
+        int32_t status = cose_sign1_message_as_bytes(handle_, &bytes, &len);
+        if (status != COSE_SIGN1_OK) {
+            throw primitives_error("Failed to get message bytes (code=" + std::to_string(status) + ")");
+        }
+
+        if (!bytes) {
+            throw primitives_error("Message bytes pointer is null");
+        }
+
+        return ByteView(bytes, len);
+    }
+
+    /**
+     * @brief Get the native handle for C API interop
+     */
+    CoseSign1MessageHandle* native_handle() const { return handle_; }
 
 private:
     CoseSign1MessageHandle* handle_;

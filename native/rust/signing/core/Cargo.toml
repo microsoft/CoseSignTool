@@ -1,0 +1,18 @@
+[package]
+name = "cose_sign1_signing"
+edition.workspace = true
+license.workspace = true
+version = "0.1.0"
+description = "Core signing abstractions for COSE_Sign1 messages"
+
+[lib]
+test = false
+
+[dependencies]
+cose_sign1_primitives = { path = "../../primitives/cose/sign1" }
+cbor_primitives = { path = "../../primitives/cbor" }
+crypto_primitives = { path = "../../primitives/crypto" }
+tracing = { workspace = true }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly)'] }

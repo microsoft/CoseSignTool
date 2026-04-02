@@ -52,24 +52,83 @@ pub use cose_primitives::lazy_headers::LazyHeaderMap;
 /// [`ArcStr`](cose_primitives::ArcStr).
 ///
 /// Cloning is cheap: the `Arc` is reference-counted and only the header maps
+/// Lifecycle state of a [`CoseSign1Message`].
+///
+/// Controls which parts of the message may be mutated:
+///
+/// - **Composing**: All fields are mutable. The message has not been signed.
+/// - **Signed**: Protected headers, payload, and signature are immutable.
+///   Only unprotected headers may be changed (setting the dirty flag).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum MessageState {
+    /// Message is under construction — all fields mutable.
+    Composing,
+    /// Message has been signed or parsed — protected headers, payload, and
+    /// signature are locked. Unprotected headers remain mutable.
+    Signed,
+}
+
+/// A parsed or constructed COSE_Sign1 message.
+///
+/// COSE_Sign1 structure per RFC 9052:
+///
+/// ```text
+/// COSE_Sign1 = [
+///     protected : bstr .cbor protected-header-map,
+///     unprotected : unprotected-header-map,
+///     payload : bstr / nil,
+///     signature : bstr
+/// ]
+/// ```
+///
+/// The message may be optionally wrapped in a CBOR tag (18).
+///
+/// ## Lifecycle
+///
+/// Messages exist in one of two states (see [`MessageState`]):
+///
+/// - **Composing**: Created via [`CoseSign1Builder`]. All fields are mutable.
+///   Call [`CoseSign1Builder::sign`] to transition to `Signed`.
+/// - **Signed**: Created via [`parse`](Self::parse) or after signing. Protected
+///   headers, payload, and signature are immutable. Unprotected headers may
+///   still be modified (e.g., adding receipts), which sets a dirty flag.
+///   [`encode`](Self::encode) returns the backing bytes directly if clean,
+///   or re-serializes if dirty.
+///
+/// ## Zero-Copy Architecture
+///
+/// Uses a single-backing-buffer architecture: the parsed message
+/// owns exactly one allocation (the raw CBOR bytes via [`CoseData`]), and all
+/// byte-oriented fields are represented as `Range<usize>` into that buffer.
+/// Headers are lazily parsed through [`LazyHeaderMap`] — zero-copy for
+/// byte/text header values via [`ArcSlice`](cose_primitives::ArcSlice) /
+/// [`ArcStr`](cose_primitives::ArcStr).
+///
+/// Cloning is cheap: the `Arc` is reference-counted and only the header maps
 /// are deep-copied (if already parsed).
 #[derive(Clone)]
 pub struct CoseSign1Message {
     /// Shared COSE data buffer.
     data: CoseData,
     /// Protected header bytes range + lazy parsed map.
-    protected: LazyHeaderMap,
+    pub protected: LazyHeaderMap,
     /// Unprotected header bytes range + lazy parsed map.
-    unprotected: LazyHeaderMap,
+    pub unprotected: LazyHeaderMap,
     /// Byte range of the payload within `raw` (None if detached/nil).
     payload_range: Option<Range<usize>>,
     /// Byte range of the signature within `raw`.
     signature_range: Range<usize>,
+    /// Current lifecycle state.
+    state: MessageState,
+    /// True if unprotected headers have been mutated since last encode/parse.
+    dirty: bool,
 }
 
 impl std::fmt::Debug for CoseSign1Message {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("CoseSign1Message")
+            .field("state", &self.state)
+            .field("dirty", &self.dirty)
             .field("protected_headers", self.protected.headers())
             .field("unprotected", self.unprotected.headers())
             .field("payload_len", &self.payload_range.as_ref().map(|r| r.len()))
@@ -175,7 +234,135 @@ impl CoseSign1Message {
             unprotected,
             payload_range,
             signature_range,
+            state: MessageState::Signed,
+            dirty: false,
         })
+    }
+
+    /// Parses a COSE_Sign1 message from a sub-range of a shared buffer.
+    ///
+    /// This is the **zero-copy** path for parsing nested messages such as
+    /// receipts embedded in the unprotected header of a parent message.
+    /// The parsed message shares the parent's `Arc<[u8]>` — no bytes are
+    /// copied.
+    ///
+    /// Use [`ArcSlice::arc`] and [`ArcSlice::range`] to obtain the
+    /// arguments from a header value extracted via [`extract_receipts`] or
+    /// similar.
+    ///
+    /// # Arguments
+    ///
+    /// * `arc` - The shared backing buffer (typically the parent message's Arc)
+    /// * `range` - The byte range within `arc` containing the COSE_Sign1 CBOR
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// let receipt_slice: &ArcSlice = /* from unprotected header */;
+    /// let receipt = CoseSign1Message::parse_from_shared(
+    ///     receipt_slice.arc().clone(),
+    ///     receipt_slice.range().clone(),
+    /// )?;
+    /// ```
+    pub fn parse_from_shared(arc: Arc<[u8]>, range: Range<usize>) -> Result<Self, CoseSign1Error> {
+        let data = &arc[range.clone()];
+        let offset = range.start;
+        let mut decoder = crate::provider::decoder(data);
+
+        // Check for optional tag
+        let typ = decoder
+            .peek_type()
+            .map_err(|e| CoseSign1Error::CborError(e.to_string()))?;
+
+        if typ == CborType::Tag {
+            let tag = decoder
+                .decode_tag()
+                .map_err(|e| CoseSign1Error::CborError(e.to_string()))?;
+            if tag != COSE_SIGN1_TAG {
+                return Err(CoseSign1Error::InvalidMessage(format!(
+                    "unexpected COSE tag: expected {}, got {}",
+                    COSE_SIGN1_TAG, tag
+                )));
+            }
+        }
+
+        // Decode the array
+        let len = decoder
+            .decode_array_len()
+            .map_err(|e| CoseSign1Error::CborError(e.to_string()))?;
+
+        match len {
+            Some(4) => {}
+            Some(n) => {
+                return Err(CoseSign1Error::InvalidMessage(format!(
+                    "COSE_Sign1 must have 4 elements, got {}",
+                    n
+                )))
+            }
+            None => {
+                return Err(CoseSign1Error::InvalidMessage(
+                    "COSE_Sign1 must be definite-length array".to_string(),
+                ))
+            }
+        }
+
+        // 1. Protected header (bstr containing CBOR map)
+        let protected_slice = decoder
+            .decode_bstr()
+            .map_err(|e| CoseSign1Error::CborError(e.to_string()))?;
+        let local_range = slice_range_in(protected_slice, data);
+        let protected = LazyHeaderMap::new(
+            arc.clone(),
+            offset + local_range.start..offset + local_range.end,
+        );
+
+        // 2. Unprotected header (map)
+        let unprotected_start = offset + decoder.position();
+        let pre_decoded_map = Self::decode_unprotected_header(&mut decoder)?;
+        let unprotected_end = offset + decoder.position();
+        let unprotected = LazyHeaderMap::from_parsed(
+            arc.clone(),
+            unprotected_start..unprotected_end,
+            pre_decoded_map,
+        );
+
+        // 3. Payload (bstr or null)
+        let payload_range = Self::decode_payload_range(&mut decoder, data)?
+            .map(|r| offset + r.start..offset + r.end);
+
+        // 4. Signature (bstr)
+        let signature_slice = decoder
+            .decode_bstr()
+            .map_err(|e| CoseSign1Error::CborError(e.to_string()))?;
+        let sig_local = slice_range_in(signature_slice, data);
+        let signature_range = offset + sig_local.start..offset + sig_local.end;
+
+        let cose_data = CoseData::from_arc_range(arc, range);
+
+        Ok(Self {
+            data: cose_data,
+            protected,
+            unprotected,
+            payload_range,
+            signature_range,
+            state: MessageState::Signed,
+            dirty: false,
+        })
+    }
+
+    /// Parses a COSE_Sign1 message from an [`ArcSlice`] — **zero-copy**.
+    ///
+    /// Convenience wrapper around [`parse_from_shared`](Self::parse_from_shared).
+    /// Ideal for parsing receipts extracted from a parent message's headers.
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// // receipt_arc_slice obtained from CoseHeaderValue::Bytes(arc_slice)
+    /// let receipt_msg = CoseSign1Message::parse_from_arc_slice(&receipt_arc_slice)?;
+    /// ```
+    pub fn parse_from_arc_slice(slice: &cose_primitives::ArcSlice) -> Result<Self, CoseSign1Error> {
+        Self::parse_from_shared(slice.arc().clone(), slice.range().clone())
     }
 
     /// Parses a COSE_Sign1 message from a seekable stream.
@@ -237,6 +424,8 @@ impl CoseSign1Message {
             unprotected,
             payload_range,
             signature_range: sig_range,
+            state: MessageState::Signed,
+            dirty: false,
         })
     }
 
@@ -358,6 +547,54 @@ impl CoseSign1Message {
     /// Returns the full raw CBOR bytes of the message.
     pub fn as_bytes(&self) -> &[u8] {
         self.data.as_bytes()
+    }
+
+    // ========================================================================
+    // Lifecycle
+    // ========================================================================
+
+    /// Returns the current lifecycle state.
+    pub fn state(&self) -> &MessageState {
+        &self.state
+    }
+
+    /// Returns `true` if unprotected headers have been mutated since the last
+    /// [`encode`](Self::encode) or parse.
+    pub fn is_dirty(&self) -> bool {
+        self.dirty
+    }
+
+    /// Inserts a value into the unprotected headers.
+    ///
+    /// In [`Signed`](MessageState::Signed) state, this is the only mutation
+    /// allowed — it sets the dirty flag so that [`encode`](Self::encode)
+    /// knows to re-serialize.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`CoseSign1Error::ImmutableField`] if called on a
+    /// [`Signed`](MessageState::Signed) message for the protected headers.
+    pub fn set_unprotected_header(
+        &mut self,
+        label: crate::headers::CoseHeaderLabel,
+        value: crate::headers::CoseHeaderValue,
+    ) {
+        self.unprotected.insert(label, value);
+        self.dirty = true;
+    }
+
+    /// Removes a value from the unprotected headers.
+    ///
+    /// Sets the dirty flag. See [`set_unprotected_header`](Self::set_unprotected_header).
+    pub fn remove_unprotected_header(
+        &mut self,
+        label: &crate::headers::CoseHeaderLabel,
+    ) -> Option<crate::headers::CoseHeaderValue> {
+        let result = self.unprotected.remove(label);
+        if result.is_some() {
+            self.dirty = true;
+        }
+        result
     }
 
     /// Verifies the signature on an embedded (buffered) payload.
@@ -702,12 +939,62 @@ impl CoseSign1Message {
         crate::build_sig_structure(self.protected_header_bytes(), external_aad, payload)
     }
 
-    /// Encodes the message to CBOR bytes using the stored provider.
+    /// Encodes the message to CBOR bytes.
+    ///
+    /// If the message has not been modified (not dirty), returns a copy of the
+    /// backing buffer — **no re-serialization**. Otherwise re-serializes from
+    /// the (mutated) in-memory header state.
+    ///
+    /// To also update the backing buffer after re-serialization (clearing the
+    /// dirty flag), use [`encode_and_persist`](Self::encode_and_persist).
     ///
     /// # Arguments
     ///
     /// * `tagged` - If true, wraps the message in CBOR tag 18
     pub fn encode(&self, tagged: bool) -> Result<Vec<u8>, CoseSign1Error> {
+        // Fast path: if the backing buffer is clean and tagging matches,
+        // return the backing bytes directly — no re-serialization.
+        if self.state == MessageState::Signed && !self.dirty {
+            let bytes = self.as_bytes();
+            let is_currently_tagged = bytes.first() == Some(&0xD2); // CBOR tag 18
+            if tagged == is_currently_tagged {
+                return Ok(bytes.to_vec());
+            }
+        }
+
+        self.encode_inner(tagged)
+    }
+
+    /// Encodes the message and updates the backing buffer.
+    ///
+    /// Like [`encode`](Self::encode), but also re-parses the fresh bytes into
+    /// the message's internal state, clearing the dirty flag. After this call,
+    /// subsequent `encode()` calls will use the fast path.
+    pub fn encode_and_persist(&mut self, tagged: bool) -> Result<Vec<u8>, CoseSign1Error> {
+        if self.state == MessageState::Signed && !self.dirty {
+            let bytes = self.as_bytes();
+            let is_currently_tagged = bytes.first() == Some(&0xD2);
+            if tagged == is_currently_tagged {
+                return Ok(bytes.to_vec());
+            }
+        }
+
+        let bytes = self.encode_inner(tagged)?;
+
+        // Re-parse from the fresh bytes so the backing buffer is up to date.
+        let fresh = Self::parse(&bytes)?;
+        self.data = fresh.data;
+        self.protected = fresh.protected;
+        self.unprotected = fresh.unprotected;
+        self.payload_range = fresh.payload_range;
+        self.signature_range = fresh.signature_range;
+        self.dirty = false;
+
+        Ok(bytes)
+    }
+
+    /// Internal encode helper — always re-serializes from in-memory state.
+    fn encode_inner(&self, tagged: bool) -> Result<Vec<u8>, CoseSign1Error> {
         let provider = cbor_provider();
         let mut encoder = provider.encoder();
 

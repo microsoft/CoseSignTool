@@ -15,6 +15,7 @@ use crypto_primitives::CryptoSigner;
 use crate::algorithms::COSE_SIGN1_TAG;
 use crate::error::{CoseKeyError, CoseSign1Error};
 use crate::headers::CoseHeaderMap;
+use crate::message::CoseSign1Message;
 use crate::payload::StreamingPayload;
 use crate::provider::cbor_provider;
 use crate::sig_structure::{build_sig_structure, build_sig_structure_prefix};
@@ -106,6 +107,24 @@ impl CoseSign1Builder {
         let sig_structure = build_sig_structure(&protected_bytes, external_aad, payload)?;
         let signature = signer.sign(&sig_structure).map_err(CoseKeyError::from)?;
         self.build_message(protected_bytes, payload, signature)
+    }
+
+    /// Signs the payload and returns a [`CoseSign1Message`] in
+    /// [`Signed`](crate::message::MessageState::Signed) state.
+    ///
+    /// The returned message's backing buffer is the freshly-built CBOR.
+    /// Protected headers, payload, and signature are immutable. Unprotected
+    /// headers may still be modified via
+    /// [`set_unprotected_header`](CoseSign1Message::set_unprotected_header).
+    ///
+    /// The builder's header maps are consumed — no dangling allocations remain.
+    pub fn sign_to_message(
+        self,
+        signer: &dyn CryptoSigner,
+        payload: &[u8],
+    ) -> Result<CoseSign1Message, CoseSign1Error> {
+        let bytes = self.sign(signer, payload)?;
+        CoseSign1Message::parse(&bytes)
     }
 
     fn protected_bytes(&self) -> Result<Vec<u8>, CoseSign1Error> {

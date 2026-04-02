@@ -83,7 +83,7 @@ pub use crypto_primitives::{
 };
 pub use error::{CoseKeyError, CoseSign1Error, PayloadError};
 pub use headers::{ContentType, CoseHeaderLabel, CoseHeaderMap, CoseHeaderValue, ProtectedHeader};
-pub use message::CoseSign1Message;
+pub use message::{CoseSign1Message, MessageState};
 pub use payload::{FilePayload, MemoryPayload, Payload, StreamingPayload};
 pub use sig_structure::{
     build_sig_structure, build_sig_structure_prefix, hash_sig_structure_streaming,

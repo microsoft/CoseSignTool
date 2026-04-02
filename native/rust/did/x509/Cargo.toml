@@ -1,0 +1,24 @@
+[package]
+name = "did_x509"
+edition.workspace = true
+license.workspace = true
+version = "0.1.0"
+description = "DID:x509 identifier parsing, building, validation and resolution"
+
+[lib]
+test = false
+
+[dependencies]
+x509-parser.workspace = true
+sha2.workspace = true
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+
+[dev-dependencies]
+rcgen = { version = "0.14", features = ["x509-parser"] }
+hex = "0.4"
+sha2.workspace = true
+openssl = { workspace = true }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly)'] }

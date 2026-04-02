@@ -499,3 +499,52 @@ pub unsafe extern "C" fn cose_sign1_message_verify_detached(
         out_error,
     )
 }
+
+// ============================================================================
+// Message byte accessor
+// ============================================================================
+
+/// Inner implementation for cose_sign1_message_as_bytes.
+pub fn message_as_bytes_inner(
+    message: *const CoseSign1MessageHandle,
+    out_bytes: *mut *const u8,
+    out_len: *mut usize,
+) -> i32 {
+    let result = catch_unwind(AssertUnwindSafe(|| {
+        if out_bytes.is_null() || out_len.is_null() {
+            return FFI_ERR_NULL_POINTER;
+        }
+
+        let Some(inner) = (unsafe { message_handle_to_inner(message) }) else {
+            return FFI_ERR_NULL_POINTER;
+        };
+
+        let bytes = inner.message.as_bytes();
+        unsafe {
+            *out_bytes = bytes.as_ptr();
+            *out_len = bytes.len();
+        }
+        FFI_OK
+    }));
+
+    result.unwrap_or(FFI_ERR_PANIC)
+}
+
+/// Gets the full COSE_Sign1 message bytes from a handle.
+///
+/// The returned pointer borrows from the handle's internal storage and is valid
+/// only as long as the message handle is alive.
+///
+/// # Safety
+///
+/// - `message` must be a valid message handle
+/// - `out_bytes` and `out_len` must be valid for writes
+/// - The returned bytes pointer is valid only as long as the message handle is valid
+#[no_mangle]
+pub unsafe extern "C" fn cose_sign1_message_as_bytes(
+    message: *const CoseSign1MessageHandle,
+    out_bytes: *mut *const u8,
+    out_len: *mut usize,
+) -> i32 {
+    message_as_bytes_inner(message, out_bytes, out_len)
+}

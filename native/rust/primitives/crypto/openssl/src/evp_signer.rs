@@ -39,6 +39,15 @@ impl EvpSigner {
         let key = EvpPrivateKey::from_pkey(pkey).map_err(CryptoError::InvalidKey)?;
         Self::new(key, cose_algorithm)
     }
+
+    /// Creates an EvpSigner from a PEM-encoded private key.
+    pub fn from_pem(pem: &[u8], cose_algorithm: i64) -> Result<Self, CryptoError> {
+        let pkey = openssl::pkey::PKey::private_key_from_pem(pem).map_err(|e| {
+            CryptoError::InvalidKey(format!("Failed to parse PEM private key: {}", e))
+        })?;
+        let key = EvpPrivateKey::from_pkey(pkey).map_err(CryptoError::InvalidKey)?;
+        Self::new(key, cose_algorithm)
+    }
 }
 
 impl CryptoSigner for EvpSigner {

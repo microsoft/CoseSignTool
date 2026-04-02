@@ -209,6 +209,17 @@ int32_t cose_sign1_message_unprotected_headers(
     CoseHeaderMapHandle** out_headers
 );
 
+/**
+ * @brief Get the full raw CBOR bytes of the message.
+ *
+ * The returned pointer is borrowed and valid while the message is alive.
+ */
+int32_t cose_sign1_message_as_bytes(
+    const CoseSign1MessageHandle* message,
+    const uint8_t** out_bytes,
+    size_t* out_len
+);
+
 #ifdef __cplusplus
 }
 #endif

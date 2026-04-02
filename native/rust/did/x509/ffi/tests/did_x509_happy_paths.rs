@@ -281,7 +281,7 @@ fn test_did_x509_parse_and_extract_info() {
 
         if parse_rc == DID_X509_OK && !handle.is_null() {
             // Extract fingerprint
-            let mut fingerprint: *const libc::c_char = ptr::null();
+            let mut fingerprint: *mut libc::c_char = ptr::null_mut();
             let mut fp_err: *mut DidX509ErrorHandle = ptr::null_mut();
             let fp_rc =
                 unsafe { did_x509_parsed_get_fingerprint(handle, &mut fingerprint, &mut fp_err) };
@@ -291,13 +291,13 @@ fn test_did_x509_parse_and_extract_info() {
                     .to_string_lossy()
                     .to_string();
                 assert!(!fp_str.is_empty());
-                unsafe { did_x509_string_free(fingerprint as *mut _) };
+                unsafe { did_x509_string_free(fingerprint) };
             } else if !fp_err.is_null() {
                 unsafe { did_x509_error_free(fp_err) };
             }
 
             // Extract hash algorithm
-            let mut algorithm: *const libc::c_char = ptr::null();
+            let mut algorithm: *mut libc::c_char = ptr::null_mut();
             let mut alg_err: *mut DidX509ErrorHandle = ptr::null_mut();
             let alg_rc =
                 unsafe { did_x509_parsed_get_hash_algorithm(handle, &mut algorithm, &mut alg_err) };
@@ -307,7 +307,7 @@ fn test_did_x509_parse_and_extract_info() {
                     .to_string_lossy()
                     .to_string();
                 assert!(!alg_str.is_empty());
-                unsafe { did_x509_string_free(algorithm as *mut _) };
+                unsafe { did_x509_string_free(algorithm) };
             } else if !alg_err.is_null() {
                 unsafe { did_x509_error_free(alg_err) };
             }

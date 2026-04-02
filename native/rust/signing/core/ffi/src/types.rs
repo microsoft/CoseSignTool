@@ -83,9 +83,9 @@ pub(crate) struct FactoryInner {
 /// # Safety
 ///
 /// The handle must be valid and non-null.
-pub(crate) unsafe fn builder_handle_to_inner_mut(
+pub(crate) unsafe fn builder_handle_to_inner_mut<'a>(
     handle: *mut CoseSign1BuilderHandle,
-) -> Option<&'static mut BuilderInner> {
+) -> Option<&'a mut BuilderInner> {
     if handle.is_null() {
         return None;
     }
@@ -107,9 +107,9 @@ pub(crate) fn builder_inner_to_handle(inner: BuilderInner) -> *mut CoseSign1Buil
 /// # Safety
 ///
 /// The handle must be valid and non-null.
-pub(crate) unsafe fn headermap_handle_to_inner(
+pub(crate) unsafe fn headermap_handle_to_inner<'a>(
     handle: *const CoseHeaderMapHandle,
-) -> Option<&'static HeaderMapInner> {
+) -> Option<&'a HeaderMapInner> {
     if handle.is_null() {
         return None;
     }
@@ -121,9 +121,9 @@ pub(crate) unsafe fn headermap_handle_to_inner(
 /// # Safety
 ///
 /// The handle must be valid and non-null.
-pub(crate) unsafe fn headermap_handle_to_inner_mut(
+pub(crate) unsafe fn headermap_handle_to_inner_mut<'a>(
     handle: *mut CoseHeaderMapHandle,
-) -> Option<&'static mut HeaderMapInner> {
+) -> Option<&'a mut HeaderMapInner> {
     if handle.is_null() {
         return None;
     }
@@ -145,9 +145,7 @@ pub(crate) fn headermap_inner_to_handle(inner: HeaderMapInner) -> *mut CoseHeade
 /// # Safety
 ///
 /// The handle must be valid and non-null.
-pub(crate) unsafe fn key_handle_to_inner(
-    handle: *const CoseKeyHandle,
-) -> Option<&'static KeyInner> {
+pub(crate) unsafe fn key_handle_to_inner<'a>(handle: *const CoseKeyHandle) -> Option<&'a KeyInner> {
     if handle.is_null() {
         return None;
     }
@@ -169,9 +167,9 @@ pub fn key_inner_to_handle(inner: KeyInner) -> *mut CoseKeyHandle {
 /// # Safety
 ///
 /// The handle must be valid and non-null.
-pub(crate) unsafe fn signing_service_handle_to_inner(
+pub(crate) unsafe fn signing_service_handle_to_inner<'a>(
     handle: *const CoseSign1SigningServiceHandle,
-) -> Option<&'static SigningServiceInner> {
+) -> Option<&'a SigningServiceInner> {
     if handle.is_null() {
         return None;
     }
@@ -195,9 +193,9 @@ pub(crate) fn signing_service_inner_to_handle(
 /// # Safety
 ///
 /// The handle must be valid and non-null.
-pub(crate) unsafe fn factory_handle_to_inner(
+pub(crate) unsafe fn factory_handle_to_inner<'a>(
     handle: *const CoseSign1FactoryHandle,
-) -> Option<&'static FactoryInner> {
+) -> Option<&'a FactoryInner> {
     if handle.is_null() {
         return None;
     }

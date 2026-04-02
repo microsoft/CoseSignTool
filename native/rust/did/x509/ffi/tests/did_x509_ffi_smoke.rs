@@ -98,21 +98,21 @@ fn ffi_parse_valid_did_string() {
         assert!(err.is_null());
 
         // Get fingerprint
-        let mut fingerprint: *const libc::c_char = ptr::null();
+        let mut fingerprint: *mut libc::c_char = ptr::null_mut();
         err = ptr::null_mut();
         let rc = unsafe { did_x509_parsed_get_fingerprint(handle, &mut fingerprint, &mut err) };
         if rc == DID_X509_OK {
             assert!(!fingerprint.is_null());
-            unsafe { did_x509_string_free(fingerprint as *mut _) };
+            unsafe { did_x509_string_free(fingerprint) };
         }
 
         // Get hash algorithm
-        let mut algorithm: *const libc::c_char = ptr::null();
+        let mut algorithm: *mut libc::c_char = ptr::null_mut();
         err = ptr::null_mut();
         let rc = unsafe { did_x509_parsed_get_hash_algorithm(handle, &mut algorithm, &mut err) };
         if rc == DID_X509_OK {
             assert!(!algorithm.is_null());
-            unsafe { did_x509_string_free(algorithm as *mut _) };
+            unsafe { did_x509_string_free(algorithm) };
         }
 
         // Get policy count
@@ -216,8 +216,8 @@ fn ffi_resolve_null_inputs() {
 
 #[test]
 fn ffi_parsed_accessors_null_safety() {
-    let mut fingerprint: *const libc::c_char = ptr::null();
-    let mut algorithm: *const libc::c_char = ptr::null();
+    let mut fingerprint: *mut libc::c_char = ptr::null_mut();
+    let mut algorithm: *mut libc::c_char = ptr::null_mut();
     let mut count: u32 = 0;
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
 

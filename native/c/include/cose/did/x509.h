@@ -163,7 +163,7 @@ int did_x509_parse(
  */
 int did_x509_parsed_get_fingerprint(
     const DidX509ParsedHandle* handle,
-    const char** out_fingerprint,
+    char** out_fingerprint,
     DidX509ErrorHandle** out_error
 );
 
@@ -177,7 +177,7 @@ int did_x509_parsed_get_fingerprint(
  */
 int did_x509_parsed_get_hash_algorithm(
     const DidX509ParsedHandle* handle,
-    const char** out_algorithm,
+    char** out_algorithm,
     DidX509ErrorHandle** out_error
 );
 

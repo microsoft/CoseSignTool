@@ -262,15 +262,15 @@ fn test_did_x509_parse_and_validate_comprehensive_workflow() {
 
         if parse_rc == DID_X509_OK && !handle.is_null() {
             // Step 3: Get all parsed components
-            let mut fingerprint: *const libc::c_char = ptr::null();
+            let mut fingerprint: *mut libc::c_char = ptr::null_mut();
             let mut fp_err: *mut DidX509ErrorHandle = ptr::null_mut();
             let fp_rc =
                 unsafe { did_x509_parsed_get_fingerprint(handle, &mut fingerprint, &mut fp_err) };
             assert_eq!(fp_rc, DID_X509_OK);
             assert!(!fingerprint.is_null());
-            unsafe { did_x509_string_free(fingerprint as *mut _) };
+            unsafe { did_x509_string_free(fingerprint) };
 
-            let mut algorithm: *const libc::c_char = ptr::null();
+            let mut algorithm: *mut libc::c_char = ptr::null_mut();
             let mut alg_err: *mut DidX509ErrorHandle = ptr::null_mut();
             let alg_rc =
                 unsafe { did_x509_parsed_get_hash_algorithm(handle, &mut algorithm, &mut alg_err) };
@@ -280,7 +280,7 @@ fn test_did_x509_parse_and_validate_comprehensive_workflow() {
                 .to_string_lossy()
                 .to_string();
             assert_eq!(alg_str, "sha256");
-            unsafe { did_x509_string_free(algorithm as *mut _) };
+            unsafe { did_x509_string_free(algorithm) };
 
             let mut count: u32 = 0;
             let count_rc = unsafe { did_x509_parsed_get_policy_count(handle, &mut count) };

@@ -116,7 +116,7 @@ fn test_parse_and_get_fingerprint_ok_branch() {
     assert!(!handle.is_null());
 
     // Get fingerprint — exercises lines 178-184 (Ok branch, the CString::new Ok arm)
-    let mut out_fp: *const libc::c_char = ptr::null();
+    let mut out_fp: *mut libc::c_char = ptr::null_mut();
     err = ptr::null_mut();
     let rc = impl_parsed_get_fingerprint_inner(handle, &mut out_fp, &mut err);
     assert_eq!(rc, FFI_OK, "get_fingerprint failed");
@@ -129,7 +129,7 @@ fn test_parse_and_get_fingerprint_ok_branch() {
     assert_eq!(fp, expected_fp);
 
     unsafe {
-        did_x509_string_free(out_fp as *mut _);
+        did_x509_string_free(out_fp);
         did_x509_parsed_free(handle);
         did_x509_string_free(did_string);
     }
@@ -164,7 +164,7 @@ fn test_parse_and_get_hash_algorithm_ok_branch() {
     assert_eq!(rc, FFI_OK);
 
     // Get hash algorithm — exercises lines 248-253 (Ok branch)
-    let mut out_alg: *const libc::c_char = ptr::null();
+    let mut out_alg: *mut libc::c_char = ptr::null_mut();
     err = ptr::null_mut();
     let rc = impl_parsed_get_hash_algorithm_inner(handle, &mut out_alg, &mut err);
     assert_eq!(rc, FFI_OK, "get_hash_algorithm failed");
@@ -176,7 +176,7 @@ fn test_parse_and_get_hash_algorithm_ok_branch() {
     assert_eq!(alg, "sha256");
 
     unsafe {
-        did_x509_string_free(out_alg as *mut _);
+        did_x509_string_free(out_alg);
         did_x509_parsed_free(handle);
         did_x509_string_free(did_string);
     }

@@ -171,7 +171,7 @@ pub unsafe extern "C" fn did_x509_parse(
 /// Inner implementation for did_x509_parsed_get_fingerprint.
 pub fn impl_parsed_get_fingerprint_inner(
     handle: *const DidX509ParsedHandle,
-    out_fingerprint: *mut *const libc::c_char,
+    out_fingerprint: *mut *mut libc::c_char,
     out_error: *mut *mut DidX509ErrorHandle,
 ) -> i32 {
     let result = catch_unwind(AssertUnwindSafe(|| {
@@ -181,7 +181,7 @@ pub fn impl_parsed_get_fingerprint_inner(
         }
 
         unsafe {
-            *out_fingerprint = ptr::null();
+            *out_fingerprint = ptr::null_mut();
         }
 
         let Some(inner) = (unsafe { parsed_handle_to_inner(handle) }) else {
@@ -216,7 +216,7 @@ pub fn impl_parsed_get_fingerprint_inner(
 #[no_mangle]
 pub unsafe extern "C" fn did_x509_parsed_get_fingerprint(
     handle: *const DidX509ParsedHandle,
-    out_fingerprint: *mut *const libc::c_char,
+    out_fingerprint: *mut *mut libc::c_char,
     out_error: *mut *mut DidX509ErrorHandle,
 ) -> i32 {
     impl_parsed_get_fingerprint_inner(handle, out_fingerprint, out_error)
@@ -225,7 +225,7 @@ pub unsafe extern "C" fn did_x509_parsed_get_fingerprint(
 /// Inner implementation for did_x509_parsed_get_hash_algorithm.
 pub fn impl_parsed_get_hash_algorithm_inner(
     handle: *const DidX509ParsedHandle,
-    out_algorithm: *mut *const libc::c_char,
+    out_algorithm: *mut *mut libc::c_char,
     out_error: *mut *mut DidX509ErrorHandle,
 ) -> i32 {
     let result = catch_unwind(AssertUnwindSafe(|| {
@@ -235,7 +235,7 @@ pub fn impl_parsed_get_hash_algorithm_inner(
         }
 
         unsafe {
-            *out_algorithm = ptr::null();
+            *out_algorithm = ptr::null_mut();
         }
 
         let Some(inner) = (unsafe { parsed_handle_to_inner(handle) }) else {
@@ -270,7 +270,7 @@ pub fn impl_parsed_get_hash_algorithm_inner(
 #[no_mangle]
 pub unsafe extern "C" fn did_x509_parsed_get_hash_algorithm(
     handle: *const DidX509ParsedHandle,
-    out_algorithm: *mut *const libc::c_char,
+    out_algorithm: *mut *mut libc::c_char,
     out_error: *mut *mut DidX509ErrorHandle,
 ) -> i32 {
     impl_parsed_get_hash_algorithm_inner(handle, out_algorithm, out_error)

@@ -271,7 +271,7 @@ fn test_ffi_parse_and_get_fields() {
     assert!(!handle.is_null());
 
     // Get fingerprint
-    let mut fingerprint: *const libc::c_char = ptr::null();
+    let mut fingerprint: *mut libc::c_char = ptr::null_mut();
     let status = impl_parsed_get_fingerprint_inner(handle, &mut fingerprint, &mut error);
     assert_eq!(status, DID_X509_OK, "Get fingerprint should succeed");
     assert!(!fingerprint.is_null());
@@ -284,7 +284,7 @@ fn test_ffi_parse_and_get_fields() {
     );
 
     // Get hash algorithm
-    let mut algorithm: *const libc::c_char = ptr::null();
+    let mut algorithm: *mut libc::c_char = ptr::null_mut();
     let status = impl_parsed_get_hash_algorithm_inner(handle, &mut algorithm, &mut error);
     assert_eq!(status, DID_X509_OK, "Get algorithm should succeed");
     assert!(!algorithm.is_null());
@@ -300,8 +300,8 @@ fn test_ffi_parse_and_get_fields() {
 
     // Clean up
     unsafe {
-        did_x509_string_free(fingerprint as *mut _);
-        did_x509_string_free(algorithm as *mut _);
+        did_x509_string_free(fingerprint);
+        did_x509_string_free(algorithm);
         did_x509_parsed_free(handle);
         if !error.is_null() {
             did_x509_error_free(error);
@@ -841,7 +841,7 @@ fn test_ffi_parsed_get_fingerprint_null_output() {
 
 #[test]
 fn test_ffi_parsed_get_fingerprint_null_handle() {
-    let mut fingerprint: *const libc::c_char = ptr::null();
+    let mut fingerprint: *mut libc::c_char = ptr::null_mut();
     let mut error: *mut DidX509ErrorHandle = ptr::null_mut();
 
     let status = impl_parsed_get_fingerprint_inner(
@@ -890,7 +890,7 @@ fn test_ffi_parsed_get_algorithm_null_output() {
 
 #[test]
 fn test_ffi_parsed_get_algorithm_null_handle() {
-    let mut algorithm: *const libc::c_char = ptr::null();
+    let mut algorithm: *mut libc::c_char = ptr::null_mut();
     let mut error: *mut DidX509ErrorHandle = ptr::null_mut();
 
     let status = impl_parsed_get_hash_algorithm_inner(

@@ -27,9 +27,9 @@ pub(crate) struct CwtClaimsInner {
 /// # Safety
 ///
 /// The handle must be valid and non-null.
-pub(crate) unsafe fn cwt_claims_handle_to_inner(
+pub(crate) unsafe fn cwt_claims_handle_to_inner<'a>(
     handle: *const CoseCwtClaimsHandle,
-) -> Option<&'static CwtClaimsInner> {
+) -> Option<&'a CwtClaimsInner> {
     if handle.is_null() {
         return None;
     }
@@ -41,9 +41,9 @@ pub(crate) unsafe fn cwt_claims_handle_to_inner(
 /// # Safety
 ///
 /// The handle must be valid and non-null.
-pub(crate) unsafe fn cwt_claims_handle_to_inner_mut(
+pub(crate) unsafe fn cwt_claims_handle_to_inner_mut<'a>(
     handle: *mut CoseCwtClaimsHandle,
-) -> Option<&'static mut CwtClaimsInner> {
+) -> Option<&'a mut CwtClaimsInner> {
     if handle.is_null() {
         return None;
     }

@@ -707,23 +707,23 @@ fn deep_parse_and_query_all_fields() {
     assert!(!handle.is_null());
 
     // Get fingerprint
-    let mut fp: *const libc::c_char = ptr::null();
+    let mut fp: *mut libc::c_char = ptr::null_mut();
     let rc = impl_parsed_get_fingerprint_inner(handle, &mut fp, &mut err);
     assert_eq!(rc, FFI_OK);
     assert!(!fp.is_null());
     let fp_str = unsafe { CStr::from_ptr(fp) }.to_str().unwrap();
     // Fingerprint should be non-empty and match the cert's SHA-256
     assert!(!fp_str.is_empty());
-    unsafe { did_x509_string_free(fp as *mut _) };
+    unsafe { did_x509_string_free(fp) };
 
     // Get hash algorithm
-    let mut algo: *const libc::c_char = ptr::null();
+    let mut algo: *mut libc::c_char = ptr::null_mut();
     let rc = impl_parsed_get_hash_algorithm_inner(handle, &mut algo, &mut err);
     assert_eq!(rc, FFI_OK);
     assert!(!algo.is_null());
     let algo_str = unsafe { CStr::from_ptr(algo) }.to_str().unwrap();
     assert_eq!(algo_str, "sha256");
-    unsafe { did_x509_string_free(algo as *mut _) };
+    unsafe { did_x509_string_free(algo) };
 
     // Get policy count
     let mut count: u32 = 0;

@@ -140,7 +140,7 @@ fn test_impl_parsed_get_fingerprint_inner_ok_path() {
     let rc = impl_parse_inner(c_did.as_ptr(), &mut handle, &mut err);
     assert_eq!(rc, DID_X509_OK);
 
-    let mut fingerprint: *const libc::c_char = ptr::null();
+    let mut fingerprint: *mut libc::c_char = ptr::null_mut();
     let mut fp_err: *mut DidX509ErrorHandle = ptr::null_mut();
 
     let fp_rc = impl_parsed_get_fingerprint_inner(handle, &mut fingerprint, &mut fp_err);
@@ -154,7 +154,7 @@ fn test_impl_parsed_get_fingerprint_inner_ok_path() {
         .to_string();
     assert!(!fp_str.is_empty(), "fingerprint string must not be empty");
 
-    unsafe { did_x509_string_free(fingerprint as *mut _) };
+    unsafe { did_x509_string_free(fingerprint) };
     unsafe { did_x509_parsed_free(handle) };
 }
 
@@ -174,7 +174,7 @@ fn test_impl_parsed_get_hash_algorithm_inner_ok_path() {
     let rc = impl_parse_inner(c_did.as_ptr(), &mut handle, &mut err);
     assert_eq!(rc, DID_X509_OK);
 
-    let mut algorithm: *const libc::c_char = ptr::null();
+    let mut algorithm: *mut libc::c_char = ptr::null_mut();
     let mut alg_err: *mut DidX509ErrorHandle = ptr::null_mut();
 
     let alg_rc = impl_parsed_get_hash_algorithm_inner(handle, &mut algorithm, &mut alg_err);
@@ -195,7 +195,7 @@ fn test_impl_parsed_get_hash_algorithm_inner_ok_path() {
         alg_str
     );
 
-    unsafe { did_x509_string_free(algorithm as *mut _) };
+    unsafe { did_x509_string_free(algorithm) };
     unsafe { did_x509_parsed_free(handle) };
 }
 
@@ -406,20 +406,20 @@ fn test_full_round_trip_inner_functions() {
     assert!(!handle.is_null());
 
     // 3. Get fingerprint
-    let mut fingerprint: *const libc::c_char = ptr::null();
+    let mut fingerprint: *mut libc::c_char = ptr::null_mut();
     let mut fp_err: *mut DidX509ErrorHandle = ptr::null_mut();
     let fp_rc = impl_parsed_get_fingerprint_inner(handle, &mut fingerprint, &mut fp_err);
     assert_eq!(fp_rc, DID_X509_OK);
     assert!(!fingerprint.is_null());
-    unsafe { did_x509_string_free(fingerprint as *mut _) };
+    unsafe { did_x509_string_free(fingerprint) };
 
     // 4. Get hash algorithm
-    let mut algorithm: *const libc::c_char = ptr::null();
+    let mut algorithm: *mut libc::c_char = ptr::null_mut();
     let mut alg_err: *mut DidX509ErrorHandle = ptr::null_mut();
     let alg_rc = impl_parsed_get_hash_algorithm_inner(handle, &mut algorithm, &mut alg_err);
     assert_eq!(alg_rc, DID_X509_OK);
     assert!(!algorithm.is_null());
-    unsafe { did_x509_string_free(algorithm as *mut _) };
+    unsafe { did_x509_string_free(algorithm) };
 
     // 5. Get policy count
     let mut count: u32 = 0;

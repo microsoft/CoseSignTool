@@ -73,9 +73,9 @@ impl ErrorInner {
 /// # Safety
 ///
 /// The handle must be valid and non-null.
-pub unsafe fn handle_to_inner(
+pub unsafe fn handle_to_inner<'a>(
     handle: *const CoseSign1SigningErrorHandle,
-) -> Option<&'static ErrorInner> {
+) -> Option<&'a ErrorInner> {
     if handle.is_null() {
         return None;
     }

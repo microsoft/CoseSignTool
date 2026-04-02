@@ -47,9 +47,9 @@ pub(crate) struct TransparencyProviderInner {
 /// # Safety
 ///
 /// The handle must be valid and non-null.
-pub(crate) unsafe fn factory_handle_to_inner(
+pub(crate) unsafe fn factory_handle_to_inner<'a>(
     handle: *const CoseSign1FactoriesHandle,
-) -> Option<&'static FactoryInner> {
+) -> Option<&'a FactoryInner> {
     if handle.is_null() {
         return None;
     }
@@ -71,9 +71,9 @@ pub(crate) fn factory_inner_to_handle(inner: FactoryInner) -> *mut CoseSign1Fact
 /// # Safety
 ///
 /// The handle must be valid and non-null.
-pub(crate) unsafe fn signing_service_handle_to_inner(
+pub(crate) unsafe fn signing_service_handle_to_inner<'a>(
     handle: *const CoseSign1FactoriesSigningServiceHandle,
-) -> Option<&'static SigningServiceInner> {
+) -> Option<&'a SigningServiceInner> {
     if handle.is_null() {
         return None;
     }

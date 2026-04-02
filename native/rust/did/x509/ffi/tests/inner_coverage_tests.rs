@@ -120,7 +120,7 @@ fn inner_fingerprint_null_out() {
 
 #[test]
 fn inner_fingerprint_null_handle() {
-    let mut out: *const libc::c_char = ptr::null();
+    let mut out: *mut libc::c_char = ptr::null_mut();
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
 
     let rc = impl_parsed_get_fingerprint_inner(ptr::null(), &mut out, &mut err);
@@ -138,13 +138,13 @@ fn inner_fingerprint_success() {
     assert_eq!(err, ptr::null_mut());
     assert!(!handle.is_null());
 
-    let mut out: *const libc::c_char = ptr::null();
+    let mut out: *mut libc::c_char = ptr::null_mut();
     err = ptr::null_mut();
     let rc = impl_parsed_get_fingerprint_inner(handle, &mut out, &mut err);
     assert_eq!(rc, 0);
     assert!(!out.is_null());
 
-    unsafe { did_x509_string_free(out as *mut _) };
+    unsafe { did_x509_string_free(out) };
     unsafe { did_x509_parsed_free(handle) };
 }
 
@@ -169,7 +169,7 @@ fn inner_hash_algorithm_null_out() {
 
 #[test]
 fn inner_hash_algorithm_null_handle() {
-    let mut out: *const libc::c_char = ptr::null();
+    let mut out: *mut libc::c_char = ptr::null_mut();
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
 
     let rc = impl_parsed_get_hash_algorithm_inner(ptr::null(), &mut out, &mut err);
@@ -186,13 +186,13 @@ fn inner_hash_algorithm_success() {
     impl_parse_inner(did.as_ptr(), &mut handle, &mut err);
     assert!(!handle.is_null());
 
-    let mut out: *const libc::c_char = ptr::null();
+    let mut out: *mut libc::c_char = ptr::null_mut();
     err = ptr::null_mut();
     let rc = impl_parsed_get_hash_algorithm_inner(handle, &mut out, &mut err);
     assert_eq!(rc, 0);
     assert!(!out.is_null());
 
-    unsafe { did_x509_string_free(out as *mut _) };
+    unsafe { did_x509_string_free(out) };
     unsafe { did_x509_parsed_free(handle) };
 }
 

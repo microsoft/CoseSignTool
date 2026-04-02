@@ -71,7 +71,7 @@ impl DirectSignatureFactory {
         info!(method = "sign_direct", payload_len = payload.len(), content_type = %content_type, "Signing payload");
         let options = options.unwrap_or_default();
 
-        // Create signing context
+        // Create signing context (payload copy required by SigningContext ownership model)
         let mut context = SigningContext::from_bytes(payload.to_vec());
         context.content_type = Some(content_type.to_string());
 
@@ -107,9 +107,9 @@ impl DirectSignatureFactory {
             .unprotected(unprotected)
             .detached(!options.embed_payload);
 
-        // Add external AAD if provided
+        // Move external AAD if provided (avoids clone)
         if !options.additional_data.is_empty() {
-            builder = builder.external_aad(options.additional_data.clone());
+            builder = builder.external_aad(options.additional_data);
         }
 
         // Sign the payload
@@ -230,9 +230,9 @@ impl DirectSignatureFactory {
             builder = builder.max_embed_size(max_size);
         }
 
-        // Add external AAD if provided
+        // Move external AAD if provided (avoids clone)
         if !options.additional_data.is_empty() {
-            builder = builder.external_aad(options.additional_data.clone());
+            builder = builder.external_aad(options.additional_data);
         }
 
         // Sign the streaming payload

@@ -550,6 +550,9 @@ impl CoseSign1Validator {
     /// This is the primary entrypoint - callers parse the message and pass it here.
     /// The message's internal CBOR provider is used for any further decoding.
     ///
+    /// **Note:** This overload clones the message into an `Arc`. For zero-copy
+    /// validation, use [`validate_arc`](Self::validate_arc) instead.
+    ///
     /// # Arguments
     ///
     /// * `message` - The parsed COSE_Sign1 message
@@ -562,6 +565,23 @@ impl CoseSign1Validator {
         self.validate_internal(cose_sign1_bytes, Arc::new(message.clone()))
     }
 
+    /// Validate an already-parsed COSE_Sign1 message (zero-copy).
+    ///
+    /// Accepts the message as an `Arc` to avoid cloning. Prefer this over
+    /// [`validate`](Self::validate) when the caller already owns an `Arc`.
+    ///
+    /// # Arguments
+    ///
+    /// * `message` - The parsed COSE_Sign1 message wrapped in `Arc`
+    /// * `cose_sign1_bytes` - The original raw bytes (needed for trust fact production)
+    pub fn validate_arc(
+        &self,
+        message: Arc<CoseSign1Message>,
+        cose_sign1_bytes: Arc<[u8]>,
+    ) -> Result<CoseSign1ValidationResult, CoseSign1ValidationError> {
+        self.validate_internal(cose_sign1_bytes, message)
+    }
+
     /// Async variant of [`Self::validate`].
     pub async fn validate_async(
         &self,
@@ -569,6 +589,16 @@ impl CoseSign1Validator {
         cose_sign1_bytes: Arc<[u8]>,
     ) -> Result<CoseSign1ValidationResult, CoseSign1ValidationError> {
         self.validate_internal_async(cose_sign1_bytes, Arc::new(message.clone()))
+            .await
+    }
+
+    /// Async variant of [`Self::validate_arc`] (zero-copy).
+    pub async fn validate_arc_async(
+        &self,
+        message: Arc<CoseSign1Message>,
+        cose_sign1_bytes: Arc<[u8]>,
+    ) -> Result<CoseSign1ValidationResult, CoseSign1ValidationError> {
+        self.validate_internal_async(cose_sign1_bytes, message)
             .await
     }
 

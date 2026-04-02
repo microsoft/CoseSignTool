@@ -77,23 +77,23 @@ fn parse_valid_did_and_query_fields() {
     assert!(!handle.is_null());
 
     // Get fingerprint
-    let mut fingerprint: *const libc::c_char = ptr::null();
+    let mut fingerprint: *mut libc::c_char = ptr::null_mut();
     let mut err2: *mut DidX509ErrorHandle = ptr::null_mut();
     let rc = impl_parsed_get_fingerprint_inner(handle as *const _, &mut fingerprint, &mut err2);
     assert_eq!(rc, DID_X509_OK);
     assert!(!fingerprint.is_null());
     let fp_str = unsafe { CStr::from_ptr(fingerprint) }.to_string_lossy();
     assert!(!fp_str.is_empty());
-    unsafe { did_x509_string_free(fingerprint as *mut _) };
+    unsafe { did_x509_string_free(fingerprint) };
 
     // Get hash algorithm
-    let mut algorithm: *const libc::c_char = ptr::null();
+    let mut algorithm: *mut libc::c_char = ptr::null_mut();
     let mut err3: *mut DidX509ErrorHandle = ptr::null_mut();
     let rc = impl_parsed_get_hash_algorithm_inner(handle as *const _, &mut algorithm, &mut err3);
     assert_eq!(rc, DID_X509_OK);
     let alg_str = unsafe { CStr::from_ptr(algorithm) }.to_string_lossy();
     assert_eq!(alg_str, "sha256");
-    unsafe { did_x509_string_free(algorithm as *mut _) };
+    unsafe { did_x509_string_free(algorithm) };
 
     // Get policy count
     let mut count: u32 = 0;

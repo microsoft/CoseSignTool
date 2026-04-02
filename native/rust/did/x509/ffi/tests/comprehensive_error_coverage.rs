@@ -164,7 +164,7 @@ fn test_accessor_error_paths() {
     // Test accessor functions with various invalid inputs
 
     // Test fingerprint accessor with null handle
-    let mut out_fingerprint: *const c_char = ptr::null();
+    let mut out_fingerprint: *mut c_char = ptr::null_mut();
     let mut out_error: *mut DidX509ErrorHandle = ptr::null_mut();
 
     let result = unsafe {
@@ -175,7 +175,7 @@ fn test_accessor_error_paths() {
     assert!(out_fingerprint.is_null());
 
     // Test hash algorithm accessor with null handle
-    let mut out_algorithm: *const c_char = ptr::null();
+    let mut out_algorithm: *mut c_char = ptr::null_mut();
     let mut out_error2: *mut DidX509ErrorHandle = ptr::null_mut();
 
     let result = unsafe {

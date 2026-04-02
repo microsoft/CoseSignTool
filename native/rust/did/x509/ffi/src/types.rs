@@ -27,9 +27,9 @@ pub(crate) struct ParsedInner {
 /// # Safety
 ///
 /// The handle must be valid and non-null.
-pub(crate) unsafe fn parsed_handle_to_inner(
+pub(crate) unsafe fn parsed_handle_to_inner<'a>(
     handle: *const DidX509ParsedHandle,
-) -> Option<&'static ParsedInner> {
+) -> Option<&'a ParsedInner> {
     if handle.is_null() {
         return None;
     }

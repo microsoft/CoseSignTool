@@ -604,17 +604,18 @@ pub fn impl_builder_sign_inner(
             unsafe { slice::from_raw_parts(payload, payload_len) }
         };
 
+        // Move fields out of the consumed builder (no cloning needed)
         let mut rust_builder = CoseSign1Builder::new()
-            .protected(builder_inner.protected.clone())
+            .protected(builder_inner.protected)
             .tagged(builder_inner.tagged)
             .detached(builder_inner.detached);
 
-        if let Some(ref unprotected) = builder_inner.unprotected {
-            rust_builder = rust_builder.unprotected(unprotected.clone());
+        if let Some(unprotected) = builder_inner.unprotected {
+            rust_builder = rust_builder.unprotected(unprotected);
         }
 
-        if let Some(ref aad) = builder_inner.external_aad {
-            rust_builder = rust_builder.external_aad(aad.clone());
+        if let Some(aad) = builder_inner.external_aad {
+            rust_builder = rust_builder.external_aad(aad);
         }
 
         match rust_builder.sign(key_inner.key.as_ref(), payload_bytes) {
@@ -715,17 +716,18 @@ pub fn impl_builder_sign_to_message_inner(
             unsafe { slice::from_raw_parts(payload, payload_len) }
         };
 
+        // Move fields out of the consumed builder (no cloning needed)
         let mut rust_builder = CoseSign1Builder::new()
-            .protected(builder_inner.protected.clone())
+            .protected(builder_inner.protected)
             .tagged(builder_inner.tagged)
             .detached(builder_inner.detached);
 
-        if let Some(ref unprotected) = builder_inner.unprotected {
-            rust_builder = rust_builder.unprotected(unprotected.clone());
+        if let Some(unprotected) = builder_inner.unprotected {
+            rust_builder = rust_builder.unprotected(unprotected);
         }
 
-        if let Some(ref aad) = builder_inner.external_aad {
-            rust_builder = rust_builder.external_aad(aad.clone());
+        if let Some(aad) = builder_inner.external_aad {
+            rust_builder = rust_builder.external_aad(aad);
         }
 
         match rust_builder.sign(key_inner.key.as_ref(), payload_bytes) {

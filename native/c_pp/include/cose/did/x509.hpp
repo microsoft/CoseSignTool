@@ -104,7 +104,7 @@ public:
      * @return Root hash hex string
      */
     std::string RootHash() const {
-        const char* fingerprint = nullptr;
+        char* fingerprint = nullptr;
         DidX509ErrorHandle* error = nullptr;
         
         int status = did_x509_parsed_get_fingerprint(handle_, &fingerprint, &error);
@@ -113,7 +113,7 @@ public:
         }
         
         std::string result(fingerprint);
-        did_x509_string_free(const_cast<char*>(fingerprint));
+        did_x509_string_free(fingerprint);
         if (error) {
             did_x509_error_free(error);
         }
@@ -126,7 +126,7 @@ public:
      * @return Hash algorithm string (e.g., "sha256")
      */
     std::string HashAlgorithm() const {
-        const char* algorithm = nullptr;
+        char* algorithm = nullptr;
         DidX509ErrorHandle* error = nullptr;
         
         int status = did_x509_parsed_get_hash_algorithm(handle_, &algorithm, &error);
@@ -135,7 +135,7 @@ public:
         }
         
         std::string result(algorithm);
-        did_x509_string_free(const_cast<char*>(algorithm));
+        did_x509_string_free(algorithm);
         if (error) {
             did_x509_error_free(error);
         }

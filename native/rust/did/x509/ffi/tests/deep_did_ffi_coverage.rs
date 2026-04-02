@@ -406,7 +406,7 @@ fn resolve_inner_invalid_did_returns_error() {
 
 #[test]
 fn parsed_get_fingerprint_null_handle() {
-    let mut out_fp: *const libc::c_char = ptr::null();
+    let mut out_fp: *mut libc::c_char = ptr::null_mut();
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
 
     let rc = impl_parsed_get_fingerprint_inner(ptr::null(), &mut out_fp, &mut err);
@@ -419,7 +419,7 @@ fn parsed_get_fingerprint_null_handle() {
 
 #[test]
 fn parsed_get_hash_algorithm_null_handle() {
-    let mut out_alg: *const libc::c_char = ptr::null();
+    let mut out_alg: *mut libc::c_char = ptr::null_mut();
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
 
     let rc = impl_parsed_get_hash_algorithm_inner(ptr::null(), &mut out_alg, &mut err);
@@ -447,18 +447,18 @@ fn parse_and_get_fingerprint_and_hash_algorithm() {
     assert!(!handle.is_null());
 
     // Get fingerprint
-    let mut out_fp: *const libc::c_char = ptr::null();
+    let mut out_fp: *mut libc::c_char = ptr::null_mut();
     let mut err2: *mut DidX509ErrorHandle = ptr::null_mut();
     let rc = impl_parsed_get_fingerprint_inner(handle as *const _, &mut out_fp, &mut err2);
     assert_eq!(rc, 0);
     assert!(!out_fp.is_null());
-    unsafe { did_x509_string_free(out_fp as *mut _) };
+    unsafe { did_x509_string_free(out_fp) };
     if !err2.is_null() {
         unsafe { did_x509_error_free(err2) };
     }
 
     // Get hash algorithm
-    let mut out_alg: *const libc::c_char = ptr::null();
+    let mut out_alg: *mut libc::c_char = ptr::null_mut();
     let mut err3: *mut DidX509ErrorHandle = ptr::null_mut();
     let rc = impl_parsed_get_hash_algorithm_inner(handle as *const _, &mut out_alg, &mut err3);
     assert_eq!(rc, 0);
@@ -471,7 +471,7 @@ fn parse_and_get_fingerprint_and_hash_algorithm() {
         "expected sha-based algorithm, got: {}",
         alg
     );
-    unsafe { did_x509_string_free(out_alg as *mut _) };
+    unsafe { did_x509_string_free(out_alg) };
     if !err3.is_null() {
         unsafe { did_x509_error_free(err3) };
     }

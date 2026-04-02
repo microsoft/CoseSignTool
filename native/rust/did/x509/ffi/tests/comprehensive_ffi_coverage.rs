@@ -63,7 +63,7 @@ fn generate_test_certificate() -> Vec<u8> {
 #[test]
 fn test_did_x509_parsed_null_safety_comprehensive() {
     // Test accessor functions with null handles
-    let mut result: *const libc::c_char = ptr::null_mut();
+    let mut result: *mut libc::c_char = ptr::null_mut();
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
 
     // Test fingerprint accessor with null handle

@@ -134,7 +134,7 @@ fn test_parsed_get_fingerprint_null_out() {
 
 #[test]
 fn test_parsed_get_fingerprint_null_handle() {
-    let mut out_fp: *const libc::c_char = ptr::null();
+    let mut out_fp: *mut libc::c_char = ptr::null_mut();
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
 
     let rc = impl_parsed_get_fingerprint_inner(ptr::null(), &mut out_fp, &mut err);
@@ -163,7 +163,7 @@ fn test_parsed_get_hash_algorithm_null_out() {
 
 #[test]
 fn test_parsed_get_hash_algorithm_null_handle() {
-    let mut out_alg: *const libc::c_char = ptr::null();
+    let mut out_alg: *mut libc::c_char = ptr::null_mut();
     let mut err: *mut DidX509ErrorHandle = ptr::null_mut();
 
     let rc = impl_parsed_get_hash_algorithm_inner(ptr::null(), &mut out_alg, &mut err);

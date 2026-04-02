@@ -232,7 +232,7 @@ fn test_did_x509_parsed_get_fingerprint() {
     assert_eq!(status, DID_X509_OK);
 
     // Get fingerprint
-    let mut fingerprint_ptr: *const libc::c_char = ptr::null();
+    let mut fingerprint_ptr: *mut libc::c_char = ptr::null_mut();
 
     let fp_status = unsafe {
         did_x509_parsed_get_fingerprint(parsed_ptr, &mut fingerprint_ptr, &mut error_ptr)
@@ -243,7 +243,7 @@ fn test_did_x509_parsed_get_fingerprint() {
 
     // Clean up
     unsafe {
-        did_x509_string_free(fingerprint_ptr as *mut libc::c_char);
+        did_x509_string_free(fingerprint_ptr);
         did_x509_parsed_free(parsed_ptr);
     };
 }
@@ -263,7 +263,7 @@ fn test_did_x509_parsed_get_hash_algorithm() {
     assert_eq!(status, DID_X509_OK);
 
     // Get hash algorithm
-    let mut hash_alg_ptr: *const libc::c_char = ptr::null();
+    let mut hash_alg_ptr: *mut libc::c_char = ptr::null_mut();
 
     let ha_status = unsafe {
         did_x509_parsed_get_hash_algorithm(parsed_ptr, &mut hash_alg_ptr, &mut error_ptr)
@@ -274,7 +274,7 @@ fn test_did_x509_parsed_get_hash_algorithm() {
 
     // Clean up
     unsafe {
-        did_x509_string_free(hash_alg_ptr as *mut libc::c_char);
+        did_x509_string_free(hash_alg_ptr);
         did_x509_parsed_free(parsed_ptr);
     };
 }

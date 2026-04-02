@@ -487,7 +487,7 @@ fn test_parsed_get_fingerprint() {
     assert!(!handle.is_null());
 
     // Test get_fingerprint
-    let mut fingerprint: *const libc::c_char = ptr::null();
+    let mut fingerprint: *mut libc::c_char = ptr::null_mut();
     let mut fp_error: *mut DidX509ErrorHandle = ptr::null_mut();
 
     let fp_status =
@@ -500,7 +500,7 @@ fn test_parsed_get_fingerprint() {
     assert!(!fp_str.is_empty());
 
     unsafe {
-        did_x509_string_free(fingerprint as *mut _);
+        did_x509_string_free(fingerprint);
         did_x509_parsed_free(handle);
         if !error.is_null() {
             did_x509_error_free(error);
@@ -526,7 +526,7 @@ fn test_parsed_get_hash_algorithm() {
     assert_eq!(status, DID_X509_OK);
 
     // Test get_hash_algorithm
-    let mut algorithm: *const libc::c_char = ptr::null();
+    let mut algorithm: *mut libc::c_char = ptr::null_mut();
     let mut alg_error: *mut DidX509ErrorHandle = ptr::null_mut();
 
     let alg_status =
@@ -539,7 +539,7 @@ fn test_parsed_get_hash_algorithm() {
     assert_eq!(alg_str, "sha256");
 
     unsafe {
-        did_x509_string_free(algorithm as *mut _);
+        did_x509_string_free(algorithm);
         did_x509_parsed_free(handle);
         if !error.is_null() {
             did_x509_error_free(error);
@@ -581,7 +581,7 @@ fn test_parsed_get_policy_count() {
 #[test]
 fn test_parsed_accessors_null_handle() {
     // Test get_fingerprint with null handle
-    let mut fingerprint: *const libc::c_char = ptr::null();
+    let mut fingerprint: *mut libc::c_char = ptr::null_mut();
     let mut error: *mut DidX509ErrorHandle = ptr::null_mut();
 
     let status =
@@ -596,7 +596,7 @@ fn test_parsed_accessors_null_handle() {
     }
 
     // Test get_hash_algorithm with null handle
-    let mut algorithm: *const libc::c_char = ptr::null();
+    let mut algorithm: *mut libc::c_char = ptr::null_mut();
     let mut error2: *mut DidX509ErrorHandle = ptr::null_mut();
 
     let status2 =

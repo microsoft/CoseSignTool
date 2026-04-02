@@ -211,9 +211,13 @@ public:
     /**
      * @brief Signs payload with direct signature (embedded payload)
      * 
+     * Returns a copy of the signed bytes as a vector. For zero-copy access
+     * to the signed message, prefer SignDirectToMessage() which returns a
+     * CoseSign1Message handle with borrowed ByteView accessors.
+     * 
      * @param payload Payload bytes
      * @param content_type Content type string
-     * @return COSE_Sign1 message bytes
+     * @return COSE_Sign1 message bytes (caller-owned copy)
      * @throws FactoryError on failure
      */
     std::vector<uint8_t> SignDirect(
@@ -226,10 +230,14 @@ public:
     /**
      * @brief Signs payload with direct signature (embedded payload)
      * 
+     * Returns a copy of the signed bytes as a vector. For zero-copy access
+     * to the signed message, prefer SignDirectToMessage() which returns a
+     * CoseSign1Message handle with borrowed ByteView accessors.
+     * 
      * @param payload Payload data pointer
      * @param payload_len Payload length
      * @param content_type Content type string
-     * @return COSE_Sign1 message bytes
+     * @return COSE_Sign1 message bytes (caller-owned copy)
      * @throws FactoryError on failure
      */
     std::vector<uint8_t> SignDirect(
@@ -521,9 +529,12 @@ public:
     /**
      * @brief Signs payload with indirect signature (hash envelope)
      * 
+     * Returns a copy of the signed bytes as a vector. For zero-copy access,
+     * prefer the ToMessage variants when available.
+     * 
      * @param payload Payload bytes
      * @param content_type Content type string
-     * @return COSE_Sign1 message bytes
+     * @return COSE_Sign1 message bytes (caller-owned copy)
      * @throws FactoryError on failure
      */
     std::vector<uint8_t> SignIndirect(
@@ -536,10 +547,13 @@ public:
     /**
      * @brief Signs payload with indirect signature (hash envelope)
      * 
+     * Returns a copy of the signed bytes as a vector. For zero-copy access,
+     * prefer the ToMessage variants when available.
+     * 
      * @param payload Payload data pointer
      * @param payload_len Payload length
      * @param content_type Content type string
-     * @return COSE_Sign1 message bytes
+     * @return COSE_Sign1 message bytes (caller-owned copy)
      * @throws FactoryError on failure
      */
     std::vector<uint8_t> SignIndirect(

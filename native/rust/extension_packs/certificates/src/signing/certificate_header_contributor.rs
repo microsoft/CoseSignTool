@@ -39,14 +39,11 @@ impl CertificateHeaderContributor {
     /// # Returns
     ///
     /// CertificateHeaderContributor or error if validation fails
-    pub fn new(
-        signing_cert: &[u8],
-        chain: &[&[u8]],
-    ) -> Result<Self, CertificateError> {
+    pub fn new(signing_cert: &[u8], chain: &[&[u8]]) -> Result<Self, CertificateError> {
         // Validate first chain cert matches signing cert if chain is non-empty
         if !chain.is_empty() && chain[0] != signing_cert {
             return Err(CertificateError::InvalidCertificate(
-                "First chain certificate does not match signing certificate".to_string(),
+                "First chain certificate does not match signing certificate".into(),
             ));
         }
 
@@ -65,9 +62,7 @@ impl CertificateHeaderContributor {
     /// Builds x5t (certificate thumbprint) as CBOR array [alg_id, thumbprint].
     ///
     /// Uses SHA-256 hash of certificate DER bytes.
-    fn build_x5t(
-        cert_der: &[u8],
-    ) -> Result<Vec<u8>, CertificateError> {
+    fn build_x5t(cert_der: &[u8]) -> Result<Vec<u8>, CertificateError> {
         // Compute SHA-256 thumbprint
         let mut hasher = Sha256::new();
         hasher.update(cert_der);
@@ -88,9 +83,7 @@ impl CertificateHeaderContributor {
     }
 
     /// Builds x5chain as CBOR array of bstr (cert DER).
-    fn build_x5chain(
-        chain: &[&[u8]],
-    ) -> Result<Vec<u8>, CertificateError> {
+    fn build_x5chain(chain: &[&[u8]]) -> Result<Vec<u8>, CertificateError> {
         let mut encoder = cose_sign1_primitives::provider::encoder();
         encoder.encode_array(chain.len()).map_err(|e| {
             CertificateError::SigningError(format!("Failed to encode x5chain array: {}", e))

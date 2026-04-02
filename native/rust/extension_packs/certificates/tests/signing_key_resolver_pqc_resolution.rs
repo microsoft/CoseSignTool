@@ -1,10 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-use cbor_primitives_everparse::EverParseCborProvider;
-use cose_sign1_validation::fluent::*;
 use cbor_primitives::{CborEncoder, CborProvider};
+use cbor_primitives_everparse::EverParseCborProvider;
 use cose_sign1_certificates::validation::signing_key_resolver::X509CertificateCoseKeyResolver;
+use cose_sign1_validation::fluent::*;
 use cose_sign1_validation_primitives::CoseHeaderLocation;
 use rcgen::{CertificateParams, KeyPair, PKCS_ECDSA_P384_SHA384};
 

@@ -1,10 +1,13 @@
 [package]
 name = "cose_sign1_certificates_local_ffi"
 version = "0.1.0"
-edition = "2021"
+edition.workspace = true
+license.workspace = true
+description = "C/C++ FFI projections for ephemeral certificate generation"
 
 [lib]
 crate-type = ["cdylib", "staticlib", "rlib"]
+test = false
 
 [dependencies]
 cose_sign1_certificates_local = { path = ".." }

@@ -418,11 +418,14 @@ impl PrimarySigningKeyScopeRulesExt for ScopeRules<PrimarySigningKeyScope> {
     }
 
     fn require_signing_certificate_subject_issuer_matches_leaf_chain_element(self) -> Self {
-        let subject_selector = |s: &cose_sign1_validation_primitives::subject::TrustSubject| s.clone();
+        let subject_selector =
+            |s: &cose_sign1_validation_primitives::subject::TrustSubject| s.clone();
 
         let left_selector = FactSelector::first();
-        let right_selector = FactSelector::first()
-            .where_usize(crate::validation::facts::fields::x509_chain_element_identity::INDEX, 0);
+        let right_selector = FactSelector::first().where_usize(
+            crate::validation::facts::fields::x509_chain_element_identity::INDEX,
+            0,
+        );
 
         let rule = require_facts_match::<
             X509SigningCertificateIdentityFact,
@@ -458,11 +461,14 @@ impl PrimarySigningKeyScopeRulesExt for ScopeRules<PrimarySigningKeyScope> {
 
     /// If the issuer element (index 1) is missing, allow; otherwise require issuer chaining.
     fn require_leaf_issuer_is_next_chain_subject_optional(self) -> Self {
-        let subject_selector = |s: &cose_sign1_validation_primitives::subject::TrustSubject| s.clone();
+        let subject_selector =
+            |s: &cose_sign1_validation_primitives::subject::TrustSubject| s.clone();
 
         let left_selector = FactSelector::first();
-        let right_selector = FactSelector::first()
-            .where_usize(crate::validation::facts::fields::x509_chain_element_identity::INDEX, 1);
+        let right_selector = FactSelector::first().where_usize(
+            crate::validation::facts::fields::x509_chain_element_identity::INDEX,
+            1,
+        );
 
         let rule = require_facts_match::<
             X509SigningCertificateIdentityFact,
@@ -492,7 +498,8 @@ impl PrimarySigningKeyScopeRulesExt for ScopeRules<PrimarySigningKeyScope> {
 
     /// Deny if a PQC algorithm is explicitly detected; allow if missing.
     fn require_not_pqc_algorithm_or_missing(self) -> Self {
-        let subject_selector = |s: &cose_sign1_validation_primitives::subject::TrustSubject| s.clone();
+        let subject_selector =
+            |s: &cose_sign1_validation_primitives::subject::TrustSubject| s.clone();
 
         // If the fact is missing, `require_fact_bool` denies, and NOT(deny) => trusted.
         // If the fact is present and IS_PQC == true, inner is trusted and NOT => denied.

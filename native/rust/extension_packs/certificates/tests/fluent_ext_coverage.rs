@@ -1,14 +1,13 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-
-use cose_sign1_validation::fluent::*;
 use cose_sign1_certificates::validation::facts::{
     X509ChainElementIdentityFact, X509ChainElementValidityFact, X509ChainTrustedFact,
     X509PublicKeyAlgorithmFact, X509SigningCertificateIdentityFact,
 };
 use cose_sign1_certificates::validation::fluent_ext::*;
 use cose_sign1_certificates::validation::pack::X509CertificateTrustPack;
+use cose_sign1_validation::fluent::*;
 use std::sync::Arc;
 
 #[test]

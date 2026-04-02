@@ -2,7 +2,6 @@
 // Licensed under the MIT License.
 
 #![cfg_attr(coverage_nightly, feature(coverage_attribute))]
-
 #![deny(unsafe_op_in_unsafe_fn)]
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
@@ -28,7 +27,8 @@ thread_local! {
 
 pub fn set_last_error(message: impl Into<String>) {
     let s = message.into();
-    let c = CString::new(s).unwrap_or_else(|_| CString::new("error message contained NUL").unwrap());
+    let c =
+        CString::new(s).unwrap_or_else(|_| CString::new("error message contained NUL").unwrap());
     LAST_ERROR.with(|slot| {
         *slot.borrow_mut() = Some(c);
     });
@@ -60,7 +60,9 @@ pub enum cose_status_t {
 }
 
 #[inline(never)]
-pub fn with_catch_unwind<F: FnOnce() -> Result<cose_status_t, anyhow::Error>>(f: F) -> cose_status_t {
+pub fn with_catch_unwind<F: FnOnce() -> Result<cose_status_t, anyhow::Error>>(
+    f: F,
+) -> cose_status_t {
     clear_last_error();
     match catch_unwind(AssertUnwindSafe(f)) {
         Ok(Ok(status)) => status,
@@ -136,8 +138,9 @@ pub unsafe extern "C" fn cose_cert_local_string_free(s: *mut c_char) {
 /// - `out` must be a valid, non-null pointer
 /// - Caller must free the result with `cose_cert_local_factory_free`
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
-pub extern "C" fn cose_cert_local_factory_new(out: *mut *mut cose_cert_local_factory_t) -> cose_status_t {
+pub extern "C" fn cose_cert_local_factory_new(
+    out: *mut *mut cose_cert_local_factory_t,
+) -> cose_status_t {
     with_catch_unwind(|| {
         if out.is_null() {
             anyhow::bail!("out must not be null");
@@ -193,7 +196,6 @@ fn string_from_ptr(arg_name: &'static str, s: *const c_char) -> Result<String, a
 /// - `out_cert_der`, `out_cert_len`, `out_key_der`, `out_key_len` must be valid, non-null pointers
 /// - Caller must free the certificate and key bytes with `cose_cert_local_bytes_free`
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_cert_local_factory_create_cert(
     factory: *const cose_cert_local_factory_t,
     subject: *const c_char,
@@ -206,16 +208,20 @@ pub extern "C" fn cose_cert_local_factory_create_cert(
     out_key_len: *mut usize,
 ) -> cose_status_t {
     with_catch_unwind(|| {
-        if out_cert_der.is_null() || out_cert_len.is_null() || out_key_der.is_null() || out_key_len.is_null() {
+        if out_cert_der.is_null()
+            || out_cert_len.is_null()
+            || out_key_der.is_null()
+            || out_key_len.is_null()
+        {
             anyhow::bail!("output pointers must not be null");
         }
 
         // SAFETY: Null checked via `.ok_or_else`; pointer is valid per FFI contract.
         let factory = unsafe { factory.as_ref() }
             .ok_or_else(|| anyhow::anyhow!("factory must not be null"))?;
-        
+
         let subject_str = string_from_ptr("subject", subject)?;
-        
+
         let key_alg = match algorithm {
             0 => KeyAlgorithm::Rsa,
             1 => KeyAlgorithm::Ecdsa,
@@ -230,11 +236,15 @@ pub extern "C" fn cose_cert_local_factory_create_cert(
             .with_key_size(key_size)
             .with_validity(std::time::Duration::from_secs(validity_secs));
 
-        let cert = factory.factory.create_certificate(opts)
+        let cert = factory
+            .factory
+            .create_certificate(opts)
             .map_err(|e| anyhow::anyhow!("certificate creation failed: {}", e))?;
 
         let cert_der = cert.cert_der.clone();
-        let key_der = cert.private_key_der.clone()
+        let key_der = cert
+            .private_key_der
+            .clone()
             .ok_or_else(|| anyhow::anyhow!("certificate does not have a private key"))?;
 
         // Get lengths before boxing
@@ -268,7 +278,6 @@ pub extern "C" fn cose_cert_local_factory_create_cert(
 /// - `out_cert_der`, `out_cert_len`, `out_key_der`, `out_key_len` must be valid, non-null pointers
 /// - Caller must free the certificate and key bytes with `cose_cert_local_bytes_free`
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_cert_local_factory_create_self_signed(
     factory: *const cose_cert_local_factory_t,
     out_cert_der: *mut *mut u8,
@@ -277,7 +286,11 @@ pub extern "C" fn cose_cert_local_factory_create_self_signed(
     out_key_len: *mut usize,
 ) -> cose_status_t {
     with_catch_unwind(|| {
-        if out_cert_der.is_null() || out_cert_len.is_null() || out_key_der.is_null() || out_key_len.is_null() {
+        if out_cert_der.is_null()
+            || out_cert_len.is_null()
+            || out_key_der.is_null()
+            || out_key_len.is_null()
+        {
             anyhow::bail!("output pointers must not be null");
         }
 
@@ -285,11 +298,15 @@ pub extern "C" fn cose_cert_local_factory_create_self_signed(
         let factory = unsafe { factory.as_ref() }
             .ok_or_else(|| anyhow::anyhow!("factory must not be null"))?;
 
-        let cert = factory.factory.create_certificate_default()
+        let cert = factory
+            .factory
+            .create_certificate_default()
             .map_err(|e| anyhow::anyhow!("certificate creation failed: {}", e))?;
 
         let cert_der = cert.cert_der.clone();
-        let key_der = cert.private_key_der.clone()
+        let key_der = cert
+            .private_key_der
+            .clone()
             .ok_or_else(|| anyhow::anyhow!("certificate does not have a private key"))?;
 
         // Get lengths before boxing
@@ -322,8 +339,9 @@ pub extern "C" fn cose_cert_local_factory_create_self_signed(
 /// - `out` must be a valid, non-null pointer
 /// - Caller must free the result with `cose_cert_local_chain_free`
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
-pub extern "C" fn cose_cert_local_chain_new(out: *mut *mut cose_cert_local_chain_t) -> cose_status_t {
+pub extern "C" fn cose_cert_local_chain_new(
+    out: *mut *mut cose_cert_local_chain_t,
+) -> cose_status_t {
     with_catch_unwind(|| {
         if out.is_null() {
             anyhow::bail!("out must not be null");
@@ -332,7 +350,9 @@ pub extern "C" fn cose_cert_local_chain_new(out: *mut *mut cose_cert_local_chain
         let key_provider = Box::new(SoftwareKeyProvider::new());
         let cert_factory = EphemeralCertificateFactory::new(key_provider);
         let chain_factory = CertificateChainFactory::new(cert_factory);
-        let handle = cose_cert_local_chain_t { factory: chain_factory };
+        let handle = cose_cert_local_chain_t {
+            factory: chain_factory,
+        };
         let boxed = Box::new(handle);
         // SAFETY: `out` is non-null (checked above) and aligned per FFI contract; transferring ownership.
         unsafe {
@@ -370,7 +390,6 @@ pub extern "C" fn cose_cert_local_chain_free(chain_factory: *mut cose_cert_local
 /// - Caller must free each certificate and key with `cose_cert_local_bytes_free`
 /// - Caller must free the arrays themselves with `cose_cert_local_array_free`
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_cert_local_chain_create(
     chain_factory: *const cose_cert_local_chain_t,
     algorithm: u32,
@@ -410,11 +429,13 @@ pub extern "C" fn cose_cert_local_chain_create(
                 None
             });
 
-        let chain = chain_factory.factory.create_chain_with_options(opts)
+        let chain = chain_factory
+            .factory
+            .create_chain_with_options(opts)
             .map_err(|e| anyhow::anyhow!("chain creation failed: {}", e))?;
 
         let count = chain.len();
-        
+
         // Allocate arrays for certificate data pointers and lengths
         let mut cert_ptrs = Vec::with_capacity(count);
         let mut cert_lens = Vec::with_capacity(count);
@@ -474,7 +495,6 @@ pub extern "C" fn cose_cert_local_chain_create(
 /// - Caller must free the certificate and key bytes with `cose_cert_local_bytes_free`
 /// - If no private key is present, `*out_key_der` will be null and `*out_key_len` will be 0
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_cert_local_load_pem(
     pem_data: *const u8,
     pem_len: usize,
@@ -487,13 +507,17 @@ pub extern "C" fn cose_cert_local_load_pem(
         if pem_data.is_null() {
             anyhow::bail!("pem_data must not be null");
         }
-        if out_cert_der.is_null() || out_cert_len.is_null() || out_key_der.is_null() || out_key_len.is_null() {
+        if out_cert_der.is_null()
+            || out_cert_len.is_null()
+            || out_key_der.is_null()
+            || out_key_len.is_null()
+        {
             anyhow::bail!("output pointers must not be null");
         }
 
         // SAFETY: Null checked above; `pem_data` points to `pem_len` bytes per FFI contract.
         let pem_bytes = unsafe { std::slice::from_raw_parts(pem_data, pem_len) };
-        
+
         let cert = cose_sign1_certificates_local::loaders::pem::load_cert_from_pem_bytes(pem_bytes)
             .map_err(|e| anyhow::anyhow!("PEM load failed: {}", e))?;
 
@@ -537,7 +561,6 @@ pub extern "C" fn cose_cert_local_load_pem(
 /// - `out_cert_der`, `out_cert_len` must be valid, non-null pointers
 /// - Caller must free the certificate bytes with `cose_cert_local_bytes_free`
 #[no_mangle]
-#[cfg_attr(coverage_nightly, coverage(off))]
 pub extern "C" fn cose_cert_local_load_der(
     cert_data: *const u8,
     cert_len: usize,
@@ -554,9 +577,10 @@ pub extern "C" fn cose_cert_local_load_der(
 
         // SAFETY: Null checked above; `cert_data` points to `cert_len` bytes per FFI contract.
         let cert_bytes = unsafe { std::slice::from_raw_parts(cert_data, cert_len) };
-        
-        let cert = cose_sign1_certificates_local::loaders::der::load_cert_from_der_bytes(cert_bytes)
-            .map_err(|e| anyhow::anyhow!("DER load failed: {}", e))?;
+
+        let cert =
+            cose_sign1_certificates_local::loaders::der::load_cert_from_der_bytes(cert_bytes)
+                .map_err(|e| anyhow::anyhow!("DER load failed: {}", e))?;
 
         let cert_der = cert.cert_der.clone();
         let cert_len_out = cert_der.len();

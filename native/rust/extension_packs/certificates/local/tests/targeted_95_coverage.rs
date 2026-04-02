@@ -11,12 +11,10 @@
 //!          loaders/pem.rs (edge case).
 
 use cose_sign1_certificates_local::certificate::Certificate;
-use cose_sign1_certificates_local::error::CertLocalError;
 use cose_sign1_certificates_local::factory::EphemeralCertificateFactory;
-use cose_sign1_certificates_local::key_algorithm::KeyAlgorithm;
 use cose_sign1_certificates_local::options::CertificateOptions;
 use cose_sign1_certificates_local::software_key::SoftwareKeyProvider;
-use cose_sign1_certificates_local::traits::{CertificateFactory, PrivateKeyProvider};
+use cose_sign1_certificates_local::traits::CertificateFactory;
 use std::time::Duration;
 
 fn make_factory() -> EphemeralCertificateFactory {
@@ -51,8 +49,10 @@ fn factory_issuer_without_key_returns_error() {
         .unwrap();
     let issuer_no_key = Certificate::new(cert.cert_der.clone());
 
-    let mut opts = CertificateOptions::default();
-    opts.issuer = Some(Box::new(issuer_no_key));
+    let opts = CertificateOptions {
+        issuer: Some(Box::new(issuer_no_key)),
+        ..Default::default()
+    };
     let result = factory.create_certificate(opts);
     assert!(result.is_err());
     let err_msg = format!("{}", result.unwrap_err());

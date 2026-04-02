@@ -13,16 +13,22 @@ use cbor_primitives_everparse::EverParseCborProvider;
 use cose_sign1_certificates::signing::certificate_header_contributor::CertificateHeaderContributor;
 use cose_sign1_certificates::validation::facts::*;
 use cose_sign1_certificates::validation::fluent_ext::*;
-use cose_sign1_certificates::validation::pack::{CertificateTrustOptions, X509CertificateTrustPack};
+use cose_sign1_certificates::validation::pack::{
+    CertificateTrustOptions, X509CertificateTrustPack,
+};
 use cose_sign1_certificates::validation::signing_key_resolver::X509CertificateCoseKeyResolver;
 use cose_sign1_primitives::{CoseHeaderLabel, CoseHeaderMap, CoseSign1Message};
-use cose_sign1_signing::{HeaderContributor, HeaderContributorContext, HeaderMergeStrategy, SigningContext};
+use cose_sign1_signing::{
+    HeaderContributor, HeaderContributorContext, HeaderMergeStrategy, SigningContext,
+};
 use cose_sign1_validation::fluent::*;
 use cose_sign1_validation_primitives::facts::{TrustFactEngine, TrustFactSet};
 use cose_sign1_validation_primitives::subject::TrustSubject;
 use cose_sign1_validation_primitives::CoseHeaderLocation;
 use crypto_primitives::{CryptoError, CryptoSigner};
-use rcgen::{generate_simple_self_signed, CertifiedKey, CertificateParams, KeyPair, PKCS_ECDSA_P256_SHA256};
+use rcgen::{
+    generate_simple_self_signed, CertificateParams, CertifiedKey, KeyPair, PKCS_ECDSA_P256_SHA256,
+};
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -530,7 +536,11 @@ fn fluent_ext_require_methods_compile_and_evaluate() {
     let validator = CoseSign1Validator::new(compiled);
     let result = validator.validate(parsed.as_ref(), cose_arc);
     // Just verify we got a result (pass or fail is ok — the goal is line coverage)
-    assert!(result.is_ok(), "Validation should not error: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Validation should not error: {:?}",
+        result.err()
+    );
 }
 
 /// Test that `require_leaf_subject_eq` and `require_issuer_subject_eq` compile properly.
@@ -726,7 +736,10 @@ fn header_contributor_multi_cert_chain() {
     contributor.contribute_protected_headers(&mut headers, &ctx);
 
     let x5chain = headers.get(&CoseHeaderLabel::Int(33));
-    assert!(x5chain.is_some(), "x5chain should be present for multi-cert chain");
+    assert!(
+        x5chain.is_some(),
+        "x5chain should be present for multi-cert chain"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -753,15 +766,23 @@ fn provides_returns_all_certificate_fact_keys() {
     let provided = pack.provides();
 
     // Should include all 11 fact keys
-    assert!(provided.len() >= 11, "Expected at least 11 fact keys, got {}", provided.len());
+    assert!(
+        provided.len() >= 11,
+        "Expected at least 11 fact keys, got {}",
+        provided.len()
+    );
 
     // Verify specific keys are present
     let has = |fk: FactKey| provided.iter().any(|p| p.type_id == fk.type_id);
     assert!(has(FactKey::of::<X509SigningCertificateIdentityFact>()));
-    assert!(has(FactKey::of::<X509SigningCertificateIdentityAllowedFact>()));
+    assert!(has(
+        FactKey::of::<X509SigningCertificateIdentityAllowedFact>()
+    ));
     assert!(has(FactKey::of::<X509SigningCertificateEkuFact>()));
     assert!(has(FactKey::of::<X509SigningCertificateKeyUsageFact>()));
-    assert!(has(FactKey::of::<X509SigningCertificateBasicConstraintsFact>()));
+    assert!(has(
+        FactKey::of::<X509SigningCertificateBasicConstraintsFact>()
+    ));
     assert!(has(FactKey::of::<X509X5ChainCertificateIdentityFact>()));
     assert!(has(FactKey::of::<X509ChainTrustedFact>()));
     assert!(has(FactKey::of::<X509ChainElementIdentityFact>()));

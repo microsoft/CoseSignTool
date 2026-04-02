@@ -1,14 +1,14 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+use cbor_primitives::{CborEncoder, CborProvider};
 use cbor_primitives_everparse::EverParseCborProvider;
-use cose_sign1_primitives::CoseSign1Message;
-use cose_sign1_validation::fluent::*;
 use cose_sign1_certificates::validation::facts::X509SigningCertificateIdentityFact;
 use cose_sign1_certificates::validation::pack::X509CertificateTrustPack;
+use cose_sign1_primitives::CoseSign1Message;
+use cose_sign1_validation::fluent::*;
 use cose_sign1_validation_primitives::facts::{TrustFactEngine, TrustFactSet};
 use cose_sign1_validation_primitives::subject::TrustSubject;
-use cbor_primitives::{CborEncoder, CborProvider};
 use crypto_primitives::{CryptoError, CryptoVerifier};
 use rcgen::{generate_simple_self_signed, CertifiedKey};
 use std::sync::Arc;
@@ -119,11 +119,7 @@ impl CryptoVerifier for NoopCoseKey {
         -7 // ES256
     }
 
-    fn verify(
-        &self,
-        _data: &[u8],
-        _signature: &[u8],
-    ) -> Result<bool, CryptoError> {
+    fn verify(&self, _data: &[u8], _signature: &[u8]) -> Result<bool, CryptoError> {
         Ok(false)
     }
 }
@@ -167,8 +163,7 @@ fn counter_signature_signing_key_can_produce_x5chain_identity() {
 
     let cert_pack = Arc::new(X509CertificateTrustPack::new(Default::default()));
 
-    let parsed = CoseSign1Message::parse(cose.as_slice())
-        .expect("parse cose");
+    let parsed = CoseSign1Message::parse(cose.as_slice()).expect("parse cose");
 
     let engine = TrustFactEngine::new(vec![message_producer, cert_pack])
         .with_cose_sign1_bytes(Arc::from(cose.clone().into_boxed_slice()))
@@ -216,8 +211,7 @@ fn counter_signature_signing_key_parses_bstr_wrapped_cose_signature() {
 
     let cert_pack = Arc::new(X509CertificateTrustPack::new(Default::default()));
 
-    let parsed = CoseSign1Message::parse(cose.as_slice())
-        .expect("parse cose");
+    let parsed = CoseSign1Message::parse(cose.as_slice()).expect("parse cose");
 
     let engine = TrustFactEngine::new(vec![message_producer, cert_pack])
         .with_cose_sign1_bytes(Arc::from(cose.clone().into_boxed_slice()))
@@ -255,8 +249,7 @@ fn counter_signature_signing_key_can_read_x5chain_from_unprotected_when_header_l
 
     let cert_pack = Arc::new(X509CertificateTrustPack::new(Default::default()));
 
-    let parsed = CoseSign1Message::parse(cose.as_slice())
-        .expect("parse cose");
+    let parsed = CoseSign1Message::parse(cose.as_slice()).expect("parse cose");
 
     let engine = TrustFactEngine::new(vec![message_producer, cert_pack])
         .with_cose_sign1_bytes(Arc::from(cose.clone().into_boxed_slice()))
@@ -272,4 +265,3 @@ fn counter_signature_signing_key_can_read_x5chain_from_unprotected_when_header_l
         .unwrap();
     assert!(matches!(identity, TrustFactSet::Available(_)));
 }
-

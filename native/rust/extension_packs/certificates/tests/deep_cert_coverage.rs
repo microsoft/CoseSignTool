@@ -17,7 +17,9 @@ use std::sync::Arc;
 use cbor_primitives::{CborEncoder, CborProvider};
 use cbor_primitives_everparse::EverParseCborProvider;
 use cose_sign1_certificates::validation::facts::*;
-use cose_sign1_certificates::validation::pack::{CertificateTrustOptions, X509CertificateTrustPack};
+use cose_sign1_certificates::validation::pack::{
+    CertificateTrustOptions, X509CertificateTrustPack,
+};
 use cose_sign1_primitives::{CoseHeaderLabel, CoseHeaderMap, CoseHeaderValue, CoseSign1Message};
 use cose_sign1_signing::{HeaderContributor, HeaderContributorContext, SigningContext};
 use cose_sign1_validation_primitives::facts::{TrustFactEngine, TrustFactSet};
@@ -109,10 +111,7 @@ fn build_cose_with_chain(chain: &[&[u8]]) -> Vec<u8> {
 }
 
 /// Create engine from pack + COSE bytes (also parses message).
-fn engine_from(
-    pack: X509CertificateTrustPack,
-    cose: &[u8],
-) -> TrustFactEngine {
+fn engine_from(pack: X509CertificateTrustPack, cose: &[u8]) -> TrustFactEngine {
     let msg = CoseSign1Message::parse(cose).unwrap();
     TrustFactEngine::new(vec![Arc::new(pack)])
         .with_cose_sign1_bytes(Arc::from(cose.to_vec().into_boxed_slice()))
@@ -142,11 +141,17 @@ fn produce_eku_facts_with_code_signing() {
     let eng = engine_from(pack, &cose);
     let sk = signing_key(&cose);
 
-    let eku = eng.get_fact_set::<X509SigningCertificateEkuFact>(&sk).unwrap();
+    let eku = eng
+        .get_fact_set::<X509SigningCertificateEkuFact>(&sk)
+        .unwrap();
     match eku {
         TrustFactSet::Available(v) => {
             let oids: Vec<&str> = v.iter().map(|f| f.oid_value.as_str()).collect();
-            assert!(oids.contains(&"1.3.6.1.5.5.7.3.3"), "expected code_signing OID, got {:?}", oids);
+            assert!(
+                oids.contains(&"1.3.6.1.5.5.7.3.3"),
+                "expected code_signing OID, got {:?}",
+                oids
+            );
         }
         _ => panic!("expected Available EKU facts"),
     }
@@ -168,12 +173,20 @@ fn produce_eku_facts_with_server_and_client_auth() {
     let eng = engine_from(pack, &cose);
     let sk = signing_key(&cose);
 
-    let eku = eng.get_fact_set::<X509SigningCertificateEkuFact>(&sk).unwrap();
+    let eku = eng
+        .get_fact_set::<X509SigningCertificateEkuFact>(&sk)
+        .unwrap();
     match eku {
         TrustFactSet::Available(v) => {
             let oids: Vec<&str> = v.iter().map(|f| f.oid_value.as_str()).collect();
-            assert!(oids.contains(&"1.3.6.1.5.5.7.3.1"), "expected server_auth OID");
-            assert!(oids.contains(&"1.3.6.1.5.5.7.3.2"), "expected client_auth OID");
+            assert!(
+                oids.contains(&"1.3.6.1.5.5.7.3.1"),
+                "expected server_auth OID"
+            );
+            assert!(
+                oids.contains(&"1.3.6.1.5.5.7.3.2"),
+                "expected client_auth OID"
+            );
         }
         _ => panic!("expected Available EKU facts"),
     }
@@ -192,11 +205,17 @@ fn produce_eku_facts_with_email_protection() {
     let eng = engine_from(pack, &cose);
     let sk = signing_key(&cose);
 
-    let eku = eng.get_fact_set::<X509SigningCertificateEkuFact>(&sk).unwrap();
+    let eku = eng
+        .get_fact_set::<X509SigningCertificateEkuFact>(&sk)
+        .unwrap();
     match eku {
         TrustFactSet::Available(v) => {
             let oids: Vec<&str> = v.iter().map(|f| f.oid_value.as_str()).collect();
-            assert!(oids.contains(&"1.3.6.1.5.5.7.3.4"), "expected email_protection OID, got {:?}", oids);
+            assert!(
+                oids.contains(&"1.3.6.1.5.5.7.3.4"),
+                "expected email_protection OID, got {:?}",
+                oids
+            );
         }
         _ => panic!("expected Available EKU facts"),
     }
@@ -215,11 +234,17 @@ fn produce_eku_facts_with_time_stamping() {
     let eng = engine_from(pack, &cose);
     let sk = signing_key(&cose);
 
-    let eku = eng.get_fact_set::<X509SigningCertificateEkuFact>(&sk).unwrap();
+    let eku = eng
+        .get_fact_set::<X509SigningCertificateEkuFact>(&sk)
+        .unwrap();
     match eku {
         TrustFactSet::Available(v) => {
             let oids: Vec<&str> = v.iter().map(|f| f.oid_value.as_str()).collect();
-            assert!(oids.contains(&"1.3.6.1.5.5.7.3.8"), "expected time_stamping OID, got {:?}", oids);
+            assert!(
+                oids.contains(&"1.3.6.1.5.5.7.3.8"),
+                "expected time_stamping OID, got {:?}",
+                oids
+            );
         }
         _ => panic!("expected Available EKU facts"),
     }
@@ -238,11 +263,17 @@ fn produce_eku_facts_with_ocsp_signing() {
     let eng = engine_from(pack, &cose);
     let sk = signing_key(&cose);
 
-    let eku = eng.get_fact_set::<X509SigningCertificateEkuFact>(&sk).unwrap();
+    let eku = eng
+        .get_fact_set::<X509SigningCertificateEkuFact>(&sk)
+        .unwrap();
     match eku {
         TrustFactSet::Available(v) => {
             let oids: Vec<&str> = v.iter().map(|f| f.oid_value.as_str()).collect();
-            assert!(oids.contains(&"1.3.6.1.5.5.7.3.9"), "expected ocsp_signing OID, got {:?}", oids);
+            assert!(
+                oids.contains(&"1.3.6.1.5.5.7.3.9"),
+                "expected ocsp_signing OID, got {:?}",
+                oids
+            );
         }
         _ => panic!("expected Available EKU facts"),
     }
@@ -254,18 +285,16 @@ fn produce_eku_facts_with_ocsp_signing() {
 
 #[test]
 fn produce_key_usage_digital_signature() {
-    let (cert, _kp) = generate_cert_with_extensions(
-        "ds-cert",
-        None,
-        &[KeyUsagePurpose::DigitalSignature],
-        &[],
-    );
+    let (cert, _kp) =
+        generate_cert_with_extensions("ds-cert", None, &[KeyUsagePurpose::DigitalSignature], &[]);
     let cose = build_cose_with_chain(&[&cert]);
     let pack = X509CertificateTrustPack::new(CertificateTrustOptions::default());
     let eng = engine_from(pack, &cose);
     let sk = signing_key(&cose);
 
-    let ku = eng.get_fact_set::<X509SigningCertificateKeyUsageFact>(&sk).unwrap();
+    let ku = eng
+        .get_fact_set::<X509SigningCertificateKeyUsageFact>(&sk)
+        .unwrap();
     match ku {
         TrustFactSet::Available(v) => {
             assert_eq!(v.len(), 1);
@@ -283,12 +312,22 @@ fn produce_key_usage_key_cert_sign_and_crl_sign() {
     let eng = engine_from(pack, &cose);
     let sk = signing_key(&cose);
 
-    let ku = eng.get_fact_set::<X509SigningCertificateKeyUsageFact>(&sk).unwrap();
+    let ku = eng
+        .get_fact_set::<X509SigningCertificateKeyUsageFact>(&sk)
+        .unwrap();
     match ku {
         TrustFactSet::Available(v) => {
             assert_eq!(v.len(), 1);
-            assert!(v[0].usages.contains(&"KeyCertSign".to_string()), "got {:?}", v[0].usages);
-            assert!(v[0].usages.contains(&"CrlSign".to_string()), "got {:?}", v[0].usages);
+            assert!(
+                v[0].usages.contains(&"KeyCertSign".to_string()),
+                "got {:?}",
+                v[0].usages
+            );
+            assert!(
+                v[0].usages.contains(&"CrlSign".to_string()),
+                "got {:?}",
+                v[0].usages
+            );
         }
         _ => panic!("expected Available key usage facts"),
     }
@@ -296,22 +335,24 @@ fn produce_key_usage_key_cert_sign_and_crl_sign() {
 
 #[test]
 fn produce_key_usage_key_encipherment() {
-    let (cert, _kp) = generate_cert_with_extensions(
-        "ke-cert",
-        None,
-        &[KeyUsagePurpose::KeyEncipherment],
-        &[],
-    );
+    let (cert, _kp) =
+        generate_cert_with_extensions("ke-cert", None, &[KeyUsagePurpose::KeyEncipherment], &[]);
     let cose = build_cose_with_chain(&[&cert]);
     let pack = X509CertificateTrustPack::new(CertificateTrustOptions::default());
     let eng = engine_from(pack, &cose);
     let sk = signing_key(&cose);
 
-    let ku = eng.get_fact_set::<X509SigningCertificateKeyUsageFact>(&sk).unwrap();
+    let ku = eng
+        .get_fact_set::<X509SigningCertificateKeyUsageFact>(&sk)
+        .unwrap();
     match ku {
         TrustFactSet::Available(v) => {
             assert_eq!(v.len(), 1);
-            assert!(v[0].usages.contains(&"KeyEncipherment".to_string()), "got {:?}", v[0].usages);
+            assert!(
+                v[0].usages.contains(&"KeyEncipherment".to_string()),
+                "got {:?}",
+                v[0].usages
+            );
         }
         _ => panic!("expected Available key usage facts"),
     }
@@ -319,23 +360,25 @@ fn produce_key_usage_key_encipherment() {
 
 #[test]
 fn produce_key_usage_content_commitment() {
-    let (cert, _kp) = generate_cert_with_extensions(
-        "cc-cert",
-        None,
-        &[KeyUsagePurpose::ContentCommitment],
-        &[],
-    );
+    let (cert, _kp) =
+        generate_cert_with_extensions("cc-cert", None, &[KeyUsagePurpose::ContentCommitment], &[]);
     let cose = build_cose_with_chain(&[&cert]);
     let pack = X509CertificateTrustPack::new(CertificateTrustOptions::default());
     let eng = engine_from(pack, &cose);
     let sk = signing_key(&cose);
 
-    let ku = eng.get_fact_set::<X509SigningCertificateKeyUsageFact>(&sk).unwrap();
+    let ku = eng
+        .get_fact_set::<X509SigningCertificateKeyUsageFact>(&sk)
+        .unwrap();
     match ku {
         TrustFactSet::Available(v) => {
             assert_eq!(v.len(), 1);
             // ContentCommitment maps to NonRepudiation in RFC 5280.
-            assert!(v[0].usages.contains(&"NonRepudiation".to_string()), "got {:?}", v[0].usages);
+            assert!(
+                v[0].usages.contains(&"NonRepudiation".to_string()),
+                "got {:?}",
+                v[0].usages
+            );
         }
         _ => panic!("expected Available key usage facts"),
     }
@@ -343,22 +386,24 @@ fn produce_key_usage_content_commitment() {
 
 #[test]
 fn produce_key_usage_key_agreement() {
-    let (cert, _kp) = generate_cert_with_extensions(
-        "ka-cert",
-        None,
-        &[KeyUsagePurpose::KeyAgreement],
-        &[],
-    );
+    let (cert, _kp) =
+        generate_cert_with_extensions("ka-cert", None, &[KeyUsagePurpose::KeyAgreement], &[]);
     let cose = build_cose_with_chain(&[&cert]);
     let pack = X509CertificateTrustPack::new(CertificateTrustOptions::default());
     let eng = engine_from(pack, &cose);
     let sk = signing_key(&cose);
 
-    let ku = eng.get_fact_set::<X509SigningCertificateKeyUsageFact>(&sk).unwrap();
+    let ku = eng
+        .get_fact_set::<X509SigningCertificateKeyUsageFact>(&sk)
+        .unwrap();
     match ku {
         TrustFactSet::Available(v) => {
             assert_eq!(v.len(), 1);
-            assert!(v[0].usages.contains(&"KeyAgreement".to_string()), "got {:?}", v[0].usages);
+            assert!(
+                v[0].usages.contains(&"KeyAgreement".to_string()),
+                "got {:?}",
+                v[0].usages
+            );
         }
         _ => panic!("expected Available key usage facts"),
     }
@@ -422,7 +467,9 @@ fn produce_chain_element_identity_and_validity_for_multi_cert_chain() {
     let eng = engine_from(pack, &cose);
     let sk = signing_key(&cose);
 
-    let elems = eng.get_fact_set::<X509ChainElementIdentityFact>(&sk).unwrap();
+    let elems = eng
+        .get_fact_set::<X509ChainElementIdentityFact>(&sk)
+        .unwrap();
     match elems {
         TrustFactSet::Available(mut v) => {
             v.sort_by_key(|e| e.index);
@@ -435,7 +482,9 @@ fn produce_chain_element_identity_and_validity_for_multi_cert_chain() {
         _ => panic!("expected Available chain element identity facts"),
     }
 
-    let validity = eng.get_fact_set::<X509ChainElementValidityFact>(&sk).unwrap();
+    let validity = eng
+        .get_fact_set::<X509ChainElementValidityFact>(&sk)
+        .unwrap();
     match validity {
         TrustFactSet::Available(mut v) => {
             v.sort_by_key(|e| e.index);
@@ -460,7 +509,10 @@ fn chain_identity_missing_when_no_cose_bytes() {
     let x5 = engine
         .get_fact_set::<X509X5ChainCertificateIdentityFact>(&subject)
         .unwrap();
-    assert!(x5.is_missing(), "expected Missing for chain identity without cose bytes");
+    assert!(
+        x5.is_missing(),
+        "expected Missing for chain identity without cose bytes"
+    );
 
     let elems = engine
         .get_fact_set::<X509ChainElementIdentityFact>(&subject)
@@ -528,7 +580,9 @@ fn chain_trust_trusted_when_well_formed_and_trust_embedded_enabled() {
         _ => panic!("expected Available chain trust"),
     }
 
-    let skt = eng.get_fact_set::<CertificateSigningKeyTrustFact>(&sk).unwrap();
+    let skt = eng
+        .get_fact_set::<CertificateSigningKeyTrustFact>(&sk)
+        .unwrap();
     match skt {
         TrustFactSet::Available(v) => {
             assert_eq!(v.len(), 1);
@@ -676,7 +730,9 @@ fn identity_pinning_denies_non_matching_thumbprint() {
     let cose = build_cose_with_chain(&[&cert]);
     let pack = X509CertificateTrustPack::new(CertificateTrustOptions {
         identity_pinning_enabled: true,
-        allowed_thumbprints: vec!["0000000000000000000000000000000000000000000000000000000000000000".to_string()],
+        allowed_thumbprints: vec![
+            "0000000000000000000000000000000000000000000000000000000000000000".to_string(),
+        ],
         ..Default::default()
     });
     let eng = engine_from(pack, &cose);
@@ -711,7 +767,11 @@ fn public_key_algorithm_fact_produced() {
         TrustFactSet::Available(v) => {
             assert_eq!(v.len(), 1);
             // EC key OID should contain 1.2.840.10045
-            assert!(v[0].algorithm_oid.contains("1.2.840.10045"), "got OID: {}", v[0].algorithm_oid);
+            assert!(
+                v[0].algorithm_oid.contains("1.2.840.10045"),
+                "got OID: {}",
+                v[0].algorithm_oid
+            );
             assert!(!v[0].is_pqc);
         }
         _ => panic!("expected Available public key algorithm fact"),
@@ -727,7 +787,10 @@ fn pqc_oid_flag_set_when_matching() {
     let pack1 = X509CertificateTrustPack::new(CertificateTrustOptions::default());
     let eng1 = engine_from(pack1, &cose);
     let sk = signing_key(&cose);
-    let real_oid = match eng1.get_fact_set::<X509PublicKeyAlgorithmFact>(&sk).unwrap() {
+    let real_oid = match eng1
+        .get_fact_set::<X509PublicKeyAlgorithmFact>(&sk)
+        .unwrap()
+    {
         TrustFactSet::Available(v) => v[0].algorithm_oid.clone(),
         _ => panic!("need real OID"),
     };
@@ -738,7 +801,9 @@ fn pqc_oid_flag_set_when_matching() {
         ..Default::default()
     });
     let eng2 = engine_from(pack2, &cose);
-    let alg = eng2.get_fact_set::<X509PublicKeyAlgorithmFact>(&sk).unwrap();
+    let alg = eng2
+        .get_fact_set::<X509PublicKeyAlgorithmFact>(&sk)
+        .unwrap();
     match alg {
         TrustFactSet::Available(v) => {
             assert!(v[0].is_pqc, "expected PQC flag set for OID {}", real_oid);
@@ -760,7 +825,9 @@ fn produce_dispatches_to_chain_identity_group_via_chain_element_identity_request
     let sk = signing_key(&cose);
 
     // Requesting X509ChainElementIdentityFact triggers the chain identity group.
-    let elems = eng.get_fact_set::<X509ChainElementIdentityFact>(&sk).unwrap();
+    let elems = eng
+        .get_fact_set::<X509ChainElementIdentityFact>(&sk)
+        .unwrap();
     match elems {
         TrustFactSet::Available(v) => {
             assert_eq!(v.len(), 1);
@@ -924,7 +991,10 @@ fn header_contributor_unprotected_is_noop() {
     let ctx = HeaderContributorContext::new(&signing_ctx, &signer);
 
     contributor.contribute_unprotected_headers(&mut headers, &ctx);
-    assert!(headers.is_empty(), "unprotected headers should remain empty");
+    assert!(
+        headers.is_empty(),
+        "unprotected headers should remain empty"
+    );
 }
 
 #[test]
@@ -944,7 +1014,11 @@ fn header_contributor_empty_chain() {
     if let Some(CoseHeaderValue::Raw(x5c_bytes)) = headers.get(&x5chain_label) {
         let mut dec = cose_sign1_primitives::provider::decoder(x5c_bytes);
         let arr_len = dec.decode_array_len().unwrap();
-        assert_eq!(arr_len, Some(0), "empty chain should produce 0-element array");
+        assert_eq!(
+            arr_len,
+            Some(0),
+            "empty chain should produce 0-element array"
+        );
     } else {
         panic!("x5chain should be Raw CBOR");
     }

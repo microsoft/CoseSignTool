@@ -1,12 +1,12 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-use cbor_primitives_everparse::EverParseCborProvider;
-use cose_sign1_validation::fluent::*;
-use cose_sign1_certificates::validation::pack::X509CertificateTrustPack;
 use cbor_primitives::{CborEncoder, CborProvider};
+use cbor_primitives_everparse::EverParseCborProvider;
 use cbor_primitives_everparse::EverParseEncoder;
+use cose_sign1_certificates::validation::pack::X509CertificateTrustPack;
 use cose_sign1_certificates::validation::signing_key_resolver::X509CertificateCoseKeyResolver;
+use cose_sign1_validation::fluent::*;
 use cose_sign1_validation_primitives::CoseHeaderLocation;
 use rcgen::generate_simple_self_signed;
 
@@ -130,7 +130,10 @@ fn signing_key_resolver_protected_errors_when_x5chain_only_in_unprotected() {
     assert!(!res.is_success);
     assert_eq!(res.error_code.as_deref(), Some("X5CHAIN_NOT_FOUND"));
     let msg = res.error_message.clone().unwrap_or_default();
-    assert!(msg.contains("protected header"), "unexpected message: {msg}");
+    assert!(
+        msg.contains("protected header"),
+        "unexpected message: {msg}"
+    );
 }
 
 #[test]

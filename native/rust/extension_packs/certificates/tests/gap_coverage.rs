@@ -12,16 +12,20 @@ use std::borrow::Cow;
 use cbor_primitives::CborEncoder;
 use cose_sign1_primitives::{CoseHeaderLabel, CoseHeaderMap, CoseHeaderValue};
 
+use cose_sign1_certificates::chain_builder::{
+    CertificateChainBuilder, ExplicitCertificateChainBuilder,
+};
+use cose_sign1_certificates::chain_sort_order::X509ChainSortOrder;
+use cose_sign1_certificates::cose_key_factory::{HashAlgorithm, X509CertificateCoseKeyFactory};
 use cose_sign1_certificates::error::CertificateError;
+use cose_sign1_certificates::extensions::{extract_x5chain, extract_x5t, verify_x5t_matches_chain};
 use cose_sign1_certificates::thumbprint::{
     compute_thumbprint, CoseX509Thumbprint, ThumbprintAlgorithm,
 };
-use cose_sign1_certificates::chain_builder::{CertificateChainBuilder, ExplicitCertificateChainBuilder};
-use cose_sign1_certificates::chain_sort_order::X509ChainSortOrder;
-use cose_sign1_certificates::cose_key_factory::{HashAlgorithm, X509CertificateCoseKeyFactory};
-use cose_sign1_certificates::extensions::{extract_x5chain, extract_x5t, verify_x5t_matches_chain};
 use cose_sign1_certificates::validation::facts::*;
-use cose_sign1_certificates::validation::pack::{CertificateTrustOptions, X509CertificateTrustPack};
+use cose_sign1_certificates::validation::pack::{
+    CertificateTrustOptions, X509CertificateTrustPack,
+};
 use cose_sign1_validation_primitives::fact_properties::{FactProperties, FactValue};
 
 // ---------------------------------------------------------------------------
@@ -48,13 +52,19 @@ fn error_debug_formatting() {
 #[test]
 fn thumbprint_algorithm_sha384_round_trip() {
     assert_eq!(ThumbprintAlgorithm::Sha384.cose_algorithm_id(), -43);
-    assert_eq!(ThumbprintAlgorithm::from_cose_id(-43), Some(ThumbprintAlgorithm::Sha384));
+    assert_eq!(
+        ThumbprintAlgorithm::from_cose_id(-43),
+        Some(ThumbprintAlgorithm::Sha384)
+    );
 }
 
 #[test]
 fn thumbprint_algorithm_sha512_round_trip() {
     assert_eq!(ThumbprintAlgorithm::Sha512.cose_algorithm_id(), -44);
-    assert_eq!(ThumbprintAlgorithm::from_cose_id(-44), Some(ThumbprintAlgorithm::Sha512));
+    assert_eq!(
+        ThumbprintAlgorithm::from_cose_id(-44),
+        Some(ThumbprintAlgorithm::Sha512)
+    );
 }
 
 #[test]
@@ -107,7 +117,11 @@ fn thumbprint_deserialize_not_array_errors() {
     let result = CoseX509Thumbprint::deserialize(&cbor_int);
     assert!(result.is_err());
     let msg = result.unwrap_err().to_string();
-    assert!(msg.contains("array"), "error message did not contain expected 'array' substring (len={})", msg.len());
+    assert!(
+        msg.contains("array"),
+        "error message did not contain expected 'array' substring (len={})",
+        msg.len()
+    );
 }
 
 #[test]
@@ -117,7 +131,11 @@ fn thumbprint_deserialize_wrong_array_length() {
     let result = CoseX509Thumbprint::deserialize(&cbor_arr3);
     assert!(result.is_err());
     let msg = result.unwrap_err().to_string();
-    assert!(msg.contains("2 element"), "error message did not contain expected '2 element' substring (len={})", msg.len());
+    assert!(
+        msg.contains("2 element"),
+        "error message did not contain expected '2 element' substring (len={})",
+        msg.len()
+    );
 }
 
 #[test]
@@ -132,7 +150,11 @@ fn thumbprint_deserialize_unsupported_hash_id() {
     let result = CoseX509Thumbprint::deserialize(&cbor);
     assert!(result.is_err());
     let msg = result.unwrap_err().to_string();
-    assert!(msg.contains("Unsupported"), "error message did not contain expected 'Unsupported' substring (len={})", msg.len());
+    assert!(
+        msg.contains("Unsupported"),
+        "error message did not contain expected 'Unsupported' substring (len={})",
+        msg.len()
+    );
 }
 
 #[test]
@@ -147,7 +169,11 @@ fn thumbprint_deserialize_non_integer_hash_id() {
     let result = CoseX509Thumbprint::deserialize(&cbor);
     assert!(result.is_err());
     let msg = result.unwrap_err().to_string();
-    assert!(msg.contains("integer"), "error message did not contain expected 'integer' substring (len={})", msg.len());
+    assert!(
+        msg.contains("integer"),
+        "error message did not contain expected 'integer' substring (len={})",
+        msg.len()
+    );
 }
 
 #[test]
@@ -162,7 +188,11 @@ fn thumbprint_deserialize_non_bstr_thumbprint() {
     let result = CoseX509Thumbprint::deserialize(&cbor);
     assert!(result.is_err());
     let msg = result.unwrap_err().to_string();
-    assert!(msg.contains("ByteString"), "error message did not contain expected 'ByteString' substring (len={})", msg.len());
+    assert!(
+        msg.contains("ByteString"),
+        "error message did not contain expected 'ByteString' substring (len={})",
+        msg.len()
+    );
 }
 
 #[test]
@@ -228,7 +258,11 @@ fn extract_x5t_non_bytes_value_returns_error() {
     let result = extract_x5t(&headers);
     assert!(result.is_err());
     let msg = result.unwrap_err().to_string();
-    assert!(msg.contains("raw CBOR or bytes"), "error message did not contain expected 'raw CBOR or bytes' substring (len={})", msg.len());
+    assert!(
+        msg.contains("raw CBOR or bytes"),
+        "error message did not contain expected 'raw CBOR or bytes' substring (len={})",
+        msg.len()
+    );
 }
 
 #[test]
@@ -366,7 +400,11 @@ fn create_from_public_key_with_garbage_errors() {
         Err(e) => e.to_string(),
         Ok(_) => panic!("Expected error"),
     };
-    assert!(msg.contains("Failed to parse certificate"), "Unexpected error: {}", msg);
+    assert!(
+        msg.contains("Failed to parse certificate"),
+        "Unexpected error: {}",
+        msg
+    );
 }
 // ---------------------------------------------------------------------------
 // validation/facts.rs — FactProperties implementations
@@ -382,12 +420,30 @@ fn signing_cert_identity_fact_all_properties() {
         not_before_unix_seconds: 1000,
         not_after_unix_seconds: 2000,
     };
-    assert_eq!(fact.get_property("certificate_thumbprint"), Some(FactValue::Str(Cow::Borrowed("AA:BB"))));
-    assert_eq!(fact.get_property("subject"), Some(FactValue::Str(Cow::Borrowed("CN=Test"))));
-    assert_eq!(fact.get_property("issuer"), Some(FactValue::Str(Cow::Borrowed("CN=Root"))));
-    assert_eq!(fact.get_property("serial_number"), Some(FactValue::Str(Cow::Borrowed("01"))));
-    assert_eq!(fact.get_property("not_before_unix_seconds"), Some(FactValue::I64(1000)));
-    assert_eq!(fact.get_property("not_after_unix_seconds"), Some(FactValue::I64(2000)));
+    assert_eq!(
+        fact.get_property("certificate_thumbprint"),
+        Some(FactValue::Str(Cow::Borrowed("AA:BB")))
+    );
+    assert_eq!(
+        fact.get_property("subject"),
+        Some(FactValue::Str(Cow::Borrowed("CN=Test")))
+    );
+    assert_eq!(
+        fact.get_property("issuer"),
+        Some(FactValue::Str(Cow::Borrowed("CN=Root")))
+    );
+    assert_eq!(
+        fact.get_property("serial_number"),
+        Some(FactValue::Str(Cow::Borrowed("01")))
+    );
+    assert_eq!(
+        fact.get_property("not_before_unix_seconds"),
+        Some(FactValue::I64(1000))
+    );
+    assert_eq!(
+        fact.get_property("not_after_unix_seconds"),
+        Some(FactValue::I64(2000))
+    );
     assert_eq!(fact.get_property("nonexistent"), None);
 }
 
@@ -400,9 +456,18 @@ fn chain_element_identity_fact_all_properties() {
         issuer: "CN=Intermediate".into(),
     };
     assert_eq!(fact.get_property("index"), Some(FactValue::Usize(0)));
-    assert_eq!(fact.get_property("certificate_thumbprint"), Some(FactValue::Str(Cow::Borrowed("CC:DD"))));
-    assert_eq!(fact.get_property("subject"), Some(FactValue::Str(Cow::Borrowed("CN=Leaf"))));
-    assert_eq!(fact.get_property("issuer"), Some(FactValue::Str(Cow::Borrowed("CN=Intermediate"))));
+    assert_eq!(
+        fact.get_property("certificate_thumbprint"),
+        Some(FactValue::Str(Cow::Borrowed("CC:DD")))
+    );
+    assert_eq!(
+        fact.get_property("subject"),
+        Some(FactValue::Str(Cow::Borrowed("CN=Leaf")))
+    );
+    assert_eq!(
+        fact.get_property("issuer"),
+        Some(FactValue::Str(Cow::Borrowed("CN=Intermediate")))
+    );
     assert_eq!(fact.get_property("unknown_field"), None);
 }
 
@@ -414,8 +479,14 @@ fn chain_element_validity_fact_all_properties() {
         not_after_unix_seconds: 1500,
     };
     assert_eq!(fact.get_property("index"), Some(FactValue::Usize(2)));
-    assert_eq!(fact.get_property("not_before_unix_seconds"), Some(FactValue::I64(500)));
-    assert_eq!(fact.get_property("not_after_unix_seconds"), Some(FactValue::I64(1500)));
+    assert_eq!(
+        fact.get_property("not_before_unix_seconds"),
+        Some(FactValue::I64(500))
+    );
+    assert_eq!(
+        fact.get_property("not_after_unix_seconds"),
+        Some(FactValue::I64(1500))
+    );
     assert_eq!(fact.get_property("nope"), None);
 }
 
@@ -428,11 +499,26 @@ fn chain_trusted_fact_all_properties() {
         status_summary: Some("partial".into()),
         element_count: 3,
     };
-    assert_eq!(fact.get_property("chain_built"), Some(FactValue::Bool(true)));
-    assert_eq!(fact.get_property("is_trusted"), Some(FactValue::Bool(false)));
-    assert_eq!(fact.get_property("status_flags"), Some(FactValue::U32(0x01)));
-    assert_eq!(fact.get_property("element_count"), Some(FactValue::Usize(3)));
-    assert_eq!(fact.get_property("status_summary"), Some(FactValue::Str(Cow::Borrowed("partial"))));
+    assert_eq!(
+        fact.get_property("chain_built"),
+        Some(FactValue::Bool(true))
+    );
+    assert_eq!(
+        fact.get_property("is_trusted"),
+        Some(FactValue::Bool(false))
+    );
+    assert_eq!(
+        fact.get_property("status_flags"),
+        Some(FactValue::U32(0x01))
+    );
+    assert_eq!(
+        fact.get_property("element_count"),
+        Some(FactValue::Usize(3))
+    );
+    assert_eq!(
+        fact.get_property("status_summary"),
+        Some(FactValue::Str(Cow::Borrowed("partial")))
+    );
     assert_eq!(fact.get_property("garbage"), None);
 }
 
@@ -456,8 +542,14 @@ fn public_key_algorithm_fact_all_properties() {
         algorithm_name: Some("sha256WithRSAEncryption".into()),
         is_pqc: false,
     };
-    assert_eq!(fact.get_property("certificate_thumbprint"), Some(FactValue::Str(Cow::Borrowed("EE:FF"))));
-    assert_eq!(fact.get_property("algorithm_oid"), Some(FactValue::Str(Cow::Borrowed("1.2.840.113549.1.1.11"))));
+    assert_eq!(
+        fact.get_property("certificate_thumbprint"),
+        Some(FactValue::Str(Cow::Borrowed("EE:FF")))
+    );
+    assert_eq!(
+        fact.get_property("algorithm_oid"),
+        Some(FactValue::Str(Cow::Borrowed("1.2.840.113549.1.1.11")))
+    );
     assert_eq!(
         fact.get_property("algorithm_name"),
         Some(FactValue::Str(Cow::Borrowed("sha256WithRSAEncryption")))

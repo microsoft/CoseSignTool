@@ -126,7 +126,7 @@ pub fn load_with_parser(
     password_source: &PfxPasswordSource,
 ) -> Result<Certificate, CertLocalError> {
     if bytes.is_empty() {
-        return Err(CertLocalError::LoadFailed("PFX data is empty".to_string()));
+        return Err(CertLocalError::LoadFailed("PFX data is empty".into()));
     }
 
     let password = resolve_password(password_source)?;
@@ -135,7 +135,7 @@ pub fn load_with_parser(
     // Validate: must have at least a certificate
     if parsed.cert_der.is_empty() {
         return Err(CertLocalError::LoadFailed(
-            "PFX contained no certificate".to_string(),
+            "PFX contained no certificate".into(),
         ));
     }
 
@@ -217,14 +217,14 @@ pub fn load_from_pfx_no_password<P: AsRef<Path>>(path: P) -> Result<Certificate,
 #[cfg(not(feature = "pfx"))]
 pub fn load_from_pfx<P: AsRef<Path>>(_path: P) -> Result<Certificate, CertLocalError> {
     Err(CertLocalError::LoadFailed(
-        "PFX support not enabled (compile with feature=\"pfx\")".to_string(),
+        "PFX support not enabled (compile with feature=\"pfx\")".into(),
     ))
 }
 
 #[cfg(not(feature = "pfx"))]
 pub fn load_from_pfx_bytes(_bytes: &[u8]) -> Result<Certificate, CertLocalError> {
     Err(CertLocalError::LoadFailed(
-        "PFX support not enabled (compile with feature=\"pfx\")".to_string(),
+        "PFX support not enabled (compile with feature=\"pfx\")".into(),
     ))
 }
 
@@ -234,14 +234,14 @@ pub fn load_from_pfx_with_env_var<P: AsRef<Path>>(
     _env_var_name: &str,
 ) -> Result<Certificate, CertLocalError> {
     Err(CertLocalError::LoadFailed(
-        "PFX support not enabled (compile with feature=\"pfx\")".to_string(),
+        "PFX support not enabled (compile with feature=\"pfx\")".into(),
     ))
 }
 
 #[cfg(not(feature = "pfx"))]
 pub fn load_from_pfx_no_password<P: AsRef<Path>>(_path: P) -> Result<Certificate, CertLocalError> {
     Err(CertLocalError::LoadFailed(
-        "PFX support not enabled (compile with feature=\"pfx\")".to_string(),
+        "PFX support not enabled (compile with feature=\"pfx\")".into(),
     ))
 }
 
@@ -275,9 +275,7 @@ pub mod openssl_impl {
 
             let cert_der = parsed
                 .cert
-                .ok_or_else(|| {
-                    CertLocalError::LoadFailed("no certificate found in PFX".to_string())
-                })?
+                .ok_or_else(|| CertLocalError::LoadFailed("no certificate found in PFX".into()))?
                 .to_der()
                 .map_err(|e| {
                     CertLocalError::LoadFailed(format!("failed to encode certificate: {}", e))

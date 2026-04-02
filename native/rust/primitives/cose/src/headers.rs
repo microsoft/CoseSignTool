@@ -209,6 +209,30 @@ impl CoseHeaderValue {
         }
     }
 
+    /// Zero-copy variant of [`as_bytes_one_or_many`](Self::as_bytes_one_or_many).
+    ///
+    /// Returns borrowed `ArcSlice` values that share the parent message's backing buffer,
+    /// avoiding any heap allocation for the byte data itself.
+    pub fn as_arc_slices_one_or_many(&self) -> Option<Vec<ArcSlice>> {
+        match self {
+            CoseHeaderValue::Bytes(b) => Some(vec![b.clone()]),
+            CoseHeaderValue::Array(arr) => {
+                let mut result = Vec::new();
+                for v in arr {
+                    if let CoseHeaderValue::Bytes(b) = v {
+                        result.push(b.clone());
+                    }
+                }
+                if result.is_empty() {
+                    None
+                } else {
+                    Some(result)
+                }
+            }
+            _ => None,
+        }
+    }
+
     /// Try to extract an integer from this value.
     pub fn as_i64(&self) -> Option<i64> {
         match self {
@@ -391,6 +415,14 @@ impl CoseHeaderMap {
     /// Returns `None` if the header is not present or is not a `Bytes` or `Array` of `Bytes`.
     pub fn get_bytes_one_or_many(&self, label: &CoseHeaderLabel) -> Option<Vec<Vec<u8>>> {
         self.get(label)?.as_bytes_one_or_many()
+    }
+
+    /// Zero-copy variant of [`get_bytes_one_or_many`](Self::get_bytes_one_or_many).
+    ///
+    /// Returns `ArcSlice` values that share the parent message's backing buffer,
+    /// avoiding heap allocation for byte data.
+    pub fn get_arc_slices_one_or_many(&self, label: &CoseHeaderLabel) -> Option<Vec<ArcSlice>> {
+        self.get(label)?.as_arc_slices_one_or_many()
     }
 
     /// Inserts a header value.

@@ -1,11 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-use cose_sign1_certificates::signing::signing_key::CertificateSigningKey;
 use cose_sign1_certificates::chain_sort_order::X509ChainSortOrder;
 use cose_sign1_certificates::error::CertificateError;
+use cose_sign1_certificates::signing::signing_key::CertificateSigningKey;
+use cose_sign1_signing::{SigningKeyMetadata, SigningServiceKey};
 use crypto_primitives::{CryptoError, CryptoSigner};
-use cose_sign1_signing::{SigningServiceKey, SigningKeyMetadata};
 
 struct MockCertificateKey {
     cert: Vec<u8>,
@@ -21,10 +21,7 @@ impl CryptoSigner for MockCertificateKey {
         -7
     }
 
-    fn sign(
-        &self,
-        _data: &[u8],
-    ) -> Result<Vec<u8>, CryptoError> {
+    fn sign(&self, _data: &[u8]) -> Result<Vec<u8>, CryptoError> {
         Ok(vec![])
     }
 }
@@ -34,12 +31,8 @@ impl SigningServiceKey for MockCertificateKey {
         use cose_sign1_signing::CryptographicKeyType;
         use std::sync::OnceLock;
         static METADATA: OnceLock<SigningKeyMetadata> = OnceLock::new();
-        METADATA.get_or_init(|| SigningKeyMetadata::new(
-            None,
-            -7,
-            CryptographicKeyType::Ecdsa,
-            false,
-        ))
+        METADATA
+            .get_or_init(|| SigningKeyMetadata::new(None, -7, CryptographicKeyType::Ecdsa, false))
     }
 }
 

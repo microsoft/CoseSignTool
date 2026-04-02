@@ -16,5 +16,3 @@ pub trait SigningKeyProvider: CryptoSigner {
     /// Whether this is a remote signing provider.
     fn is_remote(&self) -> bool;
 }
-
-

@@ -31,5 +31,3 @@ impl std::fmt::Display for CertificateError {
 }
 
 impl std::error::Error for CertificateError {}
-
-

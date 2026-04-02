@@ -10,17 +10,19 @@ use cose_sign1_certificates::validation::facts::{
     X509PublicKeyAlgorithmFact, X509SigningCertificateIdentityFact,
 };
 use cose_sign1_certificates::validation::fluent_ext::{
-    PrimarySigningKeyScopeRulesExt, X509SigningCertificateIdentityWhereExt,
-    X509ChainElementIdentityWhereExt, X509ChainElementValidityWhereExt, X509ChainTrustedWhereExt,
-    X509PublicKeyAlgorithmWhereExt,
+    PrimarySigningKeyScopeRulesExt, X509ChainElementIdentityWhereExt,
+    X509ChainElementValidityWhereExt, X509ChainTrustedWhereExt, X509PublicKeyAlgorithmWhereExt,
+    X509SigningCertificateIdentityWhereExt,
 };
-use cose_sign1_certificates::validation::pack::{CertificateTrustOptions, X509CertificateTrustPack};
+use cose_sign1_certificates::validation::pack::{
+    CertificateTrustOptions, X509CertificateTrustPack,
+};
+use cose_sign1_primitives_ffi::create_key_handle;
+use cose_sign1_primitives_ffi::types::CoseKeyHandle;
 use cose_sign1_validation_ffi::{
-    cose_status_t, cose_trust_policy_builder_t, cose_sign1_validator_builder_t, with_catch_unwind,
+    cose_sign1_validator_builder_t, cose_status_t, cose_trust_policy_builder_t, with_catch_unwind,
     with_trust_policy_builder_mut,
 };
-use cose_sign1_primitives_ffi::types::CoseKeyHandle;
-use cose_sign1_primitives_ffi::create_key_handle;
 use std::ffi::{c_char, CStr};
 use std::sync::Arc;
 
@@ -40,14 +42,14 @@ fn string_from_ptr(arg_name: &'static str, s: *const c_char) -> Result<String, a
 pub struct cose_certificate_trust_options_t {
     /// If true, treat a well-formed embedded x5chain as trusted (deterministic, for tests/pinned roots).
     pub trust_embedded_chain_as_trusted: bool,
-    
+
     /// If true, enable identity pinning based on allowed_thumbprints.
     pub identity_pinning_enabled: bool,
-    
+
     /// Null-terminated array of allowed certificate thumbprint strings (case/whitespace insensitive).
     /// NULL pointer means no thumbprint filtering.
     pub allowed_thumbprints: *const *const c_char,
-    
+
     /// Null-terminated array of PQC algorithm OID strings.
     /// NULL pointer means no custom PQC OIDs.
     pub pqc_algorithm_oids: *const *const c_char,
@@ -63,7 +65,7 @@ unsafe fn string_array_to_vec(arr: *const *const c_char) -> Vec<String> {
     if arr.is_null() {
         return Vec::new();
     }
-    
+
     let mut result = Vec::new();
     let mut ptr = arr;
     loop {
@@ -95,9 +97,9 @@ pub extern "C" fn cose_sign1_validator_builder_with_certificates_pack(
         // SAFETY: Null checked via `.ok_or_else`; pointer is valid per FFI contract.
         let builder = unsafe { builder.as_mut() }
             .ok_or_else(|| anyhow::anyhow!("builder must not be null"))?;
-        builder
-            .packs
-            .push(Arc::new(X509CertificateTrustPack::new(CertificateTrustOptions::default())));
+        builder.packs.push(Arc::new(X509CertificateTrustPack::new(
+            CertificateTrustOptions::default(),
+        )));
         Ok(cose_status_t::COSE_OK)
     })
 }
@@ -119,7 +121,7 @@ pub extern "C" fn cose_sign1_validator_builder_with_certificates_pack_ex(
         // SAFETY: Null checked via `.ok_or_else`; pointer is valid per FFI contract.
         let builder = unsafe { builder.as_mut() }
             .ok_or_else(|| anyhow::anyhow!("builder must not be null"))?;
-        
+
         let opts = if options.is_null() {
             CertificateTrustOptions::default()
         } else {
@@ -134,7 +136,7 @@ pub extern "C" fn cose_sign1_validator_builder_with_certificates_pack_ex(
                 pqc_algorithm_oids: unsafe { string_array_to_vec(opts_ref.pqc_algorithm_oids) },
             }
         };
-        
+
         builder
             .packs
             .push(Arc::new(X509CertificateTrustPack::new(opts)));
@@ -404,7 +406,9 @@ pub extern "C" fn cose_sign1_certificates_trust_policy_builder_require_signing_c
         let serial_number = string_from_ptr("serial_number_utf8", serial_number_utf8)?;
         with_trust_policy_builder_mut(policy_builder, |b| {
             b.for_primary_signing_key(|s| {
-                s.require::<X509SigningCertificateIdentityFact>(|w| w.serial_number_eq(serial_number))
+                s.require::<X509SigningCertificateIdentityFact>(|w| {
+                    w.serial_number_eq(serial_number)
+                })
             })
         })?;
         Ok(cose_status_t::COSE_OK)
@@ -420,7 +424,9 @@ pub extern "C" fn cose_sign1_certificates_trust_policy_builder_require_signing_c
     with_catch_unwind(|| {
         with_trust_policy_builder_mut(policy_builder, |b| {
             b.for_primary_signing_key(|s| {
-                s.require::<X509SigningCertificateIdentityFact>(|w| w.cert_expired_at_or_before(now_unix_seconds))
+                s.require::<X509SigningCertificateIdentityFact>(|w| {
+                    w.cert_expired_at_or_before(now_unix_seconds)
+                })
             })
         })?;
         Ok(cose_status_t::COSE_OK)
@@ -436,7 +442,9 @@ pub extern "C" fn cose_sign1_certificates_trust_policy_builder_require_signing_c
     with_catch_unwind(|| {
         with_trust_policy_builder_mut(policy_builder, |b| {
             b.for_primary_signing_key(|s| {
-                s.require::<X509SigningCertificateIdentityFact>(|w| w.cert_valid_at(now_unix_seconds))
+                s.require::<X509SigningCertificateIdentityFact>(|w| {
+                    w.cert_valid_at(now_unix_seconds)
+                })
             })
         })?;
         Ok(cose_status_t::COSE_OK)
@@ -452,7 +460,9 @@ pub extern "C" fn cose_sign1_certificates_trust_policy_builder_require_signing_c
     with_catch_unwind(|| {
         with_trust_policy_builder_mut(policy_builder, |b| {
             b.for_primary_signing_key(|s| {
-                s.require::<X509SigningCertificateIdentityFact>(|w| w.not_before_le(max_unix_seconds))
+                s.require::<X509SigningCertificateIdentityFact>(|w| {
+                    w.not_before_le(max_unix_seconds)
+                })
             })
         })?;
         Ok(cose_status_t::COSE_OK)
@@ -468,7 +478,9 @@ pub extern "C" fn cose_sign1_certificates_trust_policy_builder_require_signing_c
     with_catch_unwind(|| {
         with_trust_policy_builder_mut(policy_builder, |b| {
             b.for_primary_signing_key(|s| {
-                s.require::<X509SigningCertificateIdentityFact>(|w| w.not_before_ge(min_unix_seconds))
+                s.require::<X509SigningCertificateIdentityFact>(|w| {
+                    w.not_before_ge(min_unix_seconds)
+                })
             })
         })?;
         Ok(cose_status_t::COSE_OK)
@@ -484,7 +496,9 @@ pub extern "C" fn cose_sign1_certificates_trust_policy_builder_require_signing_c
     with_catch_unwind(|| {
         with_trust_policy_builder_mut(policy_builder, |b| {
             b.for_primary_signing_key(|s| {
-                s.require::<X509SigningCertificateIdentityFact>(|w| w.not_after_le(max_unix_seconds))
+                s.require::<X509SigningCertificateIdentityFact>(|w| {
+                    w.not_after_le(max_unix_seconds)
+                })
             })
         })?;
         Ok(cose_status_t::COSE_OK)
@@ -500,7 +514,9 @@ pub extern "C" fn cose_sign1_certificates_trust_policy_builder_require_signing_c
     with_catch_unwind(|| {
         with_trust_policy_builder_mut(policy_builder, |b| {
             b.for_primary_signing_key(|s| {
-                s.require::<X509SigningCertificateIdentityFact>(|w| w.not_after_ge(min_unix_seconds))
+                s.require::<X509SigningCertificateIdentityFact>(|w| {
+                    w.not_after_ge(min_unix_seconds)
+                })
             })
         })?;
         Ok(cose_status_t::COSE_OK)
@@ -554,7 +570,9 @@ pub extern "C" fn cose_sign1_certificates_trust_policy_builder_require_chain_ele
         let thumbprint = string_from_ptr("thumbprint_utf8", thumbprint_utf8)?;
         with_trust_policy_builder_mut(policy_builder, |b| {
             b.for_primary_signing_key(|s| {
-                s.require::<X509ChainElementIdentityFact>(|w| w.index_eq(index).thumbprint_eq(thumbprint))
+                s.require::<X509ChainElementIdentityFact>(|w| {
+                    w.index_eq(index).thumbprint_eq(thumbprint)
+                })
             })
         })?;
         Ok(cose_status_t::COSE_OK)
@@ -570,7 +588,9 @@ pub extern "C" fn cose_sign1_certificates_trust_policy_builder_require_chain_ele
     with_catch_unwind(|| {
         with_trust_policy_builder_mut(policy_builder, |b| {
             b.for_primary_signing_key(|s| {
-                s.require::<X509ChainElementIdentityFact>(|w| w.index_eq(index).thumbprint_non_empty())
+                s.require::<X509ChainElementIdentityFact>(|w| {
+                    w.index_eq(index).thumbprint_non_empty()
+                })
             })
         })?;
         Ok(cose_status_t::COSE_OK)
@@ -587,7 +607,9 @@ pub extern "C" fn cose_sign1_certificates_trust_policy_builder_require_chain_ele
     with_catch_unwind(|| {
         with_trust_policy_builder_mut(policy_builder, |b| {
             b.for_primary_signing_key(|s| {
-                s.require::<X509ChainElementValidityFact>(|w| w.index_eq(index).cert_valid_at(now_unix_seconds))
+                s.require::<X509ChainElementValidityFact>(|w| {
+                    w.index_eq(index).cert_valid_at(now_unix_seconds)
+                })
             })
         })?;
         Ok(cose_status_t::COSE_OK)
@@ -604,7 +626,9 @@ pub extern "C" fn cose_sign1_certificates_trust_policy_builder_require_chain_ele
     with_catch_unwind(|| {
         with_trust_policy_builder_mut(policy_builder, |b| {
             b.for_primary_signing_key(|s| {
-                s.require::<X509ChainElementValidityFact>(|w| w.index_eq(index).not_before_le(max_unix_seconds))
+                s.require::<X509ChainElementValidityFact>(|w| {
+                    w.index_eq(index).not_before_le(max_unix_seconds)
+                })
             })
         })?;
         Ok(cose_status_t::COSE_OK)
@@ -621,7 +645,9 @@ pub extern "C" fn cose_sign1_certificates_trust_policy_builder_require_chain_ele
     with_catch_unwind(|| {
         with_trust_policy_builder_mut(policy_builder, |b| {
             b.for_primary_signing_key(|s| {
-                s.require::<X509ChainElementValidityFact>(|w| w.index_eq(index).not_before_ge(min_unix_seconds))
+                s.require::<X509ChainElementValidityFact>(|w| {
+                    w.index_eq(index).not_before_ge(min_unix_seconds)
+                })
             })
         })?;
         Ok(cose_status_t::COSE_OK)
@@ -638,7 +664,9 @@ pub extern "C" fn cose_sign1_certificates_trust_policy_builder_require_chain_ele
     with_catch_unwind(|| {
         with_trust_policy_builder_mut(policy_builder, |b| {
             b.for_primary_signing_key(|s| {
-                s.require::<X509ChainElementValidityFact>(|w| w.index_eq(index).not_after_le(max_unix_seconds))
+                s.require::<X509ChainElementValidityFact>(|w| {
+                    w.index_eq(index).not_after_le(max_unix_seconds)
+                })
             })
         })?;
         Ok(cose_status_t::COSE_OK)
@@ -655,7 +683,9 @@ pub extern "C" fn cose_sign1_certificates_trust_policy_builder_require_chain_ele
     with_catch_unwind(|| {
         with_trust_policy_builder_mut(policy_builder, |b| {
             b.for_primary_signing_key(|s| {
-                s.require::<X509ChainElementValidityFact>(|w| w.index_eq(index).not_after_ge(min_unix_seconds))
+                s.require::<X509ChainElementValidityFact>(|w| {
+                    w.index_eq(index).not_after_ge(min_unix_seconds)
+                })
             })
         })?;
         Ok(cose_status_t::COSE_OK)
@@ -765,7 +795,7 @@ pub extern "C" fn cose_sign1_certificates_trust_policy_builder_require_x509_publ
 ///
 /// COSE_OK on success, error code otherwise
 #[no_mangle]
-pub extern "C" fn cose_certificates_key_from_cert_der(
+pub extern "C" fn cose_sign1_certificates_key_from_cert_der(
     cert_der: *const u8,
     cert_der_len: usize,
     out_key: *mut *mut CoseKeyHandle,
@@ -780,14 +810,14 @@ pub extern "C" fn cose_certificates_key_from_cert_der(
 
         // SAFETY: Null checked above; `cert_der` points to `cert_der_len` bytes per FFI contract.
         let cert_bytes = unsafe { std::slice::from_raw_parts(cert_der, cert_der_len) };
-        
+
         let verifier = cose_sign1_certificates::cose_key_factory::X509CertificateCoseKeyFactory::create_from_public_key(cert_bytes)
             .map_err(|e| anyhow::anyhow!("Failed to create verifier from certificate: {}", e))?;
 
         let handle = create_key_handle(verifier);
         // SAFETY: `out_key` is non-null (checked above) and aligned per FFI contract; transferring ownership.
         unsafe { *out_key = handle };
-        
+
         Ok(cose_status_t::COSE_OK)
     })
 }

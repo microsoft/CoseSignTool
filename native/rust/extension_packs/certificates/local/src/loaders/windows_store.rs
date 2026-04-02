@@ -126,7 +126,7 @@ pub fn normalize_thumbprint(thumbprint: &str) -> Result<String, CertLocalError> 
 pub fn hex_decode(hex: &str) -> Result<Vec<u8>, CertLocalError> {
     if !hex.len().is_multiple_of(2) {
         return Err(CertLocalError::LoadFailed(
-            "Hex string must have even length".to_string(),
+            "Hex string must have even length".into(),
         ));
     }
     (0..hex.len())
@@ -198,8 +198,7 @@ pub fn load_from_store_by_thumbprint(
     _store_location: StoreLocation,
 ) -> Result<Certificate, CertLocalError> {
     Err(CertLocalError::LoadFailed(
-        "Windows certificate store support requires Windows OS + feature=\"windows-store\""
-            .to_string(),
+        "Windows certificate store support requires Windows OS + feature=\"windows-store\"".into(),
     ))
 }
 
@@ -208,8 +207,7 @@ pub fn load_from_store_by_thumbprint_default(
     _thumbprint: &str,
 ) -> Result<Certificate, CertLocalError> {
     Err(CertLocalError::LoadFailed(
-        "Windows certificate store support requires Windows OS + feature=\"windows-store\""
-            .to_string(),
+        "Windows certificate store support requires Windows OS + feature=\"windows-store\"".into(),
     ))
 }
 

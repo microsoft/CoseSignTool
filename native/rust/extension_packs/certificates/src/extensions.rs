@@ -7,6 +7,7 @@
 
 use crate::error::CertificateError;
 use crate::thumbprint::CoseX509Thumbprint;
+use cose_sign1_primitives::ArcSlice;
 
 /// x5chain header label (certificate chain).
 pub const X5CHAIN_LABEL: i64 = 33;
@@ -20,14 +21,15 @@ pub const X5T_LABEL: i64 = 34;
 /// - A single byte string (single certificate)
 /// - An array of byte strings (certificate chain)
 ///
-/// Returns certificates in the order they appear in the header (typically leaf-first).
+/// Returns certificates as zero-copy `ArcSlice` values (Arc refcount bumps, no data copies).
+/// Certificates appear in the order they are encoded in the header (typically leaf-first).
 pub fn extract_x5chain(
     headers: &cose_sign1_primitives::CoseHeaderMap,
-) -> Result<Vec<Vec<u8>>, CertificateError> {
+) -> Result<Vec<ArcSlice>, CertificateError> {
     let label = cose_sign1_primitives::CoseHeaderLabel::Int(X5CHAIN_LABEL);
-    
-    // Use the existing one_or_many helper from headers
-    if let Some(items) = headers.get_bytes_one_or_many(&label) {
+
+    // Zero-copy: ArcSlice values share the backing buffer via Arc refcount.
+    if let Some(items) = headers.get_arc_slices_one_or_many(&label) {
         Ok(items)
     } else {
         Ok(Vec::new())
@@ -41,7 +43,7 @@ pub fn extract_x5t(
     headers: &cose_sign1_primitives::CoseHeaderMap,
 ) -> Result<Option<CoseX509Thumbprint>, CertificateError> {
     let label = cose_sign1_primitives::CoseHeaderLabel::Int(X5T_LABEL);
-    
+
     if let Some(value) = headers.get(&label) {
         // The value should be Raw CBOR bytes containing [hash_id, thumbprint]
         let cbor_bytes = match value {
@@ -49,11 +51,11 @@ pub fn extract_x5t(
             cose_sign1_primitives::CoseHeaderValue::Bytes(bytes) => bytes,
             _ => {
                 return Err(CertificateError::InvalidCertificate(
-                    "x5t header value must be raw CBOR or bytes".to_string()
+                    "x5t header value must be raw CBOR or bytes".into(),
                 ));
             }
         };
-        
+
         let thumbprint = CoseX509Thumbprint::deserialize(cbor_bytes)?;
         Ok(Some(thumbprint))
     } else {
@@ -76,15 +78,13 @@ pub fn verify_x5t_matches_chain(
     let Some(x5t) = extract_x5t(headers)? else {
         return Ok(false);
     };
-    
+
     // Extract x5chain
     let chain = extract_x5chain(headers)?;
     if chain.is_empty() {
         return Ok(false);
     }
-    
+
     // Check if x5t matches the first certificate in the chain
     x5t.matches(&chain[0])
 }
-
-

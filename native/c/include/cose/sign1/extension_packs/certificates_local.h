@@ -71,9 +71,12 @@ void cose_cert_local_string_free(char* s);
 /**
  * @brief Creates a new ephemeral certificate factory
  * 
- * @param out Output pointer to receive the factory handle
+ * @param[out] out Output pointer to receive the factory handle.
+ *             Caller owns the returned handle and must free it with
+ *             cose_cert_local_factory_free().
  * @return COSE_OK on success, error code otherwise
  */
+/** @see cose_cert_local_last_error_message_utf8 for error details on failure. */
 cose_status_t cose_cert_local_factory_new(cose_cert_local_factory_t** out);
 
 /**
@@ -86,17 +89,20 @@ void cose_cert_local_factory_free(cose_cert_local_factory_t* factory);
 /**
  * @brief Creates a certificate with custom options
  * 
- * @param factory Factory handle
+ * @param factory Factory handle (borrowed, not consumed)
  * @param subject Certificate subject name (UTF-8 null-terminated)
  * @param algorithm Key algorithm (0=RSA, 1=ECDSA, 2=MlDsa)
  * @param key_size Key size in bits
  * @param validity_secs Certificate validity period in seconds
- * @param out_cert_der Output pointer for certificate DER bytes
- * @param out_cert_len Output pointer for certificate length
- * @param out_key_der Output pointer for private key DER bytes
- * @param out_key_len Output pointer for private key length
+ * @param[out] out_cert_der Output pointer for certificate DER bytes.
+ *             Caller must free with cose_cert_local_bytes_free().
+ * @param[out] out_cert_len Output pointer for certificate length
+ * @param[out] out_key_der Output pointer for private key DER bytes.
+ *             Caller must free with cose_cert_local_bytes_free().
+ * @param[out] out_key_len Output pointer for private key length
  * @return COSE_OK on success, error code otherwise
  */
+/** @see cose_cert_local_last_error_message_utf8 for error details on failure. */
 cose_status_t cose_cert_local_factory_create_cert(
     const cose_cert_local_factory_t* factory,
     const char* subject,
@@ -112,13 +118,16 @@ cose_status_t cose_cert_local_factory_create_cert(
 /**
  * @brief Creates a self-signed certificate with default options
  * 
- * @param factory Factory handle
- * @param out_cert_der Output pointer for certificate DER bytes
- * @param out_cert_len Output pointer for certificate length
- * @param out_key_der Output pointer for private key DER bytes
- * @param out_key_len Output pointer for private key length
+ * @param factory Factory handle (borrowed, not consumed)
+ * @param[out] out_cert_der Output pointer for certificate DER bytes.
+ *             Caller must free with cose_cert_local_bytes_free().
+ * @param[out] out_cert_len Output pointer for certificate length
+ * @param[out] out_key_der Output pointer for private key DER bytes.
+ *             Caller must free with cose_cert_local_bytes_free().
+ * @param[out] out_key_len Output pointer for private key length
  * @return COSE_OK on success, error code otherwise
  */
+/** @see cose_cert_local_last_error_message_utf8 for error details on failure. */
 cose_status_t cose_cert_local_factory_create_self_signed(
     const cose_cert_local_factory_t* factory,
     uint8_t** out_cert_der,
@@ -134,9 +143,12 @@ cose_status_t cose_cert_local_factory_create_self_signed(
 /**
  * @brief Creates a new certificate chain factory
  * 
- * @param out Output pointer to receive the chain factory handle
+ * @param[out] out Output pointer to receive the chain factory handle.
+ *             Caller owns the returned handle and must free it with
+ *             cose_cert_local_chain_free().
  * @return COSE_OK on success, error code otherwise
  */
+/** @see cose_cert_local_last_error_message_utf8 for error details on failure. */
 cose_status_t cose_cert_local_chain_new(cose_cert_local_chain_t** out);
 
 /**
@@ -149,17 +161,24 @@ void cose_cert_local_chain_free(cose_cert_local_chain_t* chain_factory);
 /**
  * @brief Creates a certificate chain
  * 
- * @param chain_factory Chain factory handle
+ * @param chain_factory Chain factory handle (borrowed, not consumed)
  * @param algorithm Key algorithm (0=RSA, 1=ECDSA, 2=MlDsa)
  * @param include_intermediate If true, include an intermediate CA in the chain
- * @param out_certs_data Output array of certificate DER byte pointers
- * @param out_certs_lengths Output array of certificate lengths
- * @param out_certs_count Output number of certificates in the chain
- * @param out_keys_data Output array of private key DER byte pointers
- * @param out_keys_lengths Output array of private key lengths
- * @param out_keys_count Output number of private keys in the chain
+ * @param[out] out_certs_data Output array of certificate DER byte pointers.
+ *             Each element must be freed with cose_cert_local_bytes_free(),
+ *             then the array itself with cose_cert_local_array_free().
+ * @param[out] out_certs_lengths Output array of certificate lengths.
+ *             Caller must free with cose_cert_local_lengths_array_free().
+ * @param[out] out_certs_count Output number of certificates in the chain
+ * @param[out] out_keys_data Output array of private key DER byte pointers.
+ *             Each element must be freed with cose_cert_local_bytes_free(),
+ *             then the array itself with cose_cert_local_array_free().
+ * @param[out] out_keys_lengths Output array of private key lengths.
+ *             Caller must free with cose_cert_local_lengths_array_free().
+ * @param[out] out_keys_count Output number of private keys in the chain
  * @return COSE_OK on success, error code otherwise
  */
+/** @see cose_cert_local_last_error_message_utf8 for error details on failure. */
 cose_status_t cose_cert_local_chain_create(
     const cose_cert_local_chain_t* chain_factory,
     uint32_t algorithm,
@@ -181,12 +200,16 @@ cose_status_t cose_cert_local_chain_create(
  * 
  * @param pem_data Pointer to PEM-encoded data
  * @param pem_len Length of PEM data in bytes
- * @param out_cert_der Output pointer for certificate DER bytes
- * @param out_cert_len Output pointer for certificate length
- * @param out_key_der Output pointer for private key DER bytes (may be null if no key present)
- * @param out_key_len Output pointer for private key length (will be 0 if no key present)
+ * @param[out] out_cert_der Output pointer for certificate DER bytes.
+ *             Caller must free with cose_cert_local_bytes_free().
+ * @param[out] out_cert_len Output pointer for certificate length
+ * @param[out] out_key_der Output pointer for private key DER bytes.
+ *             Will be null if no key present.
+ *             Caller must free with cose_cert_local_bytes_free() if non-null.
+ * @param[out] out_key_len Output pointer for private key length (will be 0 if no key present)
  * @return COSE_OK on success, error code otherwise
  */
+/** @see cose_cert_local_last_error_message_utf8 for error details on failure. */
 cose_status_t cose_cert_local_load_pem(
     const uint8_t* pem_data,
     size_t pem_len,
@@ -201,10 +224,12 @@ cose_status_t cose_cert_local_load_pem(
  * 
  * @param cert_data Pointer to DER-encoded certificate data
  * @param cert_len Length of certificate data in bytes
- * @param out_cert_der Output pointer for certificate DER bytes
- * @param out_cert_len Output pointer for certificate length
+ * @param[out] out_cert_der Output pointer for certificate DER bytes.
+ *             Caller must free with cose_cert_local_bytes_free().
+ * @param[out] out_cert_len Output pointer for certificate length
  * @return COSE_OK on success, error code otherwise
  */
+/** @see cose_cert_local_last_error_message_utf8 for error details on failure. */
 cose_status_t cose_cert_local_load_der(
     const uint8_t* cert_data,
     size_t cert_len,

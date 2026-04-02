@@ -14,7 +14,6 @@
 
 use cbor_primitives::{CborEncoder, CborProvider};
 use cbor_primitives_everparse::EverParseCborProvider;
-use cose_sign1_certificates::chain_builder::ExplicitCertificateChainBuilder;
 use cose_sign1_certificates::cose_key_factory::{HashAlgorithm, X509CertificateCoseKeyFactory};
 use cose_sign1_certificates::signing::certificate_header_contributor::CertificateHeaderContributor;
 use cose_sign1_certificates::thumbprint::{CoseX509Thumbprint, ThumbprintAlgorithm};
@@ -137,10 +136,7 @@ fn build_protected_map_with_alg(alg: i64, certs: &[&[u8]]) -> Vec<u8> {
     enc.into_bytes()
 }
 
-fn run_fact_engine(
-    cose: &[u8],
-    options: CertificateTrustOptions,
-) -> TrustFactEngine {
+fn run_fact_engine(cose: &[u8], options: CertificateTrustOptions) -> TrustFactEngine {
     let producer = Arc::new(X509CertificateTrustPack::new(options));
     let msg = Arc::new(CoseSign1Message::parse(cose).unwrap());
     TrustFactEngine::new(vec![producer])
@@ -256,7 +252,7 @@ fn chain_identity_facts_with_empty_chain() {
         .get_fact_set::<X509ChainElementIdentityFact>(&subject)
         .unwrap();
     match &identity {
-        TrustFactSet::Missing { .. } => {} // expected
+        TrustFactSet::Missing { .. } => {}               // expected
         TrustFactSet::Available(v) if v.is_empty() => {} // also acceptable
         other => panic!("Expected Missing or empty, got {:?}", other),
     }
@@ -304,7 +300,10 @@ fn all_standard_eku_oids_emitted() {
             assert!(oids.contains(&"1.3.6.1.5.5.7.3.1"), "ServerAuth missing");
             assert!(oids.contains(&"1.3.6.1.5.5.7.3.2"), "ClientAuth missing");
             assert!(oids.contains(&"1.3.6.1.5.5.7.3.3"), "CodeSigning missing");
-            assert!(oids.contains(&"1.3.6.1.5.5.7.3.4"), "EmailProtection missing");
+            assert!(
+                oids.contains(&"1.3.6.1.5.5.7.3.4"),
+                "EmailProtection missing"
+            );
             assert!(oids.contains(&"1.3.6.1.5.5.7.3.8"), "TimeStamping missing");
             assert!(oids.contains(&"1.3.6.1.5.5.7.3.9"), "OcspSigning missing");
         }
@@ -326,7 +325,10 @@ fn all_key_usage_flags_emitted() {
         .unwrap();
     match ku {
         TrustFactSet::Available(v) => {
-            let usages: Vec<&str> = v.iter().flat_map(|f| f.usages.iter().map(|s| s.as_str())).collect();
+            let usages: Vec<&str> = v
+                .iter()
+                .flat_map(|f| f.usages.iter().map(|s| s.as_str()))
+                .collect();
             assert!(usages.contains(&"DigitalSignature"));
             assert!(usages.contains(&"NonRepudiation"));
             assert!(usages.contains(&"KeyEncipherment"));
@@ -363,7 +365,10 @@ fn signing_key_trust_fact_produced() {
             assert!(!fact.thumbprint.is_empty());
             assert!(!fact.subject.is_empty());
         }
-        other => panic!("Expected Available CertificateSigningKeyTrustFact, got {:?}", other),
+        other => panic!(
+            "Expected Available CertificateSigningKeyTrustFact, got {:?}",
+            other
+        ),
     }
 }
 
@@ -388,7 +393,10 @@ fn chain_element_identity_produced_for_multi_cert_chain() {
             assert_eq!(v[0].index, 0);
             assert_eq!(v[1].index, 1);
         }
-        other => panic!("Expected Available X509ChainElementIdentityFact, got {:?}", other),
+        other => panic!(
+            "Expected Available X509ChainElementIdentityFact, got {:?}",
+            other
+        ),
     }
 
     let chain_validity = engine
@@ -416,8 +424,7 @@ fn resolver_with_invalid_cert_bytes_does_not_crash() {
     let subject = TrustSubject::root("PrimarySigningKey", b"seed");
 
     // Identity should fail gracefully
-    let identity = engine
-        .get_fact_set::<X509SigningCertificateIdentityFact>(&subject);
+    let identity = engine.get_fact_set::<X509SigningCertificateIdentityFact>(&subject);
     // It's ok if this returns Err or Missing — just shouldn't panic
     let _ = identity;
 }
@@ -581,10 +588,7 @@ fn trust_pack_provides_fact_keys() {
 #[test]
 fn trust_pack_name() {
     let pack = X509CertificateTrustPack::new(Default::default());
-    assert_eq!(
-        pack.name(),
-        "X509CertificateTrustPack"
-    );
+    assert_eq!(pack.name(), "X509CertificateTrustPack");
 }
 
 // ==================== pack.rs: basic constraints ====================

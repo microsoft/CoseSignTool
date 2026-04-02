@@ -14,8 +14,8 @@
 
 use cbor_primitives::{CborEncoder, CborProvider};
 use cbor_primitives_everparse::EverParseCborProvider;
-use cose_sign1_validation::fluent::*;
 use cose_sign1_certificates::validation::signing_key_resolver::X509CertificateCoseKeyResolver;
+use cose_sign1_validation::fluent::*;
 use cose_sign1_validation_primitives::CoseHeaderLocation;
 use rcgen::{generate_simple_self_signed, CertifiedKey, KeyPair};
 
@@ -79,9 +79,7 @@ fn gen_p256_cert_and_key() -> CertifiedKey<KeyPair> {
 }
 
 /// Resolve a key from a COSE_Sign1 message with the given protected header bytes.
-fn resolve_key(
-    protected_map_bytes: &[u8],
-) -> CoseKeyResolutionResult {
+fn resolve_key(protected_map_bytes: &[u8]) -> CoseKeyResolutionResult {
     let cose = cose_sign1_with_protected(protected_map_bytes);
     let msg = CoseSign1Message::parse(cose.as_slice()).unwrap();
     let resolver = X509CertificateCoseKeyResolver::new();
@@ -160,8 +158,6 @@ fn resolve_invalid_der_returns_x509_parse_failed() {
 // CoseKey trait methods – lines 135-169
 // ---------------------------------------------------------------------------
 
-
-
 #[test]
 fn cose_key_algorithm_returns_inferred_cose_alg() {
     let cert_der = gen_p256_cert_der();
@@ -171,8 +167,6 @@ fn cose_key_algorithm_returns_inferred_cose_alg() {
     // P-256 => ES256 => -7
     assert_eq!(key.algorithm(), -7);
 }
-
-
 
 // ---------------------------------------------------------------------------
 // verify / verify_with_algorithm – lines 172-237, 263
@@ -185,11 +179,10 @@ fn verify_delegates_to_verify_with_algorithm() {
     let key = resolve_key(&protected).cose_key.unwrap();
 
     // Wrong signature length (odd) -> ecdsa_format::fixed_to_der rejects it.
-    let err = key
-        .verify(b"sig_structure", &[0u8; 63])
-        .unwrap_err();
+    let err = key.verify(b"sig_structure", &[0u8; 63]).unwrap_err();
     assert!(
-        err.to_string().contains("Fixed signature length must be even")
+        err.to_string()
+            .contains("Fixed signature length must be even")
             || err.to_string().contains("signature"),
         "unexpected: {err}"
     );
@@ -218,7 +211,10 @@ fn verify_es256_oid_mismatch_returns_invalid_key() {
         // it might have a valid algorithm
         let alg = key.algorithm();
         // Either algorithm is detected, or it's 0 (unknown)
-        assert!(alg == -7 || alg == 0, "expected ES256 or unknown, got {alg}");
+        assert!(
+            alg == -7 || alg == 0,
+            "expected ES256 or unknown, got {alg}"
+        );
     } else {
         // Resolution failed, which is also acceptable for corrupted cert
         assert!(res.error_code.is_some());
@@ -229,10 +225,8 @@ fn verify_es256_oid_mismatch_returns_invalid_key() {
 fn verify_es256_wrong_key_length_returns_invalid_key() {
     // Use a P-384 cert (97-byte public key) with id-ecPublicKey OID.
     // OpenSSL provider defaults to ES256 for all EC keys (curve detection not implemented).
-    let key_pair =
-        rcgen::KeyPair::generate_for(&rcgen::PKCS_ECDSA_P384_SHA384).unwrap();
-    let params =
-        rcgen::CertificateParams::new(vec!["p384-test.example.com".to_string()]).unwrap();
+    let key_pair = rcgen::KeyPair::generate_for(&rcgen::PKCS_ECDSA_P384_SHA384).unwrap();
+    let params = rcgen::CertificateParams::new(vec!["p384-test.example.com".to_string()]).unwrap();
     let cert = params.self_signed(&key_pair).unwrap();
     let cert_der = cert.der().to_vec();
 
@@ -314,9 +308,7 @@ fn verify_es256_invalid_sig_returns_false() {
     let key = resolve_key(&protected).cose_key.unwrap();
 
     // Correct length but garbage content -> ring rejects -> Ok(false).
-    let ok = key
-        .verify(b"sig_structure", &[0u8; 64])
-        .unwrap();
+    let ok = key.verify(b"sig_structure", &[0u8; 64]).unwrap();
     assert!(!ok);
 }
 
@@ -328,26 +320,24 @@ fn verify_es256_valid_sig_returns_true() {
     let key = resolve_key(&protected).cose_key.unwrap();
 
     let sig_structure = b"test-sig-structure";
-    
+
     // Sign using OpenSSL
+    use openssl::hash::MessageDigest;
     use openssl::pkey::PKey;
     use openssl::sign::Signer;
-    use openssl::hash::MessageDigest;
-    
+
     let pkcs8_der = signing_key.serialize_der();
     let pkey = PKey::private_key_from_der(&pkcs8_der).unwrap();
-    
+
     let mut signer = Signer::new(MessageDigest::sha256(), &pkey).unwrap();
     signer.update(sig_structure).unwrap();
     let signature = signer.sign_to_vec().unwrap();
-    
+
     // Convert DER signature to raw r||s format
     use cose_sign1_crypto_openssl::ecdsa_format;
     let sig_raw = ecdsa_format::der_to_fixed(&signature, 64).unwrap();
 
-    let ok = key
-        .verify(sig_structure, &sig_raw)
-        .unwrap();
+    let ok = key.verify(sig_structure, &sig_raw).unwrap();
     assert!(ok, "valid signature should verify");
 }
 

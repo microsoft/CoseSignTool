@@ -96,6 +96,22 @@ cose_status_t cose_crypto_openssl_signer_from_der(
 );
 
 /**
+ * @brief Creates a signer from a PEM-encoded private key
+ *
+ * @param provider Provider handle
+ * @param private_key_pem Pointer to PEM-encoded private key bytes
+ * @param len Length of private key data in bytes
+ * @param out_signer Output pointer to receive the signer handle
+ * @return COSE_OK on success, error code otherwise
+ */
+cose_status_t cose_crypto_openssl_signer_from_pem(
+    const cose_crypto_provider_t* provider,
+    const uint8_t* private_key_pem,
+    size_t len,
+    cose_crypto_signer_t** out_signer
+);
+
+/**
  * @brief Sign data using the given signer
  * 
  * @param signer Signer handle
@@ -144,6 +160,22 @@ void cose_crypto_signer_free(cose_crypto_signer_t* signer);
 cose_status_t cose_crypto_openssl_verifier_from_der(
     const cose_crypto_provider_t* provider,
     const uint8_t* public_key_der,
+    size_t len,
+    cose_crypto_verifier_t** out_verifier
+);
+
+/**
+ * @brief Creates a verifier from a PEM-encoded public key
+ *
+ * @param provider Provider handle
+ * @param public_key_pem Pointer to PEM-encoded public key bytes
+ * @param len Length of public key data in bytes
+ * @param out_verifier Output pointer to receive the verifier handle
+ * @return COSE_OK on success, error code otherwise
+ */
+cose_status_t cose_crypto_openssl_verifier_from_pem(
+    const cose_crypto_provider_t* provider,
+    const uint8_t* public_key_pem,
     size_t len,
     cose_crypto_verifier_t** out_verifier
 );

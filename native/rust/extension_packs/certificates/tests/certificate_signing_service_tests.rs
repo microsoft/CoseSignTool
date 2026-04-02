@@ -5,18 +5,20 @@
 
 use std::sync::Arc;
 
-use crypto_primitives::{CryptoError, CryptoSigner};
-use cose_sign1_signing::{HeaderContributor, HeaderContributorContext, SigningContext, SigningService};
 use cose_sign1_headers::CwtClaims;
-
-use cose_sign1_certificates::signing::{
-    CertificateSigningService,
-    CertificateSigningOptions,
-    source::CertificateSource,
-    signing_key_provider::SigningKeyProvider,
+use cose_sign1_signing::{
+    HeaderContributor, HeaderContributorContext, SigningContext, SigningService,
 };
-use cose_sign1_certificates::chain_builder::{CertificateChainBuilder, ExplicitCertificateChainBuilder};
+use crypto_primitives::{CryptoError, CryptoSigner};
+
+use cose_sign1_certificates::chain_builder::{
+    CertificateChainBuilder, ExplicitCertificateChainBuilder,
+};
 use cose_sign1_certificates::error::CertificateError;
+use cose_sign1_certificates::signing::{
+    signing_key_provider::SigningKeyProvider, source::CertificateSource, CertificateSigningOptions,
+    CertificateSigningService,
+};
 
 // Mock implementations for testing
 struct MockCertificateSource {
@@ -46,7 +48,9 @@ impl MockCertificateSource {
 impl CertificateSource for MockCertificateSource {
     fn get_signing_certificate(&self) -> Result<&[u8], CertificateError> {
         if self.should_fail {
-            Err(CertificateError::InvalidCertificate("Mock failure".to_string()))
+            Err(CertificateError::InvalidCertificate(
+                "Mock failure".to_string(),
+            ))
         } else {
             Ok(&self.cert)
         }
@@ -172,7 +176,10 @@ fn test_new_certificate_signing_service() {
     let service = CertificateSigningService::new(source, provider, options);
 
     assert!(!service.is_remote());
-    assert_eq!(service.service_metadata().service_name, "CertificateSigningService");
+    assert_eq!(
+        service.service_metadata().service_name,
+        "CertificateSigningService"
+    );
     assert_eq!(
         service.service_metadata().service_description,
         "X.509 certificate-based signing service"
@@ -197,8 +204,10 @@ fn test_get_cose_signer_basic() {
     let chain = vec![cert.clone(), vec![0x30, 0x11, 0x22, 0x33]]; // Mock chain
     let source = Box::new(MockCertificateSource::new(cert.clone(), chain));
     let provider = Arc::new(MockSigningKeyProvider::new(false));
-    let mut options = CertificateSigningOptions::default();
-    options.enable_scitt_compliance = false; // Disable SCITT for mock cert
+    let options = CertificateSigningOptions {
+        enable_scitt_compliance: false, // Disable SCITT for mock cert
+        ..Default::default()
+    };
 
     let service = CertificateSigningService::new(source, provider, options);
     let context = SigningContext::from_bytes(vec![]);
@@ -216,9 +225,11 @@ fn test_get_cose_signer_with_scitt_enabled() {
     let chain = vec![cert.clone()];
     let source = Box::new(MockCertificateSource::new(cert.clone(), chain));
     let provider = Arc::new(MockSigningKeyProvider::new(false));
-    
-    let mut options = CertificateSigningOptions::default();
-    options.enable_scitt_compliance = true;
+
+    let options = CertificateSigningOptions {
+        enable_scitt_compliance: true,
+        ..Default::default()
+    };
 
     let service = CertificateSigningService::new(source, provider, options);
     let context = SigningContext::from_bytes(vec![]);
@@ -244,14 +255,16 @@ fn test_get_cose_signer_with_custom_cwt_claims() {
     let chain = vec![cert.clone()];
     let source = Box::new(MockCertificateSource::new(cert.clone(), chain));
     let provider = Arc::new(MockSigningKeyProvider::new(false));
-    
+
     let custom_claims = CwtClaims::new()
         .with_issuer("custom-issuer".to_string())
         .with_subject("custom-subject".to_string());
 
-    let mut options = CertificateSigningOptions::default();
-    options.enable_scitt_compliance = true;
-    options.custom_cwt_claims = Some(custom_claims);
+    let options = CertificateSigningOptions {
+        enable_scitt_compliance: true,
+        custom_cwt_claims: Some(custom_claims),
+        ..Default::default()
+    };
 
     let service = CertificateSigningService::new(source, provider, options);
     let context = SigningContext::from_bytes(vec![]);
@@ -272,14 +285,18 @@ fn test_get_cose_signer_with_additional_contributors() {
     let cert = create_test_cert();
     let source = Box::new(MockCertificateSource::new(cert.clone(), vec![]));
     let provider = Arc::new(MockSigningKeyProvider::new(false));
-    let mut options = CertificateSigningOptions::default();
-    options.enable_scitt_compliance = false; // Disable SCITT for mock cert
+    let options = CertificateSigningOptions {
+        enable_scitt_compliance: false, // Disable SCITT for mock cert
+        ..Default::default()
+    };
 
     let service = CertificateSigningService::new(source, provider, options);
-    
+
     let additional_contributor = Box::new(MockHeaderContributor::new());
     let mut context = SigningContext::from_bytes(vec![]);
-    context.additional_header_contributors.push(additional_contributor);
+    context
+        .additional_header_contributors
+        .push(additional_contributor);
 
     let result = service.get_cose_signer(&context);
     assert!(result.is_ok());
@@ -326,14 +343,16 @@ fn test_arc_signer_wrapper_functionality() {
     let cert = create_test_cert();
     let source = Box::new(MockCertificateSource::new(cert, vec![]));
     let provider = Arc::new(MockSigningKeyProvider::new(false));
-    let mut options = CertificateSigningOptions::default();
-    options.enable_scitt_compliance = false; // Disable SCITT for mock cert
+    let options = CertificateSigningOptions {
+        enable_scitt_compliance: false, // Disable SCITT for mock cert
+        ..Default::default()
+    };
 
     let service = CertificateSigningService::new(source, provider, options);
     let context = SigningContext::from_bytes(vec![]);
 
     let signer = service.get_cose_signer(&context).unwrap();
-    
+
     // Test the wrapped signer methods
     assert_eq!(signer.signer().algorithm(), -7);
     assert_eq!(signer.signer().key_id(), Some(b"mock-key-id".as_slice()));
@@ -349,14 +368,16 @@ fn test_arc_signer_wrapper_sign_failure() {
     let cert = create_test_cert();
     let source = Box::new(MockCertificateSource::new(cert, vec![]));
     let provider = Arc::new(MockSigningKeyProvider::with_sign_failure());
-    let mut options = CertificateSigningOptions::default();
-    options.enable_scitt_compliance = false; // Disable SCITT for mock cert
+    let options = CertificateSigningOptions {
+        enable_scitt_compliance: false, // Disable SCITT for mock cert
+        ..Default::default()
+    };
 
     let service = CertificateSigningService::new(source, provider, options);
     let context = SigningContext::from_bytes(vec![]);
 
     let signer = service.get_cose_signer(&context).unwrap();
-    
+
     let signature = signer.signer().sign(b"test data");
     assert!(signature.is_err());
     match signature {

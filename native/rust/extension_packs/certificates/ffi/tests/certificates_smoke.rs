@@ -1,5 +1,5 @@
-use cose_sign1_validation_ffi::cose_status_t;
 use cose_sign1_certificates_ffi::*;
+use cose_sign1_validation_ffi::cose_status_t;
 use cose_sign1_validation_primitives_ffi::*;
 use std::ffi::CString;
 use std::ptr;
@@ -10,7 +10,8 @@ fn minimal_cose_sign1() -> Vec<u8> {
 
 #[test]
 fn certificates_ffi_end_to_end_calls() {
-    let mut builder: *mut cose_sign1_validation_ffi::cose_sign1_validator_builder_t = ptr::null_mut();
+    let mut builder: *mut cose_sign1_validation_ffi::cose_sign1_validator_builder_t =
+        ptr::null_mut();
     assert_eq!(
         cose_sign1_validation_ffi::cose_sign1_validator_builder_new(&mut builder),
         cose_status_t::COSE_OK
@@ -89,11 +90,17 @@ fn certificates_ffi_end_to_end_calls() {
 
     let subject = CString::new("CN=Subject").unwrap();
     assert_eq!(
-        cose_sign1_certificates_trust_policy_builder_require_leaf_subject_eq(policy, subject.as_ptr()),
+        cose_sign1_certificates_trust_policy_builder_require_leaf_subject_eq(
+            policy,
+            subject.as_ptr()
+        ),
         cose_status_t::COSE_OK
     );
     assert_eq!(
-        cose_sign1_certificates_trust_policy_builder_require_issuer_subject_eq(policy, subject.as_ptr()),
+        cose_sign1_certificates_trust_policy_builder_require_issuer_subject_eq(
+            policy,
+            subject.as_ptr()
+        ),
         cose_status_t::COSE_OK
     );
     assert_eq!(
@@ -107,25 +114,39 @@ fn certificates_ffi_end_to_end_calls() {
 
     let thumb = CString::new("AABBCC").unwrap();
     assert_eq!(
-        cose_sign1_certificates_trust_policy_builder_require_signing_certificate_thumbprint_eq(policy, thumb.as_ptr()),
+        cose_sign1_certificates_trust_policy_builder_require_signing_certificate_thumbprint_eq(
+            policy,
+            thumb.as_ptr()
+        ),
         cose_status_t::COSE_OK
     );
     assert_eq!(
-        cose_sign1_certificates_trust_policy_builder_require_signing_certificate_thumbprint_present(policy),
+        cose_sign1_certificates_trust_policy_builder_require_signing_certificate_thumbprint_present(
+            policy
+        ),
         cose_status_t::COSE_OK
     );
     assert_eq!(
-        cose_sign1_certificates_trust_policy_builder_require_signing_certificate_subject_eq(policy, subject.as_ptr()),
+        cose_sign1_certificates_trust_policy_builder_require_signing_certificate_subject_eq(
+            policy,
+            subject.as_ptr()
+        ),
         cose_status_t::COSE_OK
     );
     assert_eq!(
-        cose_sign1_certificates_trust_policy_builder_require_signing_certificate_issuer_eq(policy, subject.as_ptr()),
+        cose_sign1_certificates_trust_policy_builder_require_signing_certificate_issuer_eq(
+            policy,
+            subject.as_ptr()
+        ),
         cose_status_t::COSE_OK
     );
 
     let serial = CString::new("01").unwrap();
     assert_eq!(
-        cose_sign1_certificates_trust_policy_builder_require_signing_certificate_serial_number_eq(policy, serial.as_ptr()),
+        cose_sign1_certificates_trust_policy_builder_require_signing_certificate_serial_number_eq(
+            policy,
+            serial.as_ptr()
+        ),
         cose_status_t::COSE_OK
     );
 
@@ -134,40 +155,64 @@ fn certificates_ffi_end_to_end_calls() {
         cose_status_t::COSE_OK
     );
     assert_eq!(
-        cose_sign1_certificates_trust_policy_builder_require_signing_certificate_valid_at(policy, 0),
+        cose_sign1_certificates_trust_policy_builder_require_signing_certificate_valid_at(
+            policy, 0
+        ),
         cose_status_t::COSE_OK
     );
     assert_eq!(
-        cose_sign1_certificates_trust_policy_builder_require_signing_certificate_not_before_le(policy, 0),
+        cose_sign1_certificates_trust_policy_builder_require_signing_certificate_not_before_le(
+            policy, 0
+        ),
         cose_status_t::COSE_OK
     );
     assert_eq!(
-        cose_sign1_certificates_trust_policy_builder_require_signing_certificate_not_before_ge(policy, 0),
+        cose_sign1_certificates_trust_policy_builder_require_signing_certificate_not_before_ge(
+            policy, 0
+        ),
         cose_status_t::COSE_OK
     );
     assert_eq!(
-        cose_sign1_certificates_trust_policy_builder_require_signing_certificate_not_after_le(policy, 0),
+        cose_sign1_certificates_trust_policy_builder_require_signing_certificate_not_after_le(
+            policy, 0
+        ),
         cose_status_t::COSE_OK
     );
     assert_eq!(
-        cose_sign1_certificates_trust_policy_builder_require_signing_certificate_not_after_ge(policy, 0),
+        cose_sign1_certificates_trust_policy_builder_require_signing_certificate_not_after_ge(
+            policy, 0
+        ),
         cose_status_t::COSE_OK
     );
 
     assert_eq!(
-        cose_sign1_certificates_trust_policy_builder_require_chain_element_subject_eq(policy, 0, subject.as_ptr()),
+        cose_sign1_certificates_trust_policy_builder_require_chain_element_subject_eq(
+            policy,
+            0,
+            subject.as_ptr()
+        ),
         cose_status_t::COSE_OK
     );
     assert_eq!(
-        cose_sign1_certificates_trust_policy_builder_require_chain_element_issuer_eq(policy, 0, subject.as_ptr()),
+        cose_sign1_certificates_trust_policy_builder_require_chain_element_issuer_eq(
+            policy,
+            0,
+            subject.as_ptr()
+        ),
         cose_status_t::COSE_OK
     );
     assert_eq!(
-        cose_sign1_certificates_trust_policy_builder_require_chain_element_thumbprint_eq(policy, 0, thumb.as_ptr()),
+        cose_sign1_certificates_trust_policy_builder_require_chain_element_thumbprint_eq(
+            policy,
+            0,
+            thumb.as_ptr()
+        ),
         cose_status_t::COSE_OK
     );
     assert_eq!(
-        cose_sign1_certificates_trust_policy_builder_require_chain_element_thumbprint_present(policy, 0),
+        cose_sign1_certificates_trust_policy_builder_require_chain_element_thumbprint_present(
+            policy, 0
+        ),
         cose_status_t::COSE_OK
     );
     assert_eq!(
@@ -175,19 +220,27 @@ fn certificates_ffi_end_to_end_calls() {
         cose_status_t::COSE_OK
     );
     assert_eq!(
-        cose_sign1_certificates_trust_policy_builder_require_chain_element_not_before_le(policy, 0, 0),
+        cose_sign1_certificates_trust_policy_builder_require_chain_element_not_before_le(
+            policy, 0, 0
+        ),
         cose_status_t::COSE_OK
     );
     assert_eq!(
-        cose_sign1_certificates_trust_policy_builder_require_chain_element_not_before_ge(policy, 0, 0),
+        cose_sign1_certificates_trust_policy_builder_require_chain_element_not_before_ge(
+            policy, 0, 0
+        ),
         cose_status_t::COSE_OK
     );
     assert_eq!(
-        cose_sign1_certificates_trust_policy_builder_require_chain_element_not_after_le(policy, 0, 0),
+        cose_sign1_certificates_trust_policy_builder_require_chain_element_not_after_le(
+            policy, 0, 0
+        ),
         cose_status_t::COSE_OK
     );
     assert_eq!(
-        cose_sign1_certificates_trust_policy_builder_require_chain_element_not_after_ge(policy, 0, 0),
+        cose_sign1_certificates_trust_policy_builder_require_chain_element_not_after_ge(
+            policy, 0, 0
+        ),
         cose_status_t::COSE_OK
     );
 
@@ -202,15 +255,22 @@ fn certificates_ffi_end_to_end_calls() {
         cose_status_t::COSE_OK
     );
     assert_eq!(
-        cose_sign1_certificates_trust_policy_builder_require_x509_public_key_algorithm_oid_eq(policy, oid.as_ptr()),
+        cose_sign1_certificates_trust_policy_builder_require_x509_public_key_algorithm_oid_eq(
+            policy,
+            oid.as_ptr()
+        ),
         cose_status_t::COSE_OK
     );
     assert_eq!(
-        cose_sign1_certificates_trust_policy_builder_require_x509_public_key_algorithm_is_pqc(policy),
+        cose_sign1_certificates_trust_policy_builder_require_x509_public_key_algorithm_is_pqc(
+            policy
+        ),
         cose_status_t::COSE_OK
     );
     assert_eq!(
-        cose_sign1_certificates_trust_policy_builder_require_x509_public_key_algorithm_is_not_pqc(policy),
+        cose_sign1_certificates_trust_policy_builder_require_x509_public_key_algorithm_is_not_pqc(
+            policy
+        ),
         cose_status_t::COSE_OK
     );
 
@@ -236,7 +296,8 @@ fn certificates_ffi_end_to_end_calls() {
         cose_status_t::COSE_OK
     );
     let bytes = minimal_cose_sign1();
-    let mut result: *mut cose_sign1_validation_ffi::cose_sign1_validation_result_t = ptr::null_mut();
+    let mut result: *mut cose_sign1_validation_ffi::cose_sign1_validation_result_t =
+        ptr::null_mut();
     assert_eq!(
         cose_sign1_validation_ffi::cose_sign1_validator_validate_bytes(
             validator,
@@ -256,14 +317,14 @@ fn certificates_ffi_end_to_end_calls() {
 }
 
 #[test]
-fn test_cose_certificates_key_from_cert_der_minimal() {
+fn test_cose_sign1_certificates_key_from_cert_der_minimal() {
     // Minimal self-signed P-256 certificate (ES256) for testing
     // This uses a simple test pattern - for real tests, use an actual certificate
     // For now, test with invalid cert to ensure error handling works
     let invalid_cert = b"not a real certificate";
 
     let mut key: *mut cose_sign1_primitives_ffi::types::CoseKeyHandle = ptr::null_mut();
-    let status = cose_certificates_key_from_cert_der(
+    let status = cose_sign1_certificates_key_from_cert_der(
         invalid_cert.as_ptr(),
         invalid_cert.len(),
         &mut key,
@@ -274,18 +335,18 @@ fn test_cose_certificates_key_from_cert_der_minimal() {
 }
 
 #[test]
-fn test_cose_certificates_key_from_cert_der_null_cert() {
+fn test_cose_sign1_certificates_key_from_cert_der_null_cert() {
     let mut key: *mut cose_sign1_primitives_ffi::types::CoseKeyHandle = ptr::null_mut();
-    let status = cose_certificates_key_from_cert_der(ptr::null(), 0, &mut key);
+    let status = cose_sign1_certificates_key_from_cert_der(ptr::null(), 0, &mut key);
 
     // Should fail with null pointer
     assert_ne!(status, cose_status_t::COSE_OK);
 }
 
 #[test]
-fn test_cose_certificates_key_from_cert_der_null_out() {
+fn test_cose_sign1_certificates_key_from_cert_der_null_out() {
     let test_cert = b"test";
-    let status = cose_certificates_key_from_cert_der(
+    let status = cose_sign1_certificates_key_from_cert_der(
         test_cert.as_ptr(),
         test_cert.len(),
         ptr::null_mut(),

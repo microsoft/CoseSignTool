@@ -12,14 +12,7 @@
 #include <cose/sign1/validation.hpp>
 #include <cose/sign1/trust.hpp>
 #include <cose/sign1/signing.hpp>
-
-// Work around certificates.h:381 conflicting forward declaration of cose_key_t.
-// signing.h already defined 'typedef CoseKeyHandle cose_key_t;', but certificates.h
-// tries 'typedef struct cose_key_t cose_key_t;' which is a different type in C++.
-// Redirect so the conflicting typedef becomes a harmless duplicate of CoseKeyHandle.
-#define cose_key_t CoseKeyHandle
 #include <cose/sign1/extension_packs/certificates.h>
-#undef cose_key_t
 
 #include <vector>
 #include <string>
@@ -62,8 +55,14 @@ public:
     
     /**
      * @brief Add X.509 certificate validation pack with custom options
+     *
+     * This overload copies thumbprint and OID strings into temporary C arrays
+     * for the FFI call. The copies are freed when this method returns.
+     *
      * @param options Certificate validation options
      * @return Reference to this builder for chaining
+     *
+     * @see WithCertificates() for the zero-configuration default overload
      */
     ValidatorBuilderWithCertificates& WithCertificates(const CertificateOptions& options) {
         CheckBuilder();
@@ -601,9 +600,15 @@ inline ValidatorBuilder& WithCertificates(ValidatorBuilder& builder) {
 
 /**
  * @brief Add X.509 certificate validation pack with custom options.
+ *
+ * This overload copies thumbprint and OID strings into temporary C arrays
+ * for the FFI call. The copies are freed when this function returns.
+ *
  * @param builder The validator builder to configure
  * @param options Certificate validation options
  * @return Reference to the builder for chaining.
+ *
+ * @see WithCertificates(ValidatorBuilder&) for the zero-configuration default overload
  */
 inline ValidatorBuilder& WithCertificates(ValidatorBuilder& builder, const CertificateOptions& options) {
     std::vector<const char*> thumbprints_ptrs;

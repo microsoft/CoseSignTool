@@ -25,5 +25,3 @@ pub trait CertificateSigningKey: SigningServiceKey + CryptoSigner {
         sort_order: X509ChainSortOrder,
     ) -> Result<Vec<Vec<u8>>, CertificateError>;
 }
-
-

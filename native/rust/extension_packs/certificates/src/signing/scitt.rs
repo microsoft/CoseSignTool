@@ -27,8 +27,9 @@ pub fn build_scitt_cwt_claims(
     custom_claims: Option<&CwtClaims>,
 ) -> Result<CwtClaims, CertificateError> {
     // Generate DID:X509 issuer from certificate chain
-    let did_issuer = DidX509Builder::build_from_chain_with_eku(chain)
-        .map_err(|e| CertificateError::InvalidCertificate(format!("DID:X509 generation failed: {}", e)))?;
+    let did_issuer = DidX509Builder::build_from_chain_with_eku(chain).map_err(|e| {
+        CertificateError::InvalidCertificate(format!("DID:X509 generation failed: {}", e))
+    })?;
 
     // Build base claims with builder pattern
     let now = std::time::SystemTime::now()
@@ -44,12 +45,24 @@ pub fn build_scitt_cwt_claims(
 
     // Merge custom claims if provided (copy fields from custom to claims)
     if let Some(custom) = custom_claims {
-        if let Some(ref iss) = custom.issuer { claims.issuer = Some(iss.clone()); }
-        if let Some(ref sub) = custom.subject { claims.subject = Some(sub.clone()); }
-        if let Some(ref aud) = custom.audience { claims.audience = Some(aud.clone()); }
-        if let Some(exp) = custom.expiration_time { claims.expiration_time = Some(exp); }
-        if let Some(nbf) = custom.not_before { claims.not_before = Some(nbf); }
-        if let Some(iat) = custom.issued_at { claims.issued_at = Some(iat); }
+        if let Some(ref iss) = custom.issuer {
+            claims.issuer = Some(iss.clone());
+        }
+        if let Some(ref sub) = custom.subject {
+            claims.subject = Some(sub.clone());
+        }
+        if let Some(ref aud) = custom.audience {
+            claims.audience = Some(aud.clone());
+        }
+        if let Some(exp) = custom.expiration_time {
+            claims.expiration_time = Some(exp);
+        }
+        if let Some(nbf) = custom.not_before {
+            claims.not_before = Some(nbf);
+        }
+        if let Some(iat) = custom.issued_at {
+            claims.issued_at = Some(iat);
+        }
     }
 
     Ok(claims)
@@ -71,7 +84,8 @@ pub fn create_scitt_contributor(
     custom_claims: Option<&CwtClaims>,
 ) -> Result<CwtClaimsHeaderContributor, CertificateError> {
     let claims = build_scitt_cwt_claims(chain, custom_claims)?;
-    let contributor = CwtClaimsHeaderContributor::new(&claims)
-        .map_err(|e| CertificateError::SigningError(format!("Failed to encode CWT claims: {}", e)))?;
+    let contributor = CwtClaimsHeaderContributor::new(&claims).map_err(|e| {
+        CertificateError::SigningError(format!("Failed to encode CWT claims: {}", e))
+    })?;
     Ok(contributor)
 }

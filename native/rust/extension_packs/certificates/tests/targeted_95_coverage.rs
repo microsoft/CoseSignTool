@@ -10,22 +10,24 @@
 //!          pack.rs (signing cert facts, chain trust, identity pinning),
 //!          certificate_signing_service.rs (verify_signature stub, service_metadata).
 
+use cose_sign1_certificates::chain_builder::{
+    CertificateChainBuilder, ExplicitCertificateChainBuilder,
+};
+use cose_sign1_certificates::cose_key_factory::{HashAlgorithm, X509CertificateCoseKeyFactory};
 use cose_sign1_certificates::error::CertificateError;
 use cose_sign1_certificates::extensions::{extract_x5chain, extract_x5t, verify_x5t_matches_chain};
-use cose_sign1_certificates::cose_key_factory::{X509CertificateCoseKeyFactory, HashAlgorithm};
 use cose_sign1_certificates::thumbprint::{CoseX509Thumbprint, ThumbprintAlgorithm};
-use cose_sign1_certificates::chain_builder::{CertificateChainBuilder, ExplicitCertificateChainBuilder};
 use cose_sign1_primitives::{CoseHeaderLabel, CoseHeaderMap, CoseHeaderValue};
 
 // Helper: generate a self-signed EC cert for testing
 fn make_test_cert() -> Vec<u8> {
+    use openssl::asn1::Asn1Time;
     use openssl::ec::{EcGroup, EcKey};
+    use openssl::hash::MessageDigest;
     use openssl::nid::Nid;
     use openssl::pkey::PKey;
-    use openssl::x509::{X509Builder, X509NameBuilder};
-    use openssl::asn1::Asn1Time;
-    use openssl::hash::MessageDigest;
     use openssl::x509::extension::ExtendedKeyUsage;
+    use openssl::x509::{X509Builder, X509NameBuilder};
 
     let group = EcGroup::from_curve_name(Nid::X9_62_PRIME256V1).unwrap();
     let ec_key = EcKey::generate(&group).unwrap();
@@ -34,7 +36,9 @@ fn make_test_cert() -> Vec<u8> {
     let mut builder = X509Builder::new().unwrap();
     builder.set_version(2).unwrap();
     let mut name_builder = X509NameBuilder::new().unwrap();
-    name_builder.append_entry_by_text("CN", "Test Cert").unwrap();
+    name_builder
+        .append_entry_by_text("CN", "Test Cert")
+        .unwrap();
     let name = name_builder.build();
     builder.set_subject_name(&name).unwrap();
     builder.set_issuer_name(&name).unwrap();
@@ -166,7 +170,7 @@ fn extract_x5chain_from_single_cert() {
     );
     let chain = extract_x5chain(&headers).unwrap();
     assert_eq!(chain.len(), 1);
-    assert_eq!(chain[0], cert_der);
+    assert_eq!(chain[0].as_bytes(), cert_der.as_slice());
 }
 
 #[test]

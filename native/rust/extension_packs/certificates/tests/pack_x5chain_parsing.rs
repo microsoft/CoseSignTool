@@ -13,10 +13,10 @@
 
 use cbor_primitives::{CborEncoder, CborProvider};
 use cbor_primitives_everparse::EverParseCborProvider;
-use cose_sign1_primitives::CoseSign1Message;
-use cose_sign1_validation::fluent::*;
 use cose_sign1_certificates::validation::facts::X509SigningCertificateIdentityFact;
 use cose_sign1_certificates::validation::pack::X509CertificateTrustPack;
+use cose_sign1_primitives::CoseSign1Message;
+use cose_sign1_validation::fluent::*;
 use cose_sign1_validation_primitives::facts::{TrustFactEngine, TrustFactSet};
 use cose_sign1_validation_primitives::subject::TrustSubject;
 use crypto_primitives::{CryptoError, CryptoVerifier};
@@ -227,11 +227,7 @@ impl CryptoVerifier for NoopCoseKey {
         -7
     }
 
-    fn verify(
-        &self,
-        _data: &[u8],
-        _signature: &[u8],
-    ) -> Result<bool, CryptoError> {
+    fn verify(&self, _data: &[u8], _signature: &[u8]) -> Result<bool, CryptoError> {
         Ok(false)
     }
 }
@@ -245,10 +241,7 @@ impl CounterSignatureResolver for OneCounterSignatureResolver {
         "one"
     }
 
-    fn resolve(
-        &self,
-        _message: &CoseSign1Message,
-    ) -> CounterSignatureResolutionResult {
+    fn resolve(&self, _message: &CoseSign1Message) -> CounterSignatureResolutionResult {
         CounterSignatureResolutionResult::success(vec![self.cs.clone()])
     }
 }
@@ -273,8 +266,7 @@ fn run_counter_sig_identity(
 
     let cert_pack = Arc::new(X509CertificateTrustPack::new(Default::default()));
 
-    let parsed =
-        CoseSign1Message::parse(cose.as_slice()).expect("parse cose");
+    let parsed = CoseSign1Message::parse(cose.as_slice()).expect("parse cose");
 
     let engine = TrustFactEngine::new(vec![message_producer, cert_pack])
         .with_cose_sign1_bytes(Arc::from(cose.clone().into_boxed_slice()))
@@ -327,7 +319,11 @@ fn skip_non_x5chain_header_entries() {
 
     match identity {
         TrustFactSet::Available(v) => {
-            assert_eq!(1, v.len(), "expected exactly one certificate after skipping non-x5chain");
+            assert_eq!(
+                1,
+                v.len(),
+                "expected exactly one certificate after skipping non-x5chain"
+            );
             assert_eq!(64, v[0].certificate_thumbprint.len());
         }
         other => panic!("expected Available, got {other:?}"),
@@ -355,20 +351,17 @@ fn indefinite_length_map_header_is_error() {
 
     let cert_pack = Arc::new(X509CertificateTrustPack::new(Default::default()));
 
-    let parsed =
-        CoseSign1Message::parse(cose.as_slice()).expect("parse cose");
+    let parsed = CoseSign1Message::parse(cose.as_slice()).expect("parse cose");
 
     let engine = TrustFactEngine::new(vec![message_producer, cert_pack])
         .with_cose_sign1_bytes(Arc::from(cose.clone().into_boxed_slice()))
         .with_cose_sign1_message(Arc::new(parsed));
 
     let message_subject = TrustSubject::message(cose.as_slice());
-    let cs_subject =
-        TrustSubject::counter_signature(&message_subject, counter_sig.as_slice());
+    let cs_subject = TrustSubject::counter_signature(&message_subject, counter_sig.as_slice());
     let cs_signing_key_subject = TrustSubject::counter_signature_signing_key(&cs_subject);
 
-    let result = engine
-        .get_fact_set::<X509SigningCertificateIdentityFact>(&cs_signing_key_subject);
+    let result = engine.get_fact_set::<X509SigningCertificateIdentityFact>(&cs_signing_key_subject);
 
     assert!(
         result.is_err(),
@@ -402,20 +395,17 @@ fn indefinite_length_x5chain_array_is_error() {
 
     let cert_pack = Arc::new(X509CertificateTrustPack::new(Default::default()));
 
-    let parsed =
-        CoseSign1Message::parse(cose.as_slice()).expect("parse cose");
+    let parsed = CoseSign1Message::parse(cose.as_slice()).expect("parse cose");
 
     let engine = TrustFactEngine::new(vec![message_producer, cert_pack])
         .with_cose_sign1_bytes(Arc::from(cose.clone().into_boxed_slice()))
         .with_cose_sign1_message(Arc::new(parsed));
 
     let message_subject = TrustSubject::message(cose.as_slice());
-    let cs_subject =
-        TrustSubject::counter_signature(&message_subject, counter_sig.as_slice());
+    let cs_subject = TrustSubject::counter_signature(&message_subject, counter_sig.as_slice());
     let cs_signing_key_subject = TrustSubject::counter_signature_signing_key(&cs_subject);
 
-    let result = engine
-        .get_fact_set::<X509SigningCertificateIdentityFact>(&cs_signing_key_subject);
+    let result = engine.get_fact_set::<X509SigningCertificateIdentityFact>(&cs_signing_key_subject);
 
     assert!(
         result.is_err(),
@@ -438,7 +428,11 @@ fn bstr_wrapped_cose_signature_produces_identity() {
 
     match identity {
         TrustFactSet::Available(v) => {
-            assert_eq!(1, v.len(), "expected one certificate from bstr-wrapped encoding");
+            assert_eq!(
+                1,
+                v.len(),
+                "expected one certificate from bstr-wrapped encoding"
+            );
             assert_eq!(64, v[0].certificate_thumbprint.len());
         }
         other => panic!("expected Available, got {other:?}"),
@@ -465,16 +459,14 @@ fn no_x5chain_in_counter_signature_headers_produces_missing() {
 
     let cert_pack = Arc::new(X509CertificateTrustPack::new(Default::default()));
 
-    let parsed =
-        CoseSign1Message::parse(cose.as_slice()).expect("parse cose");
+    let parsed = CoseSign1Message::parse(cose.as_slice()).expect("parse cose");
 
     let engine = TrustFactEngine::new(vec![message_producer, cert_pack])
         .with_cose_sign1_bytes(Arc::from(cose.clone().into_boxed_slice()))
         .with_cose_sign1_message(Arc::new(parsed));
 
     let message_subject = TrustSubject::message(cose.as_slice());
-    let cs_subject =
-        TrustSubject::counter_signature(&message_subject, counter_sig.as_slice());
+    let cs_subject = TrustSubject::counter_signature(&message_subject, counter_sig.as_slice());
     let cs_signing_key_subject = TrustSubject::counter_signature_signing_key(&cs_subject);
 
     let identity = engine
@@ -516,7 +508,11 @@ fn multiple_non_x5chain_entries_all_skipped() {
 
     match identity {
         TrustFactSet::Available(v) => {
-            assert_eq!(1, v.len(), "expected one certificate after skipping two entries");
+            assert_eq!(
+                1,
+                v.len(),
+                "expected one certificate after skipping two entries"
+            );
         }
         other => panic!("expected Available, got {other:?}"),
     }

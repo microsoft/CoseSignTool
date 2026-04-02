@@ -1,8 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-use cose_sign1_certificates::{
-    chain_builder::{CertificateChainBuilder, ExplicitCertificateChainBuilder},
+use cose_sign1_certificates::chain_builder::{
+    CertificateChainBuilder, ExplicitCertificateChainBuilder,
 };
 
 #[test]

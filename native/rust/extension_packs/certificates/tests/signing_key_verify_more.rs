@@ -1,12 +1,14 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-use cbor_primitives_everparse::EverParseCborProvider;
-use cose_sign1_validation::fluent::*;
 use cbor_primitives::{CborEncoder, CborProvider};
+use cbor_primitives_everparse::EverParseCborProvider;
 use cose_sign1_certificates::validation::signing_key_resolver::X509CertificateCoseKeyResolver;
+use cose_sign1_validation::fluent::*;
 use cose_sign1_validation_primitives::CoseHeaderLocation;
-use rcgen::{generate_simple_self_signed, CertificateParams, CertifiedKey, KeyPair, PKCS_ECDSA_P384_SHA384};
+use rcgen::{
+    generate_simple_self_signed, CertificateParams, CertifiedKey, KeyPair, PKCS_ECDSA_P384_SHA384,
+};
 
 fn replace_once_in_place(haystack: &mut [u8], needle: &[u8], replacement: &[u8]) -> bool {
     assert_eq!(needle.len(), replacement.len());
@@ -58,7 +60,10 @@ fn signing_key_resolver_fails_when_protected_header_is_not_a_cbor_map() {
 
     // Accessing headers should fail because the CBOR is invalid
     let result = msg.protected.try_headers();
-    assert!(result.is_err(), "try_headers should fail with invalid protected header CBOR");
+    assert!(
+        result.is_err(),
+        "try_headers should fail with invalid protected header CBOR"
+    );
 }
 
 #[test]
@@ -91,7 +96,8 @@ fn signing_key_verify_es256_rejects_wrong_signature_len() {
 
     // OpenSSL ecdsa_format::fixed_to_der returns "Fixed signature length must be even"
     assert!(
-        err.to_string().contains("Fixed signature length must be even")
+        err.to_string()
+            .contains("Fixed signature length must be even")
             || err.to_string().contains("signature"),
         "unexpected error: {err}"
     );
@@ -171,10 +177,8 @@ fn signing_key_verify_es256_reports_unsupported_alg_when_spki_is_not_ec_public_k
 
 #[test]
 fn signing_key_verify_es256_reports_unexpected_ec_public_key_format_when_point_not_uncompressed() {
-    let CertifiedKey { cert, .. } = generate_simple_self_signed(vec![
-        "verify-es256-ec-point-format".to_string(),
-    ])
-    .unwrap();
+    let CertifiedKey { cert, .. } =
+        generate_simple_self_signed(vec!["verify-es256-ec-point-format".to_string()]).unwrap();
 
     // Mutate the SubjectPublicKey BIT STRING contents from 0x04||X||Y to 0x05||X||Y.
     // For P-256, the BIT STRING is typically: 03 42 00 04 <64 bytes>.
@@ -239,18 +243,18 @@ fn signing_key_verify_es256_returns_true_for_valid_signature() {
 
     // Sign using the same P-256 private key using OpenSSL
     use openssl::pkey::PKey;
-    
+
     let pkcs8_der = signing_key.serialize_der();
     let pkey = PKey::private_key_from_der(&pkcs8_der).unwrap();
-    
+
     // Create signer and sign the data
-    use openssl::sign::Signer;
     use openssl::hash::MessageDigest;
-    
+    use openssl::sign::Signer;
+
     let mut signer = Signer::new(MessageDigest::sha256(), &pkey).unwrap();
     signer.update(sig_structure).unwrap();
     let signature = signer.sign_to_vec().unwrap();
-    
+
     // Convert DER signature to raw r||s format (COSE expects fixed format)
     use cose_sign1_crypto_openssl::ecdsa_format;
     let sig_raw = ecdsa_format::der_to_fixed(&signature, 64).unwrap();

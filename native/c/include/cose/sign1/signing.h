@@ -24,6 +24,9 @@
 extern "C" {
 #endif
 
+// Forward declaration for sign-to-message support
+typedef struct CoseSign1MessageHandle CoseSign1MessageHandle;
+
 // ============================================================================
 // ABI version
 // ============================================================================
@@ -360,6 +363,33 @@ int cose_sign1_builder_sign(
     size_t payload_len,
     uint8_t** out_bytes,
     size_t* out_len,
+    cose_sign1_signing_error_t** out_error
+);
+
+/**
+ * @brief Signs a payload and returns a parsed message handle.
+ *
+ * Like cose_sign1_builder_sign() but returns a CoseSign1MessageHandle
+ * instead of raw bytes, enabling zero-copy access to the signed message
+ * components (payload, protected headers, signature).
+ *
+ * The builder is consumed by this call and must not be used afterwards.
+ *
+ * @param builder Builder handle (consumed on success or failure).
+ * @param key Key handle.
+ * @param payload Payload bytes.
+ * @param payload_len Length of payload.
+ * @param out_message Output parameter for the message handle.
+ * @param out_error Output parameter for error handle (can be NULL).
+ * @return COSE_SIGN1_SIGNING_OK on success, error code otherwise.
+ * @see cose_sign1_message_free
+ */
+int cose_sign1_builder_sign_to_message(
+    cose_sign1_builder_t* builder,
+    const cose_key_t* key,
+    const uint8_t* payload,
+    size_t payload_len,
+    CoseSign1MessageHandle** out_message,
     cose_sign1_signing_error_t** out_error
 );
 

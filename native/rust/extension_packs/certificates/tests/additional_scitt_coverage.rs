@@ -9,9 +9,13 @@ use rcgen::{CertificateParams, KeyPair};
 
 fn generate_test_certificate() -> Vec<u8> {
     let mut params = CertificateParams::new(vec!["test.example.com".to_string()]).unwrap();
-    params.distinguished_name.push(rcgen::DnType::CommonName, "Test Certificate");
-    params.distinguished_name.push(rcgen::DnType::OrganizationName, "Test Organization");
-    
+    params
+        .distinguished_name
+        .push(rcgen::DnType::CommonName, "Test Certificate");
+    params
+        .distinguished_name
+        .push(rcgen::DnType::OrganizationName, "Test Organization");
+
     let key_pair = KeyPair::generate().unwrap();
     params.self_signed(&key_pair).unwrap().der().to_vec()
 }
@@ -20,7 +24,7 @@ fn generate_test_certificate() -> Vec<u8> {
 fn test_build_scitt_cwt_claims_empty_chain() {
     let result = build_scitt_cwt_claims(&[], None);
     assert!(result.is_err());
-    
+
     let error = result.unwrap_err();
     assert!(error.to_string().contains("DID:X509 generation failed"));
 }
@@ -29,7 +33,7 @@ fn test_build_scitt_cwt_claims_empty_chain() {
 fn test_build_scitt_cwt_claims_single_cert() {
     let cert_der = generate_test_certificate();
     let chain = [cert_der.as_slice()];
-    
+
     let result = build_scitt_cwt_claims(&chain, None);
     match result {
         Ok(claims) => {
@@ -50,13 +54,13 @@ fn test_build_scitt_cwt_claims_single_cert() {
 fn test_build_scitt_cwt_claims_with_custom_claims() {
     let cert_der = generate_test_certificate();
     let chain = [cert_der.as_slice()];
-    
+
     let mut custom_claims = CwtClaims::new();
     custom_claims.audience = Some("custom-audience".to_string());
     custom_claims.expiration_time = Some(9999999999);
     custom_claims.not_before = Some(1000000000);
     custom_claims.issued_at = Some(1500000000);
-    
+
     let result = build_scitt_cwt_claims(&chain, Some(&custom_claims));
     match result {
         Ok(claims) => {
@@ -78,11 +82,11 @@ fn test_build_scitt_cwt_claims_with_custom_claims() {
 fn test_build_scitt_cwt_claims_custom_overwrites_issuer_subject() {
     let cert_der = generate_test_certificate();
     let chain = [cert_der.as_slice()];
-    
+
     let mut custom_claims = CwtClaims::new();
     custom_claims.issuer = Some("custom-issuer".to_string());
     custom_claims.subject = Some("custom-subject".to_string());
-    
+
     let result = build_scitt_cwt_claims(&chain, Some(&custom_claims));
     match result {
         Ok(claims) => {
@@ -100,10 +104,10 @@ fn test_build_scitt_cwt_claims_custom_overwrites_issuer_subject() {
 fn test_build_scitt_cwt_claims_invalid_certificate() {
     let invalid_cert = vec![0xFF, 0xFE, 0xFD, 0xFC]; // Invalid DER
     let chain = [invalid_cert.as_slice()];
-    
+
     let result = build_scitt_cwt_claims(&chain, None);
     assert!(result.is_err());
-    
+
     let error = result.unwrap_err();
     assert!(error.to_string().contains("DID:X509 generation failed"));
 }
@@ -112,7 +116,7 @@ fn test_build_scitt_cwt_claims_invalid_certificate() {
 fn test_build_scitt_cwt_claims_timing_consistency() {
     let cert_der = generate_test_certificate();
     let chain = [cert_der.as_slice()];
-    
+
     let result = build_scitt_cwt_claims(&chain, None);
     match result {
         Ok(claims) => {
@@ -131,7 +135,7 @@ fn test_build_scitt_cwt_claims_timing_consistency() {
 fn test_create_scitt_contributor_empty_chain() {
     let result = create_scitt_contributor(&[], None);
     assert!(result.is_err());
-    
+
     let error = result.unwrap_err();
     assert!(error.to_string().contains("DID:X509 generation failed"));
 }
@@ -140,13 +144,16 @@ fn test_create_scitt_contributor_empty_chain() {
 fn test_create_scitt_contributor_single_cert() {
     let cert_der = generate_test_certificate();
     let chain = [cert_der.as_slice()];
-    
+
     let result = create_scitt_contributor(&chain, None);
     match result {
         Ok(contributor) => {
             // Verify the contributor has expected merge strategy
             use cose_sign1_signing::{HeaderContributor, HeaderMergeStrategy};
-            assert!(matches!(contributor.merge_strategy(), HeaderMergeStrategy::Replace));
+            assert!(matches!(
+                contributor.merge_strategy(),
+                HeaderMergeStrategy::Replace
+            ));
         }
         Err(e) => {
             // May fail due to EKU requirements
@@ -159,15 +166,18 @@ fn test_create_scitt_contributor_single_cert() {
 fn test_create_scitt_contributor_with_custom_claims() {
     let cert_der = generate_test_certificate();
     let chain = [cert_der.as_slice()];
-    
+
     let mut custom_claims = CwtClaims::new();
     custom_claims.audience = Some("test-audience".to_string());
-    
+
     let result = create_scitt_contributor(&chain, Some(&custom_claims));
     match result {
         Ok(contributor) => {
             use cose_sign1_signing::{HeaderContributor, HeaderMergeStrategy};
-            assert!(matches!(contributor.merge_strategy(), HeaderMergeStrategy::Replace));
+            assert!(matches!(
+                contributor.merge_strategy(),
+                HeaderMergeStrategy::Replace
+            ));
         }
         Err(e) => {
             assert!(e.to_string().contains("DID:X509 generation failed"));
@@ -179,10 +189,10 @@ fn test_create_scitt_contributor_with_custom_claims() {
 fn test_create_scitt_contributor_invalid_certificate() {
     let invalid_cert = vec![0x00, 0x01, 0x02, 0x03]; // Invalid DER
     let chain = [invalid_cert.as_slice()];
-    
+
     let result = create_scitt_contributor(&chain, None);
     assert!(result.is_err());
-    
+
     let error = result.unwrap_err();
     assert!(error.to_string().contains("DID:X509 generation failed"));
 }
@@ -191,12 +201,12 @@ fn test_create_scitt_contributor_invalid_certificate() {
 fn test_scitt_claims_partial_custom_merge() {
     let cert_der = generate_test_certificate();
     let chain = [cert_der.as_slice()];
-    
+
     // Test partial custom claims (only some fields set)
     let mut custom_claims = CwtClaims::new();
     custom_claims.audience = Some("partial-audience".to_string());
     // Leave other fields as None
-    
+
     let result = build_scitt_cwt_claims(&chain, Some(&custom_claims));
     match result {
         Ok(claims) => {

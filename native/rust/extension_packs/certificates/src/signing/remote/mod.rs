@@ -22,7 +22,8 @@ pub trait RemoteCertificateSource: CertificateSource {
     /// # Returns
     ///
     /// The signature bytes on success.
-    fn sign_data_rsa(&self, data: &[u8], hash_algorithm: &str) -> Result<Vec<u8>, CertificateError>;
+    fn sign_data_rsa(&self, data: &[u8], hash_algorithm: &str)
+        -> Result<Vec<u8>, CertificateError>;
 
     /// Signs data using ECDSA with the specified hash algorithm.
     ///
@@ -34,5 +35,9 @@ pub trait RemoteCertificateSource: CertificateSource {
     /// # Returns
     ///
     /// The signature bytes on success.
-    fn sign_data_ecdsa(&self, data: &[u8], hash_algorithm: &str) -> Result<Vec<u8>, CertificateError>;
+    fn sign_data_ecdsa(
+        &self,
+        data: &[u8],
+        hash_algorithm: &str,
+    ) -> Result<Vec<u8>, CertificateError>;
 }

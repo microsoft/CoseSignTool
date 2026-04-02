@@ -4,24 +4,13 @@
 //! Tests for certificates/local FFI exports.
 
 use cose_sign1_certificates_local_ffi::{
-    cose_cert_local_ffi_abi_version,
-    cose_cert_local_last_error_message_utf8,
-    cose_cert_local_last_error_clear,
-    cose_cert_local_string_free,
-    cose_cert_local_factory_new,
-    cose_cert_local_factory_free,
-    cose_cert_local_factory_create_cert,
-    cose_cert_local_factory_create_self_signed,
-    cose_cert_local_chain_new,
-    cose_cert_local_chain_free,
-    cose_cert_local_chain_create,
-    cose_cert_local_load_der,
-    cose_cert_local_bytes_free,
-    cose_cert_local_array_free,
-    cose_cert_local_lengths_array_free,
-    cose_cert_local_factory_t,
-    cose_cert_local_chain_t,
-    cose_status_t,
+    cose_cert_local_array_free, cose_cert_local_bytes_free, cose_cert_local_chain_create,
+    cose_cert_local_chain_free, cose_cert_local_chain_new, cose_cert_local_chain_t,
+    cose_cert_local_factory_create_cert, cose_cert_local_factory_create_self_signed,
+    cose_cert_local_factory_free, cose_cert_local_factory_new, cose_cert_local_factory_t,
+    cose_cert_local_ffi_abi_version, cose_cert_local_last_error_clear,
+    cose_cert_local_last_error_message_utf8, cose_cert_local_lengths_array_free,
+    cose_cert_local_load_der, cose_cert_local_string_free, cose_status_t,
 };
 use std::ffi::CString;
 
@@ -109,7 +98,10 @@ fn chain_free_null() {
 #[test]
 fn factory_create_self_signed() {
     let mut factory: *mut cose_cert_local_factory_t = std::ptr::null_mut();
-    assert_eq!(cose_cert_local_factory_new(&mut factory), cose_status_t::COSE_OK);
+    assert_eq!(
+        cose_cert_local_factory_new(&mut factory),
+        cose_status_t::COSE_OK
+    );
 
     let mut cert_der: *mut u8 = std::ptr::null_mut();
     let mut cert_len: usize = 0;
@@ -156,7 +148,10 @@ fn factory_create_self_signed_null_factory() {
 #[test]
 fn factory_create_self_signed_null_outputs() {
     let mut factory: *mut cose_cert_local_factory_t = std::ptr::null_mut();
-    assert_eq!(cose_cert_local_factory_new(&mut factory), cose_status_t::COSE_OK);
+    assert_eq!(
+        cose_cert_local_factory_new(&mut factory),
+        cose_status_t::COSE_OK
+    );
 
     let status = cose_cert_local_factory_create_self_signed(
         factory,
@@ -176,7 +171,10 @@ fn factory_create_self_signed_null_outputs() {
 #[test]
 fn factory_create_ecdsa_cert() {
     let mut factory: *mut cose_cert_local_factory_t = std::ptr::null_mut();
-    assert_eq!(cose_cert_local_factory_new(&mut factory), cose_status_t::COSE_OK);
+    assert_eq!(
+        cose_cert_local_factory_new(&mut factory),
+        cose_status_t::COSE_OK
+    );
 
     let subject = CString::new("CN=test-ecdsa").unwrap();
     let mut cert_der: *mut u8 = std::ptr::null_mut();
@@ -209,7 +207,10 @@ fn factory_create_ecdsa_cert() {
 #[test]
 fn factory_create_rsa_cert() {
     let mut factory: *mut cose_cert_local_factory_t = std::ptr::null_mut();
-    assert_eq!(cose_cert_local_factory_new(&mut factory), cose_status_t::COSE_OK);
+    assert_eq!(
+        cose_cert_local_factory_new(&mut factory),
+        cose_status_t::COSE_OK
+    );
 
     let subject = CString::new("CN=test-rsa").unwrap();
     let mut cert_der: *mut u8 = std::ptr::null_mut();
@@ -242,7 +243,10 @@ fn factory_create_rsa_cert() {
 #[test]
 fn factory_create_cert_invalid_algorithm() {
     let mut factory: *mut cose_cert_local_factory_t = std::ptr::null_mut();
-    assert_eq!(cose_cert_local_factory_new(&mut factory), cose_status_t::COSE_OK);
+    assert_eq!(
+        cose_cert_local_factory_new(&mut factory),
+        cose_status_t::COSE_OK
+    );
 
     let subject = CString::new("CN=test").unwrap();
     let mut cert_der: *mut u8 = std::ptr::null_mut();
@@ -268,7 +272,10 @@ fn factory_create_cert_invalid_algorithm() {
 #[test]
 fn factory_create_cert_null_subject() {
     let mut factory: *mut cose_cert_local_factory_t = std::ptr::null_mut();
-    assert_eq!(cose_cert_local_factory_new(&mut factory), cose_status_t::COSE_OK);
+    assert_eq!(
+        cose_cert_local_factory_new(&mut factory),
+        cose_status_t::COSE_OK
+    );
 
     let mut cert_der: *mut u8 = std::ptr::null_mut();
     let mut cert_len: usize = 0;
@@ -297,7 +304,10 @@ fn factory_create_cert_null_subject() {
 #[test]
 fn chain_create_ecdsa() {
     let mut chain: *mut cose_cert_local_chain_t = std::ptr::null_mut();
-    assert_eq!(cose_cert_local_chain_new(&mut chain), cose_status_t::COSE_OK);
+    assert_eq!(
+        cose_cert_local_chain_new(&mut chain),
+        cose_status_t::COSE_OK
+    );
 
     let mut certs_data: *mut *mut u8 = std::ptr::null_mut();
     let mut certs_lengths: *mut usize = std::ptr::null_mut();
@@ -308,7 +318,7 @@ fn chain_create_ecdsa() {
 
     let status = cose_cert_local_chain_create(
         chain,
-        1, // ECDSA
+        1,    // ECDSA
         true, // include intermediate
         &mut certs_data,
         &mut certs_lengths,
@@ -345,7 +355,10 @@ fn chain_create_ecdsa() {
 #[test]
 fn chain_create_without_intermediate() {
     let mut chain: *mut cose_cert_local_chain_t = std::ptr::null_mut();
-    assert_eq!(cose_cert_local_chain_new(&mut chain), cose_status_t::COSE_OK);
+    assert_eq!(
+        cose_cert_local_chain_new(&mut chain),
+        cose_status_t::COSE_OK
+    );
 
     let mut certs_data: *mut *mut u8 = std::ptr::null_mut();
     let mut certs_lengths: *mut usize = std::ptr::null_mut();
@@ -356,7 +369,7 @@ fn chain_create_without_intermediate() {
 
     let status = cose_cert_local_chain_create(
         chain,
-        1, // ECDSA
+        1,     // ECDSA
         false, // no intermediate
         &mut certs_data,
         &mut certs_lengths,
@@ -414,7 +427,10 @@ fn chain_create_null_chain() {
 fn load_der_roundtrip() {
     // Create a cert first, then load it back via DER
     let mut factory: *mut cose_cert_local_factory_t = std::ptr::null_mut();
-    assert_eq!(cose_cert_local_factory_new(&mut factory), cose_status_t::COSE_OK);
+    assert_eq!(
+        cose_cert_local_factory_new(&mut factory),
+        cose_status_t::COSE_OK
+    );
 
     let mut cert_der: *mut u8 = std::ptr::null_mut();
     let mut cert_len: usize = 0;
@@ -423,7 +439,11 @@ fn load_der_roundtrip() {
 
     assert_eq!(
         cose_cert_local_factory_create_self_signed(
-            factory, &mut cert_der, &mut cert_len, &mut key_der, &mut key_len,
+            factory,
+            &mut cert_der,
+            &mut cert_len,
+            &mut key_der,
+            &mut key_len,
         ),
         cose_status_t::COSE_OK,
     );
@@ -456,7 +476,8 @@ fn load_der_invalid() {
     let garbage = [0xFFu8; 10];
     let mut out_cert: *mut u8 = std::ptr::null_mut();
     let mut out_len: usize = 0;
-    let status = cose_cert_local_load_der(garbage.as_ptr(), garbage.len(), &mut out_cert, &mut out_len);
+    let status =
+        cose_cert_local_load_der(garbage.as_ptr(), garbage.len(), &mut out_cert, &mut out_len);
     // May succeed (pass-through) or fail depending on validation
     let _ = status;
 }

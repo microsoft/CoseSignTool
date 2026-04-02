@@ -4,14 +4,14 @@
 //! Additional coverage tests for certificates/local FFI — targeting uncovered paths.
 
 use cose_sign1_certificates_local_ffi::{
-    cose_cert_local_bytes_free, cose_cert_local_chain_create, cose_cert_local_chain_free,
-    cose_cert_local_chain_new, cose_cert_local_chain_t, cose_cert_local_factory_create_cert,
+    clear_last_error, cose_cert_local_array_free, cose_cert_local_bytes_free,
+    cose_cert_local_chain_create, cose_cert_local_chain_free, cose_cert_local_chain_new,
+    cose_cert_local_chain_t, cose_cert_local_factory_create_cert,
     cose_cert_local_factory_create_self_signed, cose_cert_local_factory_free,
-    cose_cert_local_factory_new, cose_cert_local_factory_t, cose_cert_local_load_der,
-    cose_cert_local_load_pem, cose_cert_local_string_free, cose_status_t,
-    cose_cert_local_last_error_message_utf8,
-    cose_cert_local_array_free, cose_cert_local_lengths_array_free,
-    set_last_error, clear_last_error, with_catch_unwind,
+    cose_cert_local_factory_new, cose_cert_local_factory_t,
+    cose_cert_local_last_error_message_utf8, cose_cert_local_lengths_array_free,
+    cose_cert_local_load_der, cose_cert_local_load_pem, cose_cert_local_string_free, cose_status_t,
+    set_last_error, with_catch_unwind,
 };
 use std::ffi::{CStr, CString};
 
@@ -19,7 +19,13 @@ use std::ffi::{CStr, CString};
 // Helper: create a factory + self-signed cert for reuse
 // ========================================================================
 
-fn make_self_signed() -> (*mut u8, usize, *mut u8, usize, *mut cose_cert_local_factory_t) {
+fn make_self_signed() -> (
+    *mut u8,
+    usize,
+    *mut u8,
+    usize,
+    *mut cose_cert_local_factory_t,
+) {
     let mut factory: *mut cose_cert_local_factory_t = std::ptr::null_mut();
     assert_eq!(
         cose_cert_local_factory_new(&mut factory),
@@ -54,7 +60,10 @@ fn load_pem_cert_only() {
     // Build PEM from DER bytes
     let der_slice = unsafe { std::slice::from_raw_parts(cert_der, cert_len) };
     let b64 = base64_encode(der_slice);
-    let pem = format!("-----BEGIN CERTIFICATE-----\n{}\n-----END CERTIFICATE-----\n", b64);
+    let pem = format!(
+        "-----BEGIN CERTIFICATE-----\n{}\n-----END CERTIFICATE-----\n",
+        b64
+    );
     let pem_bytes = pem.as_bytes();
 
     let mut out_cert: *mut u8 = std::ptr::null_mut();
@@ -516,8 +525,16 @@ fn base64_encode(data: &[u8]) -> String {
     let mut i = 0;
     while i < data.len() {
         let b0 = data[i] as u32;
-        let b1 = if i + 1 < data.len() { data[i + 1] as u32 } else { 0 };
-        let b2 = if i + 2 < data.len() { data[i + 2] as u32 } else { 0 };
+        let b1 = if i + 1 < data.len() {
+            data[i + 1] as u32
+        } else {
+            0
+        };
+        let b2 = if i + 2 < data.len() {
+            data[i + 2] as u32
+        } else {
+            0
+        };
         let triple = (b0 << 16) | (b1 << 8) | b2;
         result.push(CHARS[((triple >> 18) & 0x3F) as usize] as char);
         result.push(CHARS[((triple >> 12) & 0x3F) as usize] as char);

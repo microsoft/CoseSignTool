@@ -161,7 +161,7 @@ impl CertificateFactory for EphemeralCertificateFactory {
             KeyAlgorithm::Ecdsa => generate_ec_p256_key()?,
             KeyAlgorithm::Rsa => {
                 return Err(CertLocalError::UnsupportedAlgorithm(
-                    "RSA key generation is not yet implemented".to_string(),
+                    "RSA key generation is not yet implemented".into(),
                 ));
             }
             #[cfg(feature = "pqc")]
@@ -274,7 +274,7 @@ impl CertificateFactory for EphemeralCertificateFactory {
                 sign_x509_builder(&mut builder, &issuer_pkey, options.key_algorithm)?;
             } else {
                 return Err(CertLocalError::CertificateCreationFailed(
-                    "issuer certificate must have a private key".to_string(),
+                    "issuer certificate must have a private key".into(),
                 ));
             }
         } else {

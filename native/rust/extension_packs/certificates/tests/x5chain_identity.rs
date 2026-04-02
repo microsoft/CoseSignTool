@@ -1,15 +1,15 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+use cbor_primitives::{CborEncoder, CborProvider};
 use cbor_primitives_everparse::EverParseCborProvider;
-use cose_sign1_primitives::CoseSign1Message;
 use cose_sign1_certificates::validation::facts::X509SigningCertificateIdentityFact;
 use cose_sign1_certificates::validation::pack::X509CertificateTrustPack;
+use cose_sign1_primitives::CoseSign1Message;
 use cose_sign1_validation_primitives::facts::TrustFactEngine;
 use cose_sign1_validation_primitives::policy::TrustPolicyBuilder;
 use cose_sign1_validation_primitives::subject::TrustSubject;
 use cose_sign1_validation_primitives::{TrustDecision, TrustEvaluationOptions};
-use cbor_primitives::{CborEncoder, CborProvider};
 use rcgen::{generate_simple_self_signed, CertifiedKey};
 use std::sync::Arc;
 
@@ -61,10 +61,12 @@ fn x5chain_identity_fact_is_produced() {
         .require_fact(cose_sign1_validation_primitives::facts::FactKey::of::<
             X509SigningCertificateIdentityFact,
         >())
-        .add_trust_source(Arc::new(cose_sign1_validation_primitives::rules::FnRule::new(
-            "allow",
-            |_e: &TrustFactEngine, _s: &TrustSubject| Ok(TrustDecision::trusted()),
-        )))
+        .add_trust_source(Arc::new(
+            cose_sign1_validation_primitives::rules::FnRule::new(
+                "allow",
+                |_e: &TrustFactEngine, _s: &TrustSubject| Ok(TrustDecision::trusted()),
+            ),
+        ))
         .build();
 
     let plan = policy.compile();

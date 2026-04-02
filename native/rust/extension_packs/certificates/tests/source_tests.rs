@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-use cose_sign1_certificates::signing::source::CertificateSource;
 use cose_sign1_certificates::chain_builder::ExplicitCertificateChainBuilder;
 use cose_sign1_certificates::error::CertificateError;
+use cose_sign1_certificates::signing::source::CertificateSource;
 
 struct MockLocalSource {
     cert: Vec<u8>,
@@ -19,7 +19,9 @@ impl CertificateSource for MockLocalSource {
         true
     }
 
-    fn get_chain_builder(&self) -> &dyn cose_sign1_certificates::chain_builder::CertificateChainBuilder {
+    fn get_chain_builder(
+        &self,
+    ) -> &dyn cose_sign1_certificates::chain_builder::CertificateChainBuilder {
         &self.chain_builder
     }
 }
@@ -38,7 +40,9 @@ impl CertificateSource for MockRemoteSource {
         false
     }
 
-    fn get_chain_builder(&self) -> &dyn cose_sign1_certificates::chain_builder::CertificateChainBuilder {
+    fn get_chain_builder(
+        &self,
+    ) -> &dyn cose_sign1_certificates::chain_builder::CertificateChainBuilder {
         &self.chain_builder
     }
 }

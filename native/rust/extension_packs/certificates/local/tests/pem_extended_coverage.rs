@@ -9,12 +9,11 @@ use openssl::bn::BigNum;
 use openssl::ec::{EcGroup, EcKey};
 use openssl::hash::MessageDigest;
 use openssl::nid::Nid;
-use openssl::pkey::{PKey, Private};
+use openssl::pkey::PKey;
 use openssl::rsa::Rsa;
-use openssl::x509::extension::{ExtendedKeyUsage, KeyUsage, SubjectAlternativeName};
+use openssl::x509::extension::KeyUsage;
 use openssl::x509::{X509Name, X509};
 use std::fs;
-use std::io::Write;
 
 // Helper to create certificate and private key as PEM
 fn create_cert_and_key_pem() -> (String, String) {

@@ -6,9 +6,9 @@
 //! This module provides thumbprint computation for X.509 certificates
 //! compatible with COSE x5t header format (CBOR array [int, bstr]).
 
-use sha2::{Sha256, Sha384, Sha512, Digest};
-use cbor_primitives::{CborDecoder, CborEncoder, CborType};
 use crate::error::CertificateError;
+use cbor_primitives::{CborDecoder, CborEncoder, CborType};
+use sha2::{Digest, Sha256, Sha384, Sha512};
 
 /// Thumbprint hash algorithms supported by COSE.
 ///
@@ -79,14 +79,17 @@ impl CoseX509Thumbprint {
     /// Maps V2 `Serialize(CborWriter)`.
     pub fn serialize(&self) -> Result<Vec<u8>, CertificateError> {
         let mut encoder = cose_sign1_primitives::provider::encoder();
-        
-        encoder.encode_array(2)
-            .map_err(|e| CertificateError::InvalidCertificate(format!("Failed to encode array: {}", e)))?;
-        encoder.encode_i64(self.hash_id)
-            .map_err(|e| CertificateError::InvalidCertificate(format!("Failed to encode hash_id: {}", e)))?;
-        encoder.encode_bstr(&self.thumbprint)
-            .map_err(|e| CertificateError::InvalidCertificate(format!("Failed to encode thumbprint: {}", e)))?;
-        
+
+        encoder.encode_array(2).map_err(|e| {
+            CertificateError::InvalidCertificate(format!("Failed to encode array: {}", e))
+        })?;
+        encoder.encode_i64(self.hash_id).map_err(|e| {
+            CertificateError::InvalidCertificate(format!("Failed to encode hash_id: {}", e))
+        })?;
+        encoder.encode_bstr(&self.thumbprint).map_err(|e| {
+            CertificateError::InvalidCertificate(format!("Failed to encode thumbprint: {}", e))
+        })?;
+
         Ok(encoder.into_bytes())
     }
 
@@ -95,71 +98,78 @@ impl CoseX509Thumbprint {
     /// Maps V2 `Deserialize(CborReader)`.
     pub fn deserialize(data: &[u8]) -> Result<Self, CertificateError> {
         let mut decoder = cose_sign1_primitives::provider::decoder(data);
-        
+
         // Check that we have an array
-        if decoder.peek_type()
-            .map_err(|e| CertificateError::InvalidCertificate(format!("Failed to peek type: {}", e)))? 
-            != CborType::Array 
+        if decoder.peek_type().map_err(|e| {
+            CertificateError::InvalidCertificate(format!("Failed to peek type: {}", e))
+        })? != CborType::Array
         {
             return Err(CertificateError::InvalidCertificate(
-                "x5t first level must be an array".to_string()
+                "x5t first level must be an array".into(),
             ));
         }
 
         // Read array length (must be 2)
-        let array_len = decoder.decode_array_len()
-            .map_err(|e| CertificateError::InvalidCertificate(format!("Failed to decode array length: {}", e)))?;
-        
+        let array_len = decoder.decode_array_len().map_err(|e| {
+            CertificateError::InvalidCertificate(format!("Failed to decode array length: {}", e))
+        })?;
+
         if array_len != Some(2) {
             return Err(CertificateError::InvalidCertificate(
-                "x5t first level must be 2 element array".to_string()
+                "x5t first level must be 2 element array".into(),
             ));
         }
 
         // Read hash_id (must be integer)
-        let peek_type = decoder.peek_type()
-            .map_err(|e| CertificateError::InvalidCertificate(format!("Failed to peek type: {}", e)))?;
-        
+        let peek_type = decoder.peek_type().map_err(|e| {
+            CertificateError::InvalidCertificate(format!("Failed to peek type: {}", e))
+        })?;
+
         if peek_type != CborType::UnsignedInt && peek_type != CborType::NegativeInt {
             return Err(CertificateError::InvalidCertificate(
-                "x5t first member must be integer".to_string()
+                "x5t first member must be integer".into(),
             ));
         }
 
-        let hash_id = decoder.decode_i64()
-            .map_err(|e| CertificateError::InvalidCertificate(format!("Failed to decode hash_id: {}", e)))?;
+        let hash_id = decoder.decode_i64().map_err(|e| {
+            CertificateError::InvalidCertificate(format!("Failed to decode hash_id: {}", e))
+        })?;
 
         // Validate hash_id is supported
         if ThumbprintAlgorithm::from_cose_id(hash_id).is_none() {
-            return Err(CertificateError::InvalidCertificate(
-                format!("Unsupported thumbprint hash algorithm value of {}", hash_id)
-            ));
+            return Err(CertificateError::InvalidCertificate(format!(
+                "Unsupported thumbprint hash algorithm value of {}",
+                hash_id
+            )));
         }
 
         // Read thumbprint (must be byte string)
-        if decoder.peek_type()
-            .map_err(|e| CertificateError::InvalidCertificate(format!("Failed to peek type: {}", e)))? 
-            != CborType::ByteString 
+        if decoder.peek_type().map_err(|e| {
+            CertificateError::InvalidCertificate(format!("Failed to peek type: {}", e))
+        })? != CborType::ByteString
         {
             return Err(CertificateError::InvalidCertificate(
-                "x5t second member must be ByteString".to_string()
+                "x5t second member must be ByteString".into(),
             ));
         }
 
-        let thumbprint = decoder.decode_bstr_owned()
-            .map_err(|e| CertificateError::InvalidCertificate(format!("Failed to decode thumbprint: {}", e)))?;
+        let thumbprint = decoder.decode_bstr_owned().map_err(|e| {
+            CertificateError::InvalidCertificate(format!("Failed to decode thumbprint: {}", e))
+        })?;
 
-        Ok(Self { hash_id, thumbprint })
+        Ok(Self {
+            hash_id,
+            thumbprint,
+        })
     }
 
     /// Checks if a certificate matches this thumbprint.
     ///
     /// Maps V2 `Match(X509Certificate2)`.
     pub fn matches(&self, cert_der: &[u8]) -> Result<bool, CertificateError> {
-        let algorithm = ThumbprintAlgorithm::from_cose_id(self.hash_id)
-            .ok_or_else(|| CertificateError::InvalidCertificate(
-                format!("Unsupported hash ID: {}", self.hash_id)
-            ))?;
+        let algorithm = ThumbprintAlgorithm::from_cose_id(self.hash_id).ok_or_else(|| {
+            CertificateError::InvalidCertificate(format!("Unsupported hash ID: {}", self.hash_id))
+        })?;
         let computed = compute_thumbprint(cert_der, algorithm);
         Ok(computed == self.thumbprint)
     }
@@ -173,5 +183,3 @@ pub fn compute_thumbprint(cert_der: &[u8], algorithm: ThumbprintAlgorithm) -> Ve
         ThumbprintAlgorithm::Sha512 => Sha512::digest(cert_der).to_vec(),
     }
 }
-
-

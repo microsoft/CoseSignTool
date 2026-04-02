@@ -1,20 +1,20 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+use cbor_primitives::{CborEncoder, CborProvider};
 use cbor_primitives_everparse::EverParseCborProvider;
-use cose_sign1_primitives::CoseSign1Message;
 use cose_sign1_certificates::validation::facts::{
     X509SigningCertificateBasicConstraintsFact, X509SigningCertificateEkuFact,
     X509SigningCertificateIdentityFact, X509SigningCertificateKeyUsageFact,
 };
 use cose_sign1_certificates::validation::pack::X509CertificateTrustPack;
+use cose_sign1_primitives::CoseSign1Message;
 use cose_sign1_validation_primitives::facts::{TrustFactEngine, TrustFactSet};
 use cose_sign1_validation_primitives::subject::TrustSubject;
 use rcgen::{
     CertificateParams, ExtendedKeyUsagePurpose, IsCa, KeyPair, KeyUsagePurpose,
     PKCS_ECDSA_P256_SHA256,
 };
-use cbor_primitives::{CborEncoder, CborProvider};
 use std::sync::Arc;
 
 fn build_cose_sign1_with_protected_header_map(protected_map_bytes: &[u8]) -> Vec<u8> {

@@ -1,9 +1,9 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+use cose_sign1_primitives::ArcSlice;
 use cose_sign1_validation_primitives::fact_properties::{FactProperties, FactValue};
 use std::borrow::Cow;
-use std::sync::Arc;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct X509SigningCertificateIdentityFact {
@@ -82,8 +82,9 @@ pub mod typed_fields {
         use super::*;
         pub const INDEX: Field<X509ChainElementIdentityFact, usize> =
             Field::new(crate::validation::facts::fields::x509_chain_element_identity::INDEX);
-        pub const CERTIFICATE_THUMBPRINT: Field<X509ChainElementIdentityFact, String> =
-            Field::new(crate::validation::facts::fields::x509_chain_element_identity::CERTIFICATE_THUMBPRINT);
+        pub const CERTIFICATE_THUMBPRINT: Field<X509ChainElementIdentityFact, String> = Field::new(
+            crate::validation::facts::fields::x509_chain_element_identity::CERTIFICATE_THUMBPRINT,
+        );
         pub const SUBJECT: Field<X509ChainElementIdentityFact, String> =
             Field::new(crate::validation::facts::fields::x509_chain_element_identity::SUBJECT);
         pub const ISSUER: Field<X509ChainElementIdentityFact, String> =
@@ -96,13 +97,15 @@ pub mod typed_fields {
             Field::new(
                 crate::validation::facts::fields::x509_signing_certificate_identity::CERTIFICATE_THUMBPRINT,
             );
-        pub const SUBJECT: Field<X509SigningCertificateIdentityFact, String> =
-            Field::new(crate::validation::facts::fields::x509_signing_certificate_identity::SUBJECT);
+        pub const SUBJECT: Field<X509SigningCertificateIdentityFact, String> = Field::new(
+            crate::validation::facts::fields::x509_signing_certificate_identity::SUBJECT,
+        );
         pub const ISSUER: Field<X509SigningCertificateIdentityFact, String> =
             Field::new(crate::validation::facts::fields::x509_signing_certificate_identity::ISSUER);
 
-        pub const SERIAL_NUMBER: Field<X509SigningCertificateIdentityFact, String> =
-            Field::new(crate::validation::facts::fields::x509_signing_certificate_identity::SERIAL_NUMBER);
+        pub const SERIAL_NUMBER: Field<X509SigningCertificateIdentityFact, String> = Field::new(
+            crate::validation::facts::fields::x509_signing_certificate_identity::SERIAL_NUMBER,
+        );
 
         pub const NOT_BEFORE_UNIX_SECONDS: Field<X509SigningCertificateIdentityFact, i64> =
             Field::new(
@@ -118,10 +121,12 @@ pub mod typed_fields {
         use super::*;
         pub const INDEX: Field<X509ChainElementValidityFact, usize> =
             Field::new(crate::validation::facts::fields::x509_chain_element_validity::INDEX);
-        pub const NOT_BEFORE_UNIX_SECONDS: Field<X509ChainElementValidityFact, i64> =
-            Field::new(crate::validation::facts::fields::x509_chain_element_validity::NOT_BEFORE_UNIX_SECONDS);
-        pub const NOT_AFTER_UNIX_SECONDS: Field<X509ChainElementValidityFact, i64> =
-            Field::new(crate::validation::facts::fields::x509_chain_element_validity::NOT_AFTER_UNIX_SECONDS);
+        pub const NOT_BEFORE_UNIX_SECONDS: Field<X509ChainElementValidityFact, i64> = Field::new(
+            crate::validation::facts::fields::x509_chain_element_validity::NOT_BEFORE_UNIX_SECONDS,
+        );
+        pub const NOT_AFTER_UNIX_SECONDS: Field<X509ChainElementValidityFact, i64> = Field::new(
+            crate::validation::facts::fields::x509_chain_element_validity::NOT_AFTER_UNIX_SECONDS,
+        );
     }
 
     pub mod x509_public_key_algorithm {
@@ -131,8 +136,9 @@ pub mod typed_fields {
         pub const ALGORITHM_OID: Field<X509PublicKeyAlgorithmFact, String> =
             Field::new(crate::validation::facts::fields::x509_public_key_algorithm::ALGORITHM_OID);
 
-        pub const CERTIFICATE_THUMBPRINT: Field<X509PublicKeyAlgorithmFact, String> =
-            Field::new(crate::validation::facts::fields::x509_public_key_algorithm::CERTIFICATE_THUMBPRINT);
+        pub const CERTIFICATE_THUMBPRINT: Field<X509PublicKeyAlgorithmFact, String> = Field::new(
+            crate::validation::facts::fields::x509_public_key_algorithm::CERTIFICATE_THUMBPRINT,
+        );
     }
 }
 
@@ -296,7 +302,8 @@ impl FactProperties for X509PublicKeyAlgorithmFact {
 /// Internal helper: certificate DER plus parsed identity.
 #[derive(Debug, Clone)]
 pub(crate) struct ParsedCert {
-    pub der: Arc<Vec<u8>>,
+    /// Certificate DER bytes — zero-copy ArcSlice when parsed from COSE message buffer.
+    pub der: ArcSlice,
     pub thumbprint_sha1_hex: String,
     pub subject: String,
     pub issuer: String,

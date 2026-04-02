@@ -20,14 +20,18 @@ use cbor_primitives::{CborEncoder, CborProvider};
 use cbor_primitives_everparse::EverParseCborProvider;
 use cose_sign1_certificates::signing::certificate_header_contributor::CertificateHeaderContributor;
 use cose_sign1_certificates::validation::facts::*;
-use cose_sign1_certificates::validation::pack::{CertificateTrustOptions, X509CertificateTrustPack};
+use cose_sign1_certificates::validation::pack::{
+    CertificateTrustOptions, X509CertificateTrustPack,
+};
 use cose_sign1_certificates::validation::signing_key_resolver::X509CertificateCoseKeyResolver;
 use cose_sign1_primitives::{CoseHeaderLabel, CoseHeaderMap, CoseSign1Message};
-use cose_sign1_signing::{HeaderContributor, HeaderContributorContext, HeaderMergeStrategy, SigningContext};
-use crypto_primitives::{CryptoError, CryptoSigner};
+use cose_sign1_signing::{
+    HeaderContributor, HeaderContributorContext, HeaderMergeStrategy, SigningContext,
+};
 use cose_sign1_validation::fluent::*;
 use cose_sign1_validation_primitives::facts::{TrustFactEngine, TrustFactSet};
 use cose_sign1_validation_primitives::subject::TrustSubject;
+use crypto_primitives::{CryptoError, CryptoSigner};
 use rcgen::{
     CertificateParams, DnType, ExtendedKeyUsagePurpose, IsCa, KeyPair, KeyUsagePurpose,
     PKCS_ECDSA_P256_SHA256,
@@ -168,8 +172,7 @@ fn make_hdr_ctx() -> HeaderContributorContext<'static> {
         }
     }
 
-    let ctx: &'static SigningContext =
-        Box::leak(Box::new(SigningContext::from_bytes(vec![])));
+    let ctx: &'static SigningContext = Box::leak(Box::new(SigningContext::from_bytes(vec![])));
     let signer: &'static dyn CryptoSigner = Box::leak(Box::new(MockSigner));
     HeaderContributorContext::new(ctx, signer)
 }
@@ -188,7 +191,10 @@ fn trust_pack_name_returns_expected() {
 fn trust_pack_fact_producer_returns_arc() {
     let pack = X509CertificateTrustPack::default();
     let producer = pack.fact_producer();
-    assert_eq!(producer.name(), "cose_sign1_certificates::X509CertificateTrustPack");
+    assert_eq!(
+        producer.name(),
+        "cose_sign1_certificates::X509CertificateTrustPack"
+    );
 }
 
 #[test]
@@ -233,7 +239,9 @@ fn chain_trust_well_formed_self_signed_chain_trusted() {
     }
 
     // Also check CertificateSigningKeyTrustFact (L675–L683)
-    let skf = eng.get_fact_set::<CertificateSigningKeyTrustFact>(&subject).unwrap();
+    let skf = eng
+        .get_fact_set::<CertificateSigningKeyTrustFact>(&subject)
+        .unwrap();
     match skf {
         TrustFactSet::Available(v) => {
             assert_eq!(v.len(), 1);
@@ -348,9 +356,7 @@ fn identity_pinning_allowed_when_thumbprint_matches() {
         let mut h = Sha256::new();
         h.update(&cert);
         let d = h.finalize();
-        d.iter()
-            .map(|b| format!("{:02X}", b))
-            .collect::<String>()
+        d.iter().map(|b| format!("{:02X}", b)).collect::<String>()
     };
 
     let cose = build_cose(&[&cert]);
@@ -389,14 +395,18 @@ fn produce_dispatches_chain_element_identity_facts() {
     let subject = sk(&cose);
 
     // Triggers produce() with X509ChainElementIdentityFact (line 719)
-    let elems = eng.get_fact_set::<X509ChainElementIdentityFact>(&subject).unwrap();
+    let elems = eng
+        .get_fact_set::<X509ChainElementIdentityFact>(&subject)
+        .unwrap();
     match elems {
         TrustFactSet::Available(v) => assert!(v.len() >= 2),
         other => panic!("expected Available, got {other:?}"),
     }
 
     // Triggers produce() with X509X5ChainCertificateIdentityFact (line 718)
-    let x5_id = eng.get_fact_set::<X509X5ChainCertificateIdentityFact>(&subject).unwrap();
+    let x5_id = eng
+        .get_fact_set::<X509X5ChainCertificateIdentityFact>(&subject)
+        .unwrap();
     match x5_id {
         TrustFactSet::Available(v) => assert!(v.len() >= 2),
         other => panic!("expected Available, got {other:?}"),
@@ -416,7 +426,9 @@ fn produce_dispatches_chain_trust_facts() {
     let subject = sk(&cose);
 
     // Triggers produce() through FactKey::of::<CertificateSigningKeyTrustFact>() (L726)
-    let skf = eng.get_fact_set::<CertificateSigningKeyTrustFact>(&subject).unwrap();
+    let skf = eng
+        .get_fact_set::<CertificateSigningKeyTrustFact>(&subject)
+        .unwrap();
     match skf {
         TrustFactSet::Available(v) => assert_eq!(v.len(), 1),
         other => panic!("expected Available, got {other:?}"),
@@ -448,7 +460,9 @@ fn produce_signing_cert_facts_with_any_eku() {
     let eng = engine(pack, &cose);
     let subject = sk(&cose);
 
-    let eku = eng.get_fact_set::<X509SigningCertificateEkuFact>(&subject).unwrap();
+    let eku = eng
+        .get_fact_set::<X509SigningCertificateEkuFact>(&subject)
+        .unwrap();
     match eku {
         TrustFactSet::Available(v) => {
             let oids: Vec<&str> = v.iter().map(|f| f.oid_value.as_str()).collect();
@@ -469,18 +483,15 @@ fn produce_signing_cert_facts_with_any_eku() {
 
 #[test]
 fn produce_key_usage_data_encipherment() {
-    let (cert, _) = gen_cert(
-        "de-cert",
-        None,
-        &[KeyUsagePurpose::DataEncipherment],
-        &[],
-    );
+    let (cert, _) = gen_cert("de-cert", None, &[KeyUsagePurpose::DataEncipherment], &[]);
     let cose = build_cose(&[&cert]);
     let pack = X509CertificateTrustPack::default();
     let eng = engine(pack, &cose);
     let subject = sk(&cose);
 
-    let ku = eng.get_fact_set::<X509SigningCertificateKeyUsageFact>(&subject).unwrap();
+    let ku = eng
+        .get_fact_set::<X509SigningCertificateKeyUsageFact>(&subject)
+        .unwrap();
     match ku {
         TrustFactSet::Available(v) => {
             assert_eq!(v.len(), 1);
@@ -503,7 +514,9 @@ fn produce_signing_cert_facts_for_non_signing_key_subject() {
 
     // Message subject (not a signing key) — facts should be Available(empty)
     let message_subject = TrustSubject::message(&cose);
-    let id = eng.get_fact_set::<X509SigningCertificateIdentityFact>(&message_subject).unwrap();
+    let id = eng
+        .get_fact_set::<X509SigningCertificateIdentityFact>(&message_subject)
+        .unwrap();
     match id {
         TrustFactSet::Available(v) => assert!(v.is_empty()),
         other => panic!("expected Available(empty) for non-sk subject, got {other:?}"),
@@ -522,7 +535,9 @@ fn produce_chain_identity_facts_for_non_signing_key_subject() {
     let eng = engine(pack, &cose);
 
     let message_subject = TrustSubject::message(&cose);
-    let elems = eng.get_fact_set::<X509ChainElementIdentityFact>(&message_subject).unwrap();
+    let elems = eng
+        .get_fact_set::<X509ChainElementIdentityFact>(&message_subject)
+        .unwrap();
     match elems {
         TrustFactSet::Available(v) => assert!(v.is_empty()),
         other => panic!("expected Available(empty) for non-sk subject, got {other:?}"),
@@ -541,7 +556,9 @@ fn produce_chain_trust_facts_for_non_signing_key_subject() {
     let eng = engine(pack, &cose);
 
     let message_subject = TrustSubject::message(&cose);
-    let trust = eng.get_fact_set::<X509ChainTrustedFact>(&message_subject).unwrap();
+    let trust = eng
+        .get_fact_set::<X509ChainTrustedFact>(&message_subject)
+        .unwrap();
     match trust {
         TrustFactSet::Available(v) => assert!(v.is_empty()),
         other => panic!("expected Available(empty) for non-sk subject, got {other:?}"),
@@ -567,7 +584,9 @@ fn produce_chain_identity_facts_empty_chain() {
     let eng = engine(pack, &cose);
     let subject = sk(&cose);
 
-    let elems = eng.get_fact_set::<X509ChainElementIdentityFact>(&subject).unwrap();
+    let elems = eng
+        .get_fact_set::<X509ChainElementIdentityFact>(&subject)
+        .unwrap();
     // No x5chain → marks missing
     match elems {
         TrustFactSet::Available(v) => assert!(v.is_empty()),
@@ -593,7 +612,9 @@ fn pqc_oid_detection_no_match() {
     let eng = engine(pack, &cose);
     let subject = sk(&cose);
 
-    let alg = eng.get_fact_set::<X509PublicKeyAlgorithmFact>(&subject).unwrap();
+    let alg = eng
+        .get_fact_set::<X509PublicKeyAlgorithmFact>(&subject)
+        .unwrap();
     match alg {
         TrustFactSet::Available(v) => {
             assert_eq!(v.len(), 1);
@@ -655,7 +676,9 @@ fn chain_identity_with_three_element_chain() {
     let eng = engine(pack, &cose);
     let subject = sk(&cose);
 
-    let elems = eng.get_fact_set::<X509ChainElementIdentityFact>(&subject).unwrap();
+    let elems = eng
+        .get_fact_set::<X509ChainElementIdentityFact>(&subject)
+        .unwrap();
     match elems {
         TrustFactSet::Available(mut v) => {
             v.sort_by_key(|e| e.index);
@@ -667,13 +690,17 @@ fn chain_identity_with_three_element_chain() {
         other => panic!("expected Available, got {other:?}"),
     }
 
-    let validity = eng.get_fact_set::<X509ChainElementValidityFact>(&subject).unwrap();
+    let validity = eng
+        .get_fact_set::<X509ChainElementValidityFact>(&subject)
+        .unwrap();
     match validity {
         TrustFactSet::Available(v) => assert_eq!(v.len(), 3),
         other => panic!("expected Available, got {other:?}"),
     }
 
-    let x5chain_id = eng.get_fact_set::<X509X5ChainCertificateIdentityFact>(&subject).unwrap();
+    let x5chain_id = eng
+        .get_fact_set::<X509X5ChainCertificateIdentityFact>(&subject)
+        .unwrap();
     match x5chain_id {
         TrustFactSet::Available(v) => assert_eq!(v.len(), 3),
         other => panic!("expected Available, got {other:?}"),
@@ -713,7 +740,11 @@ fn resolver_no_alg_auto_detection_success() {
     let resolver = X509CertificateCoseKeyResolver::new();
     let opts = CoseSign1ValidationOptions::default();
     let result = resolver.resolve(&msg, &opts);
-    assert!(result.is_success, "expected success but diagnostics: {:?}", result.diagnostics);
+    assert!(
+        result.is_success,
+        "expected success but diagnostics: {:?}",
+        result.diagnostics
+    );
 }
 
 // ===========================================================================
@@ -732,7 +763,10 @@ fn resolver_with_alg_present_success() {
     let result = resolver.resolve(&msg, &opts);
     assert!(result.is_success);
     assert!(
-        result.diagnostics.iter().any(|d| d.contains("x509_verifier_resolved")),
+        result
+            .diagnostics
+            .iter()
+            .any(|d| d.contains("x509_verifier_resolved")),
         "expected diagnostic about openssl resolver"
     );
 }

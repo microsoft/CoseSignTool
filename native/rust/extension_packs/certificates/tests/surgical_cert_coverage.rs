@@ -12,8 +12,8 @@ use cose_sign1_certificates::signing::certificate_header_contributor::Certificat
 use cose_sign1_certificates::validation::pack::{
     CertificateTrustOptions, X509CertificateTrustPack,
 };
+use cose_sign1_primitives::{CoseHeaderLabel, CoseHeaderValue};
 use cose_sign1_signing::HeaderContributor;
-use cose_sign1_primitives::{CoseHeaderLabel, CoseHeaderMap, CoseHeaderValue};
 
 // ---------------------------------------------------------------------------
 // Helpers — certificate generation using openssl
@@ -81,7 +81,12 @@ fn generate_ca_cert(cn: &str) -> (Vec<u8>, openssl::pkey::PKey<openssl::pkey::Pr
     builder.set_not_after(&not_after).unwrap();
 
     // Add CA BasicConstraints with path length
-    let bc = BasicConstraints::new().critical().ca().pathlen(2).build().unwrap();
+    let bc = BasicConstraints::new()
+        .critical()
+        .ca()
+        .pathlen(2)
+        .build()
+        .unwrap();
     builder.append_extension(bc).unwrap();
 
     // Add KeyUsage: keyCertSign + crlSign
@@ -146,9 +151,7 @@ fn generate_leaf_cert_with_eku(
 }
 
 /// Generate a leaf cert with comprehensive KeyUsage flags.
-fn generate_cert_with_key_usage(
-    cn: &str,
-) -> Vec<u8> {
+fn generate_cert_with_key_usage(cn: &str) -> Vec<u8> {
     use openssl::asn1::Asn1Time;
     use openssl::ec::{EcGroup, EcKey};
     use openssl::hash::MessageDigest;
@@ -277,13 +280,18 @@ fn header_contributor_three_cert_chain() {
     // Covers: build_x5chain loop for 3+ certs
     let (root_der, root_pkey) = generate_ca_cert("Root CA 3");
     let root_x509 = openssl::x509::X509::from_der(&root_der).unwrap();
-    let (inter_der, inter_pkey) = generate_leaf_cert_with_eku("Intermediate", &root_x509, &root_pkey);
+    let (inter_der, inter_pkey) =
+        generate_leaf_cert_with_eku("Intermediate", &root_x509, &root_pkey);
     let inter_x509 = openssl::x509::X509::from_der(&inter_der).unwrap();
     let (leaf_der, _leaf_pkey) = generate_leaf_cert_with_eku("Leaf3", &inter_x509, &inter_pkey);
 
-    let chain: Vec<&[u8]> = vec![leaf_der.as_slice(), inter_der.as_slice(), root_der.as_slice()];
-    let contributor = CertificateHeaderContributor::new(&leaf_der, &chain)
-        .expect("3-cert chain should work");
+    let chain: Vec<&[u8]> = vec![
+        leaf_der.as_slice(),
+        inter_der.as_slice(),
+        root_der.as_slice(),
+    ];
+    let contributor =
+        CertificateHeaderContributor::new(&leaf_der, &chain).expect("3-cert chain should work");
     let _ = contributor;
 }
 
@@ -347,17 +355,15 @@ fn trust_pack_provides_all_fact_keys() {
 // ===========================================================================
 
 /// Helper: build a COSE_Sign1 message with an x5chain header containing the given cert chain.
-fn build_cose_with_x5chain(
-    _leaf_der: &[u8],
-    chain: &[Vec<u8>],
-    signing_key_der: &[u8],
-) -> Vec<u8> {
+fn build_cose_with_x5chain(_leaf_der: &[u8], chain: &[Vec<u8>], signing_key_der: &[u8]) -> Vec<u8> {
     let provider = cose_sign1_crypto_openssl::OpenSslCryptoProvider;
     let signer = <cose_sign1_crypto_openssl::OpenSslCryptoProvider as crypto_primitives::CryptoProvider>::signer_from_der(&provider, signing_key_der).unwrap();
 
     let mut protected = cose_sign1_primitives::CoseHeaderMap::new();
     protected.set_alg(signer.algorithm());
-    protected.set_content_type(cose_sign1_primitives::ContentType::Text("application/test".to_string()));
+    protected.set_content_type(cose_sign1_primitives::ContentType::Text(
+        "application/test".to_string(),
+    ));
 
     // Embed x5chain
     if chain.len() == 1 {
@@ -370,10 +376,7 @@ fn build_cose_with_x5chain(
             .iter()
             .map(|c| CoseHeaderValue::Bytes(c.clone().into()))
             .collect();
-        protected.insert(
-            CoseHeaderLabel::Int(33),
-            CoseHeaderValue::Array(arr),
-        );
+        protected.insert(CoseHeaderLabel::Int(33), CoseHeaderValue::Array(arr));
     }
 
     cose_sign1_primitives::CoseSign1Builder::new()
@@ -396,16 +399,13 @@ fn validate_single_self_signed_cert_chain_trusted() {
     let pack = X509CertificateTrustPack::trust_embedded_chain_as_trusted();
 
     // Validate using the fluent API
-    use cose_sign1_validation::fluent::*;
-    use cose_sign1_certificates::validation::facts::*;
     use cose_sign1_certificates::validation::fluent_ext::*;
+    use cose_sign1_validation::fluent::*;
     use std::sync::Arc;
 
     let trust_packs: Vec<Arc<dyn CoseSign1TrustPack>> = vec![Arc::new(pack)];
     let plan = TrustPlanBuilder::new(trust_packs)
-        .for_primary_signing_key(|key| {
-            key.require_x509_chain_trusted()
-        })
+        .for_primary_signing_key(|key| key.require_x509_chain_trusted())
         .compile()
         .unwrap();
 
@@ -443,16 +443,13 @@ fn validate_multi_cert_chain_well_formed() {
 
     let pack = X509CertificateTrustPack::trust_embedded_chain_as_trusted();
 
-    use cose_sign1_validation::fluent::*;
-    use cose_sign1_certificates::validation::facts::*;
     use cose_sign1_certificates::validation::fluent_ext::*;
+    use cose_sign1_validation::fluent::*;
     use std::sync::Arc;
 
     let trust_packs: Vec<Arc<dyn CoseSign1TrustPack>> = vec![Arc::new(pack)];
     let plan = TrustPlanBuilder::new(trust_packs)
-        .for_primary_signing_key(|key| {
-            key.require_x509_chain_trusted()
-        })
+        .for_primary_signing_key(|key| key.require_x509_chain_trusted())
         .compile()
         .unwrap();
 
@@ -481,24 +478,18 @@ fn validate_malformed_chain_issuer_mismatch() {
     let key_a_der = pkey_a.private_key_to_der().unwrap();
 
     // Chain has cert_a → cert_b, but cert_a was NOT signed by cert_b
-    let cose_bytes = build_cose_with_x5chain(
-        &cert_a,
-        &[cert_a.clone(), cert_b.clone()],
-        &key_a_der,
-    );
+    let cose_bytes =
+        build_cose_with_x5chain(&cert_a, &[cert_a.clone(), cert_b.clone()], &key_a_der);
 
     let pack = X509CertificateTrustPack::trust_embedded_chain_as_trusted();
 
-    use cose_sign1_validation::fluent::*;
-    use cose_sign1_certificates::validation::facts::*;
     use cose_sign1_certificates::validation::fluent_ext::*;
+    use cose_sign1_validation::fluent::*;
     use std::sync::Arc;
 
     let trust_packs: Vec<Arc<dyn CoseSign1TrustPack>> = vec![Arc::new(pack)];
     let plan = TrustPlanBuilder::new(trust_packs)
-        .for_primary_signing_key(|key| {
-            key.require_x509_chain_trusted()
-        })
+        .for_primary_signing_key(|key| key.require_x509_chain_trusted())
         .compile()
         .unwrap();
 
@@ -529,16 +520,13 @@ fn validate_trust_disabled_well_formed_chain() {
     // Default options: trust_embedded_chain_as_trusted = false
     let pack = X509CertificateTrustPack::new(CertificateTrustOptions::default());
 
-    use cose_sign1_validation::fluent::*;
-    use cose_sign1_certificates::validation::facts::*;
     use cose_sign1_certificates::validation::fluent_ext::*;
+    use cose_sign1_validation::fluent::*;
     use std::sync::Arc;
 
     let trust_packs: Vec<Arc<dyn CoseSign1TrustPack>> = vec![Arc::new(pack)];
     let plan = TrustPlanBuilder::new(trust_packs)
-        .for_primary_signing_key(|key| {
-            key.require_x509_chain_trusted()
-        })
+        .for_primary_signing_key(|key| key.require_x509_chain_trusted())
         .compile()
         .unwrap();
 
@@ -563,8 +551,7 @@ fn validate_cert_with_eku_extensions() {
     //   - code_signing (line 467), server_auth (461), client_auth (464)
     let (root_der, root_pkey) = generate_ca_cert("Root CA EKU");
     let root_x509 = openssl::x509::X509::from_der(&root_der).unwrap();
-    let (leaf_der, leaf_pkey) =
-        generate_leaf_cert_with_eku("Leaf EKU", &root_x509, &root_pkey);
+    let (leaf_der, leaf_pkey) = generate_leaf_cert_with_eku("Leaf EKU", &root_x509, &root_pkey);
     let leaf_key_der = leaf_pkey.private_key_to_der().unwrap();
 
     let cose_bytes = build_cose_with_x5chain(
@@ -575,9 +562,8 @@ fn validate_cert_with_eku_extensions() {
 
     let pack = X509CertificateTrustPack::trust_embedded_chain_as_trusted();
 
-    use cose_sign1_validation::fluent::*;
-    use cose_sign1_certificates::validation::facts::*;
     use cose_sign1_certificates::validation::fluent_ext::*;
+    use cose_sign1_validation::fluent::*;
     use std::sync::Arc;
 
     let trust_packs: Vec<Arc<dyn CoseSign1TrustPack>> = vec![Arc::new(pack)];
@@ -633,9 +619,8 @@ fn validate_cert_with_key_usage_flags() {
 
     let pack = X509CertificateTrustPack::trust_embedded_chain_as_trusted();
 
-    use cose_sign1_validation::fluent::*;
-    use cose_sign1_certificates::validation::facts::*;
     use cose_sign1_certificates::validation::fluent_ext::*;
+    use cose_sign1_validation::fluent::*;
     use std::sync::Arc;
 
     let trust_packs: Vec<Arc<dyn CoseSign1TrustPack>> = vec![Arc::new(pack)];
@@ -687,9 +672,8 @@ fn validate_identity_pinning_with_matching_thumbprint() {
         ..CertificateTrustOptions::default()
     });
 
-    use cose_sign1_validation::fluent::*;
-    use cose_sign1_certificates::validation::facts::*;
     use cose_sign1_certificates::validation::fluent_ext::*;
+    use cose_sign1_validation::fluent::*;
     use std::sync::Arc;
 
     let trust_packs: Vec<Arc<dyn CoseSign1TrustPack>> = vec![Arc::new(pack)];
@@ -731,9 +715,8 @@ fn validate_identity_pinning_with_non_matching_thumbprint() {
         ..CertificateTrustOptions::default()
     });
 
-    use cose_sign1_validation::fluent::*;
-    use cose_sign1_certificates::validation::facts::*;
     use cose_sign1_certificates::validation::fluent_ext::*;
+    use cose_sign1_validation::fluent::*;
     use std::sync::Arc;
 
     let trust_packs: Vec<Arc<dyn CoseSign1TrustPack>> = vec![Arc::new(pack)];

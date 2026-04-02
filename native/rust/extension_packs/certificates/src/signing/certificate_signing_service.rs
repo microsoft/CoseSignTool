@@ -7,11 +7,11 @@
 
 use std::sync::Arc;
 
-use crypto_primitives::CryptoSigner;
 use cose_sign1_signing::{
     CoseSigner, HeaderContributor, HeaderContributorContext, SigningContext, SigningError,
     SigningService, SigningServiceMetadata,
 };
+use crypto_primitives::CryptoSigner;
 
 use crate::signing::certificate_header_contributor::CertificateHeaderContributor;
 use crate::signing::certificate_signing_options::CertificateSigningOptions;
@@ -46,8 +46,8 @@ impl CertificateSigningService {
     ) -> Self {
         let is_remote = signing_key_provider.is_remote();
         let metadata = SigningServiceMetadata::new(
-            "CertificateSigningService".to_string(),
-            "X.509 certificate-based signing service".to_string(),
+            "CertificateSigningService".into(),
+            "X.509 certificate-based signing service".into(),
         );
         Self {
             certificate_source,
@@ -81,9 +81,8 @@ impl SigningService for CertificateSigningService {
             HeaderContributorContext::new(context, &*self.signing_key_provider);
 
         // 1. Add certificate headers (x5t + x5chain) to PROTECTED
-        let cert_contributor =
-            CertificateHeaderContributor::new(cert, &chain_refs)
-                .map_err(|e| SigningError::SigningFailed(e.to_string()))?;
+        let cert_contributor = CertificateHeaderContributor::new(cert, &chain_refs)
+            .map_err(|e| SigningError::SigningFailed(e.to_string()))?;
 
         cert_contributor.contribute_protected_headers(&mut protected_headers, &contributor_context);
 
@@ -95,10 +94,8 @@ impl SigningService for CertificateSigningService {
             )
             .map_err(|e| SigningError::SigningFailed(e.to_string()))?;
 
-            scitt_contributor.contribute_protected_headers(
-                &mut protected_headers,
-                &contributor_context,
-            );
+            scitt_contributor
+                .contribute_protected_headers(&mut protected_headers, &contributor_context);
         }
 
         // 3. Run additional contributors from context
@@ -112,7 +109,9 @@ impl SigningService for CertificateSigningService {
         let crypto_signer: Arc<dyn CryptoSigner> = self.signing_key_provider.clone();
         // Convert Arc to Box for CoseSigner
         // This is a bit awkward but necessary due to CoseSigner's API
-        let boxed_signer: Box<dyn CryptoSigner> = Box::new(ArcSignerWrapper { signer: crypto_signer });
+        let boxed_signer: Box<dyn CryptoSigner> = Box::new(ArcSignerWrapper {
+            signer: crypto_signer,
+        });
         Ok(CoseSigner::new(
             boxed_signer,
             protected_headers,

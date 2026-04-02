@@ -66,9 +66,9 @@ pub struct CertificateChainOptions {
 impl Default for CertificateChainOptions {
     fn default() -> Self {
         Self {
-            root_name: "CN=Ephemeral Root CA".to_string(),
-            intermediate_name: Some("CN=Ephemeral Intermediate CA".to_string()),
-            leaf_name: "CN=Ephemeral Leaf Certificate".to_string(),
+            root_name: "CN=Ephemeral Root CA".into(),
+            intermediate_name: Some("CN=Ephemeral Intermediate CA".into()),
+            leaf_name: "CN=Ephemeral Leaf Certificate".into(),
             key_algorithm: KeyAlgorithm::Ecdsa,
             key_size: None,
             root_validity: Duration::from_secs(3650 * 24 * 60 * 60), // 10 years

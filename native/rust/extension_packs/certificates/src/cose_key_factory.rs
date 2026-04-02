@@ -7,8 +7,8 @@
 //! CryptoVerifier implementations from X.509 certificates for verification.
 
 use crate::error::CertificateError;
-use crypto_primitives::{CryptoProvider, CryptoVerifier};
 use cose_sign1_crypto_openssl::OpenSslCryptoProvider;
+use crypto_primitives::{CryptoProvider, CryptoVerifier};
 
 /// Factory functions for creating COSE keys from X.509 certificates.
 ///
@@ -27,23 +27,32 @@ impl X509CertificateCoseKeyFactory {
     /// # Returns
     ///
     /// A CryptoVerifier implementation suitable for verification operations.
-    pub fn create_from_public_key(cert_der: &[u8]) -> Result<Box<dyn CryptoVerifier>, CertificateError> {
+    pub fn create_from_public_key(
+        cert_der: &[u8],
+    ) -> Result<Box<dyn CryptoVerifier>, CertificateError> {
         // Parse certificate using OpenSSL to extract public key
-        let cert = openssl::x509::X509::from_der(cert_der)
-            .map_err(|e| CertificateError::InvalidCertificate(format!("Failed to parse certificate: {}", e)))?;
-        
-        let public_pkey = cert.public_key()
-            .map_err(|e| CertificateError::InvalidCertificate(format!("Failed to extract public key: {}", e)))?;
-        
+        let cert = openssl::x509::X509::from_der(cert_der).map_err(|e| {
+            CertificateError::InvalidCertificate(format!("Failed to parse certificate: {}", e))
+        })?;
+
+        let public_pkey = cert.public_key().map_err(|e| {
+            CertificateError::InvalidCertificate(format!("Failed to extract public key: {}", e))
+        })?;
+
         // Convert to DER format for the crypto provider
-        let public_key_der = public_pkey.public_key_to_der()
-            .map_err(|e| CertificateError::InvalidCertificate(format!("Failed to convert public key to DER: {}", e)))?;
-        
+        let public_key_der = public_pkey.public_key_to_der().map_err(|e| {
+            CertificateError::InvalidCertificate(format!(
+                "Failed to convert public key to DER: {}",
+                e
+            ))
+        })?;
+
         // Create verifier using OpenSslCryptoProvider
         let provider = OpenSslCryptoProvider;
-        let verifier = provider.verifier_from_der(&public_key_der)
-            .map_err(|e| CertificateError::InvalidCertificate(format!("Failed to create verifier: {}", e)))?;
-        
+        let verifier = provider.verifier_from_der(&public_key_der).map_err(|e| {
+            CertificateError::InvalidCertificate(format!("Failed to create verifier: {}", e))
+        })?;
+
         Ok(verifier)
     }
 
@@ -53,7 +62,10 @@ impl X509CertificateCoseKeyFactory {
     /// - 4096+ bits → SHA-512
     /// - 3072+ bits or ECDSA P-521 → SHA-384
     /// - Otherwise → SHA-256
-    pub fn get_hash_algorithm_for_key_size(key_size_bits: usize, is_ec_p521: bool) -> HashAlgorithm {
+    pub fn get_hash_algorithm_for_key_size(
+        key_size_bits: usize,
+        is_ec_p521: bool,
+    ) -> HashAlgorithm {
         if key_size_bits >= 4096 {
             HashAlgorithm::Sha512
         } else if key_size_bits >= 3072 || is_ec_p521 {
@@ -82,5 +94,3 @@ impl HashAlgorithm {
         }
     }
 }
-
-

@@ -24,5 +24,3 @@ pub trait CertificateSource: Send + Sync {
     /// Gets the chain builder for this certificate source.
     fn get_chain_builder(&self) -> &dyn CertificateChainBuilder;
 }
-
-

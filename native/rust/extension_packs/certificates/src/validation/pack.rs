@@ -5,7 +5,7 @@ use tracing::debug;
 
 use crate::validation::facts::*;
 use cbor_primitives::CborDecoder;
-use cose_sign1_primitives::CoseHeaderLabel;
+use cose_sign1_primitives::{ArcSlice, CoseHeaderLabel};
 use cose_sign1_validation::fluent::*;
 use cose_sign1_validation_primitives::error::TrustError;
 use cose_sign1_validation_primitives::facts::TrustFactSet;
@@ -22,11 +22,14 @@ pub mod fluent_ext {
 
 /// Encode bytes as uppercase hex string.
 fn hex_encode_upper(bytes: &[u8]) -> String {
-    bytes.iter().fold(String::with_capacity(bytes.len() * 2), |mut s, b| {
-        use std::fmt::Write;
-        write!(s, "{:02X}", b).unwrap();
-        s
-    })
+    bytes
+        .iter()
+        .fold(String::with_capacity(bytes.len() * 2), |mut s, b| {
+            use std::fmt::Write;
+            // write! to a String is infallible (never returns Err)
+            let _ = write!(s, "{:02X}", b);
+            s
+        })
 }
 
 #[derive(Debug, Clone, Default)]
@@ -66,12 +69,10 @@ impl X509CertificateTrustPack {
     /// This is intended for deterministic scenarios (tests, pinned-root deployments) where the
     /// message is expected to carry its own trust anchor.
     pub fn trust_embedded_chain_as_trusted() -> Self {
-        Self::new(
-            CertificateTrustOptions {
-                trust_embedded_chain_as_trusted: true,
-                ..CertificateTrustOptions::default()
-            },
-        )
+        Self::new(CertificateTrustOptions {
+            trust_embedded_chain_as_trusted: true,
+            ..CertificateTrustOptions::default()
+        })
     }
 
     /// Normalize a thumbprint string for comparison (remove whitespace, uppercase).
@@ -89,14 +90,17 @@ impl X509CertificateTrustPack {
     /// - Counter-signature signing key subjects (read from the derived counter-signature bytes)
     ///
     /// The returned vector is ordered as it appears in the `x5chain` header.
-    fn parse_message_chain(&self, ctx: &TrustFactContext<'_>) -> Result<Vec<Arc<Vec<u8>>>, TrustError> {
+    fn parse_message_chain(&self, ctx: &TrustFactContext<'_>) -> Result<Vec<ArcSlice>, TrustError> {
         // COSE header label 33 = x5chain
         /// Attempt to read an `x5chain` value from a CBOR-encoded map.
         ///
-        /// Supports either a single `bstr` or an array of `bstr` values.
+        /// When `backing_arc` is provided, certificate bytes are returned as
+        /// zero-copy `ArcSlice` values sharing the parent buffer. When `None`,
+        /// each certificate gets an independent `ArcSlice` allocation.
         fn try_read_x5chain(
             map_bytes: &[u8],
-        ) -> Result<Vec<Arc<Vec<u8>>>, TrustError> {
+            backing_arc: Option<&Arc<[u8]>>,
+        ) -> Result<Vec<ArcSlice>, TrustError> {
             let mut decoder = cose_sign1_primitives::provider::decoder(map_bytes);
             let map_len = decoder
                 .decode_map_len()
@@ -106,7 +110,7 @@ impl X509CertificateTrustPack {
                 Some(len) => len,
                 None => {
                     return Err(TrustError::FactProduction(
-                        "indefinite-length maps not supported in headers".to_string(),
+                        "indefinite-length maps not supported in headers".into(),
                     ));
                 }
             };
@@ -117,32 +121,38 @@ impl X509CertificateTrustPack {
                     .map_err(|e| TrustError::FactProduction(e.to_string()))?;
 
                 if key == 33 {
-                    let value_bytes = decoder
+                    let value_slice = decoder
                         .decode_raw()
-                        .map_err(|e| TrustError::FactProduction(e.to_string()))?.to_vec();
-                    let mut value_decoder = cose_sign1_primitives::provider::decoder(&value_bytes);
+                        .map_err(|e| TrustError::FactProduction(e.to_string()))?;
+                    let mut value_decoder = cose_sign1_primitives::provider::decoder(value_slice);
+
+                    /// Create an ArcSlice from decoded bytes — zero-copy when
+                    /// a backing Arc is available, independent allocation otherwise.
+                    fn to_arc_slice(bytes: &[u8], arc: Option<&Arc<[u8]>>) -> ArcSlice {
+                        match arc {
+                            Some(parent) => ArcSlice::from_sub_slice(parent, bytes),
+                            None => ArcSlice::from(bytes.to_vec()),
+                        }
+                    }
 
                     // x5chain can be a single bstr or an array of bstr.
-                    if value_decoder
-                        .peek_type()
-                        .ok()
-                        == Some(cbor_primitives::CborType::ByteString)
+                    if value_decoder.peek_type().ok() == Some(cbor_primitives::CborType::ByteString)
                     {
                         let cert = value_decoder
                             .decode_bstr()
-                            .map_err(|e| TrustError::FactProduction(e.to_string()))?.to_vec();
-                        return Ok(vec![Arc::new(cert)]);
+                            .map_err(|e| TrustError::FactProduction(e.to_string()))?;
+                        return Ok(vec![to_arc_slice(cert, backing_arc)]);
                     }
 
                     let arr_len = value_decoder
                         .decode_array_len()
                         .map_err(|e| TrustError::FactProduction(e.to_string()))?;
-                    
+
                     let arr_count = match arr_len {
                         Some(len) => len,
                         None => {
                             return Err(TrustError::FactProduction(
-                                "indefinite-length x5chain arrays not supported".to_string(),
+                                "indefinite-length x5chain arrays not supported".into(),
                             ));
                         }
                     };
@@ -151,8 +161,8 @@ impl X509CertificateTrustPack {
                     for _ in 0..arr_count {
                         let b = value_decoder
                             .decode_bstr()
-                            .map_err(|e| TrustError::FactProduction(e.to_string()))?.to_vec();
-                        out.push(Arc::new(b));
+                            .map_err(|e| TrustError::FactProduction(e.to_string()))?;
+                        out.push(to_arc_slice(b, backing_arc));
                     }
                     return Ok(out);
                 }
@@ -165,17 +175,15 @@ impl X509CertificateTrustPack {
             Ok(Vec::new())
         }
 
-        /// Parse a `COSE_Signature` structure and return its protected/unprotected map bytes.
+        /// Parse a `COSE_Signature` structure and return borrowed slices for
+        /// its protected and unprotected header bytes.
         ///
-        /// This supports both direct CBOR arrays and a bstr-wrapped encoding.
-        fn try_parse_cose_signature_headers(
-            bytes: &[u8],
-        ) -> Result<(Vec<u8>, Vec<u8>), TrustError> {
+        /// Returns slices into `bytes` — no copies. The caller can use these
+        /// slices with a backing `Arc<[u8]>` for zero-copy ArcSlice construction.
+        fn try_parse_cose_signature_headers(bytes: &[u8]) -> Result<(&[u8], &[u8]), TrustError> {
             // COSE_Signature = [protected: bstr, unprotected: map, signature: bstr]
-            /// Parse a COSE_Signature array.
-            fn parse_array(
-                input: &[u8],
-            ) -> Result<(Vec<u8>, Vec<u8>), TrustError> {
+            /// Parse a COSE_Signature array, returning borrowed slices.
+            fn parse_array(input: &[u8]) -> Result<(&[u8], &[u8]), TrustError> {
                 let mut decoder = cose_sign1_primitives::provider::decoder(input);
                 let arr_len = decoder
                     .decode_array_len()
@@ -183,25 +191,21 @@ impl X509CertificateTrustPack {
 
                 if arr_len != Some(3) {
                     return Err(TrustError::FactProduction(
-                        "COSE_Signature must be a 3-element array".to_string(),
+                        "COSE_Signature must be a 3-element array".into(),
                     ));
                 }
 
-                let protected = decoder
-                    .decode_bstr()
-                    .map_err(|e| {
-                        TrustError::FactProduction(format!(
-                            "countersignature missing protected header: {e}"
-                        ))
-                    })?.to_vec();
+                let protected = decoder.decode_bstr().map_err(|e| {
+                    TrustError::FactProduction(format!(
+                        "countersignature missing protected header: {e}"
+                    ))
+                })?;
 
-                let unprotected = decoder
-                    .decode_raw()
-                    .map_err(|e| {
-                        TrustError::FactProduction(format!(
-                            "countersignature missing unprotected header: {e}"
-                        ))
-                    })?.to_vec();
+                let unprotected = decoder.decode_raw().map_err(|e| {
+                    TrustError::FactProduction(format!(
+                        "countersignature missing unprotected header: {e}"
+                    ))
+                })?;
 
                 // signature (ignored)
                 let _ = decoder.decode_bstr().map_err(|e| {
@@ -221,8 +225,8 @@ impl X509CertificateTrustPack {
             let mut decoder = cose_sign1_primitives::provider::decoder(bytes);
             let wrapped = decoder
                 .decode_bstr()
-                .map_err(|e| TrustError::FactProduction(e.to_string()))?.to_vec();
-            parse_array(&wrapped)
+                .map_err(|e| TrustError::FactProduction(e.to_string()))?;
+            parse_array(wrapped)
         }
 
         // If evaluating a counter-signature signing key subject, parse x5chain from the
@@ -245,7 +249,8 @@ impl X509CertificateTrustPack {
             };
 
             for item in items {
-                let raw = item.raw_counter_signature_bytes.as_ref();
+                let cs_arc = &item.raw_counter_signature_bytes;
+                let raw = cs_arc.as_ref();
                 let counter_signature_subject =
                     TrustSubject::counter_signature(&message_subject, raw);
                 let derived =
@@ -254,10 +259,12 @@ impl X509CertificateTrustPack {
                     let (protected_map_bytes, unprotected_map_bytes) =
                         try_parse_cose_signature_headers(raw)?;
 
+                    // Thread the counter-signature Arc through for zero-copy
+                    // ArcSlice construction via pointer arithmetic.
                     let mut all = Vec::new();
-                    all.extend(try_read_x5chain(&protected_map_bytes)?);
+                    all.extend(try_read_x5chain(protected_map_bytes, Some(cs_arc))?);
                     if ctx.cose_header_location() == CoseHeaderLocation::Any {
-                        all.extend(try_read_x5chain(&unprotected_map_bytes)?);
+                        all.extend(try_read_x5chain(unprotected_map_bytes, Some(cs_arc))?);
                     }
                     return Ok(all);
                 }
@@ -267,21 +274,26 @@ impl X509CertificateTrustPack {
         }
 
         if let Some(msg) = ctx.cose_sign1_message() {
-            let mut all: Vec<Arc<Vec<u8>>> = Vec::new();
+            let mut all: Vec<ArcSlice> = Vec::new();
             let x5chain_label = CoseHeaderLabel::Int(33);
 
-            if let Some(items) = msg.protected.headers().get_bytes_one_or_many(&x5chain_label) {
-                for b in items {
-                    all.push(Arc::new(b));
-                }
+            // Zero-copy: ArcSlice clone is just an Arc refcount bump.
+            if let Some(items) = msg
+                .protected
+                .headers()
+                .get_arc_slices_one_or_many(&x5chain_label)
+            {
+                all.extend(items);
             }
 
             // V2 default is protected-only. Unprotected headers are not covered by the signature.
             if ctx.cose_header_location() == CoseHeaderLocation::Any {
-                if let Some(items) = msg.unprotected.headers().get_bytes_one_or_many(&x5chain_label) {
-                    for b in items {
-                        all.push(Arc::new(b));
-                    }
+                if let Some(items) = msg
+                    .unprotected
+                    .headers()
+                    .get_arc_slices_one_or_many(&x5chain_label)
+                {
+                    all.extend(items);
                 }
             }
 
@@ -293,12 +305,12 @@ impl X509CertificateTrustPack {
     }
 
     /// Parse a single X.509 certificate from DER bytes and extract common identity fields.
-    fn parse_x509(der: Arc<Vec<u8>>) -> Result<ParsedCert, TrustError> {
-        let (_, cert) = X509Certificate::from_der(der.as_slice())
+    fn parse_x509(der: ArcSlice) -> Result<ParsedCert, TrustError> {
+        let (_, cert) = X509Certificate::from_der(&der)
             .map_err(|e| TrustError::FactProduction(format!("x509 parse failed: {e:?}")))?;
 
         let mut sha256_hasher = sha2::Sha256::new();
-        sha256_hasher.update(der.as_slice());
+        sha256_hasher.update(&*der);
         let thumb = hex_encode_upper(&sha256_hasher.finalize());
 
         let subject = cert.subject().to_string();
@@ -423,7 +435,7 @@ impl X509CertificateTrustPack {
         })?;
 
         // Parse extensions once
-        let (_, parsed) = X509Certificate::from_der(cert.der.as_slice())
+        let (_, parsed) = X509Certificate::from_der(&cert.der)
             .map_err(|e| TrustError::FactProduction(format!("x509 parse failed: {e:?}")))?;
 
         // Public key algorithm
@@ -489,31 +501,31 @@ impl X509CertificateTrustPack {
             if let ParsedExtension::KeyUsage(ku) = ext.parsed_extension() {
                 // These match RFC 5280 ordering and .NET flag names.
                 if ku.digital_signature() {
-                    usages.push("DigitalSignature".to_string());
+                    usages.push("DigitalSignature".into());
                 }
                 if ku.non_repudiation() {
-                    usages.push("NonRepudiation".to_string());
+                    usages.push("NonRepudiation".into());
                 }
                 if ku.key_encipherment() {
-                    usages.push("KeyEncipherment".to_string());
+                    usages.push("KeyEncipherment".into());
                 }
                 if ku.data_encipherment() {
-                    usages.push("DataEncipherment".to_string());
+                    usages.push("DataEncipherment".into());
                 }
                 if ku.key_agreement() {
-                    usages.push("KeyAgreement".to_string());
+                    usages.push("KeyAgreement".into());
                 }
                 if ku.key_cert_sign() {
-                    usages.push("KeyCertSign".to_string());
+                    usages.push("KeyCertSign".into());
                 }
                 if ku.crl_sign() {
-                    usages.push("CrlSign".to_string());
+                    usages.push("CrlSign".into());
                 }
                 if ku.encipher_only() {
-                    usages.push("EncipherOnly".to_string());
+                    usages.push("EncipherOnly".into());
                 }
                 if ku.decipher_only() {
-                    usages.push("DecipherOnly".to_string());
+                    usages.push("DecipherOnly".into());
                 }
             }
         }
@@ -658,9 +670,9 @@ impl X509CertificateTrustPack {
         let (status_flags, status_summary) = if is_trusted {
             (0u32, None)
         } else if self.options.trust_embedded_chain_as_trusted {
-            (1u32, Some("EmbeddedChainNotWellFormed".to_string()))
+            (1u32, Some("EmbeddedChainNotWellFormed".into()))
         } else {
-            (1u32, Some("TrustEvaluationDisabled".to_string()))
+            (1u32, Some("TrustEvaluationDisabled".into()))
         };
 
         ctx.observe(X509ChainTrustedFact {
@@ -670,7 +682,11 @@ impl X509CertificateTrustPack {
             status_summary: status_summary.clone(),
             element_count,
         })?;
-        debug!(chain_len = element_count, trusted = is_trusted, "X.509 chain evaluation complete");
+        debug!(
+            chain_len = element_count,
+            trusted = is_trusted,
+            "X.509 chain evaluation complete"
+        );
 
         ctx.observe(CertificateSigningKeyTrustFact {
             thumbprint: leaf.thumbprint_sha1_hex.clone(),
@@ -682,7 +698,11 @@ impl X509CertificateTrustPack {
             chain_status_summary: status_summary,
         })?;
 
-        debug!(fact = "X509ChainTrustedFact", trusted = is_trusted, "Produced chain trust fact");
+        debug!(
+            fact = "X509ChainTrustedFact",
+            trusted = is_trusted,
+            "Produced chain trust fact"
+        );
         ctx.mark_produced(FactKey::of::<X509ChainTrustedFact>());
         ctx.mark_produced(FactKey::of::<CertificateSigningKeyTrustFact>());
         Ok(())

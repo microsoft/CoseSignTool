@@ -50,8 +50,10 @@ typedef struct {
  * - No thumbprint filtering
  * - No custom PQC OIDs
  * 
- * @param builder Validator builder handle
+ * @param builder Validator builder handle (borrowed, not consumed)
  * @return COSE_OK on success, error code otherwise
+ *
+ * @see cose_sign1_validator_builder_with_certificates_pack_ex for custom options
  */
 cose_status_t cose_sign1_validator_builder_with_certificates_pack(
     cose_sign1_validator_builder_t* builder
@@ -60,7 +62,7 @@ cose_status_t cose_sign1_validator_builder_with_certificates_pack(
 /**
  * @brief Add X.509 certificate validation pack with custom options
  * 
- * @param builder Validator builder handle
+ * @param builder Validator builder handle (borrowed, not consumed)
  * @param options Options structure (NULL for defaults)
  * @return COSE_OK on success, error code otherwise
  */
@@ -70,10 +72,22 @@ cose_status_t cose_sign1_validator_builder_with_certificates_pack_ex(
 );
 
 /**
+ * @name Trust Policy Builder Functions
+ * @brief Functions to configure trust policy requirements for X.509 certificate validation.
+ *
+ * All functions in this section follow the same contract:
+ * @param policy_builder Borrowed handle to a trust policy builder. Not consumed; the caller
+ *        retains ownership and may continue using the builder after this call.
+ * @return COSE_OK on success, COSE_ERR on failure.
+ * @{
+ */
+
+/**
  * @brief Trust-policy helper: require that the X.509 chain is trusted.
  *
  * This API is provided by the certificates pack FFI library and extends `cose_sign1_trust_policy_builder_t`.
  */
+/** @see cose_sign1_certificates_trust_policy_builder_require_x509_chain_not_trusted */
 cose_status_t cose_sign1_certificates_trust_policy_builder_require_x509_chain_trusted(
     cose_sign1_trust_policy_builder_t* policy_builder
 );
@@ -83,6 +97,7 @@ cose_status_t cose_sign1_certificates_trust_policy_builder_require_x509_chain_tr
  *
  * This API is provided by the certificates pack FFI library and extends `cose_sign1_trust_policy_builder_t`.
  */
+/** @see cose_sign1_certificates_trust_policy_builder_require_x509_chain_trusted */
 cose_status_t cose_sign1_certificates_trust_policy_builder_require_x509_chain_not_trusted(
     cose_sign1_trust_policy_builder_t* policy_builder
 );
@@ -92,6 +107,7 @@ cose_status_t cose_sign1_certificates_trust_policy_builder_require_x509_chain_no
  *
  * This API is provided by the certificates pack FFI library and extends `cose_sign1_trust_policy_builder_t`.
  */
+/** @see cose_sign1_certificates_trust_policy_builder_require_x509_chain_not_built */
 cose_status_t cose_sign1_certificates_trust_policy_builder_require_x509_chain_built(
     cose_sign1_trust_policy_builder_t* policy_builder
 );
@@ -101,6 +117,7 @@ cose_status_t cose_sign1_certificates_trust_policy_builder_require_x509_chain_bu
  *
  * This API is provided by the certificates pack FFI library and extends `cose_sign1_trust_policy_builder_t`.
  */
+/** @see cose_sign1_certificates_trust_policy_builder_require_x509_chain_built */
 cose_status_t cose_sign1_certificates_trust_policy_builder_require_x509_chain_not_built(
     cose_sign1_trust_policy_builder_t* policy_builder
 );
@@ -227,6 +244,7 @@ cose_status_t cose_sign1_certificates_trust_policy_builder_require_signing_certi
 /**
  * @brief Trust-policy helper: require signing certificate not-before <= `max_unix_seconds`.
  */
+/** @see cose_sign1_certificates_trust_policy_builder_require_signing_certificate_not_before_ge */
 cose_status_t cose_sign1_certificates_trust_policy_builder_require_signing_certificate_not_before_le(
     cose_sign1_trust_policy_builder_t* policy_builder,
     int64_t max_unix_seconds
@@ -235,6 +253,7 @@ cose_status_t cose_sign1_certificates_trust_policy_builder_require_signing_certi
 /**
  * @brief Trust-policy helper: require signing certificate not-before >= `min_unix_seconds`.
  */
+/** @see cose_sign1_certificates_trust_policy_builder_require_signing_certificate_not_before_le */
 cose_status_t cose_sign1_certificates_trust_policy_builder_require_signing_certificate_not_before_ge(
     cose_sign1_trust_policy_builder_t* policy_builder,
     int64_t min_unix_seconds
@@ -243,6 +262,7 @@ cose_status_t cose_sign1_certificates_trust_policy_builder_require_signing_certi
 /**
  * @brief Trust-policy helper: require signing certificate not-after <= `max_unix_seconds`.
  */
+/** @see cose_sign1_certificates_trust_policy_builder_require_signing_certificate_not_after_ge */
 cose_status_t cose_sign1_certificates_trust_policy_builder_require_signing_certificate_not_after_le(
     cose_sign1_trust_policy_builder_t* policy_builder,
     int64_t max_unix_seconds
@@ -251,6 +271,7 @@ cose_status_t cose_sign1_certificates_trust_policy_builder_require_signing_certi
 /**
  * @brief Trust-policy helper: require signing certificate not-after >= `min_unix_seconds`.
  */
+/** @see cose_sign1_certificates_trust_policy_builder_require_signing_certificate_not_after_le */
 cose_status_t cose_sign1_certificates_trust_policy_builder_require_signing_certificate_not_after_ge(
     cose_sign1_trust_policy_builder_t* policy_builder,
     int64_t min_unix_seconds
@@ -303,6 +324,7 @@ cose_status_t cose_sign1_certificates_trust_policy_builder_require_chain_element
 /**
  * @brief Trust-policy helper: require chain element not-before <= `max_unix_seconds`.
  */
+/** @see cose_sign1_certificates_trust_policy_builder_require_chain_element_not_before_ge */
 cose_status_t cose_sign1_certificates_trust_policy_builder_require_chain_element_not_before_le(
     cose_sign1_trust_policy_builder_t* policy_builder,
     size_t index,
@@ -312,6 +334,7 @@ cose_status_t cose_sign1_certificates_trust_policy_builder_require_chain_element
 /**
  * @brief Trust-policy helper: require chain element not-before >= `min_unix_seconds`.
  */
+/** @see cose_sign1_certificates_trust_policy_builder_require_chain_element_not_before_le */
 cose_status_t cose_sign1_certificates_trust_policy_builder_require_chain_element_not_before_ge(
     cose_sign1_trust_policy_builder_t* policy_builder,
     size_t index,
@@ -321,6 +344,7 @@ cose_status_t cose_sign1_certificates_trust_policy_builder_require_chain_element
 /**
  * @brief Trust-policy helper: require chain element not-after <= `max_unix_seconds`.
  */
+/** @see cose_sign1_certificates_trust_policy_builder_require_chain_element_not_after_ge */
 cose_status_t cose_sign1_certificates_trust_policy_builder_require_chain_element_not_after_le(
     cose_sign1_trust_policy_builder_t* policy_builder,
     size_t index,
@@ -330,6 +354,7 @@ cose_status_t cose_sign1_certificates_trust_policy_builder_require_chain_element
 /**
  * @brief Trust-policy helper: require chain element not-after >= `min_unix_seconds`.
  */
+/** @see cose_sign1_certificates_trust_policy_builder_require_chain_element_not_after_le */
 cose_status_t cose_sign1_certificates_trust_policy_builder_require_chain_element_not_after_ge(
     cose_sign1_trust_policy_builder_t* policy_builder,
     size_t index,
@@ -362,6 +387,7 @@ cose_status_t cose_sign1_certificates_trust_policy_builder_require_x509_public_k
 /**
  * @brief Trust-policy helper: require that the X.509 public key algorithm is flagged as PQC.
  */
+/** @see cose_sign1_certificates_trust_policy_builder_require_x509_public_key_algorithm_is_not_pqc */
 cose_status_t cose_sign1_certificates_trust_policy_builder_require_x509_public_key_algorithm_is_pqc(
     cose_sign1_trust_policy_builder_t* policy_builder
 );
@@ -369,29 +395,30 @@ cose_status_t cose_sign1_certificates_trust_policy_builder_require_x509_public_k
 /**
  * @brief Trust-policy helper: require that the X.509 public key algorithm is not flagged as PQC.
  */
+/** @see cose_sign1_certificates_trust_policy_builder_require_x509_public_key_algorithm_is_pqc */
 cose_status_t cose_sign1_certificates_trust_policy_builder_require_x509_public_key_algorithm_is_not_pqc(
     cose_sign1_trust_policy_builder_t* policy_builder
 );
+
+/** @} */
 
 // ============================================================================
 // Certificate Key Factory Functions
 // ============================================================================
 
-// Use CoseKeyHandle from cose.h (included transitively via validation.h)
-// signing.h provides the cose_key_t alias if both headers are included.
-
 /**
  * @brief Create a CoseKey from a DER-encoded X.509 certificate's public key.
  *
  * The returned key can be used for verification operations.
- * The caller must free the key with cose_key_free() from cosesign1_signing.h.
+ * Caller must free the key with cose_key_free() from cose.h.
  *
  * @param cert_der Pointer to DER-encoded X.509 certificate bytes
  * @param cert_der_len Length of cert_der in bytes
- * @param out_key Output pointer to receive the key handle
+ * @param[out] out_key Output pointer to receive the key handle. Caller owns the
+ *             returned handle and must free it with cose_key_free().
  * @return COSE_OK on success, error code otherwise
  */
-cose_status_t cose_certificates_key_from_cert_der(
+cose_status_t cose_sign1_certificates_key_from_cert_der(
     const uint8_t* cert_der,
     size_t cert_der_len,
     CoseKeyHandle** out_key

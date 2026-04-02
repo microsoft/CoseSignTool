@@ -48,7 +48,7 @@ pub fn load_cert_from_pem_bytes(bytes: &[u8]) -> Result<Certificate, CertLocalEr
 
     if blocks.is_empty() {
         return Err(CertLocalError::LoadFailed(
-            "no valid PEM blocks found".to_string(),
+            "no valid PEM blocks found".into(),
         ));
     }
 
@@ -74,8 +74,8 @@ pub fn load_cert_from_pem_bytes(bytes: &[u8]) -> Result<Certificate, CertLocalEr
         }
     }
 
-    let cert_der = cert_der
-        .ok_or_else(|| CertLocalError::LoadFailed("no certificate found in PEM".to_string()))?;
+    let cert_der =
+        cert_der.ok_or_else(|| CertLocalError::LoadFailed("no certificate found in PEM".into()))?;
 
     X509Certificate::from_der(&cert_der)
         .map_err(|e| CertLocalError::LoadFailed(format!("invalid certificate in PEM: {}", e)))?;
@@ -109,7 +109,7 @@ fn parse_pem(content: &str) -> Result<Vec<PemBlock>, CertLocalError> {
             let label = line
                 .strip_prefix("-----BEGIN ")
                 .and_then(|s| s.strip_suffix("-----"))
-                .ok_or_else(|| CertLocalError::LoadFailed("invalid PEM header".to_string()))?
+                .ok_or_else(|| CertLocalError::LoadFailed("invalid PEM header".into()))?
                 .trim()
                 .to_string();
 

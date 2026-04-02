@@ -9,17 +9,17 @@ fn test_get_hash_algorithm_for_key_size() {
         X509CertificateCoseKeyFactory::get_hash_algorithm_for_key_size(2048, false),
         HashAlgorithm::Sha256
     );
-    
+
     assert_eq!(
         X509CertificateCoseKeyFactory::get_hash_algorithm_for_key_size(3072, false),
         HashAlgorithm::Sha384
     );
-    
+
     assert_eq!(
         X509CertificateCoseKeyFactory::get_hash_algorithm_for_key_size(4096, false),
         HashAlgorithm::Sha512
     );
-    
+
     // EC P-521 should use SHA-384 regardless of key size
     assert_eq!(
         X509CertificateCoseKeyFactory::get_hash_algorithm_for_key_size(521, true),

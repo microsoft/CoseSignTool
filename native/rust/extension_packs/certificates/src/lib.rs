@@ -35,4 +35,3 @@ pub use cose_key_factory::*;
 pub use error::*;
 pub use extensions::*;
 pub use thumbprint::*;
-

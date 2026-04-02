@@ -1,18 +1,20 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+use cbor_primitives::{CborEncoder, CborProvider};
 use cbor_primitives_everparse::EverParseCborProvider;
-use cose_sign1_primitives::CoseSign1Message;
 use cose_sign1_certificates::validation::facts::{
     CertificateSigningKeyTrustFact, X509ChainElementIdentityFact, X509ChainTrustedFact,
     X509X5ChainCertificateIdentityFact,
 };
 use cose_sign1_certificates::validation::pack::X509CertificateTrustPack;
+use cose_sign1_primitives::CoseSign1Message;
 use cose_sign1_validation_primitives::facts::{TrustFactEngine, TrustFactSet};
 use cose_sign1_validation_primitives::subject::TrustSubject;
-use cbor_primitives::{CborEncoder, CborProvider};
+use rcgen::{
+    generate_simple_self_signed, CertificateParams, DnType, KeyPair, PKCS_ECDSA_P256_SHA256,
+};
 use std::sync::Arc;
-use rcgen::{generate_simple_self_signed, CertificateParams, DnType, KeyPair, PKCS_ECDSA_P256_SHA256};
 
 fn build_protected_map_with_alg_only() -> Vec<u8> {
     let p = EverParseCborProvider;
@@ -153,8 +155,7 @@ fn chain_trust_reports_trust_evaluation_disabled_when_not_trusting_embedded_chai
     let protected = protected_map_x5chain_array(&[leaf_der]);
     let cose = build_cose_sign1_with_protected_header_map(protected.as_slice());
 
-    let parsed = CoseSign1Message::parse(cose.as_slice())
-        .expect("parse cose");
+    let parsed = CoseSign1Message::parse(cose.as_slice()).expect("parse cose");
 
     let producer = Arc::new(X509CertificateTrustPack::new(Default::default()));
     let engine = TrustFactEngine::new(vec![producer])
@@ -162,7 +163,9 @@ fn chain_trust_reports_trust_evaluation_disabled_when_not_trusting_embedded_chai
         .with_cose_sign1_message(Arc::new(parsed));
 
     let subject = TrustSubject::root("PrimarySigningKey", b"seed");
-    let trusted = engine.get_fact_set::<X509ChainTrustedFact>(&subject).unwrap();
+    let trusted = engine
+        .get_fact_set::<X509ChainTrustedFact>(&subject)
+        .unwrap();
 
     let TrustFactSet::Available(v) = trusted else {
         panic!("expected Available, got unexpected TrustFactSet variant");
@@ -171,7 +174,10 @@ fn chain_trust_reports_trust_evaluation_disabled_when_not_trusting_embedded_chai
     assert_eq!(1, v.len());
     assert!(v[0].chain_built);
     assert!(!v[0].is_trusted);
-    assert_eq!(Some("TrustEvaluationDisabled".to_string()), v[0].status_summary);
+    assert_eq!(
+        Some("TrustEvaluationDisabled".to_string()),
+        v[0].status_summary
+    );
 }
 
 #[test]
@@ -193,10 +199,8 @@ fn chain_trust_reports_not_well_formed_when_trusting_embedded_chain_but_chain_is
     let c2 = params_2.self_signed(&key_pair_2).unwrap();
 
     // Two unrelated self-signed certs => issuer/subject chain won't match.
-    let protected = protected_map_x5chain_array(&[
-        c1.der().as_ref().to_vec(),
-        c2.der().as_ref().to_vec(),
-    ]);
+    let protected =
+        protected_map_x5chain_array(&[c1.der().as_ref().to_vec(), c2.der().as_ref().to_vec()]);
     let cose = build_cose_sign1_with_protected_header_map(protected.as_slice());
 
     let producer = Arc::new(X509CertificateTrustPack::new(
@@ -206,15 +210,16 @@ fn chain_trust_reports_not_well_formed_when_trusting_embedded_chain_but_chain_is
         },
     ));
 
-    let parsed = CoseSign1Message::parse(cose.as_slice())
-        .expect("parse cose");
+    let parsed = CoseSign1Message::parse(cose.as_slice()).expect("parse cose");
 
     let engine = TrustFactEngine::new(vec![producer])
         .with_cose_sign1_bytes(Arc::from(cose.clone().into_boxed_slice()))
         .with_cose_sign1_message(Arc::new(parsed));
 
     let subject = TrustSubject::root("PrimarySigningKey", b"seed");
-    let trusted = engine.get_fact_set::<X509ChainTrustedFact>(&subject).unwrap();
+    let trusted = engine
+        .get_fact_set::<X509ChainTrustedFact>(&subject)
+        .unwrap();
 
     let TrustFactSet::Available(v) = trusted else {
         panic!("expected Available, got unexpected TrustFactSet variant");
@@ -223,5 +228,8 @@ fn chain_trust_reports_not_well_formed_when_trusting_embedded_chain_but_chain_is
     assert_eq!(1, v.len());
     assert!(v[0].chain_built);
     assert!(!v[0].is_trusted);
-    assert_eq!(Some("EmbeddedChainNotWellFormed".to_string()), v[0].status_summary);
+    assert_eq!(
+        Some("EmbeddedChainNotWellFormed".to_string()),
+        v[0].status_summary
+    );
 }

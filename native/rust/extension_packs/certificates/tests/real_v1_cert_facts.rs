@@ -1,7 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-use cose_sign1_primitives::CoseSign1Message;
 use cose_sign1_certificates::validation::facts::{
     CertificateSigningKeyTrustFact, X509ChainElementIdentityFact, X509ChainTrustedFact,
     X509PublicKeyAlgorithmFact, X509SigningCertificateBasicConstraintsFact,
@@ -9,7 +8,10 @@ use cose_sign1_certificates::validation::facts::{
     X509SigningCertificateIdentityFact, X509SigningCertificateKeyUsageFact,
     X509X5ChainCertificateIdentityFact,
 };
-use cose_sign1_certificates::validation::pack::{CertificateTrustOptions, X509CertificateTrustPack};
+use cose_sign1_certificates::validation::pack::{
+    CertificateTrustOptions, X509CertificateTrustPack,
+};
+use cose_sign1_primitives::CoseSign1Message;
 use cose_sign1_validation_primitives::facts::{TrustFactEngine, TrustFactSet};
 use cose_sign1_validation_primitives::subject::TrustSubject;
 use std::fs;
@@ -32,11 +34,12 @@ fn real_v1_cose_produces_x509_signing_certificate_fact_groups() {
     let msg = TrustSubject::message(&cose_bytes);
     let signing_key = TrustSubject::primary_signing_key(&msg);
 
-    let parsed = CoseSign1Message::parse(cose_bytes.as_slice())
-        .expect("parse cose");
-    let engine = TrustFactEngine::new(vec![Arc::new(X509CertificateTrustPack::new(Default::default()))])
-        .with_cose_sign1_bytes(cose_arc)
-        .with_cose_sign1_message(Arc::new(parsed));
+    let parsed = CoseSign1Message::parse(cose_bytes.as_slice()).expect("parse cose");
+    let engine = TrustFactEngine::new(vec![Arc::new(X509CertificateTrustPack::new(
+        Default::default(),
+    ))])
+    .with_cose_sign1_bytes(cose_arc)
+    .with_cose_sign1_message(Arc::new(parsed));
 
     let id = engine
         .get_fact_set::<X509SigningCertificateIdentityFact>(&signing_key)
@@ -90,14 +93,15 @@ fn identity_pinning_can_allow_or_deny_thumbprints() {
     let msg = TrustSubject::message(&cose_bytes);
     let signing_key = TrustSubject::primary_signing_key(&msg);
 
-    let parsed = CoseSign1Message::parse(cose_bytes.as_slice())
-        .expect("parse cose");
+    let parsed = CoseSign1Message::parse(cose_bytes.as_slice()).expect("parse cose");
     let parsed_arc = Arc::new(parsed);
 
     // First, discover the leaf thumbprint.
-    let base_engine = TrustFactEngine::new(vec![Arc::new(X509CertificateTrustPack::new(Default::default()))])
-        .with_cose_sign1_bytes(cose_arc.clone())
-        .with_cose_sign1_message(parsed_arc.clone());
+    let base_engine = TrustFactEngine::new(vec![Arc::new(X509CertificateTrustPack::new(
+        Default::default(),
+    ))])
+    .with_cose_sign1_bytes(cose_arc.clone())
+    .with_cose_sign1_message(parsed_arc.clone());
 
     let leaf_thumb = match base_engine
         .get_fact_set::<X509SigningCertificateIdentityFact>(&signing_key)
@@ -123,10 +127,9 @@ fn identity_pinning_can_allow_or_deny_thumbprints() {
         ..CertificateTrustOptions::default()
     });
 
-    let allow_engine =
-        TrustFactEngine::new(vec![Arc::new(allow_pack)])
-            .with_cose_sign1_bytes(cose_arc.clone())
-            .with_cose_sign1_message(parsed_arc.clone());
+    let allow_engine = TrustFactEngine::new(vec![Arc::new(allow_pack)])
+        .with_cose_sign1_bytes(cose_arc.clone())
+        .with_cose_sign1_message(parsed_arc.clone());
     let allow_fact = allow_engine
         .get_fact_set::<X509SigningCertificateIdentityAllowedFact>(&signing_key)
         .unwrap();
@@ -145,10 +148,9 @@ fn identity_pinning_can_allow_or_deny_thumbprints() {
         ..CertificateTrustOptions::default()
     });
 
-    let deny_engine =
-        TrustFactEngine::new(vec![Arc::new(deny_pack)])
-            .with_cose_sign1_bytes(cose_arc)
-            .with_cose_sign1_message(parsed_arc);
+    let deny_engine = TrustFactEngine::new(vec![Arc::new(deny_pack)])
+        .with_cose_sign1_bytes(cose_arc)
+        .with_cose_sign1_message(parsed_arc);
     let deny_fact = deny_engine
         .get_fact_set::<X509SigningCertificateIdentityAllowedFact>(&signing_key)
         .unwrap();
@@ -171,14 +173,15 @@ fn pqc_algorithm_oids_option_marks_algorithm_as_pqc() {
     let msg = TrustSubject::message(&cose_bytes);
     let signing_key = TrustSubject::primary_signing_key(&msg);
 
-    let parsed = CoseSign1Message::parse(cose_bytes.as_slice())
-        .expect("parse cose");
+    let parsed = CoseSign1Message::parse(cose_bytes.as_slice()).expect("parse cose");
     let parsed_arc = Arc::new(parsed);
 
     // Discover the algorithm OID.
-    let base_engine = TrustFactEngine::new(vec![Arc::new(X509CertificateTrustPack::new(Default::default()))])
-        .with_cose_sign1_bytes(cose_arc.clone())
-        .with_cose_sign1_message(parsed_arc.clone());
+    let base_engine = TrustFactEngine::new(vec![Arc::new(X509CertificateTrustPack::new(
+        Default::default(),
+    ))])
+    .with_cose_sign1_bytes(cose_arc.clone())
+    .with_cose_sign1_message(parsed_arc.clone());
 
     let alg_oid = match base_engine
         .get_fact_set::<X509PublicKeyAlgorithmFact>(&signing_key)
@@ -215,11 +218,12 @@ fn non_signing_key_subjects_are_available_empty_for_cert_facts() {
     let cose_bytes = fs::read(cose_path).unwrap();
     let cose_arc: Arc<[u8]> = Arc::from(cose_bytes.clone().into_boxed_slice());
 
-    let parsed = CoseSign1Message::parse(cose_bytes.as_slice())
-        .expect("parse cose");
-    let engine = TrustFactEngine::new(vec![Arc::new(X509CertificateTrustPack::new(Default::default()))])
-        .with_cose_sign1_bytes(cose_arc)
-        .with_cose_sign1_message(Arc::new(parsed));
+    let parsed = CoseSign1Message::parse(cose_bytes.as_slice()).expect("parse cose");
+    let engine = TrustFactEngine::new(vec![Arc::new(X509CertificateTrustPack::new(
+        Default::default(),
+    ))])
+    .with_cose_sign1_bytes(cose_arc)
+    .with_cose_sign1_message(Arc::new(parsed));
 
     let non_applicable = TrustSubject::message(&cose_bytes);
 
@@ -242,11 +246,12 @@ fn chain_identity_and_trust_summary_facts_are_available_from_real_v1_cose() {
     let msg = TrustSubject::message(&cose_bytes);
     let signing_key = TrustSubject::primary_signing_key(&msg);
 
-    let parsed = CoseSign1Message::parse(cose_bytes.as_slice())
-        .expect("parse cose");
-    let engine = TrustFactEngine::new(vec![Arc::new(X509CertificateTrustPack::new(Default::default()))])
-        .with_cose_sign1_bytes(cose_arc)
-        .with_cose_sign1_message(Arc::new(parsed));
+    let parsed = CoseSign1Message::parse(cose_bytes.as_slice()).expect("parse cose");
+    let engine = TrustFactEngine::new(vec![Arc::new(X509CertificateTrustPack::new(
+        Default::default(),
+    ))])
+    .with_cose_sign1_bytes(cose_arc)
+    .with_cose_sign1_message(Arc::new(parsed));
 
     let x5 = engine
         .get_fact_set::<X509X5ChainCertificateIdentityFact>(&signing_key)
@@ -281,8 +286,7 @@ fn real_v1_chain_is_trusted_and_subject_issuer_chain_matches_when_enabled() {
         ..CertificateTrustOptions::default()
     });
 
-    let parsed = CoseSign1Message::parse(cose_bytes.as_slice())
-        .expect("parse cose");
+    let parsed = CoseSign1Message::parse(cose_bytes.as_slice()).expect("parse cose");
     let engine = TrustFactEngine::new(vec![Arc::new(pack)])
         .with_cose_sign1_bytes(cose_arc)
         .with_cose_sign1_message(Arc::new(parsed));

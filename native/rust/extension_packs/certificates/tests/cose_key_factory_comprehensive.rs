@@ -13,9 +13,12 @@ fn test_create_from_public_key_with_p256_cert() {
     let key_pair = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256).unwrap();
     let cert = params.self_signed(&key_pair).unwrap();
     let cert_der = cert.der();
-    
+
     let result = X509CertificateCoseKeyFactory::create_from_public_key(cert_der.as_ref());
-    assert!(result.is_ok(), "Should create verifier from P-256 certificate");
+    assert!(
+        result.is_ok(),
+        "Should create verifier from P-256 certificate"
+    );
 }
 
 #[test]
@@ -24,21 +27,28 @@ fn test_create_from_public_key_with_p384_cert() {
     let key_pair = KeyPair::generate_for(&PKCS_ECDSA_P384_SHA384).unwrap();
     let cert = params.self_signed(&key_pair).unwrap();
     let cert_der = cert.der();
-    
+
     let result = X509CertificateCoseKeyFactory::create_from_public_key(cert_der.as_ref());
-    assert!(result.is_ok(), "Should create verifier from P-384 certificate");
+    assert!(
+        result.is_ok(),
+        "Should create verifier from P-384 certificate"
+    );
 }
 
 #[test]
 fn test_create_from_public_key_with_invalid_der() {
     let invalid_der = vec![0xFF, 0xFE, 0xFD, 0xFC, 0x00, 0x01, 0x02, 0x03];
-    
+
     let result = X509CertificateCoseKeyFactory::create_from_public_key(&invalid_der);
     assert!(result.is_err(), "Should fail with invalid DER");
-    
+
     match result {
         Err(CertificateError::InvalidCertificate(msg)) => {
-            assert!(msg.contains("Failed to parse certificate"), "Error should mention parse failure: {}", msg);
+            assert!(
+                msg.contains("Failed to parse certificate"),
+                "Error should mention parse failure: {}",
+                msg
+            );
         }
         _ => panic!("Expected InvalidCertificate error"),
     }
@@ -48,10 +58,13 @@ fn test_create_from_public_key_with_invalid_der() {
 fn test_create_from_public_key_with_empty_input() {
     let result = X509CertificateCoseKeyFactory::create_from_public_key(&[]);
     assert!(result.is_err(), "Should fail with empty input");
-    
+
     match result {
         Err(CertificateError::InvalidCertificate(msg)) => {
-            assert!(msg.contains("Failed to parse certificate"), "Error should mention parse failure");
+            assert!(
+                msg.contains("Failed to parse certificate"),
+                "Error should mention parse failure"
+            );
         }
         _ => panic!("Expected InvalidCertificate error"),
     }
@@ -63,37 +76,56 @@ fn test_create_from_public_key_extracts_correct_public_key() {
     let key_pair = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256).unwrap();
     let cert = params.self_signed(&key_pair).unwrap();
     let cert_der = cert.der();
-    
+
     let result = X509CertificateCoseKeyFactory::create_from_public_key(cert_der.as_ref());
     assert!(result.is_ok(), "Should successfully extract public key");
-    
+
     let verifier = result.unwrap();
     // Verifier should have algorithm set based on the key
-    assert!(verifier.algorithm() != 0, "Verifier should have a valid algorithm");
+    assert!(
+        verifier.algorithm() != 0,
+        "Verifier should have a valid algorithm"
+    );
 }
 
 #[test]
 fn test_get_hash_algorithm_for_key_size_2048_rsa() {
     let result = X509CertificateCoseKeyFactory::get_hash_algorithm_for_key_size(2048, false);
-    assert_eq!(result, HashAlgorithm::Sha256, "2048-bit RSA should use SHA-256");
+    assert_eq!(
+        result,
+        HashAlgorithm::Sha256,
+        "2048-bit RSA should use SHA-256"
+    );
 }
 
 #[test]
 fn test_get_hash_algorithm_for_key_size_3072_rsa() {
     let result = X509CertificateCoseKeyFactory::get_hash_algorithm_for_key_size(3072, false);
-    assert_eq!(result, HashAlgorithm::Sha384, "3072-bit RSA should use SHA-384");
+    assert_eq!(
+        result,
+        HashAlgorithm::Sha384,
+        "3072-bit RSA should use SHA-384"
+    );
 }
 
 #[test]
 fn test_get_hash_algorithm_for_key_size_4096_rsa() {
     let result = X509CertificateCoseKeyFactory::get_hash_algorithm_for_key_size(4096, false);
-    assert_eq!(result, HashAlgorithm::Sha512, "4096-bit RSA should use SHA-512");
+    assert_eq!(
+        result,
+        HashAlgorithm::Sha512,
+        "4096-bit RSA should use SHA-512"
+    );
 }
 
 #[test]
 fn test_get_hash_algorithm_for_key_size_8192_rsa() {
     let result = X509CertificateCoseKeyFactory::get_hash_algorithm_for_key_size(8192, false);
-    assert_eq!(result, HashAlgorithm::Sha512, "8192-bit RSA should use SHA-512");
+    assert_eq!(
+        result,
+        HashAlgorithm::Sha512,
+        "8192-bit RSA should use SHA-512"
+    );
 }
 
 #[test]
@@ -111,7 +143,11 @@ fn test_get_hash_algorithm_for_p256_ecdsa() {
 #[test]
 fn test_get_hash_algorithm_for_p384_ecdsa() {
     let result = X509CertificateCoseKeyFactory::get_hash_algorithm_for_key_size(384, false);
-    assert_eq!(result, HashAlgorithm::Sha256, "P-384 (below 3072) should use SHA-256");
+    assert_eq!(
+        result,
+        HashAlgorithm::Sha256,
+        "P-384 (below 3072) should use SHA-256"
+    );
 }
 
 #[test]

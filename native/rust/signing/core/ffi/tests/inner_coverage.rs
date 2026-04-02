@@ -439,7 +439,15 @@ fn inner_factory_sign_indirect_null_factory() {
 fn create_temp_file() -> (String, std::fs::File) {
     use std::io::Write;
     let temp_dir = std::env::temp_dir();
-    let file_path = temp_dir.join("test_payload.txt");
+    let unique_name = format!(
+        "test_payload_{:?}_{}.txt",
+        std::thread::current().id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    );
+    let file_path = temp_dir.join(unique_name);
     let mut file = std::fs::File::create(&file_path).unwrap();
     write!(file, "test payload content").unwrap();
     (file_path.to_string_lossy().to_string(), file)

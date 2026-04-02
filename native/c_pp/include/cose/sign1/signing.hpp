@@ -182,6 +182,22 @@ public:
     const cose_headermap_t* native_handle() const {
         return handle_;
     }
+
+    /**
+     * @brief Release ownership of the native handle.
+     *
+     * Returns the raw handle and relinquishes ownership. The caller is
+     * responsible for the handle's lifetime after this call. Used by
+     * ConsumeProtected() / ConsumeUnprotected() to transfer ownership
+     * into the builder without copying.
+     *
+     * @return Raw C handle (caller owns)
+     */
+    cose_headermap_t* release() {
+        cose_headermap_t* h = handle_;
+        handle_ = nullptr;
+        return h;
+    }
     
 private:
     explicit HeaderMap(cose_headermap_t* h) : handle_(h) {}
@@ -358,6 +374,7 @@ public:
      * @brief Set the protected headers
      * @param headers Header map (copied, not consumed)
      * @return Reference to this for method chaining
+     * @see ConsumeProtected() for zero-copy alternative that moves instead of copying
      */
     CoseSign1Builder& SetProtected(const HeaderMap& headers) {
         int status = cose_sign1_builder_set_protected(handle_, headers.native_handle());
@@ -366,16 +383,51 @@ public:
         }
         return *this;
     }
+
+    /**
+     * @brief Set the protected headers by consuming (moving) the header map.
+     *
+     * Zero-copy alternative to SetProtected(). The header map is moved into the
+     * builder and must NOT be used after this call.
+     *
+     * @param headers Header map (consumed — moved, not copied)
+     * @return Reference to this for method chaining
+     */
+    CoseSign1Builder& ConsumeProtected(HeaderMap&& headers) {
+        int status = cose_sign1_builder_consume_protected(handle_, headers.release());
+        if (status != COSE_SIGN1_SIGNING_OK) {
+            throw cose::SigningError(status, "Failed to consume protected headers");
+        }
+        return *this;
+    }
     
     /**
      * @brief Set the unprotected headers
      * @param headers Header map (copied, not consumed)
      * @return Reference to this for method chaining
+     * @see ConsumeUnprotected() for zero-copy alternative that moves instead of copying
      */
     CoseSign1Builder& SetUnprotected(const HeaderMap& headers) {
         int status = cose_sign1_builder_set_unprotected(handle_, headers.native_handle());
         if (status != COSE_SIGN1_SIGNING_OK) {
             throw cose::SigningError(status, "Failed to set unprotected headers");
+        }
+        return *this;
+    }
+
+    /**
+     * @brief Set the unprotected headers by consuming (moving) the header map.
+     *
+     * Zero-copy alternative to SetUnprotected(). The header map is moved into the
+     * builder and must NOT be used after this call.
+     *
+     * @param headers Header map (consumed — moved, not copied)
+     * @return Reference to this for method chaining
+     */
+    CoseSign1Builder& ConsumeUnprotected(HeaderMap&& headers) {
+        int status = cose_sign1_builder_consume_unprotected(handle_, headers.release());
+        if (status != COSE_SIGN1_SIGNING_OK) {
+            throw cose::SigningError(status, "Failed to consume unprotected headers");
         }
         return *this;
     }

@@ -35,6 +35,37 @@ fn round_trip_all_standard_claims() {
     assert_eq!(decoded.cwt_id, claims.cwt_id);
 }
 
+#[test]
+fn round_trip_full_claims_struct_equality() {
+    let mut claims = CwtClaims::new();
+    claims.issuer = Some("acme-corp".into());
+    claims.subject = Some("device-42".into());
+    claims.audience = Some("api.example.com".into());
+    claims.expiration_time = Some(1800000000);
+    claims.not_before = Some(1700000000);
+    claims.issued_at = Some(1750000000);
+    claims.cwt_id = Some(vec![0xDE, 0xAD, 0xBE, 0xEF]);
+    claims
+        .custom_claims
+        .insert(100, CwtClaimValue::Text("custom-text".into()));
+    claims
+        .custom_claims
+        .insert(200, CwtClaimValue::Integer(-999));
+    claims
+        .custom_claims
+        .insert(300, CwtClaimValue::Bytes(vec![0x01, 0x02, 0x03]));
+    claims.custom_claims.insert(400, CwtClaimValue::Bool(true));
+
+    let bytes = claims.to_cbor_bytes().unwrap();
+    let decoded = CwtClaims::from_cbor_bytes(&bytes).unwrap();
+
+    // PartialEq-based whole-struct assertion
+    assert_eq!(
+        decoded, claims,
+        "Full CWT claims roundtrip must be lossless"
+    );
+}
+
 // ========================================================================
 // Round-trip: custom claims of every value type
 // ========================================================================

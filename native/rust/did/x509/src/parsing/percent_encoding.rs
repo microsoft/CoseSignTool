@@ -37,7 +37,7 @@ pub fn percent_decode(input: &str) -> Result<String, DidX509Error> {
     }
 
     if !input.contains('%') {
-        return Ok(input.to_string());
+        return Ok(input.into());
     }
 
     let mut bytes = Vec::new();
@@ -65,10 +65,9 @@ pub fn percent_decode(input: &str) -> Result<String, DidX509Error> {
 
         // Flush accumulated bytes if any
         if !bytes.is_empty() {
-            let decoded = String::from_utf8(bytes.clone())
+            let decoded = String::from_utf8(std::mem::take(&mut bytes))
                 .map_err(|e| DidX509Error::PercentDecodingError(format!("Invalid UTF-8: {}", e)))?;
             result.push_str(&decoded);
-            bytes.clear();
         }
 
         // Append non-encoded character

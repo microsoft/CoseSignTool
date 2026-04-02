@@ -14,6 +14,31 @@
 //!
 //! For advanced/legacy scenarios, lower-level APIs exist under [`internal`], but
 //! the fluent surface is the intended stable integration point.
+//!
+//! # Validation Pipeline
+//!
+//! ```text
+//! COSE bytes ──► parse ──► Validator::validate()
+//!                               │
+//!                     ┌─────────┼──────────┐
+//!                     ▼         ▼          ▼
+//!               Resolution   Trust    Signature
+//!               (key lookup) (plan)   (verify)
+//!                     │         │          │
+//!                     └─────────┼──────────┘
+//!                               ▼
+//!                     Post-Signature Policies
+//!                               │
+//!                               ▼
+//!                    CoseSign1ValidationResult
+//! ```
+//!
+//! # Zero-Copy Validation
+//!
+//! For optimal performance, prefer [`Validator::validate_arc`] or
+//! [`Validator::validate_bytes`] which avoid cloning the parsed message.
+//! The standard [`Validator::validate`] accepts `&CoseSign1Message` for
+//! convenience but performs one `Arc::new(message.clone())`.
 
 pub use cbor_primitives::{CborProvider, RawCbor};
 

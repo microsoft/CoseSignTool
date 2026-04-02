@@ -219,6 +219,7 @@ public:
      * @param content_type Content type string
      * @return COSE_Sign1 message bytes (caller-owned copy)
      * @throws FactoryError on failure
+     * @see SignDirectToMessage() for zero-copy alternative returning CoseSign1Message
      */
     std::vector<uint8_t> SignDirect(
         const std::vector<uint8_t>& payload,
@@ -239,6 +240,7 @@ public:
      * @param content_type Content type string
      * @return COSE_Sign1 message bytes (caller-owned copy)
      * @throws FactoryError on failure
+     * @see SignDirectToMessage() for zero-copy alternative returning CoseSign1Message
      */
     std::vector<uint8_t> SignDirect(
         const uint8_t* payload,
@@ -313,6 +315,7 @@ public:
      * @param content_type Content type string
      * @return COSE_Sign1 message bytes (without embedded payload)
      * @throws FactoryError on failure
+     * @see SignDirectDetachedToMessage() for zero-copy alternative returning CoseSign1Message
      */
     std::vector<uint8_t> SignDirectDetached(
         const std::vector<uint8_t>& payload,
@@ -329,6 +332,7 @@ public:
      * @param content_type Content type string
      * @return COSE_Sign1 message bytes (without embedded payload)
      * @throws FactoryError on failure
+     * @see SignDirectDetachedToMessage() for zero-copy alternative returning CoseSign1Message
      */
     std::vector<uint8_t> SignDirectDetached(
         const uint8_t* payload,
@@ -536,6 +540,7 @@ public:
      * @param content_type Content type string
      * @return COSE_Sign1 message bytes (caller-owned copy)
      * @throws FactoryError on failure
+     * @see SignIndirectFileToMessage() for zero-copy file-based alternative
      */
     std::vector<uint8_t> SignIndirect(
         const std::vector<uint8_t>& payload,
@@ -555,6 +560,7 @@ public:
      * @param content_type Content type string
      * @return COSE_Sign1 message bytes (caller-owned copy)
      * @throws FactoryError on failure
+     * @see SignIndirectFileToMessage() for zero-copy file-based alternative
      */
     std::vector<uint8_t> SignIndirect(
         const uint8_t* payload,

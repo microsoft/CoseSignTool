@@ -883,3 +883,88 @@ fn ffi_impl_builder_set_unprotected_null_headers() {
 
     unsafe { cose_sign1_builder_free(builder) };
 }
+
+// ============================================================================
+// Consume (move) header map tests — zero-copy alternatives
+// ============================================================================
+
+#[test]
+fn ffi_impl_builder_consume_protected() {
+    let mut builder: *mut CoseSign1BuilderHandle = ptr::null_mut();
+    unsafe { cose_sign1_builder_new(&mut builder) };
+
+    let mut headers: *mut CoseHeaderMapHandle = ptr::null_mut();
+    unsafe { cose_headermap_new(&mut headers) };
+    unsafe { cose_headermap_set_int(headers, 1, -7) };
+
+    // Consume moves ownership — headers must NOT be freed after this
+    let rc = unsafe { cose_sign1_builder_consume_protected(builder, headers) };
+    assert_eq!(rc, COSE_SIGN1_SIGNING_OK);
+
+    // Only free builder — headers was consumed
+    unsafe { cose_sign1_builder_free(builder) };
+}
+
+#[test]
+fn ffi_impl_builder_consume_protected_null_builder() {
+    let mut headers: *mut CoseHeaderMapHandle = ptr::null_mut();
+    unsafe { cose_headermap_new(&mut headers) };
+
+    let rc = unsafe { cose_sign1_builder_consume_protected(ptr::null_mut(), headers) };
+    assert_eq!(rc, COSE_SIGN1_SIGNING_ERR_NULL_POINTER);
+
+    // Headers was not consumed on failure — must still free
+    unsafe { cose_headermap_free(headers) };
+}
+
+#[test]
+fn ffi_impl_builder_consume_protected_null_headers() {
+    let mut builder: *mut CoseSign1BuilderHandle = ptr::null_mut();
+    unsafe { cose_sign1_builder_new(&mut builder) };
+
+    let rc = unsafe { cose_sign1_builder_consume_protected(builder, ptr::null_mut()) };
+    assert_eq!(rc, COSE_SIGN1_SIGNING_ERR_NULL_POINTER);
+
+    unsafe { cose_sign1_builder_free(builder) };
+}
+
+#[test]
+fn ffi_impl_builder_consume_unprotected() {
+    let mut builder: *mut CoseSign1BuilderHandle = ptr::null_mut();
+    unsafe { cose_sign1_builder_new(&mut builder) };
+
+    let mut headers: *mut CoseHeaderMapHandle = ptr::null_mut();
+    unsafe { cose_headermap_new(&mut headers) };
+    let kid = b"key-1";
+    unsafe { cose_headermap_set_bytes(headers, 4, kid.as_ptr(), kid.len()) };
+
+    // Consume moves ownership — headers must NOT be freed after this
+    let rc = unsafe { cose_sign1_builder_consume_unprotected(builder, headers) };
+    assert_eq!(rc, COSE_SIGN1_SIGNING_OK);
+
+    // Only free builder — headers was consumed
+    unsafe { cose_sign1_builder_free(builder) };
+}
+
+#[test]
+fn ffi_impl_builder_consume_unprotected_null_builder() {
+    let mut headers: *mut CoseHeaderMapHandle = ptr::null_mut();
+    unsafe { cose_headermap_new(&mut headers) };
+
+    let rc = unsafe { cose_sign1_builder_consume_unprotected(ptr::null_mut(), headers) };
+    assert_eq!(rc, COSE_SIGN1_SIGNING_ERR_NULL_POINTER);
+
+    // Headers was not consumed on failure — must still free
+    unsafe { cose_headermap_free(headers) };
+}
+
+#[test]
+fn ffi_impl_builder_consume_unprotected_null_headers() {
+    let mut builder: *mut CoseSign1BuilderHandle = ptr::null_mut();
+    unsafe { cose_sign1_builder_new(&mut builder) };
+
+    let rc = unsafe { cose_sign1_builder_consume_unprotected(builder, ptr::null_mut()) };
+    assert_eq!(rc, COSE_SIGN1_SIGNING_ERR_NULL_POINTER);
+
+    unsafe { cose_sign1_builder_free(builder) };
+}

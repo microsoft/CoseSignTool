@@ -296,6 +296,36 @@ int cose_sign1_builder_set_unprotected(
 );
 
 /**
+ * @brief Sets the protected headers by consuming (moving) the header map.
+ *
+ * Zero-copy alternative to cose_sign1_builder_set_protected. The header map
+ * handle is consumed and must NOT be used or freed after this call.
+ *
+ * @param builder Builder handle.
+ * @param headers Header map handle (consumed, not copied).
+ * @return COSE_SIGN1_SIGNING_OK on success, error code otherwise.
+ */
+int cose_sign1_builder_consume_protected(
+    cose_sign1_builder_t* builder,
+    cose_headermap_t* headers
+);
+
+/**
+ * @brief Sets the unprotected headers by consuming (moving) the header map.
+ *
+ * Zero-copy alternative to cose_sign1_builder_set_unprotected. The header map
+ * handle is consumed and must NOT be used or freed after this call.
+ *
+ * @param builder Builder handle.
+ * @param headers Header map handle (consumed, not copied).
+ * @return COSE_SIGN1_SIGNING_OK on success, error code otherwise.
+ */
+int cose_sign1_builder_consume_unprotected(
+    cose_sign1_builder_t* builder,
+    cose_headermap_t* headers
+);
+
+/**
  * @brief Sets the external additional authenticated data for the builder.
  *
  * @param builder Builder handle.

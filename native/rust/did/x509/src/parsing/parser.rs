@@ -78,7 +78,7 @@ impl DidX509Parser {
         // Validate prefix
         let prefix_with_colon = format!("{}:", DID_PREFIX);
         if !did.to_lowercase().starts_with(&prefix_with_colon) {
-            return Err(DidX509Error::InvalidPrefix(DID_PREFIX.to_string()));
+            return Err(DidX509Error::InvalidPrefix(DID_PREFIX.into()));
         }
 
         // Split on :: to separate CA fingerprint from policies
@@ -93,7 +93,7 @@ impl DidX509Parser {
 
         if prefix_components.len() != 5 {
             return Err(DidX509Error::InvalidFormat(
-                "did:x509:version:algorithm:fingerprint".to_string(),
+                "did:x509:version:algorithm:fingerprint".into(),
             ));
         }
 
@@ -104,8 +104,8 @@ impl DidX509Parser {
         // Validate version
         if version != VERSION {
             return Err(DidX509Error::UnsupportedVersion(
-                version.to_string(),
-                VERSION.to_string(),
+                version.into(),
+                VERSION.into(),
             ));
         }
 
@@ -132,7 +132,7 @@ impl DidX509Parser {
 
         if ca_fingerprint_base64url.len() != expected_length {
             return Err(DidX509Error::FingerprintLengthMismatch(
-                hash_algorithm.clone(),
+                hash_algorithm,
                 expected_length,
                 ca_fingerprint_base64url.len(),
             ));
@@ -156,7 +156,7 @@ impl DidX509Parser {
             // Split policy into name:value
             let first_colon = policy_part.find(':');
             if first_colon.is_none() || first_colon == Some(0) {
-                return Err(DidX509Error::InvalidPolicyFormat("name:value".to_string()));
+                return Err(DidX509Error::InvalidPolicyFormat("name:value".into()));
             }
 
             let colon_idx = first_colon.unwrap();
@@ -230,13 +230,13 @@ fn parse_subject_policy(value: &str) -> Result<DidX509Policy, DidX509Error> {
 
         let key_upper = key.to_uppercase();
         if seen_keys.contains(&key_upper) {
-            return Err(DidX509Error::DuplicateSubjectPolicyKey(key.to_string()));
+            return Err(DidX509Error::DuplicateSubjectPolicyKey(key.into()));
         }
         seen_keys.insert(key_upper);
 
         // Decode percent-encoded value
         let decoded_value = percent_decode(encoded_value)?;
-        result.push((key.to_string(), decoded_value));
+        result.push((key.into(), decoded_value));
     }
 
     Ok(DidX509Policy::Subject(result))
@@ -246,9 +246,7 @@ fn parse_san_policy(value: &str) -> Result<DidX509Policy, DidX509Error> {
     // Format: type:value (only one colon separating type and value)
     let colon_idx = value.find(':');
     if colon_idx.is_none() || colon_idx == Some(0) || colon_idx == Some(value.len() - 1) {
-        return Err(DidX509Error::InvalidSanPolicyFormat(
-            "type:value".to_string(),
-        ));
+        return Err(DidX509Error::InvalidSanPolicyFormat("type:value".into()));
     }
 
     let idx = colon_idx.unwrap();
@@ -257,7 +255,7 @@ fn parse_san_policy(value: &str) -> Result<DidX509Policy, DidX509Error> {
 
     // Parse SAN type
     let san_type = SanType::from_str(san_type_str)
-        .ok_or_else(|| DidX509Error::InvalidSanType(san_type_str.to_string()))?;
+        .ok_or_else(|| DidX509Error::InvalidSanType(san_type_str.into()))?;
 
     // Decode percent-encoded value
     let decoded_value = percent_decode(encoded_value)?;
@@ -274,7 +272,7 @@ fn parse_eku_policy(value: &str) -> Result<DidX509Policy, DidX509Error> {
         if !is_valid_oid(oid) {
             return Err(DidX509Error::InvalidEkuOid);
         }
-        valid_oids.push(oid.to_string());
+        valid_oids.push(oid.into());
     }
 
     Ok(DidX509Policy::Eku(valid_oids))

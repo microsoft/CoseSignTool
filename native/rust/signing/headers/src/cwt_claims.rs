@@ -27,7 +27,7 @@ pub enum CwtClaimValue {
 /// CWT (CBOR Web Token) Claims.
 ///
 /// Maps V2 `CwtClaims` class in CoseSign1.Headers.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct CwtClaims {
     /// Issuer (iss, label 1).
     pub issuer: Option<String>,

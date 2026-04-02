@@ -8,6 +8,26 @@
 //! This crate provides traits and types for building signing services and managing
 //! signing operations with COSE_Sign1 messages. It maps V2 C# signing abstractions
 //! to Rust.
+//!
+//! # Key Types
+//!
+//! - [`SigningService`] — Trait that provides signing keys and post-sign verification.
+//! - [`CoseSigner`] — Wraps a [`CryptoSigner`](cose_sign1_primitives::CryptoSigner)
+//!   with header contribution support.
+//! - [`SigningContext`] — Carries payload and metadata through the signing pipeline.
+//! - [`SigningError`] — Error type for signing operations.
+//!
+//! # Architecture
+//!
+//! ```text
+//! Payload ──► SigningContext ──► SigningService::get_cose_signer()
+//!                                       │
+//!                                  CoseSigner
+//!                                       │
+//!                             CoseSign1Builder::sign()
+//!                                       │
+//!                                 Vec<u8> (COSE bytes)
+//! ```
 
 pub mod context;
 pub mod error;

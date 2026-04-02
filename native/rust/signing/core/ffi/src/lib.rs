@@ -522,6 +522,86 @@ pub unsafe extern "C" fn cose_sign1_builder_set_unprotected(
     impl_builder_set_unprotected_inner(builder, headers)
 }
 
+/// Inner implementation for cose_sign1_builder_consume_protected.
+pub fn impl_builder_consume_protected_inner(
+    builder: *mut CoseSign1BuilderHandle,
+    headers: *mut CoseHeaderMapHandle,
+) -> i32 {
+    let result = catch_unwind(AssertUnwindSafe(|| {
+        let Some(builder_inner) = (unsafe { builder_handle_to_inner_mut(builder) }) else {
+            return FFI_ERR_NULL_POINTER;
+        };
+
+        if headers.is_null() {
+            return FFI_ERR_NULL_POINTER;
+        }
+
+        // Take ownership and move — no clone needed
+        let hdr_inner = unsafe { Box::from_raw(headers as *mut HeaderMapInner) };
+        builder_inner.protected = hdr_inner.headers;
+        FFI_OK
+    }));
+
+    result.unwrap_or(FFI_ERR_PANIC)
+}
+
+/// Sets the protected headers for the builder by consuming the header map handle.
+///
+/// Zero-copy alternative to `cose_sign1_builder_set_protected`. The header map
+/// handle is consumed and must NOT be used or freed after this call.
+///
+/// # Safety
+///
+/// - `builder` must be a valid builder handle
+/// - `headers` must be a valid, owned header map handle (consumed by this call)
+#[no_mangle]
+pub unsafe extern "C" fn cose_sign1_builder_consume_protected(
+    builder: *mut CoseSign1BuilderHandle,
+    headers: *mut CoseHeaderMapHandle,
+) -> i32 {
+    impl_builder_consume_protected_inner(builder, headers)
+}
+
+/// Inner implementation for cose_sign1_builder_consume_unprotected.
+pub fn impl_builder_consume_unprotected_inner(
+    builder: *mut CoseSign1BuilderHandle,
+    headers: *mut CoseHeaderMapHandle,
+) -> i32 {
+    let result = catch_unwind(AssertUnwindSafe(|| {
+        let Some(builder_inner) = (unsafe { builder_handle_to_inner_mut(builder) }) else {
+            return FFI_ERR_NULL_POINTER;
+        };
+
+        if headers.is_null() {
+            return FFI_ERR_NULL_POINTER;
+        }
+
+        // Take ownership and move — no clone needed
+        let hdr_inner = unsafe { Box::from_raw(headers as *mut HeaderMapInner) };
+        builder_inner.unprotected = Some(hdr_inner.headers);
+        FFI_OK
+    }));
+
+    result.unwrap_or(FFI_ERR_PANIC)
+}
+
+/// Sets the unprotected headers for the builder by consuming the header map handle.
+///
+/// Zero-copy alternative to `cose_sign1_builder_set_unprotected`. The header map
+/// handle is consumed and must NOT be used or freed after this call.
+///
+/// # Safety
+///
+/// - `builder` must be a valid builder handle
+/// - `headers` must be a valid, owned header map handle (consumed by this call)
+#[no_mangle]
+pub unsafe extern "C" fn cose_sign1_builder_consume_unprotected(
+    builder: *mut CoseSign1BuilderHandle,
+    headers: *mut CoseHeaderMapHandle,
+) -> i32 {
+    impl_builder_consume_unprotected_inner(builder, headers)
+}
+
 /// Inner implementation for cose_sign1_builder_set_external_aad.
 pub fn impl_builder_set_external_aad_inner(
     builder: *mut CoseSign1BuilderHandle,

@@ -184,8 +184,8 @@ pub fn verify_transparent_statement_message(
             if let Some(ref factory) = options.client_factory {
                 factory(issuer, &client_options)
             } else {
-                let endpoint = url::Url::parse(&format!("https://{}", issuer))
-                    .unwrap_or_else(|_| {
+                let endpoint =
+                    url::Url::parse(&format!("https://{}", issuer)).unwrap_or_else(|_| {
                         // "https://invalid" is a well-formed URL; parsing cannot fail.
                         url::Url::parse("https://invalid")
                             .expect("hardcoded fallback URL must parse")

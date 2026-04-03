@@ -131,25 +131,11 @@ try {
     if ($BuildRust) {
         Push-Location (Join-Path $PSScriptRoot 'rust')
         try {
-            # Build only the FFI crates that exist in the current workspace.
-            # Keep in sync with CMakeLists.txt find_library() calls in c/ and c_pp/.
-            $ffiCrates = @(
-                'cose_sign1_validation_ffi',
-                'cose_sign1_certificates_ffi',
-                'cose_sign1_certificates_local_ffi',
-                'cose_sign1_transparent_mst_ffi',
-                'cose_sign1_azure_key_vault_ffi',
-                'cose_sign1_validation_primitives_ffi',
-                'cose_sign1_primitives_ffi',
-                'cose_sign1_signing_ffi',
-                'cose_sign1_headers_ffi',
-                'did_x509_ffi',
-                'cose_sign1_crypto_openssl_ffi',
-                'cose_sign1_factories_ffi'
-            )
+            # Dynamically discover FFI crates from the workspace metadata.
+            # Any crate whose name ends with '_ffi' is treated as an FFI crate.
             $cargoMetadata = cargo metadata --format-version 1 --no-deps 2>$null | ConvertFrom-Json
             $workspaceNames = $cargoMetadata.packages | ForEach-Object { $_.name }
-            $presentFfi = $ffiCrates | Where-Object { $workspaceNames -contains $_ }
+            $presentFfi = $workspaceNames | Where-Object { $_ -like '*_ffi' }
 
             if ($presentFfi.Count -gt 0) {
                 $buildArgs = @('build', '--release') + ($presentFfi | ForEach-Object { @('-p', $_) })

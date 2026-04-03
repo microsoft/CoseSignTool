@@ -270,6 +270,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "code_transparency_client"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "azure_core",
+ "cbor_primitives",
+ "cbor_primitives_everparse",
+ "code_transparency_client",
+ "cose_sign1_primitives",
+ "serde",
+ "serde_json",
+ "time",
+ "tokio",
+ "url",
+]
+
+[[package]]
 name = "compression-codecs"
 version = "0.4.37"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -555,6 +572,47 @@ dependencies = [
  "once_cell",
  "openssl",
  "tempfile",
+]
+
+[[package]]
+name = "cose_sign1_transparent_mst"
+version = "0.1.0"
+dependencies = [
+ "azure_core",
+ "base64",
+ "cbor_primitives",
+ "cbor_primitives_everparse",
+ "code_transparency_client",
+ "cose_sign1_crypto_openssl",
+ "cose_sign1_primitives",
+ "cose_sign1_signing",
+ "cose_sign1_transparent_mst",
+ "cose_sign1_validation",
+ "cose_sign1_validation_primitives",
+ "crypto_primitives",
+ "once_cell",
+ "openssl",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tokio",
+ "url",
+]
+
+[[package]]
+name = "cose_sign1_transparent_mst_ffi"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cbor_primitives_everparse",
+ "code_transparency_client",
+ "cose_sign1_transparent_mst",
+ "cose_sign1_validation",
+ "cose_sign1_validation_ffi",
+ "cose_sign1_validation_primitives_ffi",
+ "libc",
+ "tokio",
+ "url",
 ]
 
 [[package]]

@@ -48,13 +48,16 @@ unsafe fn string_array_to_vec(arr: *const *const c_char) -> Vec<String> {
     let mut result = Vec::new();
     let mut ptr = arr;
     loop {
+        // SAFETY: ptr is within the bounds of the null-terminated array; we break on null sentinel.
         let s = unsafe { *ptr };
         if s.is_null() {
             break;
         }
+        // SAFETY: s was verified non-null; caller guarantees it points to a null-terminated C string.
         if let Ok(cstr) = unsafe { CStr::from_ptr(s).to_str() } {
             result.push(cstr.to_string());
         }
+        // SAFETY: advancing within the null-terminated array; the loop breaks before overrun.
         ptr = unsafe { ptr.add(1) };
     }
     result
@@ -66,6 +69,7 @@ pub extern "C" fn cose_sign1_validator_builder_with_akv_pack(
     builder: *mut cose_sign1_validator_builder_t,
 ) -> cose_status_t {
     with_catch_unwind(|| {
+        // SAFETY: pointer is validated non-null by ok_or_else above.
         let builder = unsafe { builder.as_mut() }
             .ok_or_else(|| anyhow::anyhow!("builder must not be null"))?;
         builder.packs.push(Arc::new(AzureKeyVaultTrustPack::new(
@@ -82,13 +86,16 @@ pub extern "C" fn cose_sign1_validator_builder_with_akv_pack_ex(
     options: *const cose_akv_trust_options_t,
 ) -> cose_status_t {
     with_catch_unwind(|| {
+        // SAFETY: pointer is validated non-null by ok_or_else above.
         let builder = unsafe { builder.as_mut() }
             .ok_or_else(|| anyhow::anyhow!("builder must not be null"))?;
 
         let opts = if options.is_null() {
             AzureKeyVaultTrustOptions::default()
         } else {
+            // SAFETY: options was checked non-null on the preceding line.
             let opts_ref = unsafe { &*options };
+            // SAFETY: string_array_to_vec handles null pointers internally.
             let patterns = unsafe { string_array_to_vec(opts_ref.allowed_kid_patterns) };
             AzureKeyVaultTrustOptions {
                 require_azure_key_vault_kid: opts_ref.require_azure_key_vault_kid,
@@ -182,6 +189,7 @@ unsafe fn c_str_to_string(ptr: *const c_char) -> Result<String, anyhow::Error> {
     if ptr.is_null() {
         return Err(anyhow::anyhow!("string parameter must not be null"));
     }
+    // SAFETY: ptr was checked non-null above; caller guarantees it points to a null-terminated C string.
     unsafe { CStr::from_ptr(ptr) }
         .to_str()
         .map(|s| s.to_string())
@@ -193,6 +201,7 @@ unsafe fn c_str_to_option_string(ptr: *const c_char) -> Result<Option<String>, a
     if ptr.is_null() {
         return Ok(None);
     }
+    // SAFETY: c_str_to_string validates null and UTF-8 internally.
     Ok(Some(unsafe { c_str_to_string(ptr) }?))
 }
 
@@ -213,16 +222,21 @@ pub extern "C" fn cose_akv_key_client_new_dev(
             return Err(anyhow::anyhow!("out_client must not be null"));
         }
 
+        // SAFETY: out pointer was validated non-null above.
         unsafe { *out_client = std::ptr::null_mut() };
 
+        // SAFETY: c_str_to_string validates null and UTF-8 internally.
         let vault_url_str = unsafe { c_str_to_string(vault_url) }?;
+        // SAFETY: c_str_to_string validates null and UTF-8 internally.
         let key_name_str = unsafe { c_str_to_string(key_name) }?;
+        // SAFETY: c_str_to_option_string handles null (returns None) and validates UTF-8.
         let key_version_opt = unsafe { c_str_to_option_string(key_version) }?;
 
         let client =
             AkvKeyClient::new_dev(&vault_url_str, &key_name_str, key_version_opt.as_deref())?;
 
         let boxed = Box::new(client);
+        // SAFETY: out pointer was validated non-null; Box::into_raw produces a valid aligned pointer.
         unsafe { *out_client = Box::into_raw(boxed) as *mut AkvKeyClientHandle };
 
         Ok(cose_status_t::COSE_OK)
@@ -246,13 +260,20 @@ pub extern "C" fn cose_akv_key_client_new_client_secret(
             return Err(anyhow::anyhow!("out_client must not be null"));
         }
 
+        // SAFETY: out pointer was validated non-null above.
         unsafe { *out_client = std::ptr::null_mut() };
 
+        // SAFETY: c_str_to_string validates null and UTF-8 internally.
         let vault_url_str = unsafe { c_str_to_string(vault_url) }?;
+        // SAFETY: c_str_to_string validates null and UTF-8 internally.
         let key_name_str = unsafe { c_str_to_string(key_name) }?;
+        // SAFETY: c_str_to_option_string handles null (returns None) and validates UTF-8.
         let key_version_opt = unsafe { c_str_to_option_string(key_version) }?;
+        // SAFETY: c_str_to_string validates null and UTF-8 internally.
         let tenant_id_str = unsafe { c_str_to_string(tenant_id) }?;
+        // SAFETY: c_str_to_string validates null and UTF-8 internally.
         let client_id_str = unsafe { c_str_to_string(client_id) }?;
+        // SAFETY: c_str_to_string validates null and UTF-8 internally.
         let client_secret_str = unsafe { c_str_to_string(client_secret) }?;
 
         let credential: Arc<dyn azure_core::credentials::TokenCredential> =
@@ -271,6 +292,7 @@ pub extern "C" fn cose_akv_key_client_new_client_secret(
         )?;
 
         let boxed = Box::new(client);
+        // SAFETY: out pointer was validated non-null; Box::into_raw produces a valid aligned pointer.
         unsafe { *out_client = Box::into_raw(boxed) as *mut AkvKeyClientHandle };
 
         Ok(cose_status_t::COSE_OK)
@@ -283,6 +305,8 @@ pub extern "C" fn cose_akv_key_client_free(client: *mut AkvKeyClientHandle) {
     if client.is_null() {
         return;
     }
+    // SAFETY: ptr was created by Box::into_raw in the corresponding _new function
+    // and must not have been freed previously. Caller must not use the handle after this call.
     unsafe {
         drop(Box::from_raw(client as *mut AkvKeyClient));
     }
@@ -302,12 +326,15 @@ pub extern "C" fn cose_sign1_akv_create_signing_key(
             return Err(anyhow::anyhow!("out_key must not be null"));
         }
 
+        // SAFETY: out pointer was validated non-null above.
         unsafe { *out_key = std::ptr::null_mut() };
 
         if akv_client.is_null() {
             return Err(anyhow::anyhow!("akv_client must not be null"));
         }
 
+        // SAFETY: ptr was created by Box::into_raw in the corresponding _new function
+        // and must not have been freed previously. Caller must not use the handle after this call.
         let client = unsafe { Box::from_raw(akv_client as *mut AkvKeyClient) };
 
         let signing_key = AzureKeyVaultSigningKey::new(client)?;
@@ -317,6 +344,7 @@ pub extern "C" fn cose_sign1_akv_create_signing_key(
         };
 
         let boxed = Box::new(key_inner);
+        // SAFETY: out pointer was validated non-null; Box::into_raw produces a valid aligned pointer.
         unsafe { *out_key = Box::into_raw(boxed) as *mut cose_sign1_signing_ffi::CoseKeyHandle };
 
         Ok(cose_status_t::COSE_OK)
@@ -350,13 +378,15 @@ pub extern "C" fn cose_sign1_akv_create_signing_service(
             anyhow::bail!("out must not be null");
         }
 
+        // SAFETY: out pointer was validated non-null above.
         unsafe { *out = std::ptr::null_mut() };
 
         if client.is_null() {
             anyhow::bail!("client must not be null");
         }
 
-        // Extract the AkvKeyClient from the handle (consumes it)
+        // SAFETY: ptr was created by Box::into_raw in the corresponding _new function
+        // and must not have been freed previously. Caller must not use the handle after this call.
         let akv_client = unsafe { Box::from_raw(client as *mut AkvKeyClient) };
 
         // Box the client as a KeyVaultCryptoClient
@@ -368,7 +398,7 @@ pub extern "C" fn cose_sign1_akv_create_signing_service(
         // Initialize the service
         service.initialize()?;
 
-        // Transfer ownership to caller
+        // SAFETY: out pointer was validated non-null; Box::into_raw produces a valid aligned pointer.
         unsafe { *out = Box::into_raw(Box::new(AkvSigningServiceHandle(service))) };
         Ok(cose_status_t::COSE_OK)
     })
@@ -378,6 +408,8 @@ pub extern "C" fn cose_sign1_akv_create_signing_service(
 #[no_mangle]
 pub extern "C" fn cose_sign1_akv_signing_service_free(handle: *mut AkvSigningServiceHandle) {
     if !handle.is_null() {
+        // SAFETY: ptr was created by Box::into_raw in the corresponding _new function
+        // and must not have been freed previously. Caller must not use the handle after this call.
         unsafe { drop(Box::from_raw(handle)) };
     }
 }

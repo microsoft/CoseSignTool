@@ -108,14 +108,20 @@ impl AzureKeyVaultSigningKey {
     pub fn get_cose_key_bytes(&self) -> Result<Vec<u8>, AkvError> {
         // First check without locking (fast path)
         {
-            let guard = self.cached_cose_key.lock().unwrap();
+            let guard = self
+                .cached_cose_key
+                .lock()
+                .map_err(|e| AkvError::General(format!("cache lock poisoned: {}", e)))?;
             if let Some(ref cached) = *guard {
                 return Ok(cached.clone());
             }
         }
 
         // Compute and cache (slow path)
-        let mut guard = self.cached_cose_key.lock().unwrap();
+        let mut guard = self
+            .cached_cose_key
+            .lock()
+            .map_err(|e| AkvError::General(format!("cache lock poisoned: {}", e)))?;
         // Double-check: another thread might have computed it
         if let Some(ref cached) = *guard {
             return Ok(cached.clone());

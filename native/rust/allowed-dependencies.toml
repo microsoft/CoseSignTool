@@ -179,6 +179,7 @@ serde_json = "JSON parsing"
 base64 = "Base64 encoding/decoding for digest and cert bytes"
 url = "URL construction"
 async-trait = "Async trait definitions for client abstractions"
+time = "Date/time handling for polling and request timestamps"
 
 [crate.certificates]
 x509-parser = "DER/PEM X.509 certificate parsing"

@@ -26,6 +26,14 @@ members = [
   "extension_packs/certificates/ffi",
   "extension_packs/certificates/local",
   "extension_packs/certificates/local/ffi",
+  "extension_packs/azure_key_vault",
+  "extension_packs/azure_key_vault/ffi",
+  "extension_packs/mst",
+  "extension_packs/mst/client",
+  "extension_packs/mst/ffi",
+  "extension_packs/azure_artifact_signing",
+  "extension_packs/azure_artifact_signing/client",
+  "extension_packs/azure_artifact_signing/ffi",
   "cose_openssl",
 ]
 

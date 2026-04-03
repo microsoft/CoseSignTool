@@ -6,6 +6,8 @@
 //! Implements `crypto_primitives::JwkVerifierFactory` for the OpenSSL backend.
 //! Supports EC (P-256, P-384, P-521), RSA, and PQC (ML-DSA, feature-gated).
 
+#[cfg(feature = "pqc")]
+use crypto_primitives::PqcJwk;
 use crypto_primitives::{CryptoError, CryptoVerifier, EcJwk, JwkVerifierFactory, RsaJwk};
 
 use crate::evp_verifier::EvpVerifier;

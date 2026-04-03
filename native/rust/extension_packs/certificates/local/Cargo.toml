@@ -1,0 +1,28 @@
+[package]
+name = "cose_sign1_certificates_local"
+edition.workspace = true
+license.workspace = true
+version = "0.1.0"
+description = "Local certificate creation, ephemeral certs, chain building, and key loading"
+
+[lib]
+test = false
+
+[features]
+pqc = ["crypto_primitives/pqc", "dep:cose_sign1_crypto_openssl"]
+pfx = []
+windows-store = []
+
+[dependencies]
+crypto_primitives = { path = "../../../primitives/crypto" }
+cose_sign1_primitives = { path = "../../../primitives/cose/sign1" }
+cose_sign1_crypto_openssl = { path = "../../../primitives/crypto/openssl", features = ["pqc"], optional = true }
+x509-parser = { workspace = true }
+sha2 = { workspace = true }
+openssl = { workspace = true }
+time = { version = "0.3" }
+
+[dev-dependencies]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }

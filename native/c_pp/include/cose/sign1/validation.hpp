@@ -15,6 +15,10 @@
 #include <vector>
 #include <stdexcept>
 
+#ifdef COSE_HAS_PRIMITIVES
+#include <cose/sign1.hpp>
+#endif
+
 namespace cose {
 
 /**

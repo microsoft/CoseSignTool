@@ -155,14 +155,29 @@ jobs:
 
     - name: Rust format check
       shell: pwsh
+      working-directory: native/rust
       run: |
-        cargo fmt --manifest-path native/rust/Cargo.toml --all -- --check
+        # Per-package to avoid Windows OS error 206 (command line too long)
+        $members = (cargo metadata --no-deps --format-version 1 | ConvertFrom-Json).packages.name
+        foreach ($pkg in $members) {
+          cargo fmt -p $pkg -- --check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        }
+        # FFI crates with test=false exclude test files from cargo fmt.
+        # Check them directly with rustfmt.
+        Get-ChildItem -Path . -Filter '*.rs' -Recurse |
+          Where-Object { $_.FullName -match 'ffi[\\/]tests[\\/]' } |
+          ForEach-Object {
+            rustfmt --check $_.FullName
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
 
     - name: Rust clippy
       shell: pwsh
+      working-directory: native/rust
       run: |
         $env:PATH = "$env:VCPKG_ROOT\installed\x64-windows\bin;$env:PATH"
-        cargo clippy --manifest-path native/rust/Cargo.toml --workspace -- -D warnings
+        cargo clippy --workspace -- -D warnings
 
     - name: Setup Rust (nightly, for coverage)
       uses: dtolnay/rust-toolchain@nightly
@@ -186,23 +201,24 @@ jobs:
 
     - name: Build Rust workspace
       shell: pwsh
+      working-directory: native/rust
       run: |
         $env:PATH = "$env:VCPKG_ROOT\installed\x64-windows\bin;$env:PATH"
-        cargo build --manifest-path native/rust/Cargo.toml --workspace --exclude cose-openssl
+        cargo build --workspace --exclude cose-openssl
 
     - name: Test Rust workspace
       shell: pwsh
+      working-directory: native/rust
       run: |
         $env:PATH = "$env:VCPKG_ROOT\installed\x64-windows\bin;$env:PATH"
-        cargo test --manifest-path native/rust/Cargo.toml --workspace --exclude cose-openssl
+        cargo test --workspace --exclude cose-openssl
 
     - name: Rust coverage (90% line gate)
       shell: pwsh
+      working-directory: native/rust
       run: |
         $env:PATH = "$env:VCPKG_ROOT\installed\x64-windows\bin;$env:PATH"
-        Push-Location native/rust
         pwsh -NoProfile -File collect-coverage.ps1 -NoHtml
-        Pop-Location
 
   # ── Native C/C++: build, test, coverage (ASAN) ────────────────────
   native-c-cpp:

@@ -131,17 +131,11 @@ try {
     if ($BuildRust) {
         Push-Location (Join-Path $PSScriptRoot 'rust')
         try {
-            # Build only the FFI crates that exist in the current workspace.
-            $ffiCrates = @(
-                'cose_sign1_validation_ffi',
-                'cose_sign1_certificates_ffi',
-                'cose_sign1_transparent_mst_ffi',
-                'cose_sign1_azure_key_vault_ffi',
-                'cose_sign1_validation_primitives_ffi'
-            )
+            # Dynamically discover FFI crates from the workspace metadata.
+            # Any crate whose name ends with '_ffi' is treated as an FFI crate.
             $cargoMetadata = cargo metadata --format-version 1 --no-deps 2>$null | ConvertFrom-Json
             $workspaceNames = $cargoMetadata.packages | ForEach-Object { $_.name }
-            $presentFfi = $ffiCrates | Where-Object { $workspaceNames -contains $_ }
+            $presentFfi = $workspaceNames | Where-Object { $_ -like '*_ffi' }
 
             if ($presentFfi.Count -gt 0) {
                 $buildArgs = @('build', '--release') + ($presentFfi | ForEach-Object { @('-p', $_) })
@@ -150,9 +144,9 @@ try {
                 Write-Host "No FFI crates present in workspace; skipping Rust FFI build." -ForegroundColor Yellow
             }
 
-            # Build PQC feature if the certificates crate is present.
-            if ($workspaceNames -contains 'cose_sign1_certificates') {
-                cargo build --release -p cose_sign1_certificates --features pqc-mldsa
+            # Build PQC feature if the local certificates crate is present.
+            if ($workspaceNames -contains 'cose_sign1_certificates_local') {
+                cargo build --release -p cose_sign1_certificates_local --features pqc
             }
         } finally {
             Pop-Location

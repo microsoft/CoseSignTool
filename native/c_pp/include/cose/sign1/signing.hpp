@@ -1156,12 +1156,12 @@ private:
 } // namespace cose::sign1
 
 // ============================================================================
-// Forward declaration for certificates FFI function (global namespace)
-// We avoid including <cose/sign1/extension_packs/certificates.h> to prevent
-// its conflicting forward declaration of cose_key_t.
+// Forward declaration for certificates FFI function (global namespace).
+// Declared here so signing.hpp can provide CoseKey::FromCertificateDer()
+// without requiring the caller to include the certificates extension header.
 // ============================================================================
 #ifdef COSE_HAS_CERTIFICATES_PACK
-extern "C" cose_status_t cose_certificates_key_from_cert_der(
+extern "C" cose_status_t cose_sign1_certificates_key_from_cert_der(
     const uint8_t* cert_der,
     size_t cert_der_len,
     cose_key_t** out_key
@@ -1173,7 +1173,7 @@ namespace cose {
 #ifdef COSE_HAS_CERTIFICATES_PACK
 inline CoseKey CoseKey::FromCertificateDer(const std::vector<uint8_t>& cert_der) {
     cose_key_t* k = nullptr;
-    ::cose_status_t status = ::cose_certificates_key_from_cert_der(
+    ::cose_status_t status = ::cose_sign1_certificates_key_from_cert_der(
         cert_der.data(),
         cert_der.size(),
         &k

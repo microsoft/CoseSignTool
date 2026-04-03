@@ -22,6 +22,10 @@ members = [
   "validation/test_utils",
   "did/x509",
   "did/x509/ffi",
+  "extension_packs/certificates",
+  "extension_packs/certificates/ffi",
+  "extension_packs/certificates/local",
+  "extension_packs/certificates/local/ffi",
   "cose_openssl",
 ]
 

@@ -85,6 +85,27 @@ impl ArcSlice {
     pub fn range(&self) -> &Range<usize> {
         &self.range
     }
+
+    /// Creates a zero-copy `ArcSlice` from a sub-slice of a parent `Arc<[u8]>`.
+    ///
+    /// Uses pointer arithmetic to locate `sub_slice` within `parent`, then
+    /// returns an `ArcSlice` that shares the parent's allocation.
+    ///
+    /// # Panics
+    ///
+    /// Panics (in debug builds) if `sub_slice` is not contained within `parent`.
+    pub fn from_sub_slice(parent: &Arc<[u8]>, sub_slice: &[u8]) -> Self {
+        let start = sub_slice.as_ptr() as usize - parent.as_ptr() as usize;
+        let end = start + sub_slice.len();
+        debug_assert!(
+            end <= parent.len(),
+            "ArcSlice::from_sub_slice: sub-slice is not within parent"
+        );
+        Self {
+            data: parent.clone(),
+            range: start..end,
+        }
+    }
 }
 
 impl AsRef<[u8]> for ArcSlice {

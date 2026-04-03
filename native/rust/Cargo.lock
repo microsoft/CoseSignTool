@@ -154,6 +154,64 @@ dependencies = [
 ]
 
 [[package]]
+name = "cose_sign1_certificates"
+version = "0.1.0"
+dependencies = [
+ "cbor_primitives",
+ "cbor_primitives_everparse",
+ "cose_sign1_certificates_local",
+ "cose_sign1_crypto_openssl",
+ "cose_sign1_headers",
+ "cose_sign1_primitives",
+ "cose_sign1_signing",
+ "cose_sign1_validation",
+ "cose_sign1_validation_primitives",
+ "crypto_primitives",
+ "did_x509",
+ "openssl",
+ "rcgen",
+ "sha2",
+ "tracing",
+ "x509-parser",
+]
+
+[[package]]
+name = "cose_sign1_certificates_ffi"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cbor_primitives_everparse",
+ "cose_sign1_certificates",
+ "cose_sign1_primitives_ffi",
+ "cose_sign1_signing_ffi",
+ "cose_sign1_validation",
+ "cose_sign1_validation_ffi",
+ "cose_sign1_validation_primitives_ffi",
+ "libc",
+]
+
+[[package]]
+name = "cose_sign1_certificates_local"
+version = "0.1.0"
+dependencies = [
+ "cose_sign1_crypto_openssl",
+ "cose_sign1_primitives",
+ "crypto_primitives",
+ "openssl",
+ "sha2",
+ "time",
+ "x509-parser",
+]
+
+[[package]]
+name = "cose_sign1_certificates_local_ffi"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cose_sign1_certificates_local",
+]
+
+[[package]]
 name = "cose_sign1_crypto_openssl"
 version = "0.1.0"
 dependencies = [

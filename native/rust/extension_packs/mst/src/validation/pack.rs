@@ -31,7 +31,8 @@ fn hex_encode(bytes: &[u8]) -> String {
         .iter()
         .fold(String::with_capacity(bytes.len() * 2), |mut s, b| {
             use std::fmt::Write;
-            write!(s, "{:02x}", b).unwrap();
+            // write! to a String is infallible; this expect is defensive.
+            write!(s, "{:02x}", b).expect("hex formatting to String cannot fail");
             s
         })
 }

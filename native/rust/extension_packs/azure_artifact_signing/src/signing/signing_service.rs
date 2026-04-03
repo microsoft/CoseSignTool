@@ -74,7 +74,10 @@ impl AasCertificateSourceAdapter {
 impl CertificateSource for AasCertificateSourceAdapter {
     fn get_signing_certificate(&self) -> Result<&[u8], CertificateError> {
         self.ensure_fetched()?;
-        Ok(self.leaf_cert.get().unwrap())
+        Ok(self
+            .leaf_cert
+            .get()
+            .expect("leaf_cert must be set after successful ensure_fetched"))
     }
 
     fn has_private_key(&self) -> bool {

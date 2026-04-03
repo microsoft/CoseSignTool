@@ -27,6 +27,7 @@ fn string_from_ptr(arg_name: &'static str, s: *const c_char) -> Result<String, a
     if s.is_null() {
         anyhow::bail!("{arg_name} must not be null");
     }
+    // SAFETY: Caller guarantees `s` is a valid, NUL-terminated C string for the duration of this call.
     let s = unsafe { CStr::from_ptr(s) }
         .to_str()
         .map_err(|_| anyhow::anyhow!("{arg_name} must be valid UTF-8"))?;
@@ -53,6 +54,7 @@ pub extern "C" fn cose_sign1_validator_builder_with_mst_pack(
     builder: *mut cose_sign1_validator_builder_t,
 ) -> cose_status_t {
     with_catch_unwind(|| {
+        // SAFETY: Pointer was null-checked by .ok_or_else below; dereference is valid for the lifetime of this function.
         let builder = unsafe { builder.as_mut() }
             .ok_or_else(|| anyhow::anyhow!("builder must not be null"))?;
         builder.packs.push(Arc::new(MstTrustPack::online()));
@@ -68,17 +70,20 @@ pub extern "C" fn cose_sign1_validator_builder_with_mst_pack_ex(
     options: *const cose_mst_trust_options_t,
 ) -> cose_status_t {
     with_catch_unwind(|| {
+        // SAFETY: Pointer was null-checked by .ok_or_else below; dereference is valid for the lifetime of this function.
         let builder = unsafe { builder.as_mut() }
             .ok_or_else(|| anyhow::anyhow!("builder must not be null"))?;
 
         let pack = if options.is_null() {
             MstTrustPack::online()
         } else {
+            // SAFETY: Pointer was null-checked above (options.is_null() branch); dereference is valid for the lifetime of this function.
             let opts_ref = unsafe { &*options };
             let offline_jwks = if opts_ref.offline_jwks_json.is_null() {
                 None
             } else {
                 Some(
+                    // SAFETY: Caller guarantees `offline_jwks_json` is a valid, NUL-terminated C string for the duration of this call.
                     unsafe { CStr::from_ptr(opts_ref.offline_jwks_json) }
                         .to_str()
                         .map_err(|_| anyhow::anyhow!("invalid UTF-8 in offline_jwks_json"))?
@@ -89,6 +94,7 @@ pub extern "C" fn cose_sign1_validator_builder_with_mst_pack_ex(
                 None
             } else {
                 Some(
+                    // SAFETY: Caller guarantees `jwks_api_version` is a valid, NUL-terminated C string for the duration of this call.
                     unsafe { CStr::from_ptr(opts_ref.jwks_api_version) }
                         .to_str()
                         .map_err(|_| anyhow::anyhow!("invalid UTF-8 in jwks_api_version"))?
@@ -388,6 +394,7 @@ pub extern "C" fn cose_mst_client_new(
             anyhow::bail!("out_client must not be null");
         }
 
+        // SAFETY: out_client was null-checked above; writing null to initialize the output pointer.
         unsafe {
             *out_client = std::ptr::null_mut();
         }
@@ -411,6 +418,7 @@ pub extern "C" fn cose_mst_client_new(
         let client = CodeTransparencyClient::new(endpoint_url, options);
         let handle = Box::new(MstClientHandle(client));
 
+        // SAFETY: out_client was null-checked above; caller takes ownership and must free with cose_mst_client_free.
         unsafe {
             *out_client = Box::into_raw(handle);
         }
@@ -431,6 +439,7 @@ pub unsafe extern "C" fn cose_mst_client_free(client: *mut MstClientHandle) {
     if client.is_null() {
         return;
     }
+    // SAFETY: Pointer was originally created by Box::into_raw in cose_mst_client_new; caller transfers ownership back.
     unsafe {
         drop(Box::from_raw(client));
     }
@@ -473,11 +482,13 @@ pub extern "C" fn cose_sign1_mst_make_transparent(
             anyhow::bail!("out_bytes and out_len must not be null");
         }
 
+        // SAFETY: out_bytes and out_len were null-checked above; writing initial values to initialize output pointers.
         unsafe {
             *out_bytes = std::ptr::null_mut();
             *out_len = 0;
         }
 
+        // SAFETY: Pointer was null-checked by .ok_or_else below; dereference is valid for the lifetime of this function.
         let client_ref =
             unsafe { client.as_ref() }.ok_or_else(|| anyhow::anyhow!("client must not be null"))?;
 
@@ -485,6 +496,7 @@ pub extern "C" fn cose_sign1_mst_make_transparent(
             anyhow::bail!("cose_bytes must not be null");
         }
 
+        // SAFETY: Pointer and length were validated above; the slice is valid for the duration of this call.
         let cose_slice = unsafe { slice::from_raw_parts(cose_bytes, cose_len) };
 
         let statement = client_ref
@@ -496,6 +508,7 @@ pub extern "C" fn cose_sign1_mst_make_transparent(
         let boxed = statement.into_boxed_slice();
         let ptr = Box::into_raw(boxed) as *mut u8;
 
+        // SAFETY: out_bytes and out_len were null-checked above; caller takes ownership and must free with cose_mst_bytes_free.
         unsafe {
             *out_bytes = ptr;
             *out_len = len;
@@ -543,11 +556,13 @@ pub extern "C" fn cose_sign1_mst_create_entry(
             anyhow::bail!("out_operation_id and out_entry_id must not be null");
         }
 
+        // SAFETY: out_operation_id and out_entry_id were null-checked above; writing null to initialize output pointers.
         unsafe {
             *out_operation_id = std::ptr::null_mut();
             *out_entry_id = std::ptr::null_mut();
         }
 
+        // SAFETY: Pointer was null-checked by .ok_or_else below; dereference is valid for the lifetime of this function.
         let client_ref =
             unsafe { client.as_ref() }.ok_or_else(|| anyhow::anyhow!("client must not be null"))?;
 
@@ -555,6 +570,7 @@ pub extern "C" fn cose_sign1_mst_create_entry(
             anyhow::bail!("cose_bytes must not be null");
         }
 
+        // SAFETY: Pointer and length were validated above; the slice is valid for the duration of this call.
         let cose_slice = unsafe { slice::from_raw_parts(cose_bytes, cose_len) };
 
         let result = client_ref
@@ -581,6 +597,7 @@ pub extern "C" fn cose_sign1_mst_create_entry(
         let entry_id_cstr = CString::new(model.entry_id.unwrap_or_default())
             .map_err(|_| anyhow::anyhow!("entry_id contains null byte"))?;
 
+        // SAFETY: out_operation_id and out_entry_id were null-checked above; caller takes ownership and must free with cose_mst_string_free.
         unsafe {
             *out_operation_id = op_id_cstr.into_raw();
             *out_entry_id = entry_id_cstr.into_raw();
@@ -623,11 +640,13 @@ pub extern "C" fn cose_sign1_mst_get_entry_statement(
             anyhow::bail!("out_bytes and out_len must not be null");
         }
 
+        // SAFETY: out_bytes and out_len were null-checked above; writing initial values to initialize output pointers.
         unsafe {
             *out_bytes = std::ptr::null_mut();
             *out_len = 0;
         }
 
+        // SAFETY: Pointer was null-checked by .ok_or_else below; dereference is valid for the lifetime of this function.
         let client_ref =
             unsafe { client.as_ref() }.ok_or_else(|| anyhow::anyhow!("client must not be null"))?;
 
@@ -642,6 +661,7 @@ pub extern "C" fn cose_sign1_mst_get_entry_statement(
         let boxed = statement.into_boxed_slice();
         let ptr = Box::into_raw(boxed) as *mut u8;
 
+        // SAFETY: out_bytes and out_len were null-checked above; caller takes ownership and must free with cose_mst_bytes_free.
         unsafe {
             *out_bytes = ptr;
             *out_len = len;
@@ -664,6 +684,7 @@ pub unsafe extern "C" fn cose_mst_bytes_free(ptr: *mut u8, len: usize) {
     if ptr.is_null() {
         return;
     }
+    // SAFETY: Pointer was originally created by Box::into_raw in the corresponding MST client function; caller transfers ownership back.
     unsafe {
         drop(Box::from_raw(std::ptr::slice_from_raw_parts_mut(ptr, len)));
     }
@@ -681,6 +702,7 @@ pub unsafe extern "C" fn cose_mst_string_free(s: *mut c_char) {
     if s.is_null() {
         return;
     }
+    // SAFETY: Pointer was originally created by CString::into_raw in the corresponding MST client function; caller transfers ownership back.
     unsafe {
         drop(CString::from_raw(s));
     }

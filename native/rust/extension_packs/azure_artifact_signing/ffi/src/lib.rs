@@ -37,6 +37,7 @@ pub extern "C" fn cose_sign1_validator_builder_with_ats_pack(
     builder: *mut cose_sign1_validator_builder_t,
 ) -> cose_status_t {
     with_catch_unwind(|| {
+        // SAFETY: Pointer was null-checked by `as_mut()` returning `None` (handled by `ok_or_else` below).
         let builder = unsafe { builder.as_mut() }
             .ok_or_else(|| anyhow::anyhow!("builder must not be null"))?;
         builder
@@ -53,6 +54,7 @@ pub extern "C" fn cose_sign1_validator_builder_with_ats_pack_ex(
     options: *const cose_ats_trust_options_t,
 ) -> cose_status_t {
     with_catch_unwind(|| {
+        // SAFETY: Pointer was null-checked by `as_mut()` returning `None` (handled by `ok_or_else` below).
         let builder = unsafe { builder.as_mut() }
             .ok_or_else(|| anyhow::anyhow!("builder must not be null"))?;
 
@@ -60,10 +62,12 @@ pub extern "C" fn cose_sign1_validator_builder_with_ats_pack_ex(
         let _opts = if options.is_null() {
             None
         } else {
+            // SAFETY: Pointer was null-checked above (`options.is_null()` is false in this branch).
             let opts_ref = unsafe { &*options };
             let endpoint = if opts_ref.endpoint.is_null() {
                 String::new()
             } else {
+                // SAFETY: Caller guarantees `endpoint` is a valid, NUL-terminated C string for the duration of this call.
                 unsafe { CStr::from_ptr(opts_ref.endpoint) }
                     .to_str()
                     .unwrap_or_default()
@@ -72,6 +76,7 @@ pub extern "C" fn cose_sign1_validator_builder_with_ats_pack_ex(
             let account = if opts_ref.account_name.is_null() {
                 String::new()
             } else {
+                // SAFETY: Caller guarantees `account_name` is a valid, NUL-terminated C string for the duration of this call.
                 unsafe { CStr::from_ptr(opts_ref.account_name) }
                     .to_str()
                     .unwrap_or_default()
@@ -80,6 +85,7 @@ pub extern "C" fn cose_sign1_validator_builder_with_ats_pack_ex(
             let profile = if opts_ref.certificate_profile_name.is_null() {
                 String::new()
             } else {
+                // SAFETY: Caller guarantees `certificate_profile_name` is a valid, NUL-terminated C string for the duration of this call.
                 unsafe { CStr::from_ptr(opts_ref.certificate_profile_name) }
                     .to_str()
                     .unwrap_or_default()

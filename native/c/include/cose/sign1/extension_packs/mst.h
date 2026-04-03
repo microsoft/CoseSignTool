@@ -61,6 +61,9 @@ cose_status_t cose_sign1_validator_builder_with_mst_pack_ex(
  * @brief Trust-policy helper: require that an MST receipt is present on at least one counter-signature.
  *
  * This API is provided by the MST pack FFI library and extends `cose_sign1_trust_policy_builder_t`.
+ *
+ * @param policy_builder Trust policy builder handle
+ * @return COSE_OK on success, error code otherwise
  */
 cose_status_t cose_sign1_mst_trust_policy_builder_require_receipt_present(
     cose_sign1_trust_policy_builder_t* policy_builder
@@ -70,6 +73,9 @@ cose_status_t cose_sign1_mst_trust_policy_builder_require_receipt_present(
  * @brief Trust-policy helper: require that an MST receipt is not present on at least one counter-signature.
  *
  * This API is provided by the MST pack FFI library and extends `cose_sign1_trust_policy_builder_t`.
+ *
+ * @param policy_builder Trust policy builder handle
+ * @return COSE_OK on success, error code otherwise
  */
 cose_status_t cose_sign1_mst_trust_policy_builder_require_receipt_not_present(
     cose_sign1_trust_policy_builder_t* policy_builder
@@ -79,6 +85,9 @@ cose_status_t cose_sign1_mst_trust_policy_builder_require_receipt_not_present(
  * @brief Trust-policy helper: require that the MST receipt signature verified.
  *
  * This API is provided by the MST pack FFI library and extends `cose_sign1_trust_policy_builder_t`.
+ *
+ * @param policy_builder Trust policy builder handle
+ * @return COSE_OK on success, error code otherwise
  */
 cose_status_t cose_sign1_mst_trust_policy_builder_require_receipt_signature_verified(
     cose_sign1_trust_policy_builder_t* policy_builder
@@ -88,6 +97,9 @@ cose_status_t cose_sign1_mst_trust_policy_builder_require_receipt_signature_veri
  * @brief Trust-policy helper: require that the MST receipt signature did not verify.
  *
  * This API is provided by the MST pack FFI library and extends `cose_sign1_trust_policy_builder_t`.
+ *
+ * @param policy_builder Trust policy builder handle
+ * @return COSE_OK on success, error code otherwise
  */
 cose_status_t cose_sign1_mst_trust_policy_builder_require_receipt_signature_not_verified(
     cose_sign1_trust_policy_builder_t* policy_builder
@@ -97,6 +109,10 @@ cose_status_t cose_sign1_mst_trust_policy_builder_require_receipt_signature_not_
  * @brief Trust-policy helper: require that the MST receipt issuer contains the provided substring.
  *
  * This API is provided by the MST pack FFI library and extends `cose_sign1_trust_policy_builder_t`.
+ *
+ * @param policy_builder Trust policy builder handle
+ * @param needle_utf8 Substring to match (null-terminated UTF-8)
+ * @return COSE_OK on success, error code otherwise
  */
 cose_status_t cose_sign1_mst_trust_policy_builder_require_receipt_issuer_contains(
     cose_sign1_trust_policy_builder_t* policy_builder,
@@ -107,6 +123,10 @@ cose_status_t cose_sign1_mst_trust_policy_builder_require_receipt_issuer_contain
  * @brief Trust-policy helper: require that the MST receipt issuer equals the provided value.
  *
  * This API is provided by the MST pack FFI library and extends `cose_sign1_trust_policy_builder_t`.
+ *
+ * @param policy_builder Trust policy builder handle
+ * @param issuer_utf8 Issuer value to match (null-terminated UTF-8)
+ * @return COSE_OK on success, error code otherwise
  */
 cose_status_t cose_sign1_mst_trust_policy_builder_require_receipt_issuer_eq(
     cose_sign1_trust_policy_builder_t* policy_builder,
@@ -117,6 +137,10 @@ cose_status_t cose_sign1_mst_trust_policy_builder_require_receipt_issuer_eq(
  * @brief Trust-policy helper: require that the MST receipt key id (kid) equals the provided value.
  *
  * This API is provided by the MST pack FFI library and extends `cose_sign1_trust_policy_builder_t`.
+ *
+ * @param policy_builder Trust policy builder handle
+ * @param kid_utf8 Key ID to match (null-terminated UTF-8)
+ * @return COSE_OK on success, error code otherwise
  */
 cose_status_t cose_sign1_mst_trust_policy_builder_require_receipt_kid_eq(
     cose_sign1_trust_policy_builder_t* policy_builder,
@@ -127,6 +151,10 @@ cose_status_t cose_sign1_mst_trust_policy_builder_require_receipt_kid_eq(
  * @brief Trust-policy helper: require that the MST receipt key id (kid) contains the provided substring.
  *
  * This API is provided by the MST pack FFI library and extends `cose_sign1_trust_policy_builder_t`.
+ *
+ * @param policy_builder Trust policy builder handle
+ * @param needle_utf8 Substring to match (null-terminated UTF-8)
+ * @return COSE_OK on success, error code otherwise
  */
 cose_status_t cose_sign1_mst_trust_policy_builder_require_receipt_kid_contains(
     cose_sign1_trust_policy_builder_t* policy_builder,
@@ -137,6 +165,9 @@ cose_status_t cose_sign1_mst_trust_policy_builder_require_receipt_kid_contains(
  * @brief Trust-policy helper: require that the MST receipt is trusted.
  *
  * This API is provided by the MST pack FFI library and extends `cose_sign1_trust_policy_builder_t`.
+ *
+ * @param policy_builder Trust policy builder handle
+ * @return COSE_OK on success, error code otherwise
  */
 cose_status_t cose_sign1_mst_trust_policy_builder_require_receipt_trusted(
     cose_sign1_trust_policy_builder_t* policy_builder
@@ -146,6 +177,9 @@ cose_status_t cose_sign1_mst_trust_policy_builder_require_receipt_trusted(
  * @brief Trust-policy helper: require that the MST receipt is not trusted.
  *
  * This API is provided by the MST pack FFI library and extends `cose_sign1_trust_policy_builder_t`.
+ *
+ * @param policy_builder Trust policy builder handle
+ * @return COSE_OK on success, error code otherwise
  */
 cose_status_t cose_sign1_mst_trust_policy_builder_require_receipt_not_trusted(
     cose_sign1_trust_policy_builder_t* policy_builder
@@ -155,6 +189,10 @@ cose_status_t cose_sign1_mst_trust_policy_builder_require_receipt_not_trusted(
  * @brief Trust-policy helper: require that the MST receipt is trusted and the issuer contains the provided substring.
  *
  * This API is provided by the MST pack FFI library and extends `cose_sign1_trust_policy_builder_t`.
+ *
+ * @param policy_builder Trust policy builder handle
+ * @param needle_utf8 Substring to match (null-terminated UTF-8)
+ * @return COSE_OK on success, error code otherwise
  */
 cose_status_t cose_sign1_mst_trust_policy_builder_require_receipt_trusted_from_issuer_contains(
     cose_sign1_trust_policy_builder_t* policy_builder,
@@ -165,6 +203,10 @@ cose_status_t cose_sign1_mst_trust_policy_builder_require_receipt_trusted_from_i
  * @brief Trust-policy helper: require that the MST receipt statement SHA-256 equals the provided hex string.
  *
  * This API is provided by the MST pack FFI library and extends `cose_sign1_trust_policy_builder_t`.
+ *
+ * @param policy_builder Trust policy builder handle
+ * @param sha256_hex_utf8 SHA-256 hex string to match (null-terminated UTF-8)
+ * @return COSE_OK on success, error code otherwise
  */
 cose_status_t cose_sign1_mst_trust_policy_builder_require_receipt_statement_sha256_eq(
     cose_sign1_trust_policy_builder_t* policy_builder,
@@ -175,6 +217,10 @@ cose_status_t cose_sign1_mst_trust_policy_builder_require_receipt_statement_sha2
  * @brief Trust-policy helper: require that the MST receipt statement coverage equals the provided value.
  *
  * This API is provided by the MST pack FFI library and extends `cose_sign1_trust_policy_builder_t`.
+ *
+ * @param policy_builder Trust policy builder handle
+ * @param coverage_utf8 Coverage value to match (null-terminated UTF-8)
+ * @return COSE_OK on success, error code otherwise
  */
 cose_status_t cose_sign1_mst_trust_policy_builder_require_receipt_statement_coverage_eq(
     cose_sign1_trust_policy_builder_t* policy_builder,
@@ -185,6 +231,10 @@ cose_status_t cose_sign1_mst_trust_policy_builder_require_receipt_statement_cove
  * @brief Trust-policy helper: require that the MST receipt statement coverage contains the provided substring.
  *
  * This API is provided by the MST pack FFI library and extends `cose_sign1_trust_policy_builder_t`.
+ *
+ * @param policy_builder Trust policy builder handle
+ * @param needle_utf8 Substring to match (null-terminated UTF-8)
+ * @return COSE_OK on success, error code otherwise
  */
 cose_status_t cose_sign1_mst_trust_policy_builder_require_receipt_statement_coverage_contains(
     cose_sign1_trust_policy_builder_t* policy_builder,

@@ -109,6 +109,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c08606f8c3cbf4ce6ec8e28fb0014a2c086708fe954eaa885384a6165172e7e8"
 
 [[package]]
+name = "azure_artifact_signing_client"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "azure_artifact_signing_client",
+ "azure_core",
+ "azure_identity",
+ "base64",
+ "serde",
+ "serde_json",
+ "time",
+ "tokio",
+ "url",
+]
+
+[[package]]
 name = "azure_core"
 version = "0.33.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -344,6 +360,44 @@ dependencies = [
  "cbor_primitives",
  "cbor_primitives_everparse",
  "crypto_primitives",
+]
+
+[[package]]
+name = "cose_sign1_azure_artifact_signing"
+version = "0.1.0"
+dependencies = [
+ "azure_artifact_signing_client",
+ "azure_core",
+ "azure_identity",
+ "base64",
+ "bytes",
+ "cbor_primitives",
+ "cbor_primitives_everparse",
+ "cose_sign1_certificates",
+ "cose_sign1_headers",
+ "cose_sign1_primitives",
+ "cose_sign1_signing",
+ "cose_sign1_validation",
+ "cose_sign1_validation_primitives",
+ "crypto_primitives",
+ "did_x509",
+ "once_cell",
+ "openssl",
+ "rcgen",
+ "serde_json",
+ "sha2",
+ "tokio",
+]
+
+[[package]]
+name = "cose_sign1_azure_artifact_signing_ffi"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cbor_primitives_everparse",
+ "cose_sign1_azure_artifact_signing",
+ "cose_sign1_validation_ffi",
+ "libc",
 ]
 
 [[package]]

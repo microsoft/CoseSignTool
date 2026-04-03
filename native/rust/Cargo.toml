@@ -31,6 +31,9 @@ members = [
   "extension_packs/mst",
   "extension_packs/mst/client",
   "extension_packs/mst/ffi",
+  "extension_packs/azure_artifact_signing",
+  "extension_packs/azure_artifact_signing/client",
+  "extension_packs/azure_artifact_signing/ffi",
   "cose_openssl",
 ]
 

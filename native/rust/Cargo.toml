@@ -26,6 +26,8 @@ members = [
   "extension_packs/certificates/ffi",
   "extension_packs/certificates/local",
   "extension_packs/certificates/local/ffi",
+  "extension_packs/azure_key_vault",
+  "extension_packs/azure_key_vault/ffi",
   "cose_openssl",
 ]
 

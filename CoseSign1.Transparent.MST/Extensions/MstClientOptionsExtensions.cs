@@ -15,9 +15,10 @@ using CoseSign1.Transparent.MST;
 public static class MstClientOptionsExtensions
 {
     /// <summary>
-    /// Adds the <see cref="MstTransactionNotCachedPolicy"/> to the client options pipeline,
-    /// enabling fast retries for the MST <c>GetEntryStatement</c> 503 / <c>TransactionNotCached</c>
-    /// response pattern.
+    /// Adds the <see cref="MstPerformanceOptimizationPolicy"/> to the client options pipeline,
+    /// enabling fast retries for 503 responses and stripping retry-related headers
+    /// (<c>Retry-After</c>, <c>retry-after-ms</c>, <c>x-ms-retry-after-ms</c>) for improved
+    /// MST client performance.
     /// </summary>
     /// <param name="options">The <see cref="CodeTransparencyClientOptions"/> to configure.</param>
     /// <param name="retryDelay">
@@ -32,24 +33,25 @@ public static class MstClientOptionsExtensions
     /// <remarks>
     /// <para>
     /// This method does <b>not</b> modify the SDK's global <see cref="Azure.Core.RetryOptions"/>
-    /// on the client options. The fast retry loop runs entirely within the policy and only targets
-    /// HTTP 503 responses to <c>GET /entries/</c> requests. All other API calls retain whatever
-    /// retry behavior the caller has configured (or the SDK defaults).
+    /// on the client options. The policy performs fast retries for HTTP 503 responses on
+    /// <c>/entries/</c> endpoints and strips all retry-related headers (<c>Retry-After</c>,
+    /// <c>retry-after-ms</c>, <c>x-ms-retry-after-ms</c>) from both <c>/entries/</c> and
+    /// <c>/operations/</c> responses. All other API calls pass through unchanged.
     /// </para>
     ///
     /// <para>
     /// <b>Example:</b>
     /// <code>
     /// var options = new CodeTransparencyClientOptions();
-    /// options.ConfigureTransactionNotCachedRetry();                                // defaults
-    /// options.ConfigureTransactionNotCachedRetry(TimeSpan.FromMilliseconds(100));  // faster
-    /// options.ConfigureTransactionNotCachedRetry(maxRetries: 16);                  // longer window
+    /// options.ConfigureMstPerformanceOptimizations();                                // defaults
+    /// options.ConfigureMstPerformanceOptimizations(TimeSpan.FromMilliseconds(100));  // faster
+    /// options.ConfigureMstPerformanceOptimizations(maxRetries: 16);                  // longer window
     ///
     /// var client = new CodeTransparencyClient(endpoint, credential, options);
     /// </code>
     /// </para>
     /// </remarks>
-    public static CodeTransparencyClientOptions ConfigureTransactionNotCachedRetry(
+    public static CodeTransparencyClientOptions ConfigureMstPerformanceOptimizations(
         this CodeTransparencyClientOptions options,
         TimeSpan? retryDelay = null,
         int? maxRetries = null)
@@ -59,9 +61,9 @@ public static class MstClientOptionsExtensions
             throw new ArgumentNullException(nameof(options));
         }
 
-        var policy = new MstTransactionNotCachedPolicy(
-            retryDelay ?? MstTransactionNotCachedPolicy.DefaultRetryDelay,
-            maxRetries ?? MstTransactionNotCachedPolicy.DefaultMaxRetries);
+        var policy = new MstPerformanceOptimizationPolicy(
+            retryDelay ?? MstPerformanceOptimizationPolicy.DefaultRetryDelay,
+            maxRetries ?? MstPerformanceOptimizationPolicy.DefaultMaxRetries);
 
         options.AddPolicy(policy, HttpPipelinePosition.PerRetry);
         return options;

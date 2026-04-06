@@ -300,7 +300,7 @@ fn test_validate_async_trust_failure() {
         |_engine: &TrustFactEngine, _subject: &TrustSubject| -> Result<TrustDecision, TrustError> {
             Ok(TrustDecision {
                 is_trusted: false,
-                reasons: vec!["denied by test rule".to_string()],
+                reasons: vec!["denied by test rule".into()],
             })
         },
     ));

@@ -12,6 +12,7 @@ use cose_sign1_validation_primitives::{
     subject::TrustSubject,
     TrustDecision,
 };
+use std::borrow::Cow;
 use std::sync::Mutex;
 use std::sync::{
     atomic::{AtomicUsize, Ordering},
@@ -71,13 +72,13 @@ fn all_of_aggregates_denial_reasons() {
     let r2: TrustRuleRef = Arc::new(FnRule::new(
         "r2",
         |_e: &TrustFactEngine, _s: &TrustSubject| -> Result<TrustDecision, TrustError> {
-            Ok(TrustDecision::denied(vec!["nope".to_string()]))
+            Ok(TrustDecision::denied(vec![Cow::Borrowed("nope")]))
         },
     ));
     let r3: TrustRuleRef = Arc::new(FnRule::new(
         "r3",
         |_e: &TrustFactEngine, _s: &TrustSubject| -> Result<TrustDecision, TrustError> {
-            Ok(TrustDecision::denied(vec!["still nope".to_string()]))
+            Ok(TrustDecision::denied(vec![Cow::Borrowed("still nope")]))
         },
     ));
 
@@ -125,7 +126,7 @@ fn any_of_short_circuits_on_first_trusted() {
         "r2",
         move |_e: &TrustFactEngine, _s: &TrustSubject| -> Result<TrustDecision, TrustError> {
             r2_called.fetch_add(100, Ordering::SeqCst);
-            Ok(TrustDecision::denied(vec!["should not run".to_string()]))
+            Ok(TrustDecision::denied(vec![Cow::Borrowed("should not run")]))
         },
     ));
 
@@ -154,7 +155,7 @@ fn not_inverts_decision_and_emits_reason() {
     let inner: TrustRuleRef = Arc::new(FnRule::new(
         "inner",
         |_e: &TrustFactEngine, _s: &TrustSubject| -> Result<TrustDecision, TrustError> {
-            Ok(TrustDecision::denied(vec!["deny".to_string()]))
+            Ok(TrustDecision::denied(vec![Cow::Borrowed("deny")]))
         },
     ));
     let d = not_with_reason("not", inner, "custom")
@@ -172,7 +173,7 @@ fn audited_rule_records_audit_event() {
     let inner: TrustRuleRef = Arc::new(FnRule::new(
         "inner",
         |_e: &TrustFactEngine, _s: &TrustSubject| -> Result<TrustDecision, TrustError> {
-            Ok(TrustDecision::denied(vec!["x".to_string()]))
+            Ok(TrustDecision::denied(vec![Cow::Borrowed("x")]))
         },
     ));
 
@@ -232,7 +233,7 @@ fn policy_builder_adds_rules_and_compiles() {
     let deny: TrustRuleRef = Arc::new(FnRule::new(
         "deny",
         |_e: &TrustFactEngine, _s: &TrustSubject| -> Result<TrustDecision, TrustError> {
-            Ok(TrustDecision::denied(vec!["no".to_string()]))
+            Ok(TrustDecision::denied(vec![Cow::Borrowed("no")]))
         },
     ));
 
@@ -375,7 +376,7 @@ fn compiled_plan_from_rule_and_bypass_paths() {
     let deny: TrustRuleRef = Arc::new(FnRule::new(
         "deny",
         |_e: &TrustFactEngine, _s: &TrustSubject| -> Result<TrustDecision, TrustError> {
-            Ok(TrustDecision::denied(vec!["no".to_string()]))
+            Ok(TrustDecision::denied(vec![Cow::Borrowed("no")]))
         },
     ));
 

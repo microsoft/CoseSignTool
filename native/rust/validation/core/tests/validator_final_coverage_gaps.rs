@@ -256,7 +256,7 @@ fn test_cloneable_types() {
 
     let result = ValidationResult {
         kind: ValidationResultKind::Success,
-        validator_name: "test".to_string(),
+        validator_name: "test".into(),
         failures: vec![failure],
         metadata: BTreeMap::new(),
     };
@@ -788,7 +788,7 @@ fn test_async_post_signature_validation_default_impl() {
     let (message, _) = create_test_message();
     let trust_decision = TrustDecision {
         is_trusted: true,
-        reasons: vec!["mock trusted decision".to_string()],
+        reasons: vec!["mock trusted decision".into()],
     };
     let cose_key: Arc<dyn crypto_primitives::CryptoVerifier> = Arc::new(MockVerifier {
         should_succeed: true,

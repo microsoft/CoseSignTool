@@ -9,6 +9,7 @@ use cose_sign1_validation_primitives::rules::FnRule;
 use cose_sign1_validation_primitives::subject::TrustSubject;
 use cose_sign1_validation_primitives::TrustDecision;
 use once_cell::sync::Lazy;
+use std::borrow::Cow;
 use std::sync::Arc;
 
 #[derive(Debug)]
@@ -54,9 +55,9 @@ fn main() {
             |engine: &TrustFactEngine, subject: &TrustSubject| {
                 let facts = engine.get_facts::<ExampleFact>(subject)?;
                 if facts.is_empty() {
-                    Ok(TrustDecision::denied(vec![
-                        "Missing ExampleFact".to_string()
-                    ]))
+                    Ok(TrustDecision::denied(vec![Cow::Borrowed(
+                        "Missing ExampleFact",
+                    )]))
                 } else {
                     let _ = facts.iter().map(|f| f.value.len()).sum::<usize>();
                     Ok(TrustDecision::trusted_reason("ExampleFactPresent"))

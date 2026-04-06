@@ -9,6 +9,7 @@ use cose_sign1_validation_primitives::ids::{
 };
 use cose_sign1_validation_primitives::subject::TrustSubject;
 use cose_sign1_validation_primitives::TrustDecision;
+use std::borrow::Cow;
 
 #[test]
 fn subject_id_to_hex_is_64_chars() {
@@ -82,7 +83,7 @@ fn trust_decision_helpers_behave_as_expected() {
     assert!(one.is_trusted);
     assert_eq!(vec!["ok".to_string()], one.reasons);
 
-    let denied = TrustDecision::denied(vec!["no".to_string()]);
+    let denied = TrustDecision::denied(vec![Cow::Borrowed("no")]);
     assert!(!denied.is_trusted);
     assert_eq!(vec!["no".to_string()], denied.reasons);
 }

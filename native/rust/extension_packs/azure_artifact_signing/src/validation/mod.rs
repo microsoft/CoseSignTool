@@ -39,7 +39,7 @@ impl TrustFactProducer for AasFactProducer {
         // (these are produced by X509CertificateTrustPack if an x5chain is present).
         if let Ok(cose_sign1_validation_primitives::facts::TrustFactSet::Available(identities)) = ctx.get_fact_set::<cose_sign1_certificates::validation::facts::X509SigningCertificateIdentityFact>(ctx.subject()) {
             if let Some(identity) = identities.first() {
-                issuer_cn = Some(identity.issuer.clone());
+                issuer_cn = Some(identity.issuer.to_string());
                 if identity.issuer.contains("Microsoft") {
                     is_ats_issued = true;
                 }

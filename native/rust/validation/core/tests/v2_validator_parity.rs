@@ -321,7 +321,7 @@ fn v2_validate_when_bypassing_trust_succeeds_and_includes_bypass_metadata() {
         .add_trust_source(Arc::new(FnRule::new(
             "deny",
             |_e: &TrustFactEngine, _s: &TrustSubject| {
-                Ok(TrustDecision::denied(vec!["would-fail".to_string()]))
+                Ok(TrustDecision::denied(vec!["would-fail".into()]))
             },
         )))
         .build()

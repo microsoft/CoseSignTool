@@ -223,7 +223,7 @@ fn test_cloneable_types() {
 
     let result = ValidationResult {
         kind: ValidationResultKind::Success,
-        validator_name: "test".to_string(),
+        validator_name: "test".into(),
         failures: vec![failure],
         metadata: BTreeMap::new(),
     };

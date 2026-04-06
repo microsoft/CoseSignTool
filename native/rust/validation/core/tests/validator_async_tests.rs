@@ -582,7 +582,7 @@ fn validate_async_trust_denied_short_circuits() {
             |_e: &TrustFactEngine, _s: &TrustSubject| -> Result<TrustDecision, TrustError> {
                 Ok(TrustDecision {
                     is_trusted: false,
-                    reasons: vec!["denied".to_string()],
+                    reasons: vec!["denied".into()],
                 })
             },
         ));

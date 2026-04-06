@@ -1442,7 +1442,7 @@ fn not_rule_denied_inner_returns_trusted() {
     let deny_rule: TrustRuleRef = Arc::new(FnRule::new(
         "deny",
         |_e: &TrustFactEngine, _s: &TrustSubject| -> Result<TrustDecision, TrustError> {
-            Ok(TrustDecision::denied(vec!["inner denied".to_string()]))
+            Ok(TrustDecision::denied(vec![Cow::Borrowed("inner denied")]))
         },
     ));
 
@@ -1479,7 +1479,7 @@ fn any_of_first_denied_second_trusted() {
     let deny: TrustRuleRef = Arc::new(FnRule::new(
         "deny",
         |_e: &TrustFactEngine, _s: &TrustSubject| -> Result<TrustDecision, TrustError> {
-            Ok(TrustDecision::denied(vec!["no".to_string()]))
+            Ok(TrustDecision::denied(vec![Cow::Borrowed("no")]))
         },
     ));
     let allow: TrustRuleRef = allow_all("allow");
@@ -1734,7 +1734,7 @@ fn compiled_plan_or_plans_multiple() {
     let deny_rule: TrustRuleRef = Arc::new(FnRule::new(
         "deny",
         |_e: &TrustFactEngine, _s: &TrustSubject| -> Result<TrustDecision, TrustError> {
-            Ok(TrustDecision::denied(vec!["no".to_string()]))
+            Ok(TrustDecision::denied(vec![Cow::Borrowed("no")]))
         },
     ));
     let plan2 = CompiledTrustPlan::new(vec![], vec![], vec![deny_rule], vec![]);

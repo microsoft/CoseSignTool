@@ -3,7 +3,6 @@
 
 //! Additional coverage tests for rule selection and property matching edge cases.
 
-use cose_sign1_validation_primitives::decision::TrustDecision;
 use cose_sign1_validation_primitives::error::TrustError;
 use cose_sign1_validation_primitives::fact_properties::{FactProperties, FactValue};
 use cose_sign1_validation_primitives::facts::{

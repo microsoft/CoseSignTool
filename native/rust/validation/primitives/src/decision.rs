@@ -1,15 +1,19 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+use std::borrow::Cow;
+
 /// Outcome of trust evaluation for a subject.
 ///
 /// `reasons` is a human-readable list intended for diagnostics and audit logs.
+/// Uses `Cow<'static, str>` to avoid allocating for static deny reasons that are
+/// known at compile time.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TrustDecision {
     /// Whether the subject is trusted.
     pub is_trusted: bool,
     /// Diagnostic reasons (denials or trust reasons).
-    pub reasons: Vec<String>,
+    pub reasons: Vec<Cow<'static, str>>,
 }
 
 impl TrustDecision {
@@ -22,7 +26,7 @@ impl TrustDecision {
     }
 
     /// Trusted with explicit reasons.
-    pub fn trusted_with(reasons: Vec<String>) -> Self {
+    pub fn trusted_with(reasons: Vec<Cow<'static, str>>) -> Self {
         if reasons.is_empty() {
             return Self::trusted();
         }
@@ -33,12 +37,12 @@ impl TrustDecision {
     }
 
     /// Trusted with a single diagnostic reason.
-    pub fn trusted_reason(reason: impl Into<String>) -> Self {
+    pub fn trusted_reason(reason: impl Into<Cow<'static, str>>) -> Self {
         Self::trusted_with(vec![reason.into()])
     }
 
     /// Denied with explicit reasons.
-    pub fn denied(reasons: Vec<String>) -> Self {
+    pub fn denied(reasons: Vec<Cow<'static, str>>) -> Self {
         Self {
             is_trusted: false,
             reasons,

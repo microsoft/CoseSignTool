@@ -19,6 +19,7 @@ use crate::subject::TrustSubject;
 #[cfg(feature = "regex")]
 use regex::Regex;
 use std::any::Any;
+use std::borrow::Cow;
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -158,9 +159,9 @@ impl TrustRule for AnyOf {
         subject: &TrustSubject,
     ) -> Result<TrustDecision, TrustError> {
         if self.rules.is_empty() {
-            return Ok(TrustDecision::denied(vec![
-                "No trust sources were satisfied".to_string(),
-            ]));
+            return Ok(TrustDecision::denied(vec![Cow::Borrowed(
+                "No trust sources were satisfied",
+            )]));
         }
 
         let mut reasons = Vec::new();
@@ -195,7 +196,7 @@ impl TrustRule for Not {
     ) -> Result<TrustDecision, TrustError> {
         let d = self.rule.evaluate(engine, subject)?;
         Ok(if d.is_trusted {
-            TrustDecision::denied(vec![self.reason.to_string()])
+            TrustDecision::denied(vec![Cow::Borrowed(self.reason)])
         } else {
             TrustDecision::trusted()
         })
@@ -269,14 +270,14 @@ where
                     if values.iter().any(|v| predicate(v.as_ref())) {
                         Ok(TrustDecision::trusted())
                     } else {
-                        Ok(TrustDecision::denied(vec![deny_reason.to_string()]))
+                        Ok(TrustDecision::denied(vec![Cow::Borrowed(deny_reason)]))
                     }
                 }
-                TrustFactSet::Missing { reason } => Ok(TrustDecision::denied(vec![format!(
-                    "{deny_reason}: {reason}"
+                TrustFactSet::Missing { reason } => Ok(TrustDecision::denied(vec![Cow::Owned(
+                    format!("{deny_reason}: {reason}"),
                 )])),
-                TrustFactSet::Error { message } => Ok(TrustDecision::denied(vec![format!(
-                    "{deny_reason}: {message}"
+                TrustFactSet::Error { message } => Ok(TrustDecision::denied(vec![Cow::Owned(
+                    format!("{deny_reason}: {message}"),
                 )])),
             }
         },
@@ -504,29 +505,29 @@ where
             let values = match set {
                 TrustFactSet::Available(values) => values,
                 TrustFactSet::Missing { reason } => {
-                    return Ok(TrustDecision::denied(vec![format!(
+                    return Ok(TrustDecision::denied(vec![Cow::Owned(format!(
                         "{deny_reason}: {reason}"
-                    )]))
+                    ))]))
                 }
                 TrustFactSet::Error { message } => {
-                    return Ok(TrustDecision::denied(vec![format!(
+                    return Ok(TrustDecision::denied(vec![Cow::Owned(format!(
                         "{deny_reason}: {message}"
-                    )]))
+                    ))]))
                 }
             };
 
             let Some(selected) = select_fact(&values, &selector) else {
-                return Ok(TrustDecision::denied(vec![deny_reason.to_string()]));
+                return Ok(TrustDecision::denied(vec![Cow::Borrowed(deny_reason)]));
             };
 
             let Some(actual) = selected.get_property(property) else {
-                return Ok(TrustDecision::denied(vec![deny_reason.to_string()]));
+                return Ok(TrustDecision::denied(vec![Cow::Borrowed(deny_reason)]));
             };
 
             Ok(if predicate.matches(actual) {
                 TrustDecision::trusted()
             } else {
-                TrustDecision::denied(vec![deny_reason.to_string()])
+                TrustDecision::denied(vec![Cow::Borrowed(deny_reason)])
             })
         },
     ))
@@ -557,21 +558,21 @@ where
             let values = match set {
                 TrustFactSet::Available(values) => values,
                 TrustFactSet::Missing { reason } => {
-                    return Ok(TrustDecision::denied(vec![format!(
+                    return Ok(TrustDecision::denied(vec![Cow::Owned(format!(
                         "{deny_reason}: {reason}"
-                    )]))
+                    ))]))
                 }
                 TrustFactSet::Error { message } => {
-                    return Ok(TrustDecision::denied(vec![format!(
+                    return Ok(TrustDecision::denied(vec![Cow::Owned(format!(
                         "{deny_reason}: {message}"
-                    )]))
+                    ))]))
                 }
             };
 
             Ok(if select_fact(&values, &selector).is_some() {
                 TrustDecision::trusted()
             } else {
-                TrustDecision::denied(vec![deny_reason.to_string()])
+                TrustDecision::denied(vec![Cow::Borrowed(deny_reason)])
             })
         },
     ))
@@ -605,7 +606,7 @@ where
                     return Ok(match missing {
                         MissingBehavior::Allow => TrustDecision::trusted(),
                         MissingBehavior::Deny => {
-                            TrustDecision::denied(vec![deny_reason.to_string()])
+                            TrustDecision::denied(vec![Cow::Borrowed(deny_reason)])
                         }
                     })
                 }
@@ -616,7 +617,9 @@ where
             } else {
                 match missing {
                     MissingBehavior::Allow => TrustDecision::trusted(),
-                    MissingBehavior::Deny => TrustDecision::denied(vec![deny_reason.to_string()]),
+                    MissingBehavior::Deny => {
+                        TrustDecision::denied(vec![Cow::Borrowed(deny_reason)])
+                    }
                 }
             })
         },
@@ -701,52 +704,54 @@ where
             let left_values = match left_set {
                 TrustFactSet::Available(values) => values,
                 TrustFactSet::Missing { reason } => {
-                    return Ok(TrustDecision::denied(vec![format!(
+                    return Ok(TrustDecision::denied(vec![Cow::Owned(format!(
                         "{deny_reason}: {reason}"
-                    )]))
+                    ))]))
                 }
                 TrustFactSet::Error { message } => {
-                    return Ok(TrustDecision::denied(vec![format!(
+                    return Ok(TrustDecision::denied(vec![Cow::Owned(format!(
                         "{deny_reason}: {message}"
-                    )]))
+                    ))]))
                 }
             };
 
             let right_values = match right_set {
                 TrustFactSet::Available(values) => values,
                 TrustFactSet::Missing { reason } => {
-                    return Ok(TrustDecision::denied(vec![format!(
+                    return Ok(TrustDecision::denied(vec![Cow::Owned(format!(
                         "{deny_reason}: {reason}"
-                    )]))
+                    ))]))
                 }
                 TrustFactSet::Error { message } => {
-                    return Ok(TrustDecision::denied(vec![format!(
+                    return Ok(TrustDecision::denied(vec![Cow::Owned(format!(
                         "{deny_reason}: {message}"
-                    )]))
+                    ))]))
                 }
             };
 
             let Some(left) = select_fact(&left_values, &left_selector) else {
-                return Ok(TrustDecision::denied(vec![deny_reason.to_string()]));
+                return Ok(TrustDecision::denied(vec![Cow::Borrowed(deny_reason)]));
             };
 
             let right = select_fact(&right_values, &right_selector);
             let Some(right) = right else {
                 return Ok(match missing_right {
                     MissingBehavior::Allow => TrustDecision::trusted(),
-                    MissingBehavior::Deny => TrustDecision::denied(vec![deny_reason.to_string()]),
+                    MissingBehavior::Deny => {
+                        TrustDecision::denied(vec![Cow::Borrowed(deny_reason)])
+                    }
                 });
             };
 
             for (left_prop, right_prop) in &property_pairs {
                 let Some(left_val) = left.get_property(left_prop) else {
-                    return Ok(TrustDecision::denied(vec![deny_reason.to_string()]));
+                    return Ok(TrustDecision::denied(vec![Cow::Borrowed(deny_reason)]));
                 };
                 let Some(right_val) = right.get_property(right_prop) else {
-                    return Ok(TrustDecision::denied(vec![deny_reason.to_string()]));
+                    return Ok(TrustDecision::denied(vec![Cow::Borrowed(deny_reason)]));
                 };
                 if left_val != right_val {
-                    return Ok(TrustDecision::denied(vec![deny_reason.to_string()]));
+                    return Ok(TrustDecision::denied(vec![Cow::Borrowed(deny_reason)]));
                 }
             }
 

@@ -23,6 +23,7 @@ use cose_sign1_validation_primitives::subject::TrustSubject;
 use cose_sign1_validation_primitives::{
     CoseHeaderLocation, CoseSign1Message, TrustDecision, TrustEvaluationOptions,
 };
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::future::Future;
 use std::io::Read;
@@ -70,12 +71,20 @@ pub struct ValidationFailure {
 /// Result for a single validation stage.
 ///
 /// Stages may attach structured `metadata` to aid troubleshooting and auditing.
+///
+/// ## Allocation trade-off
+/// `metadata` uses `BTreeMap<String, String>` for the key type even though most keys are static
+/// strings. This is intentional: the map type is public, and changing keys to `Cow<'static, str>`
+/// would cascade through all consumers. The key allocations are cold-path and not performance
+/// critical compared to the hot-path fact engine lookups.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct ValidationResult {
     /// Stage outcome.
     pub kind: ValidationResultKind,
     /// Friendly stage name (e.g. "Signature").
-    pub validator_name: String,
+    ///
+    /// Uses `Cow<'static, str>` to avoid allocating when the name is a compile-time constant.
+    pub validator_name: Cow<'static, str>,
     /// Failures when `kind == Failure`.
     pub failures: Vec<ValidationFailure>,
     /// Arbitrary stage metadata.
@@ -99,7 +108,7 @@ impl ValidationResult {
     ///
     /// If `metadata` is `None`, the metadata map is empty.
     pub fn success(
-        validator_name: impl Into<String>,
+        validator_name: impl Into<Cow<'static, str>>,
         metadata: Option<BTreeMap<String, String>>,
     ) -> Self {
         Self {
@@ -113,11 +122,14 @@ impl ValidationResult {
     /// Create a not-applicable stage result.
     ///
     /// If `reason` is `Some` and non-empty, it is stored under [`Self::METADATA_REASON_KEY`].
-    pub fn not_applicable(validator_name: impl Into<String>, reason: Option<&str>) -> Self {
+    pub fn not_applicable(
+        validator_name: impl Into<Cow<'static, str>>,
+        reason: Option<&str>,
+    ) -> Self {
         let mut metadata = BTreeMap::new();
         if let Some(r) = reason {
             if !r.trim().is_empty() {
-                metadata.insert(Self::METADATA_REASON_KEY.to_string(), r.to_string());
+                metadata.insert(Self::METADATA_REASON_KEY.into(), r.to_string());
             }
         }
         Self {
@@ -129,7 +141,10 @@ impl ValidationResult {
     }
 
     /// Create a failed stage result.
-    pub fn failure(validator_name: impl Into<String>, failures: Vec<ValidationFailure>) -> Self {
+    pub fn failure(
+        validator_name: impl Into<Cow<'static, str>>,
+        failures: Vec<ValidationFailure>,
+    ) -> Self {
         Self {
             kind: ValidationResultKind::Failure,
             validator_name: validator_name.into(),
@@ -140,7 +155,7 @@ impl ValidationResult {
 
     /// Convenience helper for a single failure message.
     pub fn failure_message(
-        validator_name: impl Into<String>,
+        validator_name: impl Into<Cow<'static, str>>,
         message: impl Into<String>,
         error_code: Option<&str>,
     ) -> Self {
@@ -707,6 +722,7 @@ impl CoseSign1Validator {
             // Preserve existing behavior when key resolution fails and we don't have an
             // integrity-attesting counter-signature to fall back to.
             if !trust_result.is_valid() || !counter_sig_bypassed {
+                // Clone required: resolution_result appears in both its stage slot and `overall`.
                 return Ok(CoseSign1ValidationResult {
                     resolution: resolution_result.clone(),
                     trust: ValidationResult::not_applicable(
@@ -728,8 +744,8 @@ impl CoseSign1Validator {
             // Bypass primary signature verification.
             let mut resolution_metadata = BTreeMap::new();
             resolution_metadata.insert(
-                Self::METADATA_KEY_SIGNATURE_VERIFICATION_MODE.to_string(),
-                Self::METADATA_VALUE_SIGNATURE_VERIFICATION_BYPASSED.to_string(),
+                Self::METADATA_KEY_SIGNATURE_VERIFICATION_MODE.into(),
+                Self::METADATA_VALUE_SIGNATURE_VERIFICATION_BYPASSED.into(),
             );
             let resolution_result = ValidationResult::success(
                 Self::STAGE_NAME_KEY_MATERIAL_RESOLUTION,
@@ -992,8 +1008,8 @@ impl CoseSign1Validator {
 
             let mut resolution_metadata = BTreeMap::new();
             resolution_metadata.insert(
-                Self::METADATA_KEY_SIGNATURE_VERIFICATION_MODE.to_string(),
-                Self::METADATA_VALUE_SIGNATURE_VERIFICATION_BYPASSED.to_string(),
+                Self::METADATA_KEY_SIGNATURE_VERIFICATION_MODE.into(),
+                Self::METADATA_VALUE_SIGNATURE_VERIFICATION_BYPASSED.into(),
             );
             let resolution_result = ValidationResult::success(
                 Self::STAGE_NAME_KEY_MATERIAL_RESOLUTION,
@@ -1247,13 +1263,13 @@ impl CoseSign1Validator {
 
         let mut metadata = BTreeMap::new();
         if !diagnostics.is_empty() {
-            metadata.insert("Diagnostics".to_string(), diagnostics.join("\n"));
+            metadata.insert("Diagnostics".into(), diagnostics.join("\n"));
         }
 
         (
             ValidationResult {
                 kind: ValidationResultKind::Failure,
-                validator_name: Self::STAGE_NAME_KEY_MATERIAL_RESOLUTION.to_string(),
+                validator_name: Cow::Borrowed(Self::STAGE_NAME_KEY_MATERIAL_RESOLUTION),
                 failures: vec![ValidationFailure {
                     message: Self::ERROR_MESSAGE_NO_SIGNING_KEY_RESOLVED.to_string(),
                     error_code: Some(Self::ERROR_CODE_NO_SIGNING_KEY_RESOLVED.to_string()),
@@ -1357,22 +1373,22 @@ impl CoseSign1Validator {
                     .iter()
                     .map(|r| ValidationFailure {
                         error_code: Some(Self::ERROR_CODE_TRUST_PLAN_NOT_SATISFIED.to_string()),
-                        message: r.clone(),
+                        message: r.to_string(),
                         ..ValidationFailure::default()
                     })
                     .collect()
             };
 
             let mut metadata = BTreeMap::new();
-            metadata.insert("TrustDecision".to_string(), format!("{decision:?}"));
+            metadata.insert("TrustDecision".into(), format!("{decision:?}"));
             if let Some(a) = audit {
-                metadata.insert("TrustDecisionAudit".to_string(), format!("{a:?}"));
+                metadata.insert("TrustDecisionAudit".into(), format!("{a:?}"));
             }
 
             return Ok((
                 ValidationResult {
                     kind: ValidationResultKind::Failure,
-                    validator_name: Self::STAGE_NAME_KEY_MATERIAL_TRUST.to_string(),
+                    validator_name: Cow::Borrowed(Self::STAGE_NAME_KEY_MATERIAL_TRUST),
                     failures,
                     metadata,
                 },
@@ -1383,11 +1399,11 @@ impl CoseSign1Validator {
 
         let mut metadata = BTreeMap::new();
         if self.options.trust_evaluation_options.bypass_trust {
-            metadata.insert("BypassTrust".to_string(), "true".to_string());
+            metadata.insert("BypassTrust".into(), "true".into());
         }
-        metadata.insert("TrustDecision".to_string(), format!("{decision:?}"));
+        metadata.insert("TrustDecision".into(), format!("{decision:?}"));
         if let Some(a) = audit {
-            metadata.insert("TrustDecisionAudit".to_string(), format!("{a:?}"));
+            metadata.insert("TrustDecisionAudit".into(), format!("{a:?}"));
         }
 
         let signature_stage_metadata = if attempt_signature_bypass {
@@ -1432,8 +1448,8 @@ impl CoseSign1Validator {
             if integrity_facts.iter().any(|f| f.sig_structure_intact) {
                 let mut metadata = BTreeMap::new();
                 metadata.insert(
-                    Self::METADATA_KEY_SIGNATURE_VERIFICATION_MODE.to_string(),
-                    Self::METADATA_VALUE_SIGNATURE_VERIFICATION_BYPASSED.to_string(),
+                    Self::METADATA_KEY_SIGNATURE_VERIFICATION_MODE.into(),
+                    Self::METADATA_VALUE_SIGNATURE_VERIFICATION_BYPASSED.into(),
                 );
 
                 if let Some(details) = integrity_facts
@@ -1441,10 +1457,7 @@ impl CoseSign1Validator {
                     .find_map(|f| f.details.as_deref())
                     .map(str::to_string)
                 {
-                    metadata.insert(
-                        Self::METADATA_KEY_SIGNATURE_BYPASS_DETAILS.to_string(),
-                        details,
-                    );
+                    metadata.insert(Self::METADATA_KEY_SIGNATURE_BYPASS_DETAILS.into(), details);
                 }
 
                 return Some(metadata);
@@ -1533,8 +1546,8 @@ impl CoseSign1Validator {
 
                     let mut metadata = BTreeMap::new();
                     metadata.insert(
-                        Self::METADATA_KEY_SELECTED_VALIDATOR.to_string(),
-                        "streaming".to_string(),
+                        Self::METADATA_KEY_SELECTED_VALIDATOR.into(),
+                        "streaming".into(),
                     );
 
                     // Use streaming verification via VerifyingContext
@@ -1649,8 +1662,8 @@ impl CoseSign1Validator {
 
         let mut metadata = BTreeMap::new();
         metadata.insert(
-            Self::METADATA_KEY_SELECTED_VALIDATOR.to_string(),
-            "non-streaming".to_string(),
+            Self::METADATA_KEY_SELECTED_VALIDATOR.into(),
+            "non-streaming".into(),
         );
 
         match cose_key.verify(&sig_structure, message.signature()) {

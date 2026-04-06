@@ -7,6 +7,7 @@ use cose_sign1_transparent_mst::validation::facts::{
     MstReceiptStatementSha256Fact, MstReceiptTrustedFact,
 };
 use cose_sign1_validation_primitives::fact_properties::FactProperties;
+use std::sync::Arc;
 
 #[test]
 fn mst_fact_properties_unknown_fields_return_none() {
@@ -22,25 +23,25 @@ fn mst_fact_properties_unknown_fields_return_none() {
     .is_none());
 
     assert!(MstReceiptIssuerFact {
-        issuer: "example.com".to_string(),
+        issuer: Arc::from("example.com"),
     }
     .get_property("unknown")
     .is_none());
 
     assert!(MstReceiptKidFact {
-        kid: "kid".to_string(),
+        kid: Arc::from("kid"),
     }
     .get_property("unknown")
     .is_none());
 
     assert!(MstReceiptStatementSha256Fact {
-        sha256_hex: "00".repeat(32),
+        sha256_hex: Arc::from("00".repeat(32).as_str()),
     }
     .get_property("unknown")
     .is_none());
 
     assert!(MstReceiptStatementCoverageFact {
-        coverage: "coverage".to_string(),
+        coverage: "coverage",
     }
     .get_property("unknown")
     .is_none());

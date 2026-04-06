@@ -55,7 +55,7 @@ pub struct OpenSslJwkVerifierFactory;
 impl JwkVerifierFactory for OpenSslJwkVerifierFactory {
     fn verifier_from_ec_jwk(
         &self,
-        jwk: &EcJwk,
+        jwk: &EcJwk<'_>,
         cose_algorithm: i64,
     ) -> Result<Box<dyn CryptoVerifier>, CryptoError> {
         if jwk.kty != "EC" {
@@ -65,7 +65,7 @@ impl JwkVerifierFactory for OpenSslJwkVerifierFactory {
             )));
         }
 
-        let expected_len = match jwk.crv.as_str() {
+        let expected_len = match &*jwk.crv {
             "P-256" => 32,
             "P-384" => 48,
             "P-521" => 66,

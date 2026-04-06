@@ -4,6 +4,7 @@
 use crate::did_document::{DidDocument, VerificationMethod};
 use crate::error::DidX509Error;
 use crate::validator::DidX509Validator;
+use std::borrow::Cow;
 use std::collections::HashMap;
 use x509_parser::oid_registry::Oid;
 use x509_parser::prelude::*;
@@ -106,7 +107,7 @@ impl DidX509Resolver {
     }
 
     /// Convert X.509 certificate public key to JWK format
-    fn public_key_to_jwk(cert: &X509Certificate) -> Result<HashMap<String, String>, DidX509Error> {
+    fn public_key_to_jwk(cert: &X509Certificate) -> Result<HashMap<Cow<'static, str>, String>, DidX509Error> {
         let public_key = cert.public_key();
 
         match public_key.parsed() {
@@ -120,17 +121,17 @@ impl DidX509Resolver {
     }
 
     /// Convert RSA public key to JWK
-    fn rsa_to_jwk(rsa: &RSAPublicKey) -> Result<HashMap<String, String>, DidX509Error> {
+    fn rsa_to_jwk(rsa: &RSAPublicKey) -> Result<HashMap<Cow<'static, str>, String>, DidX509Error> {
         let mut jwk = HashMap::new();
-        jwk.insert("kty".to_string(), "RSA".to_string());
+        jwk.insert(Cow::Borrowed("kty"), "RSA".to_string());
 
         // Encode modulus (n) as base64url
         let n_base64 = base64url_encode(rsa.modulus);
-        jwk.insert("n".to_string(), n_base64);
+        jwk.insert(Cow::Borrowed("n"), n_base64);
 
         // Encode exponent (e) as base64url
         let e_base64 = base64url_encode(rsa.exponent);
-        jwk.insert("e".to_string(), e_base64);
+        jwk.insert(Cow::Borrowed("e"), e_base64);
 
         Ok(jwk)
     }
@@ -139,14 +140,14 @@ impl DidX509Resolver {
     fn ec_to_jwk(
         cert: &X509Certificate,
         ec_point: &ECPoint,
-    ) -> Result<HashMap<String, String>, DidX509Error> {
+    ) -> Result<HashMap<Cow<'static, str>, String>, DidX509Error> {
         let mut jwk = HashMap::new();
-        jwk.insert("kty".to_string(), "EC".to_string());
+        jwk.insert(Cow::Borrowed("kty"), "EC".to_string());
 
         // Determine the curve from the algorithm OID
         let alg_oid = &cert.public_key().algorithm.algorithm;
         let curve = Self::determine_ec_curve(alg_oid, ec_point.data())?;
-        jwk.insert("crv".to_string(), curve);
+        jwk.insert(Cow::Borrowed("crv"), curve.to_string());
 
         // Extract x and y coordinates from the EC point
         // EC points are typically encoded as 0x04 || x || y for uncompressed points
@@ -169,8 +170,8 @@ impl DidX509Resolver {
             let x = &point_data[1..1 + coord_len];
             let y = &point_data[1 + coord_len..];
 
-            jwk.insert("x".to_string(), base64url_encode(x));
-            jwk.insert("y".to_string(), base64url_encode(y));
+            jwk.insert(Cow::Borrowed("x"), base64url_encode(x));
+            jwk.insert(Cow::Borrowed("y"), base64url_encode(y));
         } else {
             return Err(DidX509Error::InvalidChain(
                 "Compressed EC point format not supported".to_string(),
@@ -181,7 +182,7 @@ impl DidX509Resolver {
     }
 
     /// Determine EC curve name from algorithm parameters
-    fn determine_ec_curve(alg_oid: &Oid, point_data: &[u8]) -> Result<String, DidX509Error> {
+    fn determine_ec_curve(alg_oid: &Oid, point_data: &[u8]) -> Result<&'static str, DidX509Error> {
         // Common EC curve OIDs
         const P256_OID: &str = "1.2.840.10045.3.1.7"; // secp256r1 / prime256v1
         const P384_OID: &str = "1.3.132.0.34"; // secp384r1
@@ -212,6 +213,6 @@ impl DidX509Resolver {
             }
         };
 
-        Ok(curve.to_string())
+        Ok(curve)
     }
 }

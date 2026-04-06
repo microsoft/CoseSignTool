@@ -13,6 +13,7 @@ use did_x509::builder::DidX509Builder;
 use did_x509::error::DidX509Error;
 use did_x509::resolver::DidX509Resolver;
 use did_x509::validator::DidX509Validator;
+use std::borrow::Cow;
 
 // Helper: generate a self-signed EC P-256 cert with code signing EKU
 fn make_ec_leaf() -> Vec<u8> {
@@ -248,7 +249,7 @@ fn extract_eku_returns_code_signing() {
     let (_, cert) = x509_parser::parse_x509_certificate(&cert_der).unwrap();
     let ekus = did_x509::x509_extensions::extract_extended_key_usage(&cert);
     assert!(
-        ekus.contains(&"1.3.6.1.5.5.7.3.3".to_string()),
+        ekus.iter().any(|x| x == "1.3.6.1.5.5.7.3.3"),
         "Should contain code signing EKU: {:?}",
         ekus
     );

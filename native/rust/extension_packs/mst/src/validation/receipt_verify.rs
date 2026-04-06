@@ -8,6 +8,8 @@ use cose_sign1_primitives::{
 use crypto_primitives::{EcJwk, JwkVerifierFactory};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
+use std::borrow::Cow;
+use std::sync::Arc;
 
 // Inline base64url utilities
 pub(crate) const BASE64_URL_SAFE: &[u8; 64] =
@@ -140,9 +142,9 @@ pub struct ReceiptVerifyInput<'a> {
 #[derive(Clone, Debug)]
 pub struct ReceiptVerifyOutput {
     pub trusted: bool,
-    pub details: Option<String>,
-    pub issuer: String,
-    pub kid: String,
+    pub details: Option<Arc<str>>,
+    pub issuer: Arc<str>,
+    pub kid: Arc<str>,
     pub statement_sha256: [u8; 32],
 }
 
@@ -215,6 +217,10 @@ pub fn verify_mst_receipt(
         .jwk_verifier_factory
         .verifier_from_ec_jwk(&ec_jwk, alg)
         .map_err(|e| ReceiptVerifyError::JwkUnsupported(format!("jwk_verifier: {e}")))?;
+
+    // Convert to Arc<str> for cheap cloning in fact production.
+    let issuer: Arc<str> = Arc::from(issuer);
+    let kid: Arc<str> = Arc::from(kid);
 
     // VDP is unprotected header label 396.
     let vdp_value = receipt
@@ -676,7 +682,7 @@ pub fn find_jwk_for_kid(jwks_json: &str, kid: &str) -> Result<Jwk, ReceiptVerify
 ///
 /// The local `Jwk` struct comes from JSON JWKS parsing. This function extracts
 /// the EC fields needed for the backend-agnostic `JwkVerifierFactory` trait.
-pub fn local_jwk_to_ec_jwk(jwk: &Jwk) -> Result<EcJwk, ReceiptVerifyError> {
+pub fn local_jwk_to_ec_jwk<'a>(jwk: &'a Jwk) -> Result<EcJwk<'a>, ReceiptVerifyError> {
     if jwk.kty != "EC" {
         return Err(ReceiptVerifyError::JwkUnsupported(format!(
             "kty={}",
@@ -699,11 +705,11 @@ pub fn local_jwk_to_ec_jwk(jwk: &Jwk) -> Result<EcJwk, ReceiptVerifyError> {
         .ok_or_else(|| ReceiptVerifyError::JwkUnsupported("missing_y".to_string()))?;
 
     Ok(EcJwk {
-        kty: jwk.kty.clone(),
-        crv: crv.to_string(),
-        x: x.to_string(),
-        y: y.to_string(),
-        kid: jwk.kid.clone(),
+        kty: Cow::Borrowed(&jwk.kty),
+        crv: Cow::Borrowed(crv),
+        x: Cow::Borrowed(x),
+        y: Cow::Borrowed(y),
+        kid: jwk.kid.as_deref().map(Cow::Borrowed),
     })
 }
 

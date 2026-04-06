@@ -15,7 +15,9 @@ use cose_sign1_validation_primitives::ids::sha256_of_bytes;
 use cose_sign1_validation_primitives::plan::CompiledTrustPlan;
 use cose_sign1_validation_primitives::subject::TrustSubject;
 use once_cell::sync::Lazy;
+use std::borrow::Cow;
 use std::collections::HashSet;
+use std::sync::Arc;
 
 use crate::validation::receipt_verify::{
     verify_mst_receipt, ReceiptVerifyError, ReceiptVerifyInput,
@@ -210,7 +212,7 @@ impl TrustFactProducer for MstTrustPack {
                 let Some(_msg) = ctx.cose_sign1_message() else {
                     ctx.observe(MstReceiptTrustedFact {
                         trusted: false,
-                        details: Some("no message in context for verification".to_string()),
+                        details: Some("no message in context for verification".into()),
                     })?;
                     for k in self.provides() {
                         ctx.mark_produced(*k);
@@ -242,20 +244,18 @@ impl TrustFactProducer for MstTrustPack {
                         })?;
                         ctx.observe(MstReceiptKidFact { kid: v.kid.clone() })?;
                         ctx.observe(MstReceiptStatementSha256Fact {
-                            sha256_hex: hex_encode(&v.statement_sha256),
+                            sha256_hex: Arc::from(hex_encode(&v.statement_sha256)),
                         })?;
                         ctx.observe(MstReceiptStatementCoverageFact {
-                            coverage: "sha256(COSE_Sign1 bytes with unprotected headers cleared)"
-                                .to_string(),
+                            coverage: "sha256(COSE_Sign1 bytes with unprotected headers cleared)",
                         })?;
                         ctx.observe(MstReceiptSignatureVerifiedFact { verified: true })?;
 
                         ctx.observe(CounterSignatureEnvelopeIntegrityFact {
                             sig_structure_intact: v.trusted,
-                            details: Some(
-                                "covers: sha256(COSE_Sign1 bytes with unprotected headers cleared)"
-                                    .to_string(),
-                            ),
+                            details: Some(Cow::Borrowed(
+                                "covers: sha256(COSE_Sign1 bytes with unprotected headers cleared)",
+                            )),
                         })?;
                     }
                     Err(e @ ReceiptVerifyError::UnsupportedVds(_)) => {
@@ -263,12 +263,12 @@ impl TrustFactProducer for MstTrustPack {
                         // Make the fact Available(false) so AnyOf semantics can still succeed.
                         ctx.observe(MstReceiptTrustedFact {
                             trusted: false,
-                            details: Some(e.to_string()),
+                            details: Some(e.to_string().into()),
                         })?;
                     }
                     Err(e) => ctx.observe(MstReceiptTrustedFact {
                         trusted: false,
-                        details: Some(e.to_string()),
+                        details: Some(e.to_string().into()),
                     })?,
                 }
 

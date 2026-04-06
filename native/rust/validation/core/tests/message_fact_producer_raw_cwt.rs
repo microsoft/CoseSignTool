@@ -110,7 +110,7 @@ fn raw_cwt_all_wellknown_int_claims() {
     assert_eq!(fact.nbf, Some(1_600_000_000));
     assert_eq!(fact.iat, Some(1_650_000_000));
 
-    assert!(matches!(fact.scalar_claims.get(&1), Some(CwtClaimScalar::Str(s)) if s == "issuer"));
+    assert!(matches!(fact.scalar_claims.get(&1), Some(CwtClaimScalar::Str(s)) if &**s == "issuer"));
     assert!(matches!(
         fact.scalar_claims.get(&4),
         Some(CwtClaimScalar::I64(1_700_000_000))
@@ -208,7 +208,7 @@ fn raw_cwt_nonstandard_int_keys() {
     assert!(fact.nbf.is_none());
     assert!(fact.iat.is_none());
 
-    assert!(matches!(fact.scalar_claims.get(&999), Some(CwtClaimScalar::Str(s)) if s == "val999"));
+    assert!(matches!(fact.scalar_claims.get(&999), Some(CwtClaimScalar::Str(s)) if &**s == "val999"));
     assert!(matches!(
         fact.scalar_claims.get(&1000),
         Some(CwtClaimScalar::I64(42))

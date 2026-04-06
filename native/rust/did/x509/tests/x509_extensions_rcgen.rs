@@ -10,6 +10,7 @@ use did_x509::x509_extensions::{
 };
 use rcgen::{BasicConstraints, CertificateParams, DnType, ExtendedKeyUsagePurpose, IsCa, KeyPair};
 use x509_parser::prelude::*;
+use std::borrow::Cow;
 
 /// Generate a certificate with multiple EKU flags.
 fn generate_cert_with_multiple_ekus() -> Vec<u8> {
@@ -74,7 +75,7 @@ fn test_extract_eku_server_auth() {
 
     let ekus = extract_extended_key_usage(&cert);
     assert!(
-        ekus.contains(&"1.3.6.1.5.5.7.3.1".to_string()),
+        ekus.iter().any(|x| x == "1.3.6.1.5.5.7.3.1"),
         "Should contain server auth OID"
     );
 }
@@ -86,7 +87,7 @@ fn test_extract_eku_client_auth() {
 
     let ekus = extract_extended_key_usage(&cert);
     assert!(
-        ekus.contains(&"1.3.6.1.5.5.7.3.2".to_string()),
+        ekus.iter().any(|x| x == "1.3.6.1.5.5.7.3.2"),
         "Should contain client auth OID"
     );
 }
@@ -98,7 +99,7 @@ fn test_extract_eku_code_signing() {
 
     let ekus = extract_extended_key_usage(&cert);
     assert!(
-        ekus.contains(&"1.3.6.1.5.5.7.3.3".to_string()),
+        ekus.iter().any(|x| x == "1.3.6.1.5.5.7.3.3"),
         "Should contain code signing OID"
     );
 }
@@ -110,7 +111,7 @@ fn test_extract_eku_email_protection() {
 
     let ekus = extract_extended_key_usage(&cert);
     assert!(
-        ekus.contains(&"1.3.6.1.5.5.7.3.4".to_string()),
+        ekus.iter().any(|x| x == "1.3.6.1.5.5.7.3.4"),
         "Should contain email protection OID"
     );
 }
@@ -122,7 +123,7 @@ fn test_extract_eku_time_stamping() {
 
     let ekus = extract_extended_key_usage(&cert);
     assert!(
-        ekus.contains(&"1.3.6.1.5.5.7.3.8".to_string()),
+        ekus.iter().any(|x| x == "1.3.6.1.5.5.7.3.8"),
         "Should contain time stamping OID"
     );
 }
@@ -134,7 +135,7 @@ fn test_extract_eku_ocsp_signing() {
 
     let ekus = extract_extended_key_usage(&cert);
     assert!(
-        ekus.contains(&"1.3.6.1.5.5.7.3.9".to_string()),
+        ekus.iter().any(|x| x == "1.3.6.1.5.5.7.3.9"),
         "Should contain OCSP signing OID"
     );
 }
@@ -148,27 +149,27 @@ fn test_extract_eku_multiple_flags() {
 
     // Should contain all the EKU OIDs
     assert!(
-        ekus.contains(&"1.3.6.1.5.5.7.3.1".to_string()),
+        ekus.iter().any(|x| x == "1.3.6.1.5.5.7.3.1"),
         "Missing server auth"
     );
     assert!(
-        ekus.contains(&"1.3.6.1.5.5.7.3.2".to_string()),
+        ekus.iter().any(|x| x == "1.3.6.1.5.5.7.3.2"),
         "Missing client auth"
     );
     assert!(
-        ekus.contains(&"1.3.6.1.5.5.7.3.3".to_string()),
+        ekus.iter().any(|x| x == "1.3.6.1.5.5.7.3.3"),
         "Missing code signing"
     );
     assert!(
-        ekus.contains(&"1.3.6.1.5.5.7.3.4".to_string()),
+        ekus.iter().any(|x| x == "1.3.6.1.5.5.7.3.4"),
         "Missing email protection"
     );
     assert!(
-        ekus.contains(&"1.3.6.1.5.5.7.3.8".to_string()),
+        ekus.iter().any(|x| x == "1.3.6.1.5.5.7.3.8"),
         "Missing time stamping"
     );
     assert!(
-        ekus.contains(&"1.3.6.1.5.5.7.3.9".to_string()),
+        ekus.iter().any(|x| x == "1.3.6.1.5.5.7.3.9"),
         "Missing OCSP signing"
     );
 }

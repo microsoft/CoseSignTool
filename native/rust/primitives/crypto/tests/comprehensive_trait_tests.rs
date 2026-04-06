@@ -15,11 +15,11 @@ use crypto_primitives::{
 #[test]
 fn ec_jwk_creation_and_debug() {
     let jwk = EcJwk {
-        kty: "EC".to_string(),
-        crv: "P-256".to_string(),
-        x: "base64url_x".to_string(),
-        y: "base64url_y".to_string(),
-        kid: Some("key-1".to_string()),
+        kty: "EC".into(),
+        crv: "P-256".into(),
+        x: "base64url_x".into(),
+        y: "base64url_y".into(),
+        kid: Some("key-1".into()),
     };
     assert_eq!(jwk.kty, "EC");
     assert_eq!(jwk.crv, "P-256");
@@ -33,10 +33,10 @@ fn ec_jwk_creation_and_debug() {
 #[test]
 fn ec_jwk_without_kid() {
     let jwk = EcJwk {
-        kty: "EC".to_string(),
-        crv: "P-384".to_string(),
-        x: "x384".to_string(),
-        y: "y384".to_string(),
+        kty: "EC".into(),
+        crv: "P-384".into(),
+        x: "x384".into(),
+        y: "y384".into(),
         kid: None,
     };
     assert!(jwk.kid.is_none());
@@ -45,24 +45,24 @@ fn ec_jwk_without_kid() {
 #[test]
 fn ec_jwk_clone() {
     let jwk = EcJwk {
-        kty: "EC".to_string(),
-        crv: "P-521".to_string(),
-        x: "x521".to_string(),
-        y: "y521".to_string(),
-        kid: Some("cloned-key".to_string()),
+        kty: "EC".into(),
+        crv: "P-521".into(),
+        x: "x521".into(),
+        y: "y521".into(),
+        kid: Some("cloned-key".into()),
     };
     let cloned = jwk.clone();
     assert_eq!(cloned.crv, "P-521");
-    assert_eq!(cloned.kid, Some("cloned-key".to_string()));
+    assert_eq!(cloned.kid.as_deref(), Some("cloned-key"));
 }
 
 #[test]
 fn rsa_jwk_creation_and_debug() {
     let jwk = RsaJwk {
-        kty: "RSA".to_string(),
+        kty: "RSA".into(),
         n: "modulus".to_string(),
         e: "AQAB".to_string(),
-        kid: Some("rsa-key".to_string()),
+        kid: Some("rsa-key".into()),
     };
     assert_eq!(jwk.kty, "RSA");
     assert_eq!(jwk.n, "modulus");
@@ -74,7 +74,7 @@ fn rsa_jwk_creation_and_debug() {
 #[test]
 fn rsa_jwk_without_kid() {
     let jwk = RsaJwk {
-        kty: "RSA".to_string(),
+        kty: "RSA".into(),
         n: "n".to_string(),
         e: "e".to_string(),
         kid: None,
@@ -85,7 +85,7 @@ fn rsa_jwk_without_kid() {
 #[test]
 fn rsa_jwk_clone() {
     let jwk = RsaJwk {
-        kty: "RSA".to_string(),
+        kty: "RSA".into(),
         n: "big-modulus".to_string(),
         e: "AQAB".to_string(),
         kid: None,
@@ -97,10 +97,10 @@ fn rsa_jwk_clone() {
 #[test]
 fn pqc_jwk_creation_and_debug() {
     let jwk = PqcJwk {
-        kty: "ML-DSA".to_string(),
+        kty: "ML-DSA".into(),
         alg: "ML-DSA-44".to_string(),
-        pub_key: "base64_pub".to_string(),
-        kid: Some("pqc-1".to_string()),
+        pub_key: "base64_pub".into(),
+        kid: Some("pqc-1".into()),
     };
     assert_eq!(jwk.kty, "ML-DSA");
     assert_eq!(jwk.alg, "ML-DSA-44");
@@ -111,9 +111,9 @@ fn pqc_jwk_creation_and_debug() {
 #[test]
 fn pqc_jwk_clone() {
     let jwk = PqcJwk {
-        kty: "ML-DSA".to_string(),
+        kty: "ML-DSA".into(),
         alg: "ML-DSA-87".to_string(),
-        pub_key: "key".to_string(),
+        pub_key: "key".into(),
         kid: None,
     };
     let cloned = jwk.clone();
@@ -127,10 +127,10 @@ fn pqc_jwk_clone() {
 #[test]
 fn jwk_ec_variant() {
     let ec = EcJwk {
-        kty: "EC".to_string(),
-        crv: "P-256".to_string(),
-        x: "x".to_string(),
-        y: "y".to_string(),
+        kty: "EC".into(),
+        crv: "P-256".into(),
+        x: "x".into(),
+        y: "y".into(),
         kid: None,
     };
     let jwk = Jwk::Ec(ec);
@@ -141,7 +141,7 @@ fn jwk_ec_variant() {
 #[test]
 fn jwk_rsa_variant() {
     let rsa = RsaJwk {
-        kty: "RSA".to_string(),
+        kty: "RSA".into(),
         n: "n".to_string(),
         e: "e".to_string(),
         kid: None,
@@ -154,9 +154,9 @@ fn jwk_rsa_variant() {
 #[test]
 fn jwk_pqc_variant() {
     let pqc = PqcJwk {
-        kty: "ML-DSA".to_string(),
+        kty: "ML-DSA".into(),
         alg: "ML-DSA-65".to_string(),
-        pub_key: "key".to_string(),
+        pub_key: "key".into(),
         kid: None,
     };
     let jwk = Jwk::Pqc(pqc);
@@ -167,10 +167,10 @@ fn jwk_pqc_variant() {
 #[test]
 fn jwk_clone() {
     let ec = EcJwk {
-        kty: "EC".to_string(),
-        crv: "P-256".to_string(),
-        x: "x".to_string(),
-        y: "y".to_string(),
+        kty: "EC".into(),
+        crv: "P-256".into(),
+        x: "x".into(),
+        y: "y".into(),
         kid: None,
     };
     let jwk = Jwk::Ec(ec);
@@ -191,7 +191,7 @@ struct MinimalJwkFactory;
 impl JwkVerifierFactory for MinimalJwkFactory {
     fn verifier_from_ec_jwk(
         &self,
-        _jwk: &EcJwk,
+        _jwk: &EcJwk<'_>,
         _cose_algorithm: i64,
     ) -> Result<Box<dyn CryptoVerifier>, CryptoError> {
         Err(CryptoError::UnsupportedOperation("test: not real".into()))
@@ -202,7 +202,7 @@ impl JwkVerifierFactory for MinimalJwkFactory {
 fn jwk_factory_rsa_default_returns_unsupported() {
     let factory = MinimalJwkFactory;
     let rsa = RsaJwk {
-        kty: "RSA".to_string(),
+        kty: "RSA".into(),
         n: "n".to_string(),
         e: "e".to_string(),
         kid: None,
@@ -222,9 +222,9 @@ fn jwk_factory_rsa_default_returns_unsupported() {
 fn jwk_factory_pqc_default_returns_unsupported() {
     let factory = MinimalJwkFactory;
     let pqc = PqcJwk {
-        kty: "ML-DSA".to_string(),
+        kty: "ML-DSA".into(),
         alg: "ML-DSA-44".to_string(),
-        pub_key: "key".to_string(),
+        pub_key: "key".into(),
         kid: None,
     };
     let result = factory.verifier_from_pqc_jwk(&pqc, -48);
@@ -242,10 +242,10 @@ fn jwk_factory_pqc_default_returns_unsupported() {
 fn jwk_factory_verifier_from_jwk_dispatches_ec() {
     let factory = MinimalJwkFactory;
     let ec = EcJwk {
-        kty: "EC".to_string(),
-        crv: "P-256".to_string(),
-        x: "x".to_string(),
-        y: "y".to_string(),
+        kty: "EC".into(),
+        crv: "P-256".into(),
+        x: "x".into(),
+        y: "y".into(),
         kid: None,
     };
     let jwk = Jwk::Ec(ec);
@@ -265,7 +265,7 @@ fn jwk_factory_verifier_from_jwk_dispatches_ec() {
 fn jwk_factory_verifier_from_jwk_dispatches_rsa() {
     let factory = MinimalJwkFactory;
     let rsa = RsaJwk {
-        kty: "RSA".to_string(),
+        kty: "RSA".into(),
         n: "n".to_string(),
         e: "e".to_string(),
         kid: None,
@@ -286,9 +286,9 @@ fn jwk_factory_verifier_from_jwk_dispatches_rsa() {
 fn jwk_factory_verifier_from_jwk_dispatches_pqc() {
     let factory = MinimalJwkFactory;
     let pqc = PqcJwk {
-        kty: "ML-DSA".to_string(),
+        kty: "ML-DSA".into(),
         alg: "ML-DSA-65".to_string(),
-        pub_key: "key".to_string(),
+        pub_key: "key".into(),
         kid: None,
     };
     let jwk = Jwk::Pqc(pqc);

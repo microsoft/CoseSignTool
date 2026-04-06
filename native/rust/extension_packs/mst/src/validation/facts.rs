@@ -3,6 +3,7 @@
 
 use cose_sign1_validation_primitives::fact_properties::{FactProperties, FactValue};
 use std::borrow::Cow;
+use std::sync::Arc;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MstReceiptPresentFact {
@@ -12,19 +13,19 @@ pub struct MstReceiptPresentFact {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MstReceiptTrustedFact {
     pub trusted: bool,
-    pub details: Option<String>,
+    pub details: Option<Arc<str>>,
 }
 
 /// The receipt issuer (`iss`) extracted from the MST receipt claims.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MstReceiptIssuerFact {
-    pub issuer: String,
+    pub issuer: Arc<str>,
 }
 
 /// The receipt signing key id (`kid`) used to resolve the receipt signing key.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MstReceiptKidFact {
-    pub kid: String,
+    pub kid: Arc<str>,
 }
 
 /// SHA-256 digest of the statement bytes that the MST verifier binds the receipt to.
@@ -33,13 +34,13 @@ pub struct MstReceiptKidFact {
 /// with *all* unprotected headers cleared (matching the Azure .NET verifier).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MstReceiptStatementSha256Fact {
-    pub sha256_hex: String,
+    pub sha256_hex: Arc<str>,
 }
 
 /// Describes what bytes are covered by the statement digest that the receipt binds to.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MstReceiptStatementCoverageFact {
-    pub coverage: String,
+    pub coverage: &'static str,
 }
 
 /// Indicates whether the receipt's own COSE signature verified.
@@ -159,7 +160,7 @@ impl FactProperties for MstReceiptIssuerFact {
     fn get_property<'a>(&'a self, name: &str) -> Option<FactValue<'a>> {
         match name {
             fields::mst_receipt_issuer::ISSUER => {
-                Some(FactValue::Str(Cow::Borrowed(self.issuer.as_str())))
+                Some(FactValue::Str(Cow::Borrowed(&self.issuer)))
             }
             _ => None,
         }
@@ -170,7 +171,7 @@ impl FactProperties for MstReceiptKidFact {
     /// Return the property value for declarative trust policies.
     fn get_property<'a>(&'a self, name: &str) -> Option<FactValue<'a>> {
         match name {
-            fields::mst_receipt_kid::KID => Some(FactValue::Str(Cow::Borrowed(self.kid.as_str()))),
+            fields::mst_receipt_kid::KID => Some(FactValue::Str(Cow::Borrowed(&self.kid))),
             _ => None,
         }
     }
@@ -181,7 +182,7 @@ impl FactProperties for MstReceiptStatementSha256Fact {
     fn get_property<'a>(&'a self, name: &str) -> Option<FactValue<'a>> {
         match name {
             fields::mst_receipt_statement_sha256::SHA256_HEX => {
-                Some(FactValue::Str(Cow::Borrowed(self.sha256_hex.as_str())))
+                Some(FactValue::Str(Cow::Borrowed(&self.sha256_hex)))
             }
             _ => None,
         }
@@ -193,7 +194,7 @@ impl FactProperties for MstReceiptStatementCoverageFact {
     fn get_property<'a>(&'a self, name: &str) -> Option<FactValue<'a>> {
         match name {
             fields::mst_receipt_statement_coverage::COVERAGE => {
-                Some(FactValue::Str(Cow::Borrowed(self.coverage.as_str())))
+                Some(FactValue::Str(Cow::Borrowed(self.coverage)))
             }
             _ => None,
         }

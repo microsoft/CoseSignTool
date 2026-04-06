@@ -8,6 +8,7 @@
 use did_x509::error::DidX509Error;
 use did_x509::resolver::DidX509Resolver;
 use rcgen::{CertificateParams, DnType, ExtendedKeyUsagePurpose, KeyPair};
+use std::borrow::Cow;
 
 /// Generate a self-signed X.509 certificate with EC key for testing JWK conversion.
 fn generate_ec_cert() -> Vec<u8> {
@@ -40,7 +41,7 @@ fn test_resolver_with_valid_ec_chain() {
     use did_x509::builder::DidX509Builder;
     use did_x509::models::policy::DidX509Policy;
 
-    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string()]);
+    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string().into()]);
     let did_string = DidX509Builder::build_sha256(&cert_der, &[policy]).expect("Should build DID");
 
     // Resolve DID to document
@@ -151,7 +152,7 @@ fn test_resolver_jwk_base64url_encoding() {
     use did_x509::builder::DidX509Builder;
     use did_x509::models::policy::DidX509Policy;
 
-    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string()]);
+    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string().into()]);
     let did_string = DidX509Builder::build_sha256(&cert_der, &[policy]).expect("Should build DID");
     let result = DidX509Resolver::resolve(&did_string, &[&cert_der]);
 

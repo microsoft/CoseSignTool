@@ -5,6 +5,7 @@
 //!
 //! These tests target uncovered paths in impl_*_inner functions to achieve full coverage.
 
+use std::borrow::Cow;
 use did_x509::builder::DidX509Builder;
 use did_x509::models::policy::DidX509Policy;
 use did_x509_ffi::*;
@@ -57,7 +58,7 @@ fn generate_invalid_cert() -> Vec<u8> {
 fn test_resolve_inner_happy_path() {
     // Generate a valid certificate and build proper DID
     let cert_der = generate_code_signing_cert();
-    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string()]);
+    let policy = DidX509Policy::Eku(vec![Cow::Borrowed("1.3.6.1.5.5.7.3.3")]);
     let did_string = DidX509Builder::build_sha256(&cert_der, &[policy]).expect("Should build DID");
     let did_cstring = CString::new(did_string.as_str()).unwrap();
 
@@ -162,7 +163,7 @@ fn test_resolve_inner_invalid_did() {
 fn test_validate_inner_matching_chain() {
     // Generate a valid certificate and build proper DID
     let cert_der = generate_code_signing_cert();
-    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string()]);
+    let policy = DidX509Policy::Eku(vec![Cow::Borrowed("1.3.6.1.5.5.7.3.3")]);
     let did_string = DidX509Builder::build_sha256(&cert_der, &[policy]).expect("Should build DID");
     let did_cstring = CString::new(did_string.as_str()).unwrap();
 
@@ -211,7 +212,7 @@ fn test_validate_inner_wrong_chain() {
 
     // Calculate fingerprint for a different certificate
     let cert_der2 = generate_code_signing_cert();
-    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string()]);
+    let policy = DidX509Policy::Eku(vec![Cow::Borrowed("1.3.6.1.5.5.7.3.3")]);
     let did_string = DidX509Builder::build_sha256(&cert_der2, &[policy]).expect("Should build DID");
 
     // Build DID for cert2 but validate against cert1

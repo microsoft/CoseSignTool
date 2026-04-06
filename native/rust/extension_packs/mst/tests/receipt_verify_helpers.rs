@@ -8,6 +8,7 @@ use cose_sign1_transparent_mst::validation::receipt_verify::{
     sha256_concat_slices, validate_receipt_alg_against_jwk, Jwk, ReceiptVerifyError,
 };
 use crypto_primitives::EcJwk;
+use std::borrow::Cow;
 
 #[test]
 fn test_sha256_basic() {
@@ -211,7 +212,7 @@ fn test_local_jwk_to_ec_jwk_p256() {
     assert_eq!(ec_jwk.crv, "P-256");
     assert_eq!(ec_jwk.x, x_b64);
     assert_eq!(ec_jwk.y, y_b64);
-    assert_eq!(ec_jwk.kid, Some("test-key".to_string()));
+    assert_eq!(ec_jwk.kid, Some(Cow::Borrowed("test-key")));
 }
 
 #[test]
@@ -235,7 +236,7 @@ fn test_local_jwk_to_ec_jwk_p384() {
     assert_eq!(ec_jwk.crv, "P-384");
     assert_eq!(ec_jwk.x, x_b64);
     assert_eq!(ec_jwk.y, y_b64);
-    assert_eq!(ec_jwk.kid, Some("test-key-384".to_string()));
+    assert_eq!(ec_jwk.kid, Some(Cow::Borrowed("test-key-384")));
 }
 
 #[test]

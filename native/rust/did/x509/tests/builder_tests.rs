@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+use std::borrow::Cow;
 use did_x509::{
     builder::DidX509Builder,
     constants::*,
@@ -108,7 +109,7 @@ AwEwDQYJKoZIhvcNAQELBQADggEBAA==
 #[test]
 fn test_build_with_eku_policy() {
     let ca_cert = create_test_cert_der();
-    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.2".to_string()]);
+    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.2".to_string().into()]);
 
     let did = DidX509Builder::build_sha256(&ca_cert, &[policy]).unwrap();
 
@@ -120,8 +121,8 @@ fn test_build_with_eku_policy() {
 fn test_build_with_multiple_eku_oids() {
     let ca_cert = create_test_cert_der();
     let policy = DidX509Policy::Eku(vec![
-        "1.3.6.1.5.5.7.3.2".to_string(),
-        "1.3.6.1.5.5.7.3.3".to_string(),
+        "1.3.6.1.5.5.7.3.2".to_string().into(),
+        "1.3.6.1.5.5.7.3.3".to_string().into(),
     ]);
 
     let did = DidX509Builder::build_sha256(&ca_cert, &[policy]).unwrap();
@@ -187,7 +188,7 @@ fn test_build_with_fulcio_issuer_policy() {
 fn test_build_with_multiple_policies() {
     let ca_cert = create_test_cert_der();
     let policies = vec![
-        DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.2".to_string()]),
+        DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.2".to_string().into()]),
         DidX509Policy::Subject(vec![("CN".to_string(), "test".to_string())]),
     ];
 
@@ -199,7 +200,7 @@ fn test_build_with_multiple_policies() {
 #[test]
 fn test_build_with_sha256() {
     let ca_cert = create_test_cert_der();
-    let policy = DidX509Policy::Eku(vec!["1.2.3.4".to_string()]);
+    let policy = DidX509Policy::Eku(vec!["1.2.3.4".to_string().into()]);
 
     let did = DidX509Builder::build(&ca_cert, &[policy], HASH_ALGORITHM_SHA256).unwrap();
 
@@ -213,7 +214,7 @@ fn test_build_with_sha256() {
 #[test]
 fn test_build_with_sha384() {
     let ca_cert = create_test_cert_der();
-    let policy = DidX509Policy::Eku(vec!["1.2.3.4".to_string()]);
+    let policy = DidX509Policy::Eku(vec!["1.2.3.4".to_string().into()]);
 
     let did = DidX509Builder::build(&ca_cert, &[policy], HASH_ALGORITHM_SHA384).unwrap();
 
@@ -227,7 +228,7 @@ fn test_build_with_sha384() {
 #[test]
 fn test_build_with_sha512() {
     let ca_cert = create_test_cert_der();
-    let policy = DidX509Policy::Eku(vec!["1.2.3.4".to_string()]);
+    let policy = DidX509Policy::Eku(vec!["1.2.3.4".to_string().into()]);
 
     let did = DidX509Builder::build(&ca_cert, &[policy], HASH_ALGORITHM_SHA512).unwrap();
 
@@ -241,7 +242,7 @@ fn test_build_with_sha512() {
 #[test]
 fn test_build_with_invalid_hash_algorithm() {
     let ca_cert = create_test_cert_der();
-    let policy = DidX509Policy::Eku(vec!["1.2.3.4".to_string()]);
+    let policy = DidX509Policy::Eku(vec!["1.2.3.4".to_string().into()]);
 
     let result = DidX509Builder::build(&ca_cert, &[policy], "sha1");
 
@@ -258,7 +259,7 @@ fn test_build_from_chain() {
     let ca_cert = create_test_cert_der();
     let chain: Vec<&[u8]> = vec![&leaf_cert, &ca_cert];
 
-    let policy = DidX509Policy::Eku(vec!["1.2.3.4".to_string()]);
+    let policy = DidX509Policy::Eku(vec!["1.2.3.4".to_string().into()]);
     let did = DidX509Builder::build_from_chain(&chain, &[policy]).unwrap();
 
     // Should use the last cert (CA) for fingerprint
@@ -269,7 +270,7 @@ fn test_build_from_chain() {
 #[test]
 fn test_build_from_chain_empty() {
     let chain: Vec<&[u8]> = vec![];
-    let policy = DidX509Policy::Eku(vec!["1.2.3.4".to_string()]);
+    let policy = DidX509Policy::Eku(vec!["1.2.3.4".to_string().into()]);
 
     let result = DidX509Builder::build_from_chain(&chain, &[policy]);
 
@@ -285,7 +286,7 @@ fn test_build_from_chain_single_cert() {
     let ca_cert = create_test_cert_der();
     let chain: Vec<&[u8]> = vec![&ca_cert];
 
-    let policy = DidX509Policy::Eku(vec!["1.2.3.4".to_string()]);
+    let policy = DidX509Policy::Eku(vec!["1.2.3.4".to_string().into()]);
     let did = DidX509Builder::build_from_chain(&chain, &[policy]).unwrap();
 
     assert!(did.starts_with("did:x509:0:sha256:"));
@@ -295,7 +296,7 @@ fn test_build_from_chain_single_cert() {
 fn test_roundtrip_build_and_parse() {
     let ca_cert = create_test_cert_der();
     let policies = vec![
-        DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.2".to_string()]),
+        DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.2".to_string().into()]),
         DidX509Policy::Subject(vec![
             ("CN".to_string(), "test.example.com".to_string()),
             ("O".to_string(), "Test Org".to_string()),

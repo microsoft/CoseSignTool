@@ -38,21 +38,21 @@ fn cwt_claims_fact_property_accessors_cover_standard_and_scalar_claims() {
     let mut scalar_claims = BTreeMap::new();
     scalar_claims.insert(42, CwtClaimScalar::I64(7));
     scalar_claims.insert(99, CwtClaimScalar::Bool(true));
-    scalar_claims.insert(100, CwtClaimScalar::Str("hello".to_string()));
+    scalar_claims.insert(100, CwtClaimScalar::Str("hello".into()));
 
     let mut raw_claims = BTreeMap::new();
     raw_claims.insert(6, encode_cbor_i64(555));
 
     let mut raw_claims_text = BTreeMap::new();
-    raw_claims_text.insert("custom".to_string(), encode_cbor_text("v"));
+    raw_claims_text.insert("custom".into(), encode_cbor_text("v"));
 
     let fact = CwtClaimsFact {
         scalar_claims,
         raw_claims,
         raw_claims_text,
-        iss: Some("issuer".to_string()),
+        iss: Some("issuer".into()),
         sub: None,
-        aud: Some("aud".to_string()),
+        aud: Some("aud".into()),
         exp: Some(1),
         nbf: None,
         iat: Some(2),

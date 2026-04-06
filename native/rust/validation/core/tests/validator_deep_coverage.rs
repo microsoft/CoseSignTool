@@ -28,6 +28,7 @@ use cose_sign1_validation_primitives::facts::{FactKey, TrustFactContext, TrustFa
 use cose_sign1_validation_primitives::plan::CompiledTrustPlan;
 use cose_sign1_validation_primitives::policy::TrustPolicyBuilder;
 use cose_sign1_validation_test_utils::SimpleTrustPack;
+use std::borrow::Cow;
 use std::future::Future;
 use std::io::{Cursor, Read};
 use std::pin::Pin;
@@ -488,7 +489,7 @@ impl CounterSignatureResolver for FakeCounterSigResolver {
 
 struct IntegrityFactProducer {
     sig_structure_intact: bool,
-    details: Option<String>,
+    details: Option<Cow<'static, str>>,
 }
 
 impl TrustFactProducer for IntegrityFactProducer {
@@ -1274,7 +1275,7 @@ fn counter_sig_bypass_sync_resolution_failed_with_integrity_fact() {
     let counter_sig_resolver: Arc<dyn CounterSignatureResolver> = Arc::new(FakeCounterSigResolver);
     let integrity_producer: Arc<dyn TrustFactProducer> = Arc::new(IntegrityFactProducer {
         sig_structure_intact: true,
-        details: Some("MST receipt verified".to_string()),
+        details: Some(Cow::Borrowed("MST receipt verified")),
     });
 
     let message_producer = CoseSign1MessageFactProducer::new()
@@ -1371,7 +1372,7 @@ fn counter_sig_bypass_sync_resolution_succeeded_with_integrity_fact() {
     let counter_sig_resolver: Arc<dyn CounterSignatureResolver> = Arc::new(FakeCounterSigResolver);
     let integrity_producer: Arc<dyn TrustFactProducer> = Arc::new(IntegrityFactProducer {
         sig_structure_intact: true,
-        details: Some("envelope verified".to_string()),
+        details: Some(Cow::Borrowed("envelope verified")),
     });
 
     let message_producer = CoseSign1MessageFactProducer::new()
@@ -1473,7 +1474,7 @@ fn async_counter_sig_bypass_resolution_failed_success() {
     let counter_sig_resolver: Arc<dyn CounterSignatureResolver> = Arc::new(FakeCounterSigResolver);
     let integrity_producer: Arc<dyn TrustFactProducer> = Arc::new(IntegrityFactProducer {
         sig_structure_intact: true,
-        details: Some("async bypass".to_string()),
+        details: Some(Cow::Borrowed("async bypass")),
     });
 
     let message_producer = CoseSign1MessageFactProducer::new()
@@ -1555,7 +1556,7 @@ fn async_counter_sig_bypass_resolution_succeeded_success() {
     let counter_sig_resolver: Arc<dyn CounterSignatureResolver> = Arc::new(FakeCounterSigResolver);
     let integrity_producer: Arc<dyn TrustFactProducer> = Arc::new(IntegrityFactProducer {
         sig_structure_intact: true,
-        details: Some("async resolved bypass".to_string()),
+        details: Some(Cow::Borrowed("async resolved bypass")),
     });
 
     let message_producer = CoseSign1MessageFactProducer::new()
@@ -1649,7 +1650,7 @@ fn counter_sig_bypass_includes_details_metadata() {
     let counter_sig_resolver: Arc<dyn CounterSignatureResolver> = Arc::new(FakeCounterSigResolver);
     let integrity_producer: Arc<dyn TrustFactProducer> = Arc::new(IntegrityFactProducer {
         sig_structure_intact: true,
-        details: Some("sha256 verified".to_string()),
+        details: Some(Cow::Borrowed("sha256 verified")),
     });
 
     let message_producer = CoseSign1MessageFactProducer::new()

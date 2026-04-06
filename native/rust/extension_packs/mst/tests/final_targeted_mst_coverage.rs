@@ -13,6 +13,7 @@ extern crate cbor_primitives_everparse;
 
 use cbor_primitives::CborEncoder;
 use cose_sign1_transparent_mst::validation::receipt_verify::*;
+use std::borrow::Cow;
 use crypto_primitives::EcJwk;
 
 // ============================================================================
@@ -443,7 +444,7 @@ fn test_local_jwk_to_ec_jwk_p384_valid() {
         ec_jwk.y,
         "mLgl1xH0TKP0VFl_0umg0Q6HBEUL0umg0Q6HBEUL0umg0Q6HBEUL0umg0Q6HBEUL"
     );
-    assert_eq!(ec_jwk.kid, Some("my-p384-key".to_string()));
+    assert_eq!(ec_jwk.kid, Some(Cow::Borrowed("my-p384-key")));
 }
 
 #[test]

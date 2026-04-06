@@ -9,6 +9,7 @@ use cose_sign1_validation::fluent::{
     TrustPlanBuilder,
 };
 use cose_sign1_validation_primitives::fact_properties::{FactProperties, FactValue};
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
@@ -66,7 +67,7 @@ fn message_fact_properties_cover_expected_branches() {
     assert_eq!(detached.get_property("nope"), None);
 
     let ct = ContentTypeFact {
-        content_type: "text/plain".to_string(),
+        content_type: "text/plain".into(),
     };
     assert!(matches!(
         ct.get_property("content_type"),
@@ -88,7 +89,7 @@ fn message_fact_properties_cover_expected_branches() {
         scalar_claims,
         raw_claims: BTreeMap::new(),
         raw_claims_text: BTreeMap::new(),
-        iss: Some("issuer".to_string()),
+        iss: Some("issuer".into()),
         sub: None,
         aud: None,
         exp: None,
@@ -106,7 +107,7 @@ fn message_fact_properties_cover_expected_branches() {
 
     let integrity = CounterSignatureEnvelopeIntegrityFact {
         sig_structure_intact: true,
-        details: Some("x".to_string()),
+        details: Some(Cow::Borrowed("x")),
     };
     assert_eq!(
         integrity.get_property("sig_structure_intact"),

@@ -3,6 +3,7 @@
 
 use crate::error::DidX509Error;
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 use std::collections::HashMap;
 
 /// W3C DID Document according to DID Core specification
@@ -39,7 +40,7 @@ pub struct VerificationMethod {
 
     /// Public key in JWK format
     #[serde(rename = "publicKeyJwk")]
-    pub public_key_jwk: HashMap<String, String>,
+    pub public_key_jwk: HashMap<Cow<'static, str>, String>,
 }
 
 impl DidDocument {

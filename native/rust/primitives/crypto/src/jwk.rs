@@ -11,6 +11,7 @@
 
 use crate::error::CryptoError;
 use crate::verifier::CryptoVerifier;
+use std::borrow::Cow;
 
 // ============================================================================
 // JWK Key Representations
@@ -20,17 +21,17 @@ use crate::verifier::CryptoVerifier;
 ///
 /// Used for ECDSA verification with P-256, P-384, and P-521 curves.
 #[derive(Debug, Clone)]
-pub struct EcJwk {
+pub struct EcJwk<'a> {
     /// Key type — must be "EC".
-    pub kty: String,
+    pub kty: Cow<'a, str>,
     /// Curve name: "P-256", "P-384", or "P-521".
-    pub crv: String,
+    pub crv: Cow<'a, str>,
     /// Base64url-encoded x-coordinate.
-    pub x: String,
+    pub x: Cow<'a, str>,
     /// Base64url-encoded y-coordinate.
-    pub y: String,
+    pub y: Cow<'a, str>,
     /// Key ID (optional).
-    pub kid: Option<String>,
+    pub kid: Option<Cow<'a, str>>,
 }
 
 /// RSA JWK public key (kty = "RSA").
@@ -69,9 +70,9 @@ pub struct PqcJwk {
 /// Use this enum when accepting keys of unknown type at runtime
 /// (e.g., from a JWKS document that may contain mixed key types).
 #[derive(Debug, Clone)]
-pub enum Jwk {
+pub enum Jwk<'a> {
     /// Elliptic Curve key (P-256, P-384, P-521).
-    Ec(EcJwk),
+    Ec(EcJwk<'a>),
     /// RSA key.
     Rsa(RsaJwk),
     /// Post-Quantum key (ML-DSA). Feature-gated at usage sites.
@@ -103,7 +104,7 @@ pub trait JwkVerifierFactory: Send + Sync {
     /// Create a `CryptoVerifier` from an EC JWK and a COSE algorithm identifier.
     fn verifier_from_ec_jwk(
         &self,
-        jwk: &EcJwk,
+        jwk: &EcJwk<'_>,
         cose_algorithm: i64,
     ) -> Result<Box<dyn CryptoVerifier>, CryptoError>;
 
@@ -140,7 +141,7 @@ pub trait JwkVerifierFactory: Send + Sync {
     /// Dispatches to the appropriate typed method based on `Jwk` variant.
     fn verifier_from_jwk(
         &self,
-        jwk: &Jwk,
+        jwk: &Jwk<'_>,
         cose_algorithm: i64,
     ) -> Result<Box<dyn CryptoVerifier>, CryptoError> {
         match jwk {

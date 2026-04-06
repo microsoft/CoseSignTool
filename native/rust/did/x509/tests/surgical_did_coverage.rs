@@ -34,6 +34,7 @@ use openssl::rsa::Rsa;
 use openssl::x509::extension::{BasicConstraints, ExtendedKeyUsage, SubjectAlternativeName};
 use openssl::x509::{X509Builder, X509NameBuilder};
 use sha2::{Digest, Sha256};
+use std::borrow::Cow;
 
 // ============================================================================
 // Helpers: certificate generation via openssl
@@ -424,7 +425,7 @@ fn validate_eku_missing_required_oid() {
     // Exercises validate_eku lines 22-27: required OID not present
     let cert_der = build_ec_leaf_cert_with_cn("EKU Test");
     let (_, cert) = x509_parser::parse_x509_certificate(&cert_der).unwrap();
-    let result = policy_validators::validate_eku(&cert, &["9.9.9.9.9".to_string()]);
+    let result = policy_validators::validate_eku(&cert, &["9.9.9.9.9".to_string().into()]);
     assert!(result.is_err());
     let err_msg = result.unwrap_err().to_string();
     assert!(err_msg.contains("9.9.9.9.9"));
@@ -435,7 +436,7 @@ fn validate_eku_no_eku_extension() {
     // Exercises validate_eku lines 15-18: no EKU extension at all
     let cert_der = build_bare_cert();
     let (_, cert) = x509_parser::parse_x509_certificate(&cert_der).unwrap();
-    let result = policy_validators::validate_eku(&cert, &["1.3.6.1.5.5.7.3.3".to_string()]);
+    let result = policy_validators::validate_eku(&cert, &["1.3.6.1.5.5.7.3.3".to_string().into()]);
     assert!(result.is_err());
     let err_msg = result.unwrap_err().to_string();
     assert!(err_msg.contains("no Extended Key Usage"));
@@ -447,7 +448,7 @@ fn validate_subject_matching() {
     let cert_der = build_ec_cert_with_subject("TestCN", "TestOrg", "TestOU");
     let (_, cert) = x509_parser::parse_x509_certificate(&cert_der).unwrap();
     let result =
-        policy_validators::validate_subject(&cert, &[("CN".to_string(), "TestCN".to_string())]);
+        policy_validators::validate_subject(&cert, &[("CN".to_string().into(), "TestCN".to_string().into())]);
     assert!(result.is_ok());
 }
 
@@ -457,7 +458,7 @@ fn validate_subject_value_mismatch() {
     let cert_der = build_ec_cert_with_subject("ActualCN", "ActualOrg", "ActualOU");
     let (_, cert) = x509_parser::parse_x509_certificate(&cert_der).unwrap();
     let result =
-        policy_validators::validate_subject(&cert, &[("CN".to_string(), "WrongCN".to_string())]);
+        policy_validators::validate_subject(&cert, &[("CN".to_string().into(), "WrongCN".to_string().into())]);
     assert!(result.is_err());
     let err_msg = result.unwrap_err().to_string();
     assert!(err_msg.contains("value mismatch"));
@@ -469,7 +470,7 @@ fn validate_subject_attribute_not_found() {
     let cert_der = build_ec_leaf_cert_with_cn("OnlyCN");
     let (_, cert) = x509_parser::parse_x509_certificate(&cert_der).unwrap();
     let result =
-        policy_validators::validate_subject(&cert, &[("O".to_string(), "SomeOrg".to_string())]);
+        policy_validators::validate_subject(&cert, &[("O".to_string().into(), "SomeOrg".to_string().into())]);
     assert!(result.is_err());
     let err_msg = result.unwrap_err().to_string();
     assert!(err_msg.contains("not found"));
@@ -481,7 +482,7 @@ fn validate_subject_unknown_attribute_label() {
     let cert_der = build_ec_leaf_cert_with_cn("Test");
     let (_, cert) = x509_parser::parse_x509_certificate(&cert_der).unwrap();
     let result =
-        policy_validators::validate_subject(&cert, &[("BOGUS".to_string(), "value".to_string())]);
+        policy_validators::validate_subject(&cert, &[("BOGUS".to_string().into(), "value".to_string().into())]);
     assert!(result.is_err());
     let err_msg = result.unwrap_err().to_string();
     assert!(err_msg.contains("Unknown attribute"));
@@ -568,7 +569,7 @@ fn extract_eku_returns_code_signing_oid() {
     let cert_der = build_ec_leaf_cert_with_cn("EKU Extract");
     let (_, cert) = x509_parser::parse_x509_certificate(&cert_der).unwrap();
     let ekus = x509_extensions::extract_extended_key_usage(&cert);
-    assert!(ekus.contains(&"1.3.6.1.5.5.7.3.3".to_string()));
+    assert!(ekus.iter().any(|x| x == "1.3.6.1.5.5.7.3.3"));
 }
 
 #[test]
@@ -724,7 +725,7 @@ fn validator_unsupported_hash_algorithm() {
 fn builder_encode_san_policy() {
     // Exercises encode_policy SAN match arm → lines 154-161
     let cert = build_ec_cert_with_san_dns("example.com");
-    let policy = DidX509Policy::San(SanType::Dns, "example.com".to_string());
+    let policy = DidX509Policy::San(SanType::Dns, "example.com".to_string().into());
     let did = DidX509Builder::build_sha256(&cert, &[policy]);
     assert!(did.is_ok());
     let did_str = did.unwrap();
@@ -734,7 +735,7 @@ fn builder_encode_san_policy() {
 #[test]
 fn builder_encode_san_email_policy() {
     let cert = build_ec_cert_with_san_email("user@example.com");
-    let policy = DidX509Policy::San(SanType::Email, "user@example.com".to_string());
+    let policy = DidX509Policy::San(SanType::Email, "user@example.com".to_string().into());
     let did = DidX509Builder::build_sha256(&cert, &[policy]);
     assert!(did.is_ok());
     let did_str = did.unwrap();
@@ -744,7 +745,7 @@ fn builder_encode_san_email_policy() {
 #[test]
 fn builder_encode_san_uri_policy() {
     let cert = build_ec_cert_with_san_uri("https://example.com/id");
-    let policy = DidX509Policy::San(SanType::Uri, "https://example.com/id".to_string());
+    let policy = DidX509Policy::San(SanType::Uri, "https://example.com/id".to_string().into());
     let did = DidX509Builder::build_sha256(&cert, &[policy]);
     assert!(did.is_ok());
     let did_str = did.unwrap();
@@ -755,7 +756,7 @@ fn builder_encode_san_uri_policy() {
 fn builder_encode_san_dn_policy() {
     // Exercises SAN Dn match arm → line 159
     let cert = build_ec_leaf_cert_with_cn("Test");
-    let policy = DidX509Policy::San(SanType::Dn, "CN=Test".to_string());
+    let policy = DidX509Policy::San(SanType::Dn, "CN=Test".to_string().into());
     let did = DidX509Builder::build_sha256(&cert, &[policy]);
     assert!(did.is_ok());
     let did_str = did.unwrap();
@@ -766,7 +767,7 @@ fn builder_encode_san_dn_policy() {
 fn builder_encode_fulcio_issuer_policy() {
     // Exercises encode_policy FulcioIssuer match arm → lines 163-164
     let cert = build_ec_leaf_cert_with_cn("Test");
-    let policy = DidX509Policy::FulcioIssuer("accounts.google.com".to_string());
+    let policy = DidX509Policy::FulcioIssuer("accounts.google.com".to_string().into());
     let did = DidX509Builder::build_sha256(&cert, &[policy]);
     assert!(did.is_ok());
     let did_str = did.unwrap();
@@ -778,8 +779,8 @@ fn builder_encode_subject_policy() {
     // Exercises encode_policy Subject match arm → lines 145-153
     let cert = build_ec_cert_with_subject("MyCN", "MyOrg", "MyOU");
     let policy = DidX509Policy::Subject(vec![
-        ("CN".to_string(), "MyCN".to_string()),
-        ("O".to_string(), "MyOrg".to_string()),
+        ("CN".to_string().into(), "MyCN".to_string().into()),
+        ("O".to_string().into(), "MyOrg".to_string().into()),
     ]);
     let did = DidX509Builder::build_sha256(&cert, &[policy]);
     assert!(did.is_ok());
@@ -827,7 +828,7 @@ fn builder_build_from_chain_empty() {
 fn builder_unsupported_hash_algorithm() {
     // Exercises compute_fingerprint line 128: unsupported hash
     let cert = build_ec_leaf_cert_with_cn("Test");
-    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string()]);
+    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string().into()]);
     let result = DidX509Builder::build(&cert, &[policy], "sha999");
     assert!(result.is_err());
 }
@@ -836,7 +837,7 @@ fn builder_unsupported_hash_algorithm() {
 fn builder_sha384_hash() {
     // Exercises compute_fingerprint sha384 path → line 126
     let cert = build_ec_leaf_cert_with_cn("SHA384 Test");
-    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string()]);
+    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string().into()]);
     let result = DidX509Builder::build(&cert, &[policy], "sha384");
     assert!(result.is_ok());
 }
@@ -845,7 +846,7 @@ fn builder_sha384_hash() {
 fn builder_sha512_hash() {
     // Exercises compute_fingerprint sha512 path → line 127
     let cert = build_ec_leaf_cert_with_cn("SHA512 Test");
-    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string()]);
+    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string().into()]);
     let result = DidX509Builder::build(&cert, &[policy], "sha512");
     assert!(result.is_ok());
 }
@@ -859,8 +860,8 @@ fn builder_sha512_hash() {
 fn did_document_to_json_non_indented() {
     // Exercises to_json(false) → line 57 (serde_json::to_string)
     let doc = DidDocument {
-        context: vec!["https://www.w3.org/ns/did/v1".to_string()],
-        id: "did:x509:test".to_string(),
+        context: vec!["https://www.w3.org/ns/did/v1".to_string().into()],
+        id: "did:x509:test".to_string().into(),
         verification_method: vec![],
         assertion_method: vec![],
     };
@@ -874,8 +875,8 @@ fn did_document_to_json_non_indented() {
 fn did_document_to_json_indented() {
     // Exercises to_json(true) → line 55 (serde_json::to_string_pretty)
     let doc = DidDocument {
-        context: vec!["https://www.w3.org/ns/did/v1".to_string()],
-        id: "did:x509:test".to_string(),
+        context: vec!["https://www.w3.org/ns/did/v1".to_string().into()],
+        id: "did:x509:test".to_string().into(),
         verification_method: vec![],
         assertion_method: vec![],
     };
@@ -1241,14 +1242,14 @@ fn san_parser_parse_sans_from_cert_no_san() {
 fn validation_result_add_error() {
     let mut result = DidX509ValidationResult::valid(0);
     assert!(result.is_valid);
-    result.add_error("test error".to_string());
+    result.add_error("test error".to_string().into());
     assert!(!result.is_valid);
     assert_eq!(result.errors.len(), 1);
 }
 
 #[test]
 fn validation_result_invalid_single() {
-    let result = DidX509ValidationResult::invalid("single error".to_string());
+    let result = DidX509ValidationResult::invalid("single error".to_string().into());
     assert!(!result.is_valid);
     assert!(result.matched_ca_index.is_none());
     assert_eq!(result.errors.len(), 1);
@@ -1291,32 +1292,32 @@ fn error_display_coverage() {
     // Exercise Display for several error variants
     let errors: Vec<DidX509Error> = vec![
         DidX509Error::EmptyDid,
-        DidX509Error::InvalidPrefix("test".to_string()),
+        DidX509Error::InvalidPrefix("test".to_string().into()),
         DidX509Error::MissingPolicies,
-        DidX509Error::InvalidFormat("fmt".to_string()),
-        DidX509Error::UnsupportedVersion("1".to_string(), "0".to_string()),
-        DidX509Error::UnsupportedHashAlgorithm("md5".to_string()),
+        DidX509Error::InvalidFormat("fmt".to_string().into()),
+        DidX509Error::UnsupportedVersion("1".to_string().into(), "0".to_string().into()),
+        DidX509Error::UnsupportedHashAlgorithm("md5".to_string().into()),
         DidX509Error::EmptyFingerprint,
-        DidX509Error::FingerprintLengthMismatch("sha256".to_string(), 43, 10),
+        DidX509Error::FingerprintLengthMismatch("sha256".to_string().into(), 43, 10),
         DidX509Error::InvalidFingerprintChars,
         DidX509Error::EmptyPolicy(1),
-        DidX509Error::InvalidPolicyFormat("bad".to_string()),
+        DidX509Error::InvalidPolicyFormat("bad".to_string().into()),
         DidX509Error::EmptyPolicyName,
         DidX509Error::EmptyPolicyValue,
         DidX509Error::InvalidSubjectPolicyComponents,
         DidX509Error::EmptySubjectPolicyKey,
-        DidX509Error::DuplicateSubjectPolicyKey("CN".to_string()),
-        DidX509Error::InvalidSanPolicyFormat("bad".to_string()),
-        DidX509Error::InvalidSanType("bad".to_string()),
+        DidX509Error::DuplicateSubjectPolicyKey("CN".to_string().into()),
+        DidX509Error::InvalidSanPolicyFormat("bad".to_string().into()),
+        DidX509Error::InvalidSanType("bad".to_string().into()),
         DidX509Error::InvalidEkuOid,
         DidX509Error::EmptyFulcioIssuer,
-        DidX509Error::PercentDecodingError("bad".to_string()),
+        DidX509Error::PercentDecodingError("bad".to_string().into()),
         DidX509Error::InvalidHexCharacter('G'),
-        DidX509Error::InvalidChain("bad".to_string()),
-        DidX509Error::CertificateParseError("bad".to_string()),
-        DidX509Error::PolicyValidationFailed("bad".to_string()),
+        DidX509Error::InvalidChain("bad".to_string().into()),
+        DidX509Error::CertificateParseError("bad".to_string().into()),
+        DidX509Error::PolicyValidationFailed("bad".to_string().into()),
         DidX509Error::NoCaMatch,
-        DidX509Error::ValidationFailed("bad".to_string()),
+        DidX509Error::ValidationFailed("bad".to_string().into()),
     ];
     for err in &errors {
         let msg = format!("{}", err);
@@ -1332,7 +1333,7 @@ fn error_display_coverage() {
 #[test]
 fn builder_build_sha256_shorthand() {
     let cert = build_ec_leaf_cert_with_cn("Shorthand");
-    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string()]);
+    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string().into()]);
     let result = DidX509Builder::build_sha256(&cert, &[policy]);
     assert!(result.is_ok());
 }
@@ -1342,7 +1343,7 @@ fn builder_build_from_chain_last_cert_as_ca() {
     // Exercises build_from_chain line 97-98: uses last cert as CA
     let leaf = build_ec_leaf_cert_with_cn("Leaf");
     let ca = build_ca_cert();
-    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string()]);
+    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string().into()]);
     let result = DidX509Builder::build_from_chain(&[&leaf, &ca], &[policy]);
     assert!(result.is_ok());
 }
@@ -1375,7 +1376,7 @@ fn san_type_from_str_all_variants() {
 #[test]
 fn resolver_roundtrip_build_then_resolve_ec() {
     let cert = build_ec_leaf_cert_with_cn("Roundtrip EC");
-    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string()]);
+    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string().into()]);
     let did = DidX509Builder::build_sha256(&cert, &[policy]).unwrap();
     let doc = DidX509Resolver::resolve(&did, &[&cert]).unwrap();
     assert_eq!(doc.verification_method.len(), 1);
@@ -1385,7 +1386,7 @@ fn resolver_roundtrip_build_then_resolve_ec() {
 #[test]
 fn resolver_roundtrip_build_then_resolve_rsa() {
     let cert = build_rsa_leaf_cert();
-    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string()]);
+    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string().into()]);
     let did = DidX509Builder::build_sha256(&cert, &[policy]).unwrap();
     let doc = DidX509Resolver::resolve(&did, &[&cert]).unwrap();
     assert_eq!(doc.verification_method.len(), 1);

@@ -21,6 +21,7 @@ use rcgen::{
     IsCa, KeyPair, SanType as RcgenSanType,
 };
 use x509_parser::prelude::*;
+use std::borrow::Cow;
 
 /// Generate an EC certificate with code signing EKU
 fn generate_ec_cert_with_eku(ekus: Vec<ExtendedKeyUsagePurpose>) -> Vec<u8> {
@@ -101,7 +102,7 @@ fn generate_plain_cert() -> Vec<u8> {
 #[test]
 fn test_resolver_ec_p256_jwk() {
     let cert_der = generate_ec_cert_with_eku(vec![ExtendedKeyUsagePurpose::CodeSigning]);
-    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string()]);
+    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string().into()]);
     let did = DidX509Builder::build_sha256(&cert_der, &[policy]).unwrap();
 
     let result = DidX509Resolver::resolve(&did, &[&cert_der]);
@@ -124,7 +125,7 @@ fn test_resolver_ec_p256_jwk() {
 #[test]
 fn test_resolver_did_document_structure() {
     let cert_der = generate_ec_cert_with_eku(vec![ExtendedKeyUsagePurpose::CodeSigning]);
-    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string()]);
+    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string().into()]);
     let did = DidX509Builder::build_sha256(&cert_der, &[policy]).unwrap();
 
     let result = DidX509Resolver::resolve(&did, &[&cert_der]).unwrap();
@@ -150,7 +151,7 @@ fn test_resolver_did_document_structure() {
 fn test_resolver_validation_failure() {
     let cert_der = generate_ec_cert_with_eku(vec![ExtendedKeyUsagePurpose::ServerAuth]);
     // Create DID requiring Code Signing EKU, but cert only has Server Auth
-    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string()]); // Code Signing
+    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string().into()]); // Code Signing
 
     // Use a correct fingerprint but wrong policy
     use sha2::{Digest, Sha256};
@@ -181,27 +182,27 @@ fn test_extract_all_standard_ekus() {
 
     // Should contain all 6 standard EKU OIDs
     assert!(
-        ekus.contains(&"1.3.6.1.5.5.7.3.1".to_string()),
+        ekus.iter().any(|x| x == "1.3.6.1.5.5.7.3.1"),
         "Missing ServerAuth"
     );
     assert!(
-        ekus.contains(&"1.3.6.1.5.5.7.3.2".to_string()),
+        ekus.iter().any(|x| x == "1.3.6.1.5.5.7.3.2"),
         "Missing ClientAuth"
     );
     assert!(
-        ekus.contains(&"1.3.6.1.5.5.7.3.3".to_string()),
+        ekus.iter().any(|x| x == "1.3.6.1.5.5.7.3.3"),
         "Missing CodeSigning"
     );
     assert!(
-        ekus.contains(&"1.3.6.1.5.5.7.3.4".to_string()),
+        ekus.iter().any(|x| x == "1.3.6.1.5.5.7.3.4"),
         "Missing EmailProtection"
     );
     assert!(
-        ekus.contains(&"1.3.6.1.5.5.7.3.8".to_string()),
+        ekus.iter().any(|x| x == "1.3.6.1.5.5.7.3.8"),
         "Missing TimeStamping"
     );
     assert!(
-        ekus.contains(&"1.3.6.1.5.5.7.3.9".to_string()),
+        ekus.iter().any(|x| x == "1.3.6.1.5.5.7.3.9"),
         "Missing OcspSigning"
     );
 }
@@ -225,7 +226,7 @@ fn test_extract_eku_oids_wrapper_success() {
     assert!(result.is_ok());
 
     let oids = result.unwrap();
-    assert!(oids.contains(&"1.3.6.1.5.5.7.3.1".to_string()));
+    assert!(oids.iter().any(|x| x == "1.3.6.1.5.5.7.3.1"));
 }
 
 #[test]
@@ -308,7 +309,7 @@ fn test_extract_fulcio_issuer_not_present() {
 #[test]
 fn test_base64url_no_padding() {
     let cert_der = generate_ec_cert_with_eku(vec![ExtendedKeyUsagePurpose::CodeSigning]);
-    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string()]);
+    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string().into()]);
     let did = DidX509Builder::build_sha256(&cert_der, &[policy]).unwrap();
 
     let doc = DidX509Resolver::resolve(&did, &[&cert_der]).unwrap();

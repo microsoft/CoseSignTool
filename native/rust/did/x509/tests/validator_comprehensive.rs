@@ -10,6 +10,7 @@ use did_x509::models::SanType;
 use did_x509::validator::DidX509Validator;
 use rcgen::string::Ia5String;
 use rcgen::{CertificateParams, DnType, ExtendedKeyUsagePurpose, KeyPair, SanType as RcgenSanType};
+use std::borrow::Cow;
 
 /// Generate certificate with code signing EKU
 fn generate_code_signing_cert() -> Vec<u8> {
@@ -76,7 +77,7 @@ fn generate_cert_with_san() -> Vec<u8> {
 #[test]
 fn test_validate_with_eku_policy() {
     let cert_der = generate_code_signing_cert();
-    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string()]);
+    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string().into()]);
     let did = DidX509Builder::build_sha256(&cert_der, &[policy]).unwrap();
 
     let result = DidX509Validator::validate(&did, &[&cert_der]);
@@ -105,7 +106,7 @@ fn test_validate_with_wrong_eku() {
     let cert_der = cert.der().to_vec();
 
     // Build DID requiring code signing using proper builder
-    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string()]);
+    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string().into()]);
     let did = DidX509Builder::build_sha256(&cert_der, &[policy]).unwrap();
 
     let result = DidX509Validator::validate(&did, &[&cert_der]);
@@ -125,7 +126,7 @@ fn test_validate_with_subject_policy() {
 
     // Build DID with subject policy
     let policies = vec![
-        DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string()]),
+        DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string().into()]),
         DidX509Policy::Subject(vec![("CN".to_string(), "Subject Test".to_string())]),
     ];
     let did = DidX509Builder::build_sha256(&cert_der, &policies).unwrap();
@@ -147,7 +148,7 @@ fn test_validate_with_san_policy() {
 
     // Build DID with SAN policy
     let policies = vec![
-        DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string()]),
+        DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string().into()]),
         DidX509Policy::San(SanType::Dns, "example.com".to_string()),
     ];
     let did = DidX509Builder::build_sha256(&cert_der, &policies).unwrap();
@@ -216,7 +217,7 @@ fn test_validate_multiple_policies_all_pass() {
     let cert_der = generate_cert_with_san();
 
     let policies = vec![
-        DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string()]),
+        DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string().into()]),
         DidX509Policy::San(SanType::Dns, "example.com".to_string()),
         DidX509Policy::San(SanType::Email, "test@example.com".to_string()),
     ];
@@ -235,7 +236,7 @@ fn test_validate_multiple_policies_one_fails() {
 
     // Build DID with policies that match, then validate with a different SAN
     let policies = vec![
-        DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string()]),
+        DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string().into()]),
         DidX509Policy::San(SanType::Dns, "example.com".to_string()),
     ];
     let did = DidX509Builder::build_sha256(&cert_der, &policies).unwrap();
@@ -335,7 +336,7 @@ fn test_validator_with_sha384_did() {
     let cert_der = generate_code_signing_cert();
 
     // Build DID with SHA384
-    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string()]);
+    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string().into()]);
     let did_string =
         DidX509Builder::build(&cert_der, &[policy], "sha384").expect("Should build SHA384 DID");
 
@@ -357,7 +358,7 @@ fn test_validator_with_sha512_did() {
     let cert_der = generate_code_signing_cert();
 
     // Build DID with SHA512
-    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string()]);
+    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string().into()]);
     let did_string =
         DidX509Builder::build(&cert_der, &[policy], "sha512").expect("Should build SHA512 DID");
 

@@ -113,6 +113,12 @@ impl<'a> TrustFactContext<'a> {
         self.engine.cose_sign1_message.as_deref()
     }
 
+    /// Parsed COSE message as an `Arc`, avoiding a deep clone when the caller
+    /// already needs shared ownership.
+    pub fn cose_sign1_message_arc(&self) -> Option<Arc<CoseSign1Message>> {
+        self.engine.cose_sign1_message.as_ref().map(Arc::clone)
+    }
+
     /// Which COSE header location rules should consult.
     pub fn cose_header_location(&self) -> CoseHeaderLocation {
         self.engine.cose_header_location

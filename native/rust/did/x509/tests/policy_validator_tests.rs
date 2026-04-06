@@ -63,7 +63,7 @@ fn test_validate_eku_success_single_oid() {
     let cert_der = generate_cert_with_eku(vec![ExtendedKeyUsagePurpose::CodeSigning]);
     let (_, cert) = X509Certificate::from_der(&cert_der).unwrap();
 
-    let result = validate_eku(&cert, &["1.3.6.1.5.5.7.3.3".to_string()]);
+    let result = validate_eku(&cert, &["1.3.6.1.5.5.7.3.3".to_string().into()]);
     assert!(result.is_ok());
 }
 
@@ -78,8 +78,8 @@ fn test_validate_eku_success_multiple_oids() {
     let result = validate_eku(
         &cert,
         &[
-            "1.3.6.1.5.5.7.3.3".to_string(), // Code Signing
-            "1.3.6.1.5.5.7.3.2".to_string(), // Client Auth
+            "1.3.6.1.5.5.7.3.3".to_string().into(), // Code Signing
+            "1.3.6.1.5.5.7.3.2".to_string().into(), // Client Auth
         ],
     );
     assert!(result.is_ok());
@@ -90,7 +90,7 @@ fn test_validate_eku_failure_missing_extension() {
     let cert_der = generate_cert_with_eku(vec![]); // No EKU extension
     let (_, cert) = X509Certificate::from_der(&cert_der).unwrap();
 
-    let result = validate_eku(&cert, &["1.3.6.1.5.5.7.3.3".to_string()]);
+    let result = validate_eku(&cert, &["1.3.6.1.5.5.7.3.3".to_string().into()]);
     assert!(result.is_err());
     match result {
         Err(DidX509Error::PolicyValidationFailed(msg)) => {
@@ -105,7 +105,7 @@ fn test_validate_eku_failure_wrong_oid() {
     let cert_der = generate_cert_with_eku(vec![ExtendedKeyUsagePurpose::ServerAuth]);
     let (_, cert) = X509Certificate::from_der(&cert_der).unwrap();
 
-    let result = validate_eku(&cert, &["1.3.6.1.5.5.7.3.3".to_string()]); // Expect Code Signing
+    let result = validate_eku(&cert, &["1.3.6.1.5.5.7.3.3".to_string().into()]); // Expect Code Signing
     assert!(result.is_err());
     match result {
         Err(DidX509Error::PolicyValidationFailed(msg)) => {
@@ -118,26 +118,26 @@ fn test_validate_eku_failure_wrong_oid() {
 #[test]
 fn test_validate_subject_success_single_attribute() {
     let cert_der =
-        generate_cert_with_subject(vec![(DnType::CommonName, "Test Subject".to_string())]);
+        generate_cert_with_subject(vec![(DnType::CommonName, "Test Subject".to_string().into())]);
     let (_, cert) = X509Certificate::from_der(&cert_der).unwrap();
 
-    let result = validate_subject(&cert, &[("CN".to_string(), "Test Subject".to_string())]);
+    let result = validate_subject(&cert, &[("CN".to_string().into(), "Test Subject".to_string().into())]);
     assert!(result.is_ok());
 }
 
 #[test]
 fn test_validate_subject_success_multiple_attributes() {
     let cert_der = generate_cert_with_subject(vec![
-        (DnType::CommonName, "Test Subject".to_string()),
-        (DnType::OrganizationName, "Test Org".to_string()),
+        (DnType::CommonName, "Test Subject".to_string().into()),
+        (DnType::OrganizationName, "Test Org".to_string().into()),
     ]);
     let (_, cert) = X509Certificate::from_der(&cert_der).unwrap();
 
     let result = validate_subject(
         &cert,
         &[
-            ("CN".to_string(), "Test Subject".to_string()),
-            ("O".to_string(), "Test Org".to_string()),
+            ("CN".to_string().into(), "Test Subject".to_string().into()),
+            ("O".to_string().into(), "Test Org".to_string().into()),
         ],
     );
     assert!(result.is_ok());
@@ -146,7 +146,7 @@ fn test_validate_subject_success_multiple_attributes() {
 #[test]
 fn test_validate_subject_failure_empty_attributes() {
     let cert_der =
-        generate_cert_with_subject(vec![(DnType::CommonName, "Test Subject".to_string())]);
+        generate_cert_with_subject(vec![(DnType::CommonName, "Test Subject".to_string().into())]);
     let (_, cert) = X509Certificate::from_der(&cert_der).unwrap();
 
     let result = validate_subject(&cert, &[]);
@@ -162,10 +162,10 @@ fn test_validate_subject_failure_empty_attributes() {
 #[test]
 fn test_validate_subject_failure_attribute_not_found() {
     let cert_der =
-        generate_cert_with_subject(vec![(DnType::CommonName, "Test Subject".to_string())]);
+        generate_cert_with_subject(vec![(DnType::CommonName, "Test Subject".to_string().into())]);
     let (_, cert) = X509Certificate::from_der(&cert_der).unwrap();
 
-    let result = validate_subject(&cert, &[("O".to_string(), "Missing Org".to_string())]);
+    let result = validate_subject(&cert, &[("O".to_string().into(), "Missing Org".to_string().into())]);
     assert!(result.is_err());
     match result {
         Err(DidX509Error::PolicyValidationFailed(msg)) => {
@@ -178,10 +178,10 @@ fn test_validate_subject_failure_attribute_not_found() {
 #[test]
 fn test_validate_subject_failure_attribute_value_mismatch() {
     let cert_der =
-        generate_cert_with_subject(vec![(DnType::CommonName, "Test Subject".to_string())]);
+        generate_cert_with_subject(vec![(DnType::CommonName, "Test Subject".to_string().into())]);
     let (_, cert) = X509Certificate::from_der(&cert_der).unwrap();
 
-    let result = validate_subject(&cert, &[("CN".to_string(), "Wrong Subject".to_string())]);
+    let result = validate_subject(&cert, &[("CN".to_string().into(), "Wrong Subject".to_string().into())]);
     assert!(result.is_err());
     match result {
         Err(DidX509Error::PolicyValidationFailed(msg)) => {
@@ -195,10 +195,10 @@ fn test_validate_subject_failure_attribute_value_mismatch() {
 #[test]
 fn test_validate_subject_failure_unknown_attribute() {
     let cert_der =
-        generate_cert_with_subject(vec![(DnType::CommonName, "Test Subject".to_string())]);
+        generate_cert_with_subject(vec![(DnType::CommonName, "Test Subject".to_string().into())]);
     let (_, cert) = X509Certificate::from_der(&cert_der).unwrap();
 
-    let result = validate_subject(&cert, &[("UNKNOWN".to_string(), "value".to_string())]);
+    let result = validate_subject(&cert, &[("UNKNOWN".to_string().into(), "value".to_string().into())]);
     assert!(result.is_err());
     match result {
         Err(DidX509Error::PolicyValidationFailed(msg)) => {
@@ -295,7 +295,7 @@ fn test_validate_fulcio_issuer_success() {
     // Generate a basic certificate - Fulcio issuer extension testing would
     // require more complex certificate generation with custom extensions
     let cert_der =
-        generate_cert_with_subject(vec![(DnType::CommonName, "Fulcio Test".to_string())]);
+        generate_cert_with_subject(vec![(DnType::CommonName, "Fulcio Test".to_string().into())]);
     let (_, cert) = X509Certificate::from_der(&cert_der).unwrap();
 
     // This test will fail since the certificate doesn't have Fulcio extension
@@ -311,7 +311,7 @@ fn test_validate_fulcio_issuer_success() {
 
 #[test]
 fn test_validate_fulcio_issuer_failure_missing_extension() {
-    let cert_der = generate_cert_with_subject(vec![(DnType::CommonName, "Test Cert".to_string())]);
+    let cert_der = generate_cert_with_subject(vec![(DnType::CommonName, "Test Cert".to_string().into())]);
     let (_, cert) = X509Certificate::from_der(&cert_der).unwrap();
 
     let result = validate_fulcio_issuer(&cert, "https://fulcio.example.com");
@@ -334,8 +334,8 @@ fn test_error_display_coverage() {
     let result = validate_eku(
         &cert,
         &[
-            "1.3.6.1.5.5.7.3.3".to_string(), // Code Signing
-            "1.3.6.1.5.5.7.3.4".to_string(), // Email Protection
+            "1.3.6.1.5.5.7.3.3".to_string().into(), // Code Signing
+            "1.3.6.1.5.5.7.3.4".to_string().into(), // Email Protection
         ],
     );
     assert!(result.is_err());
@@ -344,8 +344,8 @@ fn test_error_display_coverage() {
     let result2 = validate_subject(
         &cert,
         &[
-            ("CN".to_string(), "Test".to_string()),
-            ("O".to_string(), "Missing".to_string()),
+            ("CN".to_string().into(), "Test".to_string().into()),
+            ("O".to_string().into(), "Missing".to_string().into()),
         ],
     );
     assert!(result2.is_err());
@@ -354,21 +354,21 @@ fn test_error_display_coverage() {
 #[test]
 fn test_policy_validation_edge_cases() {
     let cert_der = generate_cert_with_subject(vec![
-        (DnType::CommonName, "Edge Case Test".to_string()),
-        (DnType::OrganizationName, "Test Corp".to_string()),
-        (DnType::CountryName, "US".to_string()),
+        (DnType::CommonName, "Edge Case Test".to_string().into()),
+        (DnType::OrganizationName, "Test Corp".to_string().into()),
+        (DnType::CountryName, "US".to_string().into()),
     ]);
     let (_, cert) = X509Certificate::from_der(&cert_der).unwrap();
 
     // Test with less common DN attributes
-    let result = validate_subject(&cert, &[("C".to_string(), "US".to_string())]);
+    let result = validate_subject(&cert, &[("C".to_string().into(), "US".to_string().into())]);
     assert!(result.is_ok());
 
     // Test with case sensitivity
     let result2 = validate_subject(
         &cert,
         &[
-            ("CN".to_string(), "edge case test".to_string()), // Different case
+            ("CN".to_string().into(), "edge case test".to_string().into()), // Different case
         ],
     );
     assert!(result2.is_err());

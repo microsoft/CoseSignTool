@@ -126,7 +126,7 @@ fn claim_value_text_returns_some_for_existing_key() {
     let raw_bytes: Arc<[u8]> = Arc::from(enc.into_bytes().into_boxed_slice());
 
     let mut raw_claims_text = BTreeMap::new();
-    raw_claims_text.insert("my_claim".to_string(), raw_bytes);
+    raw_claims_text.insert("my_claim".into(), raw_bytes);
 
     let fact = CwtClaimsFact {
         scalar_claims: BTreeMap::new(),

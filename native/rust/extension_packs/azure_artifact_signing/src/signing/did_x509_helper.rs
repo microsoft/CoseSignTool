@@ -26,7 +26,7 @@ pub fn build_did_x509_from_ats_chain(chain_ders: &[&[u8]]) -> Result<String, Aas
     // Try AAS-specific Microsoft EKU selection first
     if let Some(microsoft_eku) = find_deepest_greatest_microsoft_eku(chain_ders) {
         // Build DID:x509 with the specific Microsoft EKU
-        let policy = did_x509::DidX509Policy::Eku(vec![microsoft_eku]);
+        let policy = did_x509::DidX509Policy::Eku(vec![microsoft_eku.into()]);
         did_x509::DidX509Builder::build_from_chain(chain_ders, &[policy])
             .map_err(|e| AasError::DidX509Error(e.to_string()))
     } else {

@@ -47,7 +47,7 @@ impl TrustFactProducer for MessageFactsProducer {
         }
 
         ctx.observe(ContentTypeFact {
-            content_type: "application/json".to_string(),
+            content_type: "application/json".into(),
         })?;
         ctx.observe(DetachedPayloadPresentFact { present: false })?;
         ctx.observe(CwtClaimsPresentFact { present: true })?;
@@ -57,13 +57,13 @@ impl TrustFactProducer for MessageFactsProducer {
         raw_claims.insert(6, encode_cbor_i64(123)); // iat (label 6)
 
         let mut raw_claims_text = BTreeMap::new();
-        raw_claims_text.insert("custom".to_string(), encode_cbor_text("ok"));
+        raw_claims_text.insert("custom".into(), encode_cbor_text("ok"));
 
         ctx.observe(CwtClaimsFact {
             scalar_claims: BTreeMap::new(),
             raw_claims,
             raw_claims_text,
-            iss: Some("issuer.example".to_string()),
+            iss: Some("issuer.example".into()),
             sub: None,
             aud: None,
             exp: None,

@@ -71,7 +71,7 @@ pub struct DetachedPayloadPresentFact {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ContentTypeFact {
-    pub content_type: String,
+    pub content_type: Arc<str>,
 }
 
 /// Indicates whether the COSE header parameter for CWT Claims (label 15) is present.
@@ -92,11 +92,11 @@ pub struct CwtClaimsFact {
     pub raw_claims: BTreeMap<i64, Arc<[u8]>>,
 
     /// Raw CBOR bytes for each text claim key.
-    pub raw_claims_text: BTreeMap<String, Arc<[u8]>>,
+    pub raw_claims_text: BTreeMap<Arc<str>, Arc<[u8]>>,
 
-    pub iss: Option<String>,
-    pub sub: Option<String>,
-    pub aud: Option<String>,
+    pub iss: Option<Arc<str>>,
+    pub sub: Option<Arc<str>>,
+    pub aud: Option<Arc<str>>,
     pub exp: Option<i64>,
     pub nbf: Option<i64>,
     pub iat: Option<i64>,
@@ -104,7 +104,7 @@ pub struct CwtClaimsFact {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CwtClaimScalar {
-    Str(String),
+    Str(Arc<str>),
     I64(i64),
     Bool(bool),
 }
@@ -458,7 +458,7 @@ pub struct UnknownCounterSignatureBytesFact {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CounterSignatureEnvelopeIntegrityFact {
     pub sig_structure_intact: bool,
-    pub details: Option<String>,
+    pub details: Option<Cow<'static, str>>,
 }
 
 impl FactProperties for DetachedPayloadPresentFact {
@@ -475,7 +475,7 @@ impl FactProperties for ContentTypeFact {
     /// Return the property value for declarative trust policies.
     fn get_property<'a>(&'a self, name: &str) -> Option<FactValue<'a>> {
         match name {
-            "content_type" => Some(FactValue::Str(Cow::Borrowed(self.content_type.as_str()))),
+            "content_type" => Some(FactValue::Str(Cow::Borrowed(&self.content_type))),
             _ => None,
         }
     }
@@ -517,7 +517,7 @@ impl FactProperties for CwtClaimsFact {
                 if let Some(rest) = name.strip_prefix(fields::cwt_claims::CLAIM_PREFIX) {
                     if let Ok(label) = rest.parse::<i64>() {
                         return self.scalar_claims.get(&label).map(|v| match v {
-                            CwtClaimScalar::Str(s) => FactValue::Str(Cow::Borrowed(s.as_str())),
+                            CwtClaimScalar::Str(s) => FactValue::Str(Cow::Borrowed(s)),
                             CwtClaimScalar::I64(n) => FactValue::I64(*n),
                             CwtClaimScalar::Bool(b) => FactValue::Bool(*b),
                         });

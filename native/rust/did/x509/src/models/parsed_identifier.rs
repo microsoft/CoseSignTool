@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 use crate::models::DidX509Policy;
+use std::borrow::Cow;
 
 /// A parsed DID:x509 identifier with all its components
 #[derive(Debug, Clone, PartialEq)]
@@ -64,7 +65,7 @@ impl DidX509ParsedIdentifier {
     }
 
     /// Get the EKU policy if it exists
-    pub fn get_eku_policy(&self) -> Option<&Vec<String>> {
+    pub fn get_eku_policy(&self) -> Option<&Vec<Cow<'static, str>>> {
         self.policies.iter().find_map(|p| {
             if let DidX509Policy::Eku(oids) = p {
                 Some(oids)

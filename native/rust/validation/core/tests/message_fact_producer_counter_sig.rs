@@ -400,7 +400,7 @@ fn content_type_bytes_header_valid_utf8_is_used() {
 
     let ct = engine.get_facts::<ContentTypeFact>(&subject).unwrap();
     assert_eq!(1, ct.len());
-    assert_eq!("application/cbor", ct[0].content_type);
+    assert_eq!("application/cbor", &*ct[0].content_type);
 }
 
 #[test]
@@ -480,7 +480,7 @@ fn content_type_preimage_from_unprotected_when_envelope_marker_in_protected() {
 
     let ct = engine.get_facts::<ContentTypeFact>(&subject).unwrap();
     assert_eq!(1, ct.len());
-    assert_eq!("image/png", ct[0].content_type);
+    assert_eq!("image/png", &*ct[0].content_type);
 }
 
 #[test]
@@ -495,7 +495,7 @@ fn content_type_integer_preimage_from_unprotected() {
 
     let ct = engine.get_facts::<ContentTypeFact>(&subject).unwrap();
     assert_eq!(1, ct.len());
-    assert_eq!("coap/99", ct[0].content_type);
+    assert_eq!("coap/99", &*ct[0].content_type);
 }
 
 #[test]
@@ -513,7 +513,7 @@ fn content_type_cose_hash_v_case_insensitive_strip() {
 
     let ct = engine.get_facts::<ContentTypeFact>(&subject).unwrap();
     assert_eq!(1, ct.len());
-    assert_eq!("application/xml", ct[0].content_type);
+    assert_eq!("application/xml", &*ct[0].content_type);
 }
 
 #[test]
@@ -531,7 +531,7 @@ fn content_type_hash_legacy_case_insensitive_strip() {
 
     let ct = engine.get_facts::<ContentTypeFact>(&subject).unwrap();
     assert_eq!(1, ct.len());
-    assert_eq!("application/xml", ct[0].content_type);
+    assert_eq!("application/xml", &*ct[0].content_type);
 }
 
 #[test]
@@ -825,7 +825,7 @@ fn get_header_int_returns_integer_preimage_content_type() {
 
     let ct = engine.get_facts::<ContentTypeFact>(&subject).unwrap();
     assert_eq!(1, ct.len());
-    assert_eq!("coap/0", ct[0].content_type);
+    assert_eq!("coap/0", &*ct[0].content_type);
 }
 
 #[test]
@@ -841,5 +841,5 @@ fn content_type_from_unprotected_bytes_utf8() {
 
     let ct = engine.get_facts::<ContentTypeFact>(&subject).unwrap();
     assert_eq!(1, ct.len());
-    assert_eq!("text/html", ct[0].content_type);
+    assert_eq!("text/html", &*ct[0].content_type);
 }

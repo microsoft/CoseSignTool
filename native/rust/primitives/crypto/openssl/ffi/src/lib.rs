@@ -617,14 +617,14 @@ pub unsafe extern "C" fn cose_crypto_openssl_jwk_verifier_from_ec(
         }
 
         let ec_jwk = EcJwk {
-            kty: "EC".to_string(),
-            crv: cstr_to_string(crv, "crv")?,
-            x: cstr_to_string(x, "x")?,
-            y: cstr_to_string(y, "y")?,
+            kty: "EC".into(),
+            crv: cstr_to_string(crv, "crv")?.into(),
+            x: cstr_to_string(x, "x")?.into(),
+            y: cstr_to_string(y, "y")?.into(),
             kid: if kid.is_null() {
                 None
             } else {
-                Some(cstr_to_string(kid, "kid")?)
+                Some(cstr_to_string(kid, "kid")?.into())
             },
         };
 

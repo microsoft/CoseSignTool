@@ -3,10 +3,11 @@
 
 use crate::constants::*;
 use crate::error::DidX509Error;
+use std::borrow::Cow;
 use x509_parser::prelude::*;
 
 /// Extract Extended Key Usage OIDs from a certificate
-pub fn extract_extended_key_usage(cert: &X509Certificate) -> Vec<String> {
+pub fn extract_extended_key_usage(cert: &X509Certificate) -> Vec<Cow<'static, str>> {
     let mut ekus = Vec::new();
 
     for ext in cert.extensions() {
@@ -14,27 +15,27 @@ pub fn extract_extended_key_usage(cert: &X509Certificate) -> Vec<String> {
             if let ParsedExtension::ExtendedKeyUsage(eku) = ext.parsed_extension() {
                 // Add standard EKU OIDs
                 if eku.server_auth {
-                    ekus.push("1.3.6.1.5.5.7.3.1".to_string());
+                    ekus.push(Cow::Borrowed("1.3.6.1.5.5.7.3.1"));
                 }
                 if eku.client_auth {
-                    ekus.push("1.3.6.1.5.5.7.3.2".to_string());
+                    ekus.push(Cow::Borrowed("1.3.6.1.5.5.7.3.2"));
                 }
                 if eku.code_signing {
-                    ekus.push("1.3.6.1.5.5.7.3.3".to_string());
+                    ekus.push(Cow::Borrowed("1.3.6.1.5.5.7.3.3"));
                 }
                 if eku.email_protection {
-                    ekus.push("1.3.6.1.5.5.7.3.4".to_string());
+                    ekus.push(Cow::Borrowed("1.3.6.1.5.5.7.3.4"));
                 }
                 if eku.time_stamping {
-                    ekus.push("1.3.6.1.5.5.7.3.8".to_string());
+                    ekus.push(Cow::Borrowed("1.3.6.1.5.5.7.3.8"));
                 }
                 if eku.ocsp_signing {
-                    ekus.push("1.3.6.1.5.5.7.3.9".to_string());
+                    ekus.push(Cow::Borrowed("1.3.6.1.5.5.7.3.9"));
                 }
 
                 // Add other/custom OIDs
                 for oid in &eku.other {
-                    ekus.push(oid.to_id_string());
+                    ekus.push(Cow::Owned(oid.to_id_string()));
                 }
             }
         }
@@ -44,7 +45,7 @@ pub fn extract_extended_key_usage(cert: &X509Certificate) -> Vec<String> {
 }
 
 /// Extract EKU OIDs from a certificate (alias for builder convenience)
-pub fn extract_eku_oids(cert: &X509Certificate) -> Result<Vec<String>, DidX509Error> {
+pub fn extract_eku_oids(cert: &X509Certificate) -> Result<Vec<Cow<'static, str>>, DidX509Error> {
     let oids = extract_extended_key_usage(cert);
     Ok(oids)
 }

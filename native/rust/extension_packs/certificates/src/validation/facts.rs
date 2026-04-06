@@ -4,13 +4,14 @@
 use cose_sign1_primitives::ArcSlice;
 use cose_sign1_validation_primitives::fact_properties::{FactProperties, FactValue};
 use std::borrow::Cow;
+use std::sync::Arc;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct X509SigningCertificateIdentityFact {
-    pub certificate_thumbprint: String,
-    pub subject: String,
-    pub issuer: String,
-    pub serial_number: String,
+    pub certificate_thumbprint: Arc<str>,
+    pub subject: Arc<str>,
+    pub issuer: Arc<str>,
+    pub serial_number: Arc<str>,
     pub not_before_unix_seconds: i64,
     pub not_after_unix_seconds: i64,
 }
@@ -144,44 +145,44 @@ pub mod typed_fields {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct X509SigningCertificateIdentityAllowedFact {
-    pub certificate_thumbprint: String,
-    pub subject: String,
-    pub issuer: String,
+    pub certificate_thumbprint: Arc<str>,
+    pub subject: Arc<str>,
+    pub issuer: Arc<str>,
     pub is_allowed: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct X509SigningCertificateEkuFact {
-    pub certificate_thumbprint: String,
-    pub oid_value: String,
+    pub certificate_thumbprint: Arc<str>,
+    pub oid_value: Arc<str>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct X509SigningCertificateKeyUsageFact {
-    pub certificate_thumbprint: String,
+    pub certificate_thumbprint: Arc<str>,
     pub usages: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct X509SigningCertificateBasicConstraintsFact {
-    pub certificate_thumbprint: String,
+    pub certificate_thumbprint: Arc<str>,
     pub is_ca: bool,
     pub path_len_constraint: Option<u32>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct X509X5ChainCertificateIdentityFact {
-    pub certificate_thumbprint: String,
-    pub subject: String,
-    pub issuer: String,
+    pub certificate_thumbprint: Arc<str>,
+    pub subject: Arc<str>,
+    pub issuer: Arc<str>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct X509ChainElementIdentityFact {
     pub index: usize,
-    pub certificate_thumbprint: String,
-    pub subject: String,
-    pub issuer: String,
+    pub certificate_thumbprint: Arc<str>,
+    pub subject: Arc<str>,
+    pub issuer: Arc<str>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -196,27 +197,27 @@ pub struct X509ChainTrustedFact {
     pub chain_built: bool,
     pub is_trusted: bool,
     pub status_flags: u32,
-    pub status_summary: Option<String>,
+    pub status_summary: Option<Arc<str>>,
     pub element_count: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CertificateSigningKeyTrustFact {
-    pub thumbprint: String,
-    pub subject: String,
-    pub issuer: String,
+    pub thumbprint: Arc<str>,
+    pub subject: Arc<str>,
+    pub issuer: Arc<str>,
     pub chain_built: bool,
     pub chain_trusted: bool,
     pub chain_status_flags: u32,
-    pub chain_status_summary: Option<String>,
+    pub chain_status_summary: Option<Arc<str>>,
 }
 
 /// Fact capturing the public key algorithm OID; this stays robust for PQC/unknown algorithms.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct X509PublicKeyAlgorithmFact {
-    pub certificate_thumbprint: String,
-    pub algorithm_oid: String,
-    pub algorithm_name: Option<String>,
+    pub certificate_thumbprint: Arc<str>,
+    pub algorithm_oid: Arc<str>,
+    pub algorithm_name: Option<Arc<str>>,
     pub is_pqc: bool,
 }
 
@@ -225,11 +226,11 @@ impl FactProperties for X509SigningCertificateIdentityFact {
     fn get_property<'a>(&'a self, name: &str) -> Option<FactValue<'a>> {
         match name {
             "certificate_thumbprint" => Some(FactValue::Str(Cow::Borrowed(
-                self.certificate_thumbprint.as_str(),
+                &self.certificate_thumbprint,
             ))),
-            "subject" => Some(FactValue::Str(Cow::Borrowed(self.subject.as_str()))),
-            "issuer" => Some(FactValue::Str(Cow::Borrowed(self.issuer.as_str()))),
-            "serial_number" => Some(FactValue::Str(Cow::Borrowed(self.serial_number.as_str()))),
+            "subject" => Some(FactValue::Str(Cow::Borrowed(&self.subject))),
+            "issuer" => Some(FactValue::Str(Cow::Borrowed(&self.issuer))),
+            "serial_number" => Some(FactValue::Str(Cow::Borrowed(&self.serial_number))),
             "not_before_unix_seconds" => Some(FactValue::I64(self.not_before_unix_seconds)),
             "not_after_unix_seconds" => Some(FactValue::I64(self.not_after_unix_seconds)),
             _ => None,
@@ -243,10 +244,10 @@ impl FactProperties for X509ChainElementIdentityFact {
         match name {
             "index" => Some(FactValue::Usize(self.index)),
             "certificate_thumbprint" => Some(FactValue::Str(Cow::Borrowed(
-                self.certificate_thumbprint.as_str(),
+                &self.certificate_thumbprint,
             ))),
-            "subject" => Some(FactValue::Str(Cow::Borrowed(self.subject.as_str()))),
-            "issuer" => Some(FactValue::Str(Cow::Borrowed(self.issuer.as_str()))),
+            "subject" => Some(FactValue::Str(Cow::Borrowed(&self.subject))),
+            "issuer" => Some(FactValue::Str(Cow::Borrowed(&self.issuer))),
             _ => None,
         }
     }
@@ -274,8 +275,8 @@ impl FactProperties for X509ChainTrustedFact {
             "element_count" => Some(FactValue::Usize(self.element_count)),
             "status_summary" => self
                 .status_summary
-                .as_ref()
-                .map(|v| FactValue::Str(Cow::Borrowed(v.as_str()))),
+                .as_deref()
+                .map(|v| FactValue::Str(Cow::Borrowed(v))),
             _ => None,
         }
     }
@@ -286,13 +287,13 @@ impl FactProperties for X509PublicKeyAlgorithmFact {
     fn get_property<'a>(&'a self, name: &str) -> Option<FactValue<'a>> {
         match name {
             "certificate_thumbprint" => Some(FactValue::Str(Cow::Borrowed(
-                self.certificate_thumbprint.as_str(),
+                &self.certificate_thumbprint,
             ))),
-            "algorithm_oid" => Some(FactValue::Str(Cow::Borrowed(self.algorithm_oid.as_str()))),
+            "algorithm_oid" => Some(FactValue::Str(Cow::Borrowed(&self.algorithm_oid))),
             "algorithm_name" => self
                 .algorithm_name
-                .as_ref()
-                .map(|v| FactValue::Str(Cow::Borrowed(v.as_str()))),
+                .as_deref()
+                .map(|v| FactValue::Str(Cow::Borrowed(v))),
             "is_pqc" => Some(FactValue::Bool(self.is_pqc)),
             _ => None,
         }
@@ -304,10 +305,10 @@ impl FactProperties for X509PublicKeyAlgorithmFact {
 pub(crate) struct ParsedCert {
     /// Certificate DER bytes — zero-copy ArcSlice when parsed from COSE message buffer.
     pub der: ArcSlice,
-    pub thumbprint_sha1_hex: String,
-    pub subject: String,
-    pub issuer: String,
-    pub serial_hex: String,
+    pub thumbprint_sha1_hex: Arc<str>,
+    pub subject: Arc<str>,
+    pub issuer: Arc<str>,
+    pub serial_hex: Arc<str>,
     pub not_before_unix_seconds: i64,
     pub not_after_unix_seconds: i64,
 }

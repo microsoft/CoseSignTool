@@ -146,7 +146,7 @@ fn produce_eku_facts_with_code_signing() {
         .unwrap();
     match eku {
         TrustFactSet::Available(v) => {
-            let oids: Vec<&str> = v.iter().map(|f| f.oid_value.as_str()).collect();
+            let oids: Vec<&str> = v.iter().map(|f| &*f.oid_value).collect();
             assert!(
                 oids.contains(&"1.3.6.1.5.5.7.3.3"),
                 "expected code_signing OID, got {:?}",
@@ -178,7 +178,7 @@ fn produce_eku_facts_with_server_and_client_auth() {
         .unwrap();
     match eku {
         TrustFactSet::Available(v) => {
-            let oids: Vec<&str> = v.iter().map(|f| f.oid_value.as_str()).collect();
+            let oids: Vec<&str> = v.iter().map(|f| &*f.oid_value).collect();
             assert!(
                 oids.contains(&"1.3.6.1.5.5.7.3.1"),
                 "expected server_auth OID"
@@ -210,7 +210,7 @@ fn produce_eku_facts_with_email_protection() {
         .unwrap();
     match eku {
         TrustFactSet::Available(v) => {
-            let oids: Vec<&str> = v.iter().map(|f| f.oid_value.as_str()).collect();
+            let oids: Vec<&str> = v.iter().map(|f| &*f.oid_value).collect();
             assert!(
                 oids.contains(&"1.3.6.1.5.5.7.3.4"),
                 "expected email_protection OID, got {:?}",
@@ -239,7 +239,7 @@ fn produce_eku_facts_with_time_stamping() {
         .unwrap();
     match eku {
         TrustFactSet::Available(v) => {
-            let oids: Vec<&str> = v.iter().map(|f| f.oid_value.as_str()).collect();
+            let oids: Vec<&str> = v.iter().map(|f| &*f.oid_value).collect();
             assert!(
                 oids.contains(&"1.3.6.1.5.5.7.3.8"),
                 "expected time_stamping OID, got {:?}",
@@ -268,7 +268,7 @@ fn produce_eku_facts_with_ocsp_signing() {
         .unwrap();
     match eku {
         TrustFactSet::Available(v) => {
-            let oids: Vec<&str> = v.iter().map(|f| f.oid_value.as_str()).collect();
+            let oids: Vec<&str> = v.iter().map(|f| &*f.oid_value).collect();
             assert!(
                 oids.contains(&"1.3.6.1.5.5.7.3.9"),
                 "expected ocsp_signing OID, got {:?}",
@@ -797,7 +797,7 @@ fn pqc_oid_flag_set_when_matching() {
 
     // Now pretend it's PQC by adding its OID to the list.
     let pack2 = X509CertificateTrustPack::new(CertificateTrustOptions {
-        pqc_algorithm_oids: vec![real_oid.clone()],
+        pqc_algorithm_oids: vec![real_oid.to_string()],
         ..Default::default()
     });
     let eng2 = engine_from(pack2, &cose);

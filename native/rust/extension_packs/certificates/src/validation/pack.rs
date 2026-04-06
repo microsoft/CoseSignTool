@@ -311,12 +311,12 @@ impl X509CertificateTrustPack {
 
         let mut sha256_hasher = sha2::Sha256::new();
         sha256_hasher.update(&*der);
-        let thumb = hex_encode_upper(&sha256_hasher.finalize());
+        let thumb: Arc<str> = Arc::from(hex_encode_upper(&sha256_hasher.finalize()));
 
-        let subject = cert.subject().to_string();
-        let issuer = cert.issuer().to_string();
+        let subject: Arc<str> = Arc::from(cert.subject().to_string());
+        let issuer: Arc<str> = Arc::from(cert.issuer().to_string());
 
-        let serial_hex = hex_encode_upper(&cert.serial.to_bytes_be());
+        let serial_hex: Arc<str> = Arc::from(hex_encode_upper(&cert.serial.to_bytes_be()));
 
         let not_before_unix_seconds = cert.validity().not_before.timestamp();
         let not_after_unix_seconds = cert.validity().not_after.timestamp();
@@ -448,7 +448,7 @@ impl X509CertificateTrustPack {
         let is_pqc = self.is_pqc_oid(&oid);
         ctx.observe(X509PublicKeyAlgorithmFact {
             certificate_thumbprint: cert.thumbprint_sha1_hex.clone(),
-            algorithm_oid: oid,
+            algorithm_oid: Arc::from(oid),
             algorithm_name: None,
             is_pqc,
         })?;
@@ -461,7 +461,7 @@ impl X509CertificateTrustPack {
                 let emit = |oid: &str| {
                     ctx.observe(X509SigningCertificateEkuFact {
                         certificate_thumbprint: cert.thumbprint_sha1_hex.clone(),
-                        oid_value: oid.to_string(),
+                        oid_value: Arc::from(oid),
                     })
                 };
 
@@ -667,12 +667,12 @@ impl X509CertificateTrustPack {
         };
 
         let is_trusted = self.options.trust_embedded_chain_as_trusted && well_formed;
-        let (status_flags, status_summary) = if is_trusted {
+        let (status_flags, status_summary): (u32, Option<Arc<str>>) = if is_trusted {
             (0u32, None)
         } else if self.options.trust_embedded_chain_as_trusted {
-            (1u32, Some("EmbeddedChainNotWellFormed".into()))
+            (1u32, Some(Arc::from("EmbeddedChainNotWellFormed")))
         } else {
-            (1u32, Some("TrustEvaluationDisabled".into()))
+            (1u32, Some(Arc::from("TrustEvaluationDisabled")))
         };
 
         ctx.observe(X509ChainTrustedFact {

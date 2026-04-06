@@ -564,9 +564,9 @@ fn test_ccf_accumulator_matching_hash() {
     let data_hash = sha256(b"statement bytes");
 
     let proof = MstCcfInclusionProof {
-        internal_txn_hash: vec![0xAA; 32],
+        internal_txn_hash: [0xAA; 32],
         internal_evidence: "evidence".to_string(),
-        data_hash: data_hash.to_vec(),
+        data_hash,
         path: vec![],
     };
 
@@ -579,9 +579,9 @@ fn test_ccf_accumulator_matching_hash() {
 #[test]
 fn test_ccf_accumulator_mismatched_hash() {
     let proof = MstCcfInclusionProof {
-        internal_txn_hash: vec![0xAA; 32],
+        internal_txn_hash: [0xAA; 32],
         internal_evidence: "evidence".to_string(),
-        data_hash: vec![0xBB; 32],
+        data_hash: [0xBB; 32],
         path: vec![],
     };
 
@@ -593,43 +593,8 @@ fn test_ccf_accumulator_mismatched_hash() {
     }
 }
 
-#[test]
-fn test_ccf_accumulator_wrong_txn_hash_len() {
-    let proof = MstCcfInclusionProof {
-        internal_txn_hash: vec![0xAA; 16], // Wrong length
-        internal_evidence: "ev".to_string(),
-        data_hash: vec![0xBB; 32],
-        path: vec![],
-    };
-
-    let result = ccf_accumulator_sha256(&proof, [0xBB; 32]);
-    assert!(result.is_err());
-    match result {
-        Err(ReceiptVerifyError::ReceiptDecode(msg)) => {
-            assert!(msg.contains("unexpected_internal_txn_hash_len"));
-        }
-        other => panic!("Expected ReceiptDecode, got: {:?}", other),
-    }
-}
-
-#[test]
-fn test_ccf_accumulator_wrong_data_hash_len() {
-    let proof = MstCcfInclusionProof {
-        internal_txn_hash: vec![0xAA; 32],
-        internal_evidence: "ev".to_string(),
-        data_hash: vec![0xBB; 16], // Wrong length
-        path: vec![],
-    };
-
-    let result = ccf_accumulator_sha256(&proof, [0xBB; 32]);
-    assert!(result.is_err());
-    match result {
-        Err(ReceiptVerifyError::ReceiptDecode(msg)) => {
-            assert!(msg.contains("unexpected_data_hash_len"));
-        }
-        other => panic!("Expected ReceiptDecode, got: {:?}", other),
-    }
-}
+// Wrong-length hash tests have been removed because MstCcfInclusionProof now
+// uses [u8; 32] fixed arrays — invalid lengths are caught at parse time.
 
 // ============================================================================
 // Target: lines 533-574 — extract_proof_blobs
@@ -653,8 +618,8 @@ fn test_extract_proof_blobs_valid() {
     assert!(result.is_ok());
     let blobs = result.unwrap();
     assert_eq!(blobs.len(), 2);
-    assert_eq!(blobs[0], blob1);
-    assert_eq!(blobs[1], blob2);
+    assert_eq!(&*blobs[0], &blob1[..]);
+    assert_eq!(&*blobs[1], &blob2[..]);
 }
 
 #[test]

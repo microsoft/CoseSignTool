@@ -33,17 +33,32 @@ impl CryptoSigner for AasCryptoSigner {
         // COSE sign expects us to sign the Sig_structure bytes.
         // AAS expects a pre-computed digest. Hash here based on algorithm.
         use sha2::Digest;
-        let digest = match self.algorithm_name.as_str() {
-            "RS256" | "PS256" | "ES256" => sha2::Sha256::digest(data).to_vec(),
-            "RS384" | "PS384" | "ES384" => sha2::Sha384::digest(data).to_vec(),
-            "RS512" | "PS512" | "ES512" => sha2::Sha512::digest(data).to_vec(),
-            _ => sha2::Sha256::digest(data).to_vec(),
-        };
 
-        let (signature, _cert_der) = self
-            .source
-            .sign_digest(&self.algorithm_name, &digest)
-            .map_err(|e| CryptoError::SigningFailed(e.to_string()))?;
+        // Keep digests on the stack as fixed-size arrays instead of heap-allocating
+        // via to_vec(). sign_digest accepts &[u8], so we pass a slice reference.
+        let (signature, _cert_der) = match self.algorithm_name.as_str() {
+            "RS256" | "PS256" | "ES256" => {
+                let digest = sha2::Sha256::digest(data);
+                self.source
+                    .sign_digest(&self.algorithm_name, digest.as_slice())
+            }
+            "RS384" | "PS384" | "ES384" => {
+                let digest = sha2::Sha384::digest(data);
+                self.source
+                    .sign_digest(&self.algorithm_name, digest.as_slice())
+            }
+            "RS512" | "PS512" | "ES512" => {
+                let digest = sha2::Sha512::digest(data);
+                self.source
+                    .sign_digest(&self.algorithm_name, digest.as_slice())
+            }
+            _ => {
+                let digest = sha2::Sha256::digest(data);
+                self.source
+                    .sign_digest(&self.algorithm_name, digest.as_slice())
+            }
+        }
+        .map_err(|e| CryptoError::SigningFailed(e.to_string()))?;
 
         Ok(signature)
     }

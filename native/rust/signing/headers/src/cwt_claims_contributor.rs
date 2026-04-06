@@ -5,7 +5,7 @@
 //!
 //! Maps V2 `CWTClaimsHeaderExtender` class (note: different name in V2).
 
-use cose_sign1_primitives::{CoseHeaderMap, CoseHeaderValue};
+use cose_sign1_primitives::{ArcSlice, CoseHeaderMap, CoseHeaderValue};
 use cose_sign1_signing::{HeaderContributor, HeaderContributorContext, HeaderMergeStrategy};
 
 use crate::cwt_claims::CwtClaims;
@@ -16,7 +16,7 @@ use crate::cwt_claims::CwtClaims;
 /// Always adds to PROTECTED headers (label 15) for SCITT compliance.
 #[derive(Debug)]
 pub struct CwtClaimsHeaderContributor {
-    claims_bytes: Vec<u8>,
+    claims_bytes: ArcSlice,
 }
 
 impl CwtClaimsHeaderContributor {
@@ -27,9 +27,10 @@ impl CwtClaimsHeaderContributor {
     /// * `claims` - The CWT claims
     /// * `provider` - CBOR provider for encoding claims
     pub fn new(claims: &CwtClaims) -> Result<Self, String> {
-        let claims_bytes = claims
+        let claims_bytes: ArcSlice = claims
             .to_cbor_bytes()
-            .map_err(|e| format!("Failed to encode CWT claims: {}", e))?;
+            .map_err(|e| format!("Failed to encode CWT claims: {}", e))?
+            .into();
         Ok(Self { claims_bytes })
     }
 
@@ -49,7 +50,7 @@ impl HeaderContributor for CwtClaimsHeaderContributor {
     ) {
         headers.insert(
             cose_sign1_primitives::CoseHeaderLabel::Int(Self::CWT_CLAIMS_LABEL),
-            CoseHeaderValue::Bytes(self.claims_bytes.clone().into()),
+            CoseHeaderValue::Bytes(self.claims_bytes.clone()),
         );
     }
 

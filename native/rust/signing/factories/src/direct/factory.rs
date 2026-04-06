@@ -71,8 +71,8 @@ impl DirectSignatureFactory {
         info!(method = "sign_direct", payload_len = payload.len(), content_type = %content_type, "Signing payload");
         let options = options.unwrap_or_default();
 
-        // Create signing context (payload copy required by SigningContext ownership model)
-        let mut context = SigningContext::from_bytes(payload.to_vec());
+        // Create signing context (zero-copy borrow of caller's payload)
+        let mut context = SigningContext::from_slice(payload);
         context.content_type = Some(content_type.to_string());
 
         // Add content type contributor (always first)

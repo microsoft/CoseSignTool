@@ -37,7 +37,17 @@ fn test_signing_payload_bytes() {
     match payload_enum {
         SigningPayload::Bytes(ref b) => assert_eq!(b, &payload),
         SigningPayload::Stream(_) => panic!("Expected Bytes variant"),
+        SigningPayload::Borrowed(_) => panic!("Expected Bytes variant"),
     }
+}
+
+#[test]
+fn test_signing_payload_borrowed() {
+    let data = vec![4, 5, 6];
+    let context = SigningContext::from_slice(&data);
+
+    assert_eq!(context.payload_bytes(), Some(data.as_slice()));
+    assert!(!context.has_stream());
 }
 
 #[test]

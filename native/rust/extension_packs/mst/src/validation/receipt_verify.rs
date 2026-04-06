@@ -2,7 +2,9 @@
 // Licensed under the MIT License.
 
 use cbor_primitives::{CborDecoder, CborEncoder};
-use cose_sign1_primitives::{CoseHeaderLabel, CoseHeaderMap, CoseHeaderValue, CoseSign1Message};
+use cose_sign1_primitives::{
+    ArcSlice, CoseHeaderLabel, CoseHeaderMap, CoseHeaderValue, CoseSign1Message,
+};
 use crypto_primitives::{EcJwk, JwkVerifierFactory};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
@@ -229,7 +231,7 @@ pub fn verify_mst_receipt(
 
     let mut any_matching_data_hash = false;
     for proof_blob in proof_blobs {
-        let proof = MstCcfInclusionProof::parse(proof_blob.as_slice())?;
+        let proof = MstCcfInclusionProof::parse(&proof_blob)?;
 
         // Compute CCF accumulator (leaf hash) and fold proof path.
         // If the proof doesn't match this statement, try the next blob.
@@ -242,14 +244,10 @@ pub fn verify_mst_receipt(
             Err(e) => return Err(e),
         };
         for (is_left, sibling) in proof.path.iter() {
-            let sibling: [u8; 32] = sibling.as_slice().try_into().map_err(|_| {
-                ReceiptVerifyError::ReceiptDecode("unexpected_path_hash_len".to_string())
-            })?;
-
             acc = if *is_left {
-                sha256_concat_slices(&sibling, &acc)
+                sha256_concat_slices(sibling, &acc)
             } else {
-                sha256_concat_slices(&acc, &sibling)
+                sha256_concat_slices(&acc, sibling)
             };
         }
 
@@ -412,10 +410,10 @@ pub(crate) fn fetch_jwks_for_issuer(
 
 #[derive(Clone, Debug)]
 pub struct MstCcfInclusionProof {
-    pub internal_txn_hash: Vec<u8>,
+    pub internal_txn_hash: [u8; 32],
     pub internal_evidence: String,
-    pub data_hash: Vec<u8>,
-    pub path: Vec<(bool, Vec<u8>)>,
+    pub data_hash: [u8; 32],
+    pub path: Vec<(bool, [u8; 32])>,
 }
 
 impl MstCcfInclusionProof {
@@ -431,7 +429,7 @@ impl MstCcfInclusionProof {
             .map_err(|e| ReceiptVerifyError::ReceiptDecode(e.to_string()))?;
 
         let mut leaf_raw: Option<Vec<u8>> = None;
-        let mut path: Option<Vec<(bool, Vec<u8>)>> = None;
+        let mut path: Option<Vec<(bool, [u8; 32])>> = None;
 
         for _ in 0..map_len.unwrap_or(usize::MAX) {
             let k = d
@@ -469,18 +467,23 @@ impl MstCcfInclusionProof {
 }
 
 /// Parse a CCF proof leaf (array) into its components.
-pub fn parse_leaf(leaf_bytes: &[u8]) -> Result<(Vec<u8>, String, Vec<u8>), ReceiptVerifyError> {
+pub fn parse_leaf(leaf_bytes: &[u8]) -> Result<([u8; 32], String, [u8; 32]), ReceiptVerifyError> {
     let mut d = cose_sign1_primitives::provider::decoder(leaf_bytes);
     let _arr_len = d
         .decode_array_len()
         .map_err(|e| ReceiptVerifyError::ReceiptDecode(e.to_string()))?;
 
-    let internal_txn_hash = d
+    let internal_txn_hash_slice = d
         .decode_bstr()
         .map_err(|e| {
             ReceiptVerifyError::ReceiptDecode(format!("leaf_missing_internal_txn_hash: {}", e))
-        })?
-        .to_vec();
+        })?;
+    let internal_txn_hash: [u8; 32] = internal_txn_hash_slice.try_into().map_err(|_| {
+        ReceiptVerifyError::ReceiptDecode(format!(
+            "unexpected_internal_txn_hash_len: {}",
+            internal_txn_hash_slice.len()
+        ))
+    })?;
 
     let internal_evidence = d
         .decode_tstr()
@@ -489,16 +492,21 @@ pub fn parse_leaf(leaf_bytes: &[u8]) -> Result<(Vec<u8>, String, Vec<u8>), Recei
         })?
         .to_string();
 
-    let data_hash = d
+    let data_hash_slice = d
         .decode_bstr()
-        .map_err(|e| ReceiptVerifyError::ReceiptDecode(format!("leaf_missing_data_hash: {}", e)))?
-        .to_vec();
+        .map_err(|e| ReceiptVerifyError::ReceiptDecode(format!("leaf_missing_data_hash: {}", e)))?;
+    let data_hash: [u8; 32] = data_hash_slice.try_into().map_err(|_| {
+        ReceiptVerifyError::ReceiptDecode(format!(
+            "unexpected_data_hash_len: {}",
+            data_hash_slice.len()
+        ))
+    })?;
 
     Ok((internal_txn_hash, internal_evidence, data_hash))
 }
 
 /// Parse a CCF proof path value into a sequence of (direction, sibling_hash) pairs.
-pub fn parse_path(bytes: &[u8]) -> Result<Vec<(bool, Vec<u8>)>, ReceiptVerifyError> {
+pub fn parse_path(bytes: &[u8]) -> Result<Vec<(bool, [u8; 32])>, ReceiptVerifyError> {
     let mut d = cose_sign1_primitives::provider::decoder(bytes);
     let arr_len = d
         .decode_array_len()
@@ -521,10 +529,15 @@ pub fn parse_path(bytes: &[u8]) -> Result<Vec<(bool, Vec<u8>)>, ReceiptVerifyErr
 
         let bytes_item = vd
             .decode_bstr()
-            .map_err(|e| ReceiptVerifyError::ReceiptDecode(format!("path_missing_hash: {}", e)))?
-            .to_vec();
+            .map_err(|e| ReceiptVerifyError::ReceiptDecode(format!("path_missing_hash: {}", e)))?;
+        let hash: [u8; 32] = bytes_item.try_into().map_err(|_| {
+            ReceiptVerifyError::ReceiptDecode(format!(
+                "unexpected_path_hash_len: {}",
+                bytes_item.len()
+            ))
+        })?;
 
-        out.push((is_left, bytes_item));
+        out.push((is_left, hash));
     }
 
     Ok(out)
@@ -533,9 +546,10 @@ pub fn parse_path(bytes: &[u8]) -> Result<Vec<(bool, Vec<u8>)>, ReceiptVerifyErr
 /// Extract proof blobs from the parsed VDP header value (unprotected header 396).
 ///
 /// The MST receipt places an array of proof blobs under label `-1` in the VDP map.
+/// Returns `ArcSlice` values for zero-copy sharing — cloning is a refcount bump.
 pub fn extract_proof_blobs(
     vdp_value: &CoseHeaderValue,
-) -> Result<Vec<Vec<u8>>, ReceiptVerifyError> {
+) -> Result<Vec<ArcSlice>, ReceiptVerifyError> {
     let pairs = match vdp_value {
         CoseHeaderValue::Map(pairs) => pairs,
         _ => {
@@ -562,7 +576,7 @@ pub fn extract_proof_blobs(
         let mut out = Vec::new();
         for item in arr {
             match item {
-                CoseHeaderValue::Bytes(b) => out.push(b.to_vec()),
+                CoseHeaderValue::Bytes(b) => out.push(b.clone()),
                 _ => {
                     return Err(ReceiptVerifyError::ReceiptDecode(
                         "proof_item_not_bstr".to_string(),
@@ -610,32 +624,21 @@ pub fn validate_receipt_alg_against_jwk(jwk: &Jwk, alg: i64) -> Result<(), Recei
 
 /// Compute the CCF accumulator (leaf hash) for an inclusion proof.
 ///
-/// This validates expected field sizes, checks that the proof's `data_hash` matches the statement
-/// digest, and then hashes `internal_txn_hash || sha256(internal_evidence) || data_hash`.
+/// Checks that the proof's `data_hash` matches the statement digest, and then
+/// hashes `internal_txn_hash || sha256(internal_evidence) || data_hash`.
+/// Hash field sizes are guaranteed at parse time via `[u8; 32]` types.
 pub fn ccf_accumulator_sha256(
     proof: &MstCcfInclusionProof,
     expected_data_hash: [u8; 32],
 ) -> Result<[u8; 32], ReceiptVerifyError> {
-    if proof.internal_txn_hash.len() != 32 {
-        return Err(ReceiptVerifyError::ReceiptDecode(format!(
-            "unexpected_internal_txn_hash_len: {}",
-            proof.internal_txn_hash.len()
-        )));
-    }
-    if proof.data_hash.len() != 32 {
-        return Err(ReceiptVerifyError::ReceiptDecode(format!(
-            "unexpected_data_hash_len: {}",
-            proof.data_hash.len()
-        )));
-    }
-    if proof.data_hash.as_slice() != expected_data_hash.as_slice() {
+    if proof.data_hash != expected_data_hash {
         return Err(ReceiptVerifyError::DataHashMismatch);
     }
 
     let internal_evidence_hash = sha256(proof.internal_evidence.as_bytes());
 
     let mut h = Sha256::new();
-    h.update(proof.internal_txn_hash.as_slice());
+    h.update(proof.internal_txn_hash);
     h.update(internal_evidence_hash);
     h.update(expected_data_hash);
     let out = h.finalize();

@@ -7,7 +7,7 @@ use crate::validation::facts::{
     MstReceiptStatementSha256Fact, MstReceiptTrustedFact,
 };
 use cose_sign1_crypto_openssl::jwk_verifier::OpenSslJwkVerifierFactory;
-use cose_sign1_primitives::{CoseHeaderLabel, CoseHeaderValue};
+use cose_sign1_primitives::{ArcSlice, CoseHeaderLabel, CoseHeaderValue};
 use cose_sign1_validation::fluent::*;
 use cose_sign1_validation_primitives::error::TrustError;
 use cose_sign1_validation_primitives::facts::{FactKey, TrustFactContext, TrustFactProducer};
@@ -137,8 +137,7 @@ impl TrustFactProducer for MstTrustPack {
                     HashSet::new();
 
                 for r in receipts {
-                    let cs_subject =
-                        TrustSubject::counter_signature(&message_subject, r.as_slice());
+                    let cs_subject = TrustSubject::counter_signature(&message_subject, &r);
                     let cs_key_subject = TrustSubject::counter_signature_signing_key(&cs_subject);
 
                     ctx.observe(CounterSignatureSubjectFact {
@@ -150,11 +149,11 @@ impl TrustFactProducer for MstTrustPack {
                         is_protected_header: false,
                     })?;
 
-                    let id = sha256_of_bytes(r.as_slice());
+                    let id = sha256_of_bytes(&r);
                     if seen.insert(id) {
                         ctx.observe(UnknownCounterSignatureBytesFact {
                             counter_signature_id: id,
-                            raw_counter_signature_bytes: std::sync::Arc::from(r.into_boxed_slice()),
+                            raw_counter_signature_bytes: std::sync::Arc::from(r.as_bytes()),
                         })?;
                     }
                 }
@@ -187,9 +186,9 @@ impl TrustFactProducer for MstTrustPack {
 
                 let message_subject = TrustSubject::message(message_bytes);
 
-                let mut matched_receipt: Option<Vec<u8>> = None;
+                let mut matched_receipt: Option<ArcSlice> = None;
                 for r in receipts {
-                    let cs = TrustSubject::counter_signature(&message_subject, r.as_slice());
+                    let cs = TrustSubject::counter_signature(&message_subject, &r);
                     if cs.id == ctx.subject().id {
                         matched_receipt = Some(r);
                         break;
@@ -223,7 +222,7 @@ impl TrustFactProducer for MstTrustPack {
                 let factory = OpenSslJwkVerifierFactory;
                 let out = verify_mst_receipt(ReceiptVerifyInput {
                     statement_bytes_with_receipts: message_bytes,
-                    receipt_bytes: receipt_bytes.as_slice(),
+                    receipt_bytes: &receipt_bytes,
                     offline_jwks_json: jwks_json,
                     allow_network_fetch: self.allow_network,
                     jwks_api_version: self.jwks_api_version.as_deref(),
@@ -342,8 +341,8 @@ impl CoseSign1TrustPack for MstTrustPack {
 
 /// Read all MST receipt blobs from the current message.
 ///
-/// Prefers the parsed message view when available; returns empty when no message or receipts.
-fn read_receipts(ctx: &TrustFactContext<'_>) -> Result<Vec<Vec<u8>>, TrustError> {
+/// Returns `ArcSlice` values for zero-copy sharing — cloning is a refcount bump.
+fn read_receipts(ctx: &TrustFactContext<'_>) -> Result<Vec<ArcSlice>, TrustError> {
     if let Some(msg) = ctx.cose_sign1_message() {
         let label = CoseHeaderLabel::Int(MST_RECEIPT_HEADER_LABEL);
         match msg.unprotected.get(&label) {
@@ -352,7 +351,7 @@ fn read_receipts(ctx: &TrustFactContext<'_>) -> Result<Vec<Vec<u8>>, TrustError>
                 let mut result = Vec::new();
                 for v in arr {
                     if let CoseHeaderValue::Bytes(b) = v {
-                        result.push(b.to_vec());
+                        result.push(b.clone());
                     } else {
                         return Err(TrustError::FactProduction("invalid header".to_string()));
                     }

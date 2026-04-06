@@ -1,8 +1,8 @@
 [package]
 name = "cose_sign1_headers_ffi"
 version = "0.1.0"
-edition.workspace = true
-license.workspace = true
+edition = { workspace = true }
+license = { workspace = true }
 rust-version = "1.70"
 description = "C/C++ FFI for COSE Sign1 CWT Claims. Provides CWT Claims creation, serialization, and deserialization for C/C++ consumers."
 

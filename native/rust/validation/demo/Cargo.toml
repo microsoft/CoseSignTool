@@ -1,8 +1,8 @@
 [package]
 name = "cose_sign1_validation_demo"
 version = "0.1.0"
-edition.workspace = true
-license.workspace = true
+edition = { workspace = true }
+license = { workspace = true }
 publish = false
 
 [[bin]]
@@ -25,3 +25,6 @@ hex.workspace = true
 base64.workspace = true
 rcgen = "0.14"
 x509-parser.workspace = true
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }

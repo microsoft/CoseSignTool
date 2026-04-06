@@ -6,7 +6,7 @@ use std::ptr;
 // Not exposed by openssl-sys 0.9, but available at link time (OpenSSL 3.0+).
 unsafe extern "C" {
     fn EVP_PKEY_is_a(pkey: *const ossl::EVP_PKEY, name: *const std::ffi::c_char)
-    -> std::ffi::c_int;
+        -> std::ffi::c_int;
 
     fn EVP_PKEY_get_group_name(
         pkey: *const ossl::EVP_PKEY,

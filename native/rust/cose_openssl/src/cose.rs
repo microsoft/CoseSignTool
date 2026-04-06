@@ -1,7 +1,7 @@
-use crate::cbor::{CborSlice, CborValue, serialize_array};
+use crate::cbor::{serialize_array, CborSlice, CborValue};
 use crate::ossl_wrappers::{
-    EvpKey, KeyType, WhichEC, WhichRSA, ecdsa_der_to_fixed, ecdsa_fixed_to_der,
-    rsa_pss_md_for_cose_alg,
+    ecdsa_der_to_fixed, ecdsa_fixed_to_der, rsa_pss_md_for_cose_alg, EvpKey, KeyType, WhichEC,
+    WhichRSA,
 };
 
 #[cfg(feature = "pqc")]

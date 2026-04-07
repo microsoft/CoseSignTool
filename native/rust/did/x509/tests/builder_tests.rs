@@ -1,7 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-use std::borrow::Cow;
 use did_x509::{
     builder::DidX509Builder,
     constants::*,
@@ -9,6 +8,7 @@ use did_x509::{
     parsing::DidX509Parser,
     DidX509Error,
 };
+use std::borrow::Cow;
 
 // Inline base64 utilities for tests
 const BASE64_STANDARD: &[u8; 64] =

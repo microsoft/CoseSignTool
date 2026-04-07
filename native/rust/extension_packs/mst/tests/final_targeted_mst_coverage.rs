@@ -13,8 +13,8 @@ extern crate cbor_primitives_everparse;
 
 use cbor_primitives::CborEncoder;
 use cose_sign1_transparent_mst::validation::receipt_verify::*;
-use std::borrow::Cow;
 use crypto_primitives::EcJwk;
+use std::borrow::Cow;
 
 // ============================================================================
 // Target: lines 273-278 — sha256 and sha256_concat_slices

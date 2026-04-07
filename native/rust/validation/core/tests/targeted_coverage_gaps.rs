@@ -13,11 +13,11 @@ use cbor_primitives_everparse::EverParseCborProvider;
 use cose_sign1_primitives::payload::Payload;
 use cose_sign1_primitives::CoseSign1Message;
 use cose_sign1_validation::fluent::*;
-use std::borrow::Cow;
 use cose_sign1_validation_primitives::facts::{TrustFactEngine, TrustFactSet};
 use cose_sign1_validation_primitives::subject::TrustSubject;
 use cose_sign1_validation_test_utils::SimpleTrustPack;
 use sha2::Digest;
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 

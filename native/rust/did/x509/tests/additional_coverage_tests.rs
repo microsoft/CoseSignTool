@@ -20,8 +20,8 @@ use rcgen::{
     BasicConstraints as RcgenBasicConstraints, CertificateParams, DnType, ExtendedKeyUsagePurpose,
     IsCa, KeyPair, SanType as RcgenSanType,
 };
-use x509_parser::prelude::*;
 use std::borrow::Cow;
+use x509_parser::prelude::*;
 
 /// Generate an EC certificate with code signing EKU
 fn generate_ec_cert_with_eku(ekus: Vec<ExtendedKeyUsagePurpose>) -> Vec<u8> {

@@ -479,11 +479,9 @@ pub fn parse_leaf(leaf_bytes: &[u8]) -> Result<([u8; 32], String, [u8; 32]), Rec
         .decode_array_len()
         .map_err(|e| ReceiptVerifyError::ReceiptDecode(e.to_string()))?;
 
-    let internal_txn_hash_slice = d
-        .decode_bstr()
-        .map_err(|e| {
-            ReceiptVerifyError::ReceiptDecode(format!("leaf_missing_internal_txn_hash: {}", e))
-        })?;
+    let internal_txn_hash_slice = d.decode_bstr().map_err(|e| {
+        ReceiptVerifyError::ReceiptDecode(format!("leaf_missing_internal_txn_hash: {}", e))
+    })?;
     let internal_txn_hash: [u8; 32] = internal_txn_hash_slice.try_into().map_err(|_| {
         ReceiptVerifyError::ReceiptDecode(format!(
             "unexpected_internal_txn_hash_len: {}",

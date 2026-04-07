@@ -3,7 +3,6 @@
 
 //! Additional FFI coverage tests to improve coverage on resolve, validate, and build paths.
 
-use std::borrow::Cow;
 use did_x509::builder::DidX509Builder;
 use did_x509::models::policy::DidX509Policy;
 use did_x509_ffi::*;
@@ -14,6 +13,7 @@ use openssl::pkey::PKey;
 use openssl::rsa::Rsa;
 use openssl::x509::{X509Builder, X509NameBuilder};
 use rcgen::{CertificateParams, DnType, ExtendedKeyUsagePurpose, KeyPair};
+use std::borrow::Cow;
 use std::ffi::{CStr, CString};
 use std::ptr;
 

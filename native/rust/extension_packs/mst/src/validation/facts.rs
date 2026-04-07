@@ -159,9 +159,7 @@ impl FactProperties for MstReceiptIssuerFact {
     /// Return the property value for declarative trust policies.
     fn get_property<'a>(&'a self, name: &str) -> Option<FactValue<'a>> {
         match name {
-            fields::mst_receipt_issuer::ISSUER => {
-                Some(FactValue::Str(Cow::Borrowed(&self.issuer)))
-            }
+            fields::mst_receipt_issuer::ISSUER => Some(FactValue::Str(Cow::Borrowed(&self.issuer))),
             _ => None,
         }
     }

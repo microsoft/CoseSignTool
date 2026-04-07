@@ -107,7 +107,9 @@ impl DidX509Resolver {
     }
 
     /// Convert X.509 certificate public key to JWK format
-    fn public_key_to_jwk(cert: &X509Certificate) -> Result<HashMap<Cow<'static, str>, String>, DidX509Error> {
+    fn public_key_to_jwk(
+        cert: &X509Certificate,
+    ) -> Result<HashMap<Cow<'static, str>, String>, DidX509Error> {
         let public_key = cert.public_key();
 
         match public_key.parsed() {

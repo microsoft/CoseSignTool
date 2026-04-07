@@ -245,7 +245,8 @@ fn produce_cwt_claims_from_map(
             }
             CoseHeaderLabel::Text(k) => {
                 if let Some(bytes) = value_bytes {
-                    raw_claims_text.insert(Arc::from(k.as_str()), Arc::from(bytes.into_boxed_slice()));
+                    raw_claims_text
+                        .insert(Arc::from(k.as_str()), Arc::from(bytes.into_boxed_slice()));
                 }
 
                 match (k.as_str(), &value_str, value_i64) {

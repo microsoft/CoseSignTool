@@ -5,12 +5,12 @@
 //!
 //! These tests focus on uncovered paths in the FFI layer.
 
-use std::borrow::Cow;
 use did_x509::builder::DidX509Builder;
 use did_x509::models::policy::DidX509Policy;
 use did_x509_ffi::*;
 use rcgen::string::Ia5String;
 use rcgen::{CertificateParams, DnType, ExtendedKeyUsagePurpose, KeyPair, SanType as RcgenSanType};
+use std::borrow::Cow;
 use std::ffi::{CStr, CString};
 use std::ptr;
 

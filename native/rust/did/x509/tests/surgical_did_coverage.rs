@@ -447,8 +447,10 @@ fn validate_subject_matching() {
     // Exercises validate_subject happy path and value comparison lines 56-71
     let cert_der = build_ec_cert_with_subject("TestCN", "TestOrg", "TestOU");
     let (_, cert) = x509_parser::parse_x509_certificate(&cert_der).unwrap();
-    let result =
-        policy_validators::validate_subject(&cert, &[("CN".to_string().into(), "TestCN".to_string().into())]);
+    let result = policy_validators::validate_subject(
+        &cert,
+        &[("CN".to_string().into(), "TestCN".to_string().into())],
+    );
     assert!(result.is_ok());
 }
 
@@ -457,8 +459,10 @@ fn validate_subject_value_mismatch() {
     // Exercises validate_subject lines 80-86: attribute found but value doesn't match
     let cert_der = build_ec_cert_with_subject("ActualCN", "ActualOrg", "ActualOU");
     let (_, cert) = x509_parser::parse_x509_certificate(&cert_der).unwrap();
-    let result =
-        policy_validators::validate_subject(&cert, &[("CN".to_string().into(), "WrongCN".to_string().into())]);
+    let result = policy_validators::validate_subject(
+        &cert,
+        &[("CN".to_string().into(), "WrongCN".to_string().into())],
+    );
     assert!(result.is_err());
     let err_msg = result.unwrap_err().to_string();
     assert!(err_msg.contains("value mismatch"));
@@ -469,8 +473,10 @@ fn validate_subject_attribute_not_found() {
     // Exercises validate_subject lines 74-77: attribute not in cert subject
     let cert_der = build_ec_leaf_cert_with_cn("OnlyCN");
     let (_, cert) = x509_parser::parse_x509_certificate(&cert_der).unwrap();
-    let result =
-        policy_validators::validate_subject(&cert, &[("O".to_string().into(), "SomeOrg".to_string().into())]);
+    let result = policy_validators::validate_subject(
+        &cert,
+        &[("O".to_string().into(), "SomeOrg".to_string().into())],
+    );
     assert!(result.is_err());
     let err_msg = result.unwrap_err().to_string();
     assert!(err_msg.contains("not found"));
@@ -481,8 +487,10 @@ fn validate_subject_unknown_attribute_label() {
     // Exercises validate_subject lines 47-50: unknown attribute label → error
     let cert_der = build_ec_leaf_cert_with_cn("Test");
     let (_, cert) = x509_parser::parse_x509_certificate(&cert_der).unwrap();
-    let result =
-        policy_validators::validate_subject(&cert, &[("BOGUS".to_string().into(), "value".to_string().into())]);
+    let result = policy_validators::validate_subject(
+        &cert,
+        &[("BOGUS".to_string().into(), "value".to_string().into())],
+    );
     assert!(result.is_err());
     let err_msg = result.unwrap_err().to_string();
     assert!(err_msg.contains("Unknown attribute"));

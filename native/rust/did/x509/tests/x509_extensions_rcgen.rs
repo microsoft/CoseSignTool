@@ -9,8 +9,8 @@ use did_x509::x509_extensions::{
     extract_eku_oids, extract_extended_key_usage, extract_fulcio_issuer, is_ca_certificate,
 };
 use rcgen::{BasicConstraints, CertificateParams, DnType, ExtendedKeyUsagePurpose, IsCa, KeyPair};
-use x509_parser::prelude::*;
 use std::borrow::Cow;
+use x509_parser::prelude::*;
 
 /// Generate a certificate with multiple EKU flags.
 fn generate_cert_with_multiple_ekus() -> Vec<u8> {

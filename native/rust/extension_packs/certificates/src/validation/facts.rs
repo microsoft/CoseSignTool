@@ -225,9 +225,9 @@ impl FactProperties for X509SigningCertificateIdentityFact {
     /// Return the property value for declarative trust policies.
     fn get_property<'a>(&'a self, name: &str) -> Option<FactValue<'a>> {
         match name {
-            "certificate_thumbprint" => Some(FactValue::Str(Cow::Borrowed(
-                &self.certificate_thumbprint,
-            ))),
+            "certificate_thumbprint" => {
+                Some(FactValue::Str(Cow::Borrowed(&self.certificate_thumbprint)))
+            }
             "subject" => Some(FactValue::Str(Cow::Borrowed(&self.subject))),
             "issuer" => Some(FactValue::Str(Cow::Borrowed(&self.issuer))),
             "serial_number" => Some(FactValue::Str(Cow::Borrowed(&self.serial_number))),
@@ -243,9 +243,9 @@ impl FactProperties for X509ChainElementIdentityFact {
     fn get_property<'a>(&'a self, name: &str) -> Option<FactValue<'a>> {
         match name {
             "index" => Some(FactValue::Usize(self.index)),
-            "certificate_thumbprint" => Some(FactValue::Str(Cow::Borrowed(
-                &self.certificate_thumbprint,
-            ))),
+            "certificate_thumbprint" => {
+                Some(FactValue::Str(Cow::Borrowed(&self.certificate_thumbprint)))
+            }
             "subject" => Some(FactValue::Str(Cow::Borrowed(&self.subject))),
             "issuer" => Some(FactValue::Str(Cow::Borrowed(&self.issuer))),
             _ => None,
@@ -286,9 +286,9 @@ impl FactProperties for X509PublicKeyAlgorithmFact {
     /// Return the property value for declarative trust policies.
     fn get_property<'a>(&'a self, name: &str) -> Option<FactValue<'a>> {
         match name {
-            "certificate_thumbprint" => Some(FactValue::Str(Cow::Borrowed(
-                &self.certificate_thumbprint,
-            ))),
+            "certificate_thumbprint" => {
+                Some(FactValue::Str(Cow::Borrowed(&self.certificate_thumbprint)))
+            }
             "algorithm_oid" => Some(FactValue::Str(Cow::Borrowed(&self.algorithm_oid))),
             "algorithm_name" => self
                 .algorithm_name

@@ -117,11 +117,16 @@ fn test_validate_eku_failure_wrong_oid() {
 
 #[test]
 fn test_validate_subject_success_single_attribute() {
-    let cert_der =
-        generate_cert_with_subject(vec![(DnType::CommonName, "Test Subject".to_string().into())]);
+    let cert_der = generate_cert_with_subject(vec![(
+        DnType::CommonName,
+        "Test Subject".to_string().into(),
+    )]);
     let (_, cert) = X509Certificate::from_der(&cert_der).unwrap();
 
-    let result = validate_subject(&cert, &[("CN".to_string().into(), "Test Subject".to_string().into())]);
+    let result = validate_subject(
+        &cert,
+        &[("CN".to_string().into(), "Test Subject".to_string().into())],
+    );
     assert!(result.is_ok());
 }
 
@@ -145,8 +150,10 @@ fn test_validate_subject_success_multiple_attributes() {
 
 #[test]
 fn test_validate_subject_failure_empty_attributes() {
-    let cert_der =
-        generate_cert_with_subject(vec![(DnType::CommonName, "Test Subject".to_string().into())]);
+    let cert_der = generate_cert_with_subject(vec![(
+        DnType::CommonName,
+        "Test Subject".to_string().into(),
+    )]);
     let (_, cert) = X509Certificate::from_der(&cert_der).unwrap();
 
     let result = validate_subject(&cert, &[]);
@@ -161,11 +168,16 @@ fn test_validate_subject_failure_empty_attributes() {
 
 #[test]
 fn test_validate_subject_failure_attribute_not_found() {
-    let cert_der =
-        generate_cert_with_subject(vec![(DnType::CommonName, "Test Subject".to_string().into())]);
+    let cert_der = generate_cert_with_subject(vec![(
+        DnType::CommonName,
+        "Test Subject".to_string().into(),
+    )]);
     let (_, cert) = X509Certificate::from_der(&cert_der).unwrap();
 
-    let result = validate_subject(&cert, &[("O".to_string().into(), "Missing Org".to_string().into())]);
+    let result = validate_subject(
+        &cert,
+        &[("O".to_string().into(), "Missing Org".to_string().into())],
+    );
     assert!(result.is_err());
     match result {
         Err(DidX509Error::PolicyValidationFailed(msg)) => {
@@ -177,11 +189,16 @@ fn test_validate_subject_failure_attribute_not_found() {
 
 #[test]
 fn test_validate_subject_failure_attribute_value_mismatch() {
-    let cert_der =
-        generate_cert_with_subject(vec![(DnType::CommonName, "Test Subject".to_string().into())]);
+    let cert_der = generate_cert_with_subject(vec![(
+        DnType::CommonName,
+        "Test Subject".to_string().into(),
+    )]);
     let (_, cert) = X509Certificate::from_der(&cert_der).unwrap();
 
-    let result = validate_subject(&cert, &[("CN".to_string().into(), "Wrong Subject".to_string().into())]);
+    let result = validate_subject(
+        &cert,
+        &[("CN".to_string().into(), "Wrong Subject".to_string().into())],
+    );
     assert!(result.is_err());
     match result {
         Err(DidX509Error::PolicyValidationFailed(msg)) => {
@@ -194,11 +211,16 @@ fn test_validate_subject_failure_attribute_value_mismatch() {
 
 #[test]
 fn test_validate_subject_failure_unknown_attribute() {
-    let cert_der =
-        generate_cert_with_subject(vec![(DnType::CommonName, "Test Subject".to_string().into())]);
+    let cert_der = generate_cert_with_subject(vec![(
+        DnType::CommonName,
+        "Test Subject".to_string().into(),
+    )]);
     let (_, cert) = X509Certificate::from_der(&cert_der).unwrap();
 
-    let result = validate_subject(&cert, &[("UNKNOWN".to_string().into(), "value".to_string().into())]);
+    let result = validate_subject(
+        &cert,
+        &[("UNKNOWN".to_string().into(), "value".to_string().into())],
+    );
     assert!(result.is_err());
     match result {
         Err(DidX509Error::PolicyValidationFailed(msg)) => {
@@ -311,7 +333,8 @@ fn test_validate_fulcio_issuer_success() {
 
 #[test]
 fn test_validate_fulcio_issuer_failure_missing_extension() {
-    let cert_der = generate_cert_with_subject(vec![(DnType::CommonName, "Test Cert".to_string().into())]);
+    let cert_der =
+        generate_cert_with_subject(vec![(DnType::CommonName, "Test Cert".to_string().into())]);
     let (_, cert) = X509Certificate::from_der(&cert_der).unwrap();
 
     let result = validate_fulcio_issuer(&cert, "https://fulcio.example.com");

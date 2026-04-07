@@ -167,7 +167,10 @@ fn test_validate_subject_unknown_attribute() {
     // Use an unknown attribute label
     let result = validate_subject(
         &cert,
-        &[("UnknownAttribute".to_string().into(), "SomeValue".to_string().into())],
+        &[(
+            "UnknownAttribute".to_string().into(),
+            "SomeValue".to_string().into(),
+        )],
     );
 
     assert!(result.is_err());
@@ -215,7 +218,10 @@ fn test_validate_subject_value_mismatch() {
     let (_, cert) = X509Certificate::from_der(&cert_der).unwrap();
 
     // Request CommonName with wrong value
-    let result = validate_subject(&cert, &[("CN".to_string().into(), "Wrong Name".to_string().into())]);
+    let result = validate_subject(
+        &cert,
+        &[("CN".to_string().into(), "Wrong Name".to_string().into())],
+    );
 
     assert!(result.is_err());
     match result.unwrap_err() {

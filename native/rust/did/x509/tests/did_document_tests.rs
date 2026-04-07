@@ -2,8 +2,8 @@
 // Licensed under the MIT License.
 
 use did_x509::{DidDocument, VerificationMethod};
-use std::collections::HashMap;
 use std::borrow::Cow;
+use std::collections::HashMap;
 
 #[test]
 fn test_did_document_to_json() {

@@ -208,7 +208,9 @@ fn raw_cwt_nonstandard_int_keys() {
     assert!(fact.nbf.is_none());
     assert!(fact.iat.is_none());
 
-    assert!(matches!(fact.scalar_claims.get(&999), Some(CwtClaimScalar::Str(s)) if &**s == "val999"));
+    assert!(
+        matches!(fact.scalar_claims.get(&999), Some(CwtClaimScalar::Str(s)) if &**s == "val999")
+    );
     assert!(matches!(
         fact.scalar_claims.get(&1000),
         Some(CwtClaimScalar::I64(42))

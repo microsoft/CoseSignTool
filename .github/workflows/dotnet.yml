@@ -43,10 +43,10 @@ jobs:
             dir_command: ls -a -R
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@v3
+      uses: actions/setup-dotnet@v5
       with:
         dotnet-version: 8.0.x
 
@@ -83,26 +83,65 @@ jobs:
 
   # Changelog generation.
   # On pull requests: passes without action — changelog is generated at release time.
-  # On push to main: generates the changelog as an artifact for the create_release job.
+  # On push to main: generates a cumulative changelog as an artifact for the create_release job.
   # The changelog is NOT committed to the repo because the org-level branch protection
   # ruleset blocks direct pushes to main (even from GITHUB_TOKEN).
+  # The generated changelog is cumulative — it contains entries for ALL releases, not just
+  # the latest one, so each release body includes the full project history.
   create_changelog:
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
-      - name: Checkout code
+      - name: Generate cumulative changelog
         if: ${{ github.event_name == 'push' }}
-        uses: actions/checkout@v4
-        with:
-          ref: main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "# Changelog" > CHANGELOG.md
+          echo "" >> CHANGELOG.md
 
-      - name: Generate changelog
-        if: ${{ github.event_name == 'push' }}
-        uses: tj-actions/github-changelog-generator@v1.19
-        with:
-          output: CHANGELOG.md
-          token: ${{ secrets.GITHUB_TOKEN }}
+          # Find the latest release tag via the GitHub API (no local tags needed).
+          PREVIOUS_TAG=$(gh release list --limit 1 --json tagName --jq '.[0].tagName' 2>/dev/null || echo "")
+          echo "Previous tag: $PREVIOUS_TAG"
+
+          # Generate delta release notes for the current (upcoming) release using GitHub's API.
+          if [ -n "$PREVIOUS_TAG" ]; then
+            NOTES=$(gh api repos/${{ github.repository }}/releases/generate-notes \
+              -f tag_name="pending" \
+              -f target_commitish="${{ github.sha }}" \
+              -f previous_tag_name="$PREVIOUS_TAG" \
+              --jq '.body' 2>/dev/null || echo "")
+          else
+            NOTES=$(gh api repos/${{ github.repository }}/releases/generate-notes \
+              -f tag_name="pending" \
+              -f target_commitish="${{ github.sha }}" \
+              --jq '.body' 2>/dev/null || echo "")
+          fi
+
+          if [ -n "$NOTES" ]; then
+            echo "$NOTES" >> CHANGELOG.md
+            echo "" >> CHANGELOG.md
+          fi
+
+          # Append the body text from all previous releases (newest first) to make it cumulative.
+          echo "---" >> CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          echo "## Previous Releases" >> CHANGELOG.md
+          echo "" >> CHANGELOG.md
+
+          gh release list --limit 50 --json tagName --jq '.[].tagName' | while read -r TAG; do
+            BODY=$(gh release view "$TAG" --json body --jq '.body' 2>/dev/null || echo "")
+            if [ -n "$BODY" ]; then
+              echo "### $TAG" >> CHANGELOG.md
+              echo "" >> CHANGELOG.md
+              echo "$BODY" >> CHANGELOG.md
+              echo "" >> CHANGELOG.md
+            fi
+          done
+
+          echo "Generated cumulative CHANGELOG.md:"
+          wc -l CHANGELOG.md
 
       - name: Upload changelog artifact
         if: ${{ github.event_name == 'push' }}
@@ -138,14 +177,13 @@ jobs:
       security-events: write
       statuses: write
     outputs:
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
       tag_name: ${{ steps.output_tag_name.outputs.tag_name }}
     steps:
 
     # Checkout the main branch and fetch tags.
     - name: Checkout code
       if: ${{ github.event_name == 'push' }}
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         fetch-depth: 0  # Full history needed for tag discovery.
 
@@ -163,7 +201,9 @@ jobs:
       if: ${{ github.event_name == 'push' }}
       id: new-tag    # Output: ${{ steps.new-tag.outputs.newtag }}
       run: |
-        CURRENT_TAG=$(git tag | sort --version-sort | tail -n1)
+        # Filter to only well-formed tags (vX.Y.Z or vX.Y.Z-preN) to avoid malformed tags
+        # like "v.1.5.5" or "1.6.2" breaking the version sort.
+        CURRENT_TAG=$(git tag | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+(-pre[0-9]+)?$' | sort --version-sort | tail -n1)
         echo "Current tag is $CURRENT_TAG"
         if [[ $CURRENT_TAG =~ ^v([0-9]+\.[0-9]+\.[0-9]+)(-pre([0-9]+))?$ ]]; then
           BASE_VERSION=${BASH_REMATCH[1]}
@@ -196,39 +236,32 @@ jobs:
             fi
           done
 
-          echo "::set-output name=newtag::$NEW_TAG"
+          echo "newtag=$NEW_TAG" >> "$GITHUB_OUTPUT"
         else
-          echo "Invalid tag format"
+          echo "Invalid tag format: '$CURRENT_TAG'"
           exit 1
         fi
 
     # Create the release. This should generate a release event, which will trigger the release_assets job.
     - name: Create Release
       if: ${{ github.event_name == 'push' }}
-      id: create_release
-      uses: actions/create-release@v1
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        # Get the tag name and release name from the previous step.
-        tag_name: ${{ steps.new-tag.outputs.newtag }}
-        release_name: Release ${{ steps.new-tag.outputs.newtag }}
-
-        # Generate release text from changelog.
-        body_path: ./CHANGELOG.md
-
-        # Always use prerelease for automated releases. Official releases are created manually.
-        prerelease: true
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        gh release create "${{ steps.new-tag.outputs.newtag }}" \
+          --title "Release ${{ steps.new-tag.outputs.newtag }}" \
+          --notes-file ./CHANGELOG.md \
+          --prerelease
 
     # Output the semver tag if it's a push event, or the most recent tag if it's a release event.
     - name: Output tag name
       id: output_tag_name
       run: |
         if [ "${{ github.event_name }}" == "push" ]; then
-          echo "::set-output name=tag_name::${{ steps.new-tag.outputs.newtag }}"
+          echo "tag_name=${{ steps.new-tag.outputs.newtag }}" >> "$GITHUB_OUTPUT"
           echo "Generated semver tag is ${{ steps.new-tag.outputs.newtag }}."
         else
-          echo "::set-output name=tag_name::${{ github.event.release.tag_name }}"
+          echo "tag_name=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
           echo "Current release tag is ${{ github.event.release.tag_name }}."
         fi
 
@@ -277,7 +310,7 @@ jobs:
     steps:
     # Checkout the branch.
     - name: Checkout code again
-      uses: actions/checkout@v3
+      uses: actions/checkout@v6
 
     # Restore all projects including plugins.
     # Plugin projects are not direct ProjectReferences of CoseSignTool — they are discovered
@@ -478,21 +511,23 @@ jobs:
 
     # Upload the zipped assets to the release.
     - name: Upload binary archives
-      uses: svenstaro/upload-release-action@v2
-      with:
-        repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: ./published/CoseSignTool-*.zip
-        file_glob: true
-        overwrite: true
-        tag: ${{ needs.create_release.outputs.tag_name }}
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        for f in ./published/CoseSignTool-*.zip; do
+          echo "Uploading $f..."
+          gh release upload "${{ needs.create_release.outputs.tag_name }}" "$f" --clobber
+        done
+      shell: bash
 
     # Commented out until we decide to support publishing of nuget packages.
     # Upload the NuGet packages to the release (commented out for now)
     # - name: Upload NuGet packages
-    #   uses: svenstaro/upload-release-action@v2
-    #   with:
-    #     repo_token: ${{ secrets.GITHUB_TOKEN }}
-    #     file: ./published/packages/*.nupkg
-    #     file_glob: true
-    #     overwrite: true
-    #     tag: ${{ needs.create_release.outputs.tag_name }}
+    #   env:
+    #     GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #   run: |
+    #     for f in ./published/packages/*.nupkg; do
+    #       echo "Uploading $f..."
+    #       gh release upload "${{ needs.create_release.outputs.tag_name }}" "$f" --clobber
+    #     done
+    #   shell: bash

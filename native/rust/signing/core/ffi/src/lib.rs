@@ -2907,9 +2907,9 @@ impl cose_sign1_signing::SigningService for SimpleSigningService {
         _message_bytes: &[u8],
         _context: &cose_sign1_signing::SigningContext,
     ) -> Result<bool, cose_sign1_signing::SigningError> {
-        Err(cose_sign1_signing::SigningError::VerificationFailed(
-            "verification not supported by FFI signing service".to_string(),
-        ))
+        Err(cose_sign1_signing::SigningError::VerificationFailed {
+            detail: std::borrow::Cow::Borrowed("verification not supported by FFI signing service"),
+        })
     }
 }
 

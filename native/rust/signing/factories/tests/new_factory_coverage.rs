@@ -14,19 +14,31 @@ use cose_sign1_factories::FactoryError;
 #[test]
 fn error_display_all_variants() {
     let cases: Vec<(FactoryError, &str)> = vec![
-        (FactoryError::SigningFailed("s".into()), "Signing failed: s"),
         (
-            FactoryError::VerificationFailed("v".into()),
+            FactoryError::SigningFailed { detail: "s".into() },
+            "Signing failed: s",
+        ),
+        (
+            FactoryError::VerificationFailed { detail: "v".into() },
             "Verification failed: v",
         ),
-        (FactoryError::InvalidInput("i".into()), "Invalid input: i"),
-        (FactoryError::CborError("c".into()), "CBOR error: c"),
         (
-            FactoryError::TransparencyFailed("t".into()),
+            FactoryError::InvalidInput { detail: "i".into() },
+            "Invalid input: i",
+        ),
+        (
+            FactoryError::CborError { detail: "c".into() },
+            "CBOR error: c",
+        ),
+        (
+            FactoryError::TransparencyFailed { detail: "t".into() },
             "Transparency failed: t",
         ),
         (
-            FactoryError::PayloadTooLargeForEmbedding(200, 100),
+            FactoryError::PayloadTooLargeForEmbedding {
+                actual: 200,
+                max: 100,
+            },
             "Payload too large for embedding: 200 bytes (max 100)",
         ),
     ];
@@ -37,7 +49,7 @@ fn error_display_all_variants() {
 
 #[test]
 fn error_implements_std_error() {
-    let err = FactoryError::CborError("x".into());
+    let err = FactoryError::CborError { detail: "x".into() };
     let trait_obj: &dyn std::error::Error = &err;
     assert!(trait_obj.source().is_none());
 }

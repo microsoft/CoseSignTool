@@ -28,6 +28,7 @@ impl TrustPolicy {
     }
 }
 
+#[must_use = "builders do nothing unless consumed"]
 #[derive(Default)]
 pub struct TrustPolicyBuilder {
     policy: TrustPolicy,

@@ -42,6 +42,7 @@ impl HashAlgorithm {
 /// Options for creating indirect signatures.
 ///
 /// Maps V2 `IndirectSignatureOptions`.
+#[must_use = "builders do nothing unless consumed"]
 #[derive(Default, Debug)]
 pub struct IndirectSignatureOptions {
     /// Base options for the underlying direct signature.

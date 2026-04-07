@@ -95,17 +95,24 @@ impl CoseSigner {
     ) -> Result<Vec<u8>, SigningError> {
         use cose_sign1_primitives::build_sig_structure;
 
-        let protected_bytes = self.protected_headers.encode().map_err(|e| {
-            SigningError::SigningFailed(format!("Failed to encode protected headers: {}", e))
-        })?;
+        let protected_bytes =
+            self.protected_headers
+                .encode()
+                .map_err(|e| SigningError::SigningFailed {
+                    detail: format!("Failed to encode protected headers: {}", e).into(),
+                })?;
 
         let sig_structure =
             build_sig_structure(&protected_bytes, external_aad, payload).map_err(|e| {
-                SigningError::SigningFailed(format!("Failed to build Sig_structure: {}", e))
+                SigningError::SigningFailed {
+                    detail: format!("Failed to build Sig_structure: {}", e).into(),
+                }
             })?;
 
         self.signer
             .sign(&sig_structure)
-            .map_err(|e| SigningError::SigningFailed(format!("Signing failed: {}", e)))
+            .map_err(|e| SigningError::SigningFailed {
+                detail: format!("Signing failed: {}", e).into(),
+            })
     }
 }

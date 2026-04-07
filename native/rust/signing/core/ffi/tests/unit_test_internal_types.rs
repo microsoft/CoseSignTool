@@ -159,9 +159,9 @@ impl cose_sign1_signing::SigningService for TestableSimpleSigningService {
         _message_bytes: &[u8],
         _context: &cose_sign1_signing::SigningContext,
     ) -> Result<bool, cose_sign1_signing::SigningError> {
-        Err(cose_sign1_signing::SigningError::VerificationFailed(
-            "verification not supported by FFI signing service".to_string(),
-        ))
+        Err(cose_sign1_signing::SigningError::VerificationFailed {
+            detail: std::borrow::Cow::Borrowed("verification not supported by FFI signing service"),
+        })
     }
 }
 
@@ -225,8 +225,8 @@ fn test_simple_signing_service_verify_signature() {
 
     assert!(result.is_err());
     match result.unwrap_err() {
-        cose_sign1_signing::SigningError::VerificationFailed(msg) => {
-            assert!(msg.contains("verification not supported"));
+        cose_sign1_signing::SigningError::VerificationFailed { detail } => {
+            assert!(detail.contains("verification not supported"));
         }
         _ => panic!("Expected VerificationFailed error"),
     }

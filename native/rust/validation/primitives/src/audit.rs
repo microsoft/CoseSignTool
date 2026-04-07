@@ -29,6 +29,7 @@ impl TrustDecisionAudit {
     }
 }
 
+#[must_use = "builders do nothing unless consumed"]
 #[derive(Debug, Default)]
 pub struct TrustDecisionAuditBuilder {
     audit: TrustDecisionAudit,

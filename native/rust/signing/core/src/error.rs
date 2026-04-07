@@ -3,33 +3,39 @@
 
 //! Signing errors.
 
+use std::borrow::Cow;
+
 /// Error type for signing operations.
 #[derive(Debug)]
 pub enum SigningError {
     /// Error related to key operations.
-    KeyError(String),
+    KeyError { detail: Cow<'static, str> },
 
     /// Header contribution failed.
-    HeaderContributionFailed(String),
+    HeaderContributionFailed { detail: Cow<'static, str> },
 
     /// Signing operation failed.
-    SigningFailed(String),
+    SigningFailed { detail: Cow<'static, str> },
 
     /// Signature verification failed.
-    VerificationFailed(String),
+    VerificationFailed { detail: Cow<'static, str> },
 
     /// Invalid configuration.
-    InvalidConfiguration(String),
+    InvalidConfiguration { detail: Cow<'static, str> },
 }
 
 impl std::fmt::Display for SigningError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::KeyError(msg) => write!(f, "Key error: {}", msg),
-            Self::HeaderContributionFailed(msg) => write!(f, "Header contribution failed: {}", msg),
-            Self::SigningFailed(msg) => write!(f, "Signing failed: {}", msg),
-            Self::VerificationFailed(msg) => write!(f, "Verification failed: {}", msg),
-            Self::InvalidConfiguration(msg) => write!(f, "Invalid configuration: {}", msg),
+            Self::KeyError { detail } => write!(f, "Key error: {}", detail),
+            Self::HeaderContributionFailed { detail } => {
+                write!(f, "Header contribution failed: {}", detail)
+            }
+            Self::SigningFailed { detail } => write!(f, "Signing failed: {}", detail),
+            Self::VerificationFailed { detail } => write!(f, "Verification failed: {}", detail),
+            Self::InvalidConfiguration { detail } => {
+                write!(f, "Invalid configuration: {}", detail)
+            }
         }
     }
 }

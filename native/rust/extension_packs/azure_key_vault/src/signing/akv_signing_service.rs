@@ -94,9 +94,11 @@ impl AzureKeyVaultSigningService {
     /// Checks if the service is initialized.
     fn ensure_initialized(&self) -> Result<(), SigningError> {
         if !self.initialized {
-            return Err(SigningError::InvalidConfiguration(
-                "Service not initialized. Call initialize() first.".to_string(),
-            ));
+            return Err(SigningError::InvalidConfiguration {
+                detail: std::borrow::Cow::Borrowed(
+                    "Service not initialized. Call initialize() first.",
+                ),
+            });
         }
         Ok(())
     }
@@ -189,15 +191,20 @@ impl SigningService for AzureKeyVaultSigningService {
         self.ensure_initialized()?;
 
         // Parse the COSE_Sign1 message
-        let msg = cose_sign1_primitives::CoseSign1Message::parse(message_bytes)
-            .map_err(|e| SigningError::VerificationFailed(format!("failed to parse: {}", e)))?;
+        let msg = cose_sign1_primitives::CoseSign1Message::parse(message_bytes).map_err(|e| {
+            SigningError::VerificationFailed {
+                detail: format!("failed to parse: {}", e).into(),
+            }
+        })?;
 
         // Get the public key from the signing key
         let public_key_bytes = self
             .signing_key
             .crypto_client()
             .public_key_bytes()
-            .map_err(|e| SigningError::VerificationFailed(format!("public key: {}", e)))?;
+            .map_err(|e| SigningError::VerificationFailed {
+                detail: format!("public key: {}", e).into(),
+            })?;
 
         // Determine the COSE algorithm from the signing key
         let algorithm = self.signing_key.algorithm;
@@ -207,16 +214,22 @@ impl SigningService for AzureKeyVaultSigningService {
             &public_key_bytes,
             algorithm,
         )
-        .map_err(|e| SigningError::VerificationFailed(format!("verifier creation: {}", e)))?;
+        .map_err(|e| SigningError::VerificationFailed {
+            detail: format!("verifier creation: {}", e).into(),
+        })?;
 
         // Build sig_structure from the message
         let payload = msg.payload().unwrap_or_default();
-        let sig_structure = msg
-            .sig_structure_bytes(payload, None)
-            .map_err(|e| SigningError::VerificationFailed(format!("sig_structure: {}", e)))?;
+        let sig_structure = msg.sig_structure_bytes(payload, None).map_err(|e| {
+            SigningError::VerificationFailed {
+                detail: format!("sig_structure: {}", e).into(),
+            }
+        })?;
 
         verifier
             .verify(&sig_structure, msg.signature())
-            .map_err(|e| SigningError::VerificationFailed(format!("verify: {}", e)))
+            .map_err(|e| SigningError::VerificationFailed {
+                detail: format!("verify: {}", e).into(),
+            })
     }
 }

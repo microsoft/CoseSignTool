@@ -8,6 +8,7 @@ use cose_sign1_signing::HeaderContributor;
 /// Options for creating direct signatures.
 ///
 /// Maps V2 `DirectSignatureOptions`.
+#[must_use = "builders do nothing unless consumed"]
 #[derive(Default)]
 pub struct DirectSignatureOptions {
     /// Whether to embed the payload in the COSE_Sign1 message.

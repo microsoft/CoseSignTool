@@ -241,9 +241,9 @@ fn test_get_cose_signer_with_scitt_enabled() {
         Ok(_) => {
             // Success case - SCITT contributor was added
         }
-        Err(cose_sign1_signing::SigningError::SigningFailed(msg)) => {
+        Err(cose_sign1_signing::SigningError::SigningFailed { detail }) => {
             // Expected failure due to mock cert not being valid for DID:X509
-            assert!(msg.contains("DID:X509") || msg.contains("Invalid"));
+            assert!(detail.contains("DID:X509") || detail.contains("Invalid"));
         }
         _ => panic!("Unexpected error type"),
     }
@@ -273,7 +273,7 @@ fn test_get_cose_signer_with_custom_cwt_claims() {
     // Similar to above - testing the code path
     match result {
         Ok(_) => {}
-        Err(cose_sign1_signing::SigningError::SigningFailed(_)) => {
+        Err(cose_sign1_signing::SigningError::SigningFailed { .. }) => {
             // Expected due to mock cert
         }
         _ => panic!("Unexpected error type"),
@@ -314,8 +314,8 @@ fn test_get_cose_signer_certificate_source_failure() {
     let result = service.get_cose_signer(&context);
     assert!(result.is_err());
     match result {
-        Err(cose_sign1_signing::SigningError::SigningFailed(msg)) => {
-            assert!(msg.contains("Mock failure"));
+        Err(cose_sign1_signing::SigningError::SigningFailed { detail }) => {
+            assert!(detail.contains("Mock failure"));
         }
         _ => panic!("Expected SigningFailed error"),
     }

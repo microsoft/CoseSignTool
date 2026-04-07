@@ -24,11 +24,6 @@ public class CoseX509Thumprint
     };
 
     /// <summary>
-    /// Hash algorithm instance used to compute thumbprints
-    /// </summary>
-    private HashAlgorithm? Hasher { get; set; }
-
-    /// <summary>
     /// Gets the HashId used in the CBOR/COSE representation of the x5t header
     /// </summary>
     public int HashId { get; private set; }
@@ -48,8 +43,9 @@ public class CoseX509Thumprint
     /// <param name="cert">The certificate to create a thumbprint for.</param>
     public CoseX509Thumprint(X509Certificate2 cert)
     {
-        BuildHasher(GetHashID(HashAlgorithmName.SHA256.Name ?? "SHA256"));
-        Thumbprint = Hasher?.ComputeHash(cert.RawData);
+        SetHashId(GetHashID(HashAlgorithmName.SHA256.Name ?? "SHA256"));
+        using HashAlgorithm hasher = this.CreateHashAlgorithm();
+        Thumbprint = hasher.ComputeHash(cert.RawData);
     }
 
     /// <summary>
@@ -58,9 +54,10 @@ public class CoseX509Thumprint
     /// <param name="cert">The certificate to create a thumbprint for.</param>
     public CoseX509Thumprint(X509Certificate2 cert, HashAlgorithmName hashAlgorithm)
     {
-        BuildHasher(GetHashID(hashAlgorithm.Name
+        SetHashId(GetHashID(hashAlgorithm.Name
             ?? throw new CryptographicException(nameof(hashAlgorithm), "The supplied hash algorithm name was not recognized.")));
-        Thumbprint = Hasher?.ComputeHash(cert.RawData);
+        using HashAlgorithm hasher = this.CreateHashAlgorithm();
+        Thumbprint = hasher.ComputeHash(cert.RawData);
     }
 
     #region Public Methods
@@ -75,8 +72,8 @@ public class CoseX509Thumprint
     /// <returns></returns>
     public bool Match(X509Certificate2 certificate)
     {
-        return Thumbprint.ToArray().SequenceEqual(Hasher?.ComputeHash(certificate.RawData)
-            ?? throw new InvalidOperationException($"The current {nameof(CoseX509Thumprint)} object is not yet initialized."));
+        using HashAlgorithm hasher = this.CreateHashAlgorithm();
+        return Thumbprint.ToArray().SequenceEqual(hasher.ComputeHash(certificate.RawData));
     }
 
     /// <summary>
@@ -108,7 +105,7 @@ public class CoseX509Thumprint
         }
 
         int hashId = reader.ReadInt32();
-        result.BuildHasher(hashId);
+        result.SetHashId(hashId);
 
         if (reader.PeekState() != CborReaderState.ByteString)
         {
@@ -149,22 +146,35 @@ public class CoseX509Thumprint
         return data.Key;
     }
 
-    // Sets HashID and returns the value for Hasher.
-    private void BuildHasher(int coseHashAlgorithmId)
+    // Sets HashID and validates the algorithm is supported.
+    private void SetHashId(int coseHashAlgorithmId)
     {
-        if (!HashAlgorithmToCoseValues.TryGetValue(coseHashAlgorithmId, out HashAlgorithmName algName))
+        if (!HashAlgorithmToCoseValues.TryGetValue(coseHashAlgorithmId, out _))
         {
             throw new CoseX509FormatException($"Unsupported thumbprint hash algorithm value of {coseHashAlgorithmId}");
         }
 
         HashId = coseHashAlgorithmId;
+    }
+
+    /// <summary>
+    /// Creates a new <see cref="HashAlgorithm"/> instance based on the stored <see cref="HashId"/>.
+    /// Each call returns a fresh instance that is safe for use on the calling thread.
+    /// Callers are responsible for disposing the returned instance.
+    /// </summary>
+    private HashAlgorithm CreateHashAlgorithm()
+    {
+        if (!HashAlgorithmToCoseValues.TryGetValue(HashId, out HashAlgorithmName algName))
+        {
+            throw new CoseX509FormatException($"Unsupported thumbprint hash algorithm value of {HashId}");
+        }
 
         // HashAlgorithmName values are not constants, so we can't use an actual switch here.
-        Hasher =
+        return
             algName == HashAlgorithmName.SHA256 ? SHA256.Create() :
             algName == HashAlgorithmName.SHA384 ? SHA384.Create() :
             algName == HashAlgorithmName.SHA512 ? SHA512.Create() :
-            throw new CoseX509FormatException($"Unsupported thumbprint hash algorithm value of {coseHashAlgorithmId}");
+            throw new CoseX509FormatException($"Unsupported thumbprint hash algorithm value of {HashId}");
     }
 
     #endregion

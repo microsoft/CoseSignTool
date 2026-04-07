@@ -36,23 +36,19 @@ public sealed partial class IndirectSignatureFactory : IDisposable
         CoseHashEnvelope
     }
 
-    private readonly HashAlgorithm InternalHashAlgorithm;
     private readonly uint HashLength;
     private readonly CoseHashAlgorithm InternalCoseHashAlgorithm;
     private readonly HashAlgorithmName InternalHashAlgorithmName;
     private readonly ICoseSign1MessageFactory InternalMessageFactory;
 
     /// <summary>
-    /// The HashAlgorithm this factory is using.
+    /// Creates a new <see cref="System.Security.Cryptography.HashAlgorithm"/> instance matching the algorithm this factory is configured with.
+    /// Each access returns a new instance. Callers are responsible for disposing the returned instance.
     /// </summary>
-    /// <remarks>
-    /// WARNING: This instance is NOT thread-safe for ComputeHash operations.
-    /// Use <see cref="CreateHashAlgorithm"/> to create a thread-safe instance for hashing.
-    /// </remarks>
-    public HashAlgorithm HashAlgorithm => InternalHashAlgorithm;
+    public HashAlgorithm HashAlgorithm => CreateHashAlgorithm();
 
     /// <summary>
-    /// The HashAlgorightmName this factory is using.
+    /// The HashAlgorithmName this factory is using.
     /// </summary>
     public HashAlgorithmName HashAlgorithmName => InternalHashAlgorithmName;
 
@@ -95,21 +91,49 @@ public sealed partial class IndirectSignatureFactory : IDisposable
     public IndirectSignatureFactory(HashAlgorithmName hashAlgorithmName, ICoseSign1MessageFactory coseSign1MessageFactory)
     {
         InternalHashAlgorithmName = hashAlgorithmName;
-        InternalHashAlgorithm = CoseSign1MessageIndirectSignatureExtensions.CreateHashAlgorithmFromName(hashAlgorithmName) ?? throw new ArgumentOutOfRangeException(nameof(hashAlgorithmName), $"hashAlgorithmName[{hashAlgorithmName}] could not be instantiated into a valid HashAlgorithm");
         InternalMessageFactory = coseSign1MessageFactory;
-        HashLength = (uint)InternalHashAlgorithm.HashSize / 8;
-        InternalCoseHashAlgorithm = GetCoseHashAlgorithmFromHashAlgorithm(InternalHashAlgorithm);
+        InternalCoseHashAlgorithm = GetCoseHashAlgorithmFromName(hashAlgorithmName);
+        HashLength = GetHashLengthFromName(hashAlgorithmName);
     }
 
-    private CoseHashAlgorithm GetCoseHashAlgorithmFromHashAlgorithm(HashAlgorithm algorithm)
+    private static CoseHashAlgorithm GetCoseHashAlgorithmFromName(HashAlgorithmName algorithmName)
     {
-        return algorithm switch
+        if (algorithmName == HashAlgorithmName.SHA256)
         {
-            SHA256 => CoseHashAlgorithm.SHA256,
-            SHA384 => CoseHashAlgorithm.SHA384,
-            SHA512 => CoseHashAlgorithm.SHA512,
-            _ => throw new ArgumentException($@"No mapping for hash algorithm {algorithm.GetType().FullName} to any {nameof(CoseHashAlgorithm)}")
-        };
+            return CoseHashAlgorithm.SHA256;
+        }
+
+        if (algorithmName == HashAlgorithmName.SHA384)
+        {
+            return CoseHashAlgorithm.SHA384;
+        }
+
+        if (algorithmName == HashAlgorithmName.SHA512)
+        {
+            return CoseHashAlgorithm.SHA512;
+        }
+
+        throw new ArgumentOutOfRangeException(nameof(algorithmName), $"No mapping for hash algorithm {algorithmName} to any {nameof(CoseHashAlgorithm)}");
+    }
+
+    private static uint GetHashLengthFromName(HashAlgorithmName algorithmName)
+    {
+        if (algorithmName == HashAlgorithmName.SHA256)
+        {
+            return 32;
+        }
+
+        if (algorithmName == HashAlgorithmName.SHA384)
+        {
+            return 48;
+        }
+
+        if (algorithmName == HashAlgorithmName.SHA512)
+        {
+            return 64;
+        }
+
+        throw new ArgumentOutOfRangeException(nameof(algorithmName), $"Unsupported hash algorithm: {algorithmName}");
     }
 
     /// <summary>
@@ -328,21 +352,13 @@ public sealed partial class IndirectSignatureFactory : IDisposable
             { 64, HashAlgorithmName.SHA512 }
         });
 
-    private bool DisposedValue;
     /// <summary>
-    /// Dispose pattern implementation
+    /// Dispose pattern implementation. No unmanaged resources to release;
+    /// HashAlgorithm instances are now created and disposed per-operation.
     /// </summary>
     /// <param name="disposing">True if called from Dispose()</param>
     private void Dispose(bool disposing)
     {
-        if (!DisposedValue)
-        {
-            if (disposing)
-            {
-                HashAlgorithm.Dispose();
-            }
-            DisposedValue = true;
-        }
     }
 
     /// <inheritdoc/>

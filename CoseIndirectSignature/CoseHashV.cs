@@ -39,7 +39,7 @@ public record CoseHashV
             }
 
             // sanity check the length of the hash against the specified algorithm to be sure we're not allowing a mismatch.
-            HashAlgorithm algo = IndirectSignatureFactory.GetHashAlgorithmFromCoseHashAlgorithm(Algorithm);
+            using HashAlgorithm algo = IndirectSignatureFactory.GetHashAlgorithmFromCoseHashAlgorithm(Algorithm);
             if (value.Length != (algo.HashSize / 8))
             {
                 throw new ArgumentOutOfRangeException(nameof(value), @$"The hash value length of {value.Length} did not match the CoseHashAlgorithm {Algorithm} required length of {algo.HashSize / 8}");

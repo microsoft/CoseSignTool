@@ -35,9 +35,10 @@ public sealed partial class IndirectSignatureFactory
         string extendedContentType;
         if (!payloadHashed)
         {
+            using HashAlgorithm hasher = this.CreateHashAlgorithm();
             hash = streamPayload != null
-                                 ? InternalHashAlgorithm.ComputeHash(streamPayload)
-                                 : InternalHashAlgorithm.ComputeHash(bytePayload!.Value.ToArray());
+                                 ? hasher.ComputeHash(streamPayload)
+                                 : hasher.ComputeHash(bytePayload!.Value.ToArray());
             extendedContentType = ExtendContentTypeDirect(contentType, HashAlgorithmName);
         }
         else
@@ -118,9 +119,10 @@ public sealed partial class IndirectSignatureFactory
         string extendedContentType;
         if (!payloadHashed)
         {
+            using HashAlgorithm hasher = this.CreateHashAlgorithm();
             hash = streamPayload != null
-                                 ? InternalHashAlgorithm.ComputeHash(streamPayload)
-                                 : InternalHashAlgorithm.ComputeHash(bytePayload!.Value.ToArray());
+                                 ? hasher.ComputeHash(streamPayload)
+                                 : hasher.ComputeHash(bytePayload!.Value.ToArray());
             extendedContentType = ExtendContentTypeDirect(contentType, HashAlgorithmName);
         }
         else

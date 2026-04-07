@@ -43,8 +43,8 @@ impl AzureKeyVaultSigningService {
         let signing_key = AzureKeyVaultSigningKey::new(crypto_client)?;
 
         let service_metadata = SigningServiceMetadata::new(
-            "AzureKeyVault".to_string(),
-            "Azure Key Vault signing service".to_string(),
+            "AzureKeyVault".into(),
+            "Azure Key Vault signing service".into(),
         );
 
         let kid_contributor = KeyIdHeaderContributor::new(key_id);

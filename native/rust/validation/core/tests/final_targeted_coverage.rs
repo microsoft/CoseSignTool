@@ -1008,10 +1008,10 @@ fn message_fact_producer_primary_signing_key_subject() {
 
 #[test]
 fn validation_error_display() {
-    let e = CoseSign1ValidationError::CoseDecode("bad cbor".to_string());
+    let e = CoseSign1ValidationError::CoseDecode("bad cbor".into());
     assert!(format!("{}", e).contains("COSE decode failed"));
 
-    let e = CoseSign1ValidationError::Trust("bad trust".to_string());
+    let e = CoseSign1ValidationError::Trust("bad trust".into());
     assert!(format!("{}", e).contains("trust evaluation failed"));
 }
 

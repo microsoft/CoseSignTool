@@ -95,7 +95,7 @@ impl TrustFactProducer for CoseSign1MessageFactProducer {
             m
         } else {
             // Message should always be available from the validator
-            ctx.mark_error::<CoseSign1MessagePartsFact>("no parsed message in context".to_string());
+            ctx.mark_error::<CoseSign1MessagePartsFact>("no parsed message in context");
             for k in self.provides() {
                 ctx.mark_produced(*k);
             }
@@ -188,7 +188,7 @@ fn produce_cwt_claims_facts(
             produce_cwt_claims_from_map(ctx, pairs)
         }
         _ => {
-            ctx.mark_error::<CwtClaimsFact>("CwtClaimsValueNotMap".to_string());
+            ctx.mark_error::<CwtClaimsFact>("CwtClaimsValueNotMap");
             Ok(())
         }
     }
@@ -359,7 +359,7 @@ fn produce_cwt_claims_from_bytes(
     let map_len = match d.decode_map_len() {
         Ok(Some(len)) => len,
         Ok(None) => {
-            ctx.mark_error::<CwtClaimsFact>("cwt_claims indefinite map not supported".to_string());
+            ctx.mark_error::<CwtClaimsFact>("cwt_claims indefinite map not supported");
             return Ok(());
         }
         Err(e) => {

@@ -38,11 +38,11 @@ fn test_validation_failure_fields() {
     assert!(failure.exception.is_none());
 
     // Test field assignment
-    failure.message = "Test message".to_string();
-    failure.error_code = Some("TEST_CODE".to_string());
-    failure.property_name = Some("test_prop".to_string());
-    failure.attempted_value = Some("test_val".to_string());
-    failure.exception = Some("test_exception".to_string());
+    failure.message = "Test message".into();
+    failure.error_code = Some("TEST_CODE".into());
+    failure.property_name = Some("test_prop".into());
+    failure.attempted_value = Some("test_val".into());
+    failure.exception = Some("test_exception".into());
 
     assert_eq!(failure.message, "Test message");
     assert_eq!(failure.error_code.as_deref(), Some("TEST_CODE"));
@@ -189,13 +189,13 @@ fn test_validation_options_with_detached_payload() {
 
 #[test]
 fn test_validation_error_types() {
-    let decode_error = CoseSign1ValidationError::CoseDecode("Invalid CBOR".to_string());
+    let decode_error = CoseSign1ValidationError::CoseDecode("Invalid CBOR".into());
     match decode_error {
         CoseSign1ValidationError::CoseDecode(msg) => assert_eq!(msg, "Invalid CBOR"),
         _ => panic!("Unexpected error type"),
     }
 
-    let trust_error = CoseSign1ValidationError::Trust("Trust evaluation failed".to_string());
+    let trust_error = CoseSign1ValidationError::Trust("Trust evaluation failed".into());
     match trust_error {
         CoseSign1ValidationError::Trust(msg) => assert_eq!(msg, "Trust evaluation failed"),
         _ => panic!("Unexpected error type"),
@@ -211,8 +211,8 @@ fn test_validation_result_metadata_reason_key() {
 #[test]
 fn test_cloneable_types() {
     let failure = ValidationFailure {
-        message: "test".to_string(),
-        error_code: Some("CODE".to_string()),
+        message: "test".into(),
+        error_code: Some("CODE".into()),
         property_name: None,
         attempted_value: None,
         exception: None,

@@ -5,15 +5,11 @@
 
 use cbor_primitives::{CborEncoder, CborProvider};
 use cbor_primitives_everparse::EverParseCborProvider;
-use cose_sign1_primitives::payload::{MemoryPayload, Payload};
-use cose_sign1_primitives::CoseSign1Message;
 use cose_sign1_validation::fluent::*;
 use cose_sign1_validation_primitives::{
     error::TrustError,
     fact_properties::{FactProperties, FactValue},
     facts::{FactKey, TrustFactContext, TrustFactProducer},
-    rules::allow_all,
-    subject::TrustSubject,
 };
 use cose_sign1_validation_test_utils::SimpleTrustPack;
 use std::borrow::Cow;
@@ -177,10 +173,6 @@ fn validator_with_options_closure_variations() {
 
 #[test]
 fn validation_result_field_access() {
-    use cose_sign1_validation::fluent::{CoseSign1ValidationError, CoseSign1ValidationResult};
-    use cose_sign1_validation_primitives::audit::{AuditEvent, TrustDecisionAudit};
-    use cose_sign1_validation_primitives::decision::TrustDecision;
-
     let pack: Arc<dyn CoseSign1TrustPack> = Arc::new(SimpleTrustPack::no_facts("test"));
     let validator = CoseSign1Validator::new(vec![pack]);
 

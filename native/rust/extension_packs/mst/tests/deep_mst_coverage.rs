@@ -22,6 +22,7 @@ extern crate cbor_primitives_everparse;
 use cose_sign1_primitives::{CoseHeaderLabel, CoseHeaderValue};
 use cose_sign1_transparent_mst::validation::receipt_verify::*;
 use crypto_primitives::EcJwk;
+use std::borrow::Cow;
 
 // =========================================================================
 // ReceiptVerifyError Display coverage
@@ -29,7 +30,7 @@ use crypto_primitives::EcJwk;
 
 #[test]
 fn error_display_receipt_decode() {
-    let e = ReceiptVerifyError::ReceiptDecode("bad cbor".to_string());
+    let e = ReceiptVerifyError::ReceiptDecode(Cow::Borrowed("bad cbor"));
     let s = format!("{}", e);
     assert!(s.contains("receipt_decode_failed"));
     assert!(s.contains("bad cbor"));
@@ -90,38 +91,38 @@ fn error_display_missing_issuer() {
 
 #[test]
 fn error_display_jwks_parse() {
-    let e = ReceiptVerifyError::JwksParse("bad json".to_string());
+    let e = ReceiptVerifyError::JwksParse(Cow::Borrowed("bad json"));
     assert!(format!("{}", e).contains("jwks_parse_failed"));
 }
 
 #[test]
 fn error_display_jwks_fetch() {
-    let e = ReceiptVerifyError::JwksFetch("network error".to_string());
+    let e = ReceiptVerifyError::JwksFetch(Cow::Borrowed("network error"));
     assert!(format!("{}", e).contains("jwks_fetch_failed"));
 }
 
 #[test]
 fn error_display_jwk_not_found() {
-    let e = ReceiptVerifyError::JwkNotFound("kid123".to_string());
+    let e = ReceiptVerifyError::JwkNotFound(Cow::Borrowed("kid123"));
     assert!(format!("{}", e).contains("jwk_not_found_for_kid"));
     assert!(format!("{}", e).contains("kid123"));
 }
 
 #[test]
 fn error_display_jwk_unsupported() {
-    let e = ReceiptVerifyError::JwkUnsupported("rsa".to_string());
+    let e = ReceiptVerifyError::JwkUnsupported(Cow::Borrowed("rsa"));
     assert!(format!("{}", e).contains("jwk_unsupported"));
 }
 
 #[test]
 fn error_display_statement_reencode() {
-    let e = ReceiptVerifyError::StatementReencode("cbor fail".to_string());
+    let e = ReceiptVerifyError::StatementReencode(Cow::Borrowed("cbor fail"));
     assert!(format!("{}", e).contains("statement_reencode_failed"));
 }
 
 #[test]
 fn error_display_sig_structure_encode() {
-    let e = ReceiptVerifyError::SigStructureEncode("sig fail".to_string());
+    let e = ReceiptVerifyError::SigStructureEncode(Cow::Borrowed("sig fail"));
     assert!(format!("{}", e).contains("sig_structure_encode_failed"));
 }
 

@@ -382,8 +382,8 @@ fn signature_stage_no_payload_and_no_detached_returns_missing_payload() {
 
     assert_eq!(ValidationResultKind::Failure, result.signature.kind);
     assert_eq!(
-        Some(CoseSign1Validator::ERROR_CODE_SIGNATURE_MISSING_PAYLOAD.to_string()),
-        result.signature.failures[0].error_code
+        result.signature.failures[0].error_code.as_deref(),
+        Some(CoseSign1Validator::ERROR_CODE_SIGNATURE_MISSING_PAYLOAD)
     );
     assert_eq!(
         CoseSign1Validator::ERROR_MESSAGE_SIGNATURE_MISSING_PAYLOAD,
@@ -415,8 +415,8 @@ fn validate_async_no_payload_and_no_detached_returns_missing_payload() {
     let result = block_on(v.validate_async(&parsed, Arc::from(cose.into_boxed_slice()))).unwrap();
     assert_eq!(ValidationResultKind::Failure, result.signature.kind);
     assert_eq!(
-        Some(CoseSign1Validator::ERROR_CODE_SIGNATURE_MISSING_PAYLOAD.to_string()),
-        result.signature.failures[0].error_code
+        result.signature.failures[0].error_code.as_deref(),
+        Some(CoseSign1Validator::ERROR_CODE_SIGNATURE_MISSING_PAYLOAD)
     );
 }
 
@@ -449,8 +449,8 @@ fn signature_stage_no_alg_in_protected_header_returns_no_applicable_validator() 
 
     assert_eq!(ValidationResultKind::Failure, result.signature.kind);
     assert_eq!(
-        Some(CoseSign1Validator::ERROR_CODE_NO_APPLICABLE_SIGNATURE_VALIDATOR.to_string()),
-        result.signature.failures[0].error_code
+        result.signature.failures[0].error_code.as_deref(),
+        Some(CoseSign1Validator::ERROR_CODE_NO_APPLICABLE_SIGNATURE_VALIDATOR)
     );
 }
 
@@ -481,8 +481,8 @@ fn signature_stage_verify_sig_structure_error_returns_failure() {
 
     assert_eq!(ValidationResultKind::Failure, result.signature.kind);
     assert_eq!(
-        Some(CoseSign1Validator::ERROR_CODE_SIGNATURE_VERIFICATION_FAILED.to_string()),
-        result.signature.failures[0].error_code
+        result.signature.failures[0].error_code.as_deref(),
+        Some(CoseSign1Validator::ERROR_CODE_SIGNATURE_VERIFICATION_FAILED)
     );
     assert!(result.signature.failures[0].message.contains("verify_boom"));
 }
@@ -565,8 +565,8 @@ fn validate_async_no_resolvers_resolution_fails() {
     let result = block_on(v.validate_async(&parsed, Arc::from(cose.into_boxed_slice()))).unwrap();
     assert_eq!(ValidationResultKind::Failure, result.resolution.kind);
     assert_eq!(
-        Some(CoseSign1Validator::ERROR_CODE_NO_SIGNING_KEY_RESOLVED.to_string()),
-        result.resolution.failures[0].error_code
+        result.resolution.failures[0].error_code.as_deref(),
+        Some(CoseSign1Validator::ERROR_CODE_NO_SIGNING_KEY_RESOLVED)
     );
 }
 
@@ -622,8 +622,8 @@ impl PostSignatureValidator for FailingPostValidator {
         ValidationResult::failure(
             "post",
             vec![ValidationFailure {
-                message: "post_failed".to_string(),
-                error_code: Some("POST_ERR".to_string()),
+                message: "post_failed".into(),
+                error_code: Some("POST_ERR".into()),
                 ..Default::default()
             }],
         )

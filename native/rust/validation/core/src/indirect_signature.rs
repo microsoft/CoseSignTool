@@ -98,7 +98,7 @@ fn header_text_or_utf8_bytes(map: &CoseHeaderMap, label: i64) -> Option<String> 
     let v = map.get(&key)?;
     match v {
         CoseHeaderValue::Text(s) => Some(s.to_string()),
-        CoseHeaderValue::Bytes(b) => std::str::from_utf8(b.as_ref()).ok().map(|s| s.to_string()),
+        CoseHeaderValue::Bytes(b) => std::str::from_utf8(b.as_ref()).ok().map(Into::into),
         _ => None,
     }
 }
@@ -135,6 +135,13 @@ fn detect_indirect_signature_kind(
     None
 }
 
+/// Compute a hash of in-memory bytes.
+///
+/// ## Allocation note
+/// The `.to_vec()` on each digest is **structural**: `sha2::digest()` returns a
+/// fixed-size `GenericArray` whose size varies per algorithm, so a uniform `Vec<u8>`
+/// return type is the simplest cross-algorithm representation. The allocation is
+/// small (32–64 bytes) and happens once per validation.
 fn compute_hash_bytes(alg: HashAlgorithm, data: &[u8]) -> Vec<u8> {
     use sha2::Digest as _;
     match alg {
@@ -213,7 +220,7 @@ fn compute_hash_from_detached_payload(
     match payload {
         cose_sign1_primitives::payload::Payload::Bytes(b) => {
             if b.is_empty() {
-                return Err("detached payload was empty".to_string());
+                return Err("detached payload was empty".into());
             }
             Ok(compute_hash_bytes(alg, b.as_ref()))
         }
@@ -232,10 +239,10 @@ fn parse_cose_hash_v(payload: &[u8]) -> Result<(HashAlgorithm, Vec<u8>), String>
     let len = d
         .decode_array_len()
         .map_err(|e| format!("invalid COSE_Hash_V: {e}"))?
-        .ok_or_else(|| "invalid COSE_Hash_V: indefinite array not supported".to_string())?;
+        .ok_or_else(|| String::from("invalid COSE_Hash_V: indefinite array not supported"))?;
 
     if len != 2 {
-        return Err("invalid COSE_Hash_V: expected array of 2 elements".to_string());
+        return Err("invalid COSE_Hash_V: expected array of 2 elements".into());
     }
 
     let alg = d
@@ -250,7 +257,7 @@ fn parse_cose_hash_v(payload: &[u8]) -> Result<(HashAlgorithm, Vec<u8>), String>
         .ok_or_else(|| format!("unsupported COSE_Hash_V algorithm {alg}"))?;
 
     if hash_bytes.is_empty() {
-        return Err("invalid COSE_Hash_V: empty hash".to_string());
+        return Err("invalid COSE_Hash_V: empty hash".into());
     }
 
     Ok((alg, hash_bytes))
@@ -341,6 +348,7 @@ impl PostSignatureValidator for IndirectSignaturePostSignatureValidator {
                     );
                 };
 
+                // Structural copy: payload &[u8] must be owned for the comparison tuple.
                 (alg, payload.to_vec(), "Legacy+hash-*")
             }
             IndirectSignatureKind::CoseHashV => match parse_cose_hash_v(payload) {
@@ -371,6 +379,7 @@ impl PostSignatureValidator for IndirectSignaturePostSignatureValidator {
                     );
                 };
 
+                // Structural copy: payload &[u8] must be owned for the comparison tuple.
                 (alg, payload.to_vec(), "CoseHashEnvelope")
             }
         };
@@ -389,14 +398,8 @@ impl PostSignatureValidator for IndirectSignaturePostSignatureValidator {
 
         if actual_hash == expected_hash {
             let mut metadata = std::collections::BTreeMap::new();
-            metadata.insert(
-                "IndirectSignature.Format".to_string(),
-                format_name.to_string(),
-            );
-            metadata.insert(
-                "IndirectSignature.HashAlgorithm".to_string(),
-                alg.name().to_string(),
-            );
+            metadata.insert("IndirectSignature.Format".into(), format_name.into());
+            metadata.insert("IndirectSignature.HashAlgorithm".into(), alg.name().into());
             ValidationResult::success(VALIDATOR_NAME, Some(metadata))
         } else {
             ValidationResult::failure_message(

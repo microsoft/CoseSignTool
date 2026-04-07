@@ -462,8 +462,8 @@ fn test_cose_key_resolution_result_failure_helper() {
     assert_eq!(ValidationResultKind::Failure, result.resolution.kind);
     assert!(!result.resolution.failures.is_empty());
     assert_eq!(
-        Some(CoseSign1Validator::ERROR_CODE_NO_SIGNING_KEY_RESOLVED.to_string()),
-        result.resolution.failures[0].error_code
+        result.resolution.failures[0].error_code.as_deref(),
+        Some(CoseSign1Validator::ERROR_CODE_NO_SIGNING_KEY_RESOLVED)
     );
 }
 

@@ -52,7 +52,7 @@ fn free_error(err: *mut CoseCwtErrorHandle) {
 fn error_inner_from_header_error_cbor_encoding() {
     use cose_sign1_headers::HeaderError;
 
-    let err = HeaderError::CborEncodingError("test encode error".to_string());
+    let err = HeaderError::CborEncodingError("test encode error".into());
     let inner: ErrorInner = ErrorInner::from_header_error(&err);
     assert_eq!(inner.code, FFI_ERR_CBOR_ENCODE_FAILED);
     assert!(inner.message.contains("CBOR encoding error"));
@@ -63,7 +63,7 @@ fn error_inner_from_header_error_cbor_encoding() {
 fn error_inner_from_header_error_cbor_decoding() {
     use cose_sign1_headers::HeaderError;
 
-    let err = HeaderError::CborDecodingError("test decode error".to_string());
+    let err = HeaderError::CborDecodingError("test decode error".into());
     let inner: ErrorInner = ErrorInner::from_header_error(&err);
     assert_eq!(inner.code, FFI_ERR_CBOR_DECODE_FAILED);
     assert!(inner.message.contains("CBOR decoding error"));
@@ -76,8 +76,8 @@ fn error_inner_from_header_error_invalid_claim_type() {
 
     let err = HeaderError::InvalidClaimType {
         label: 42,
-        expected: "string".to_string(),
-        actual: "integer".to_string(),
+        expected: "string".into(),
+        actual: "integer".into(),
     };
     let inner: ErrorInner = ErrorInner::from_header_error(&err);
     assert_eq!(inner.code, FFI_ERR_INVALID_ARGUMENT);
@@ -89,7 +89,7 @@ fn error_inner_from_header_error_invalid_claim_type() {
 fn error_inner_from_header_error_missing_required_claim() {
     use cose_sign1_headers::HeaderError;
 
-    let err = HeaderError::MissingRequiredClaim("subject".to_string());
+    let err = HeaderError::MissingRequiredClaim("subject".into());
     let inner: ErrorInner = ErrorInner::from_header_error(&err);
     assert_eq!(inner.code, FFI_ERR_INVALID_ARGUMENT);
     assert!(inner.message.contains("subject"));
@@ -100,7 +100,7 @@ fn error_inner_from_header_error_missing_required_claim() {
 fn error_inner_from_header_error_invalid_timestamp() {
     use cose_sign1_headers::HeaderError;
 
-    let err = HeaderError::InvalidTimestamp("not a number".to_string());
+    let err = HeaderError::InvalidTimestamp("not a number".into());
     let inner: ErrorInner = ErrorInner::from_header_error(&err);
     assert_eq!(inner.code, FFI_ERR_INVALID_ARGUMENT);
     assert!(inner.message.contains("timestamp"));
@@ -111,7 +111,7 @@ fn error_inner_from_header_error_invalid_timestamp() {
 fn error_inner_from_header_error_complex_claim_value() {
     use cose_sign1_headers::HeaderError;
 
-    let err = HeaderError::ComplexClaimValue("nested array".to_string());
+    let err = HeaderError::ComplexClaimValue("nested array".into());
     let inner: ErrorInner = ErrorInner::from_header_error(&err);
     assert_eq!(inner.code, FFI_ERR_INVALID_ARGUMENT);
     assert!(inner.message.contains("complex"));

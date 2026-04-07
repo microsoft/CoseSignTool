@@ -79,14 +79,14 @@ fn test_validation_result_not_applicable_no_reason() {
 fn test_validation_result_failure_multiple() {
     let failures = vec![
         ValidationFailure {
-            message: "error 1".to_string(),
-            error_code: Some("E001".to_string()),
-            property_name: Some("prop1".to_string()),
-            attempted_value: Some("val1".to_string()),
-            exception: Some("ex1".to_string()),
+            message: "error 1".into(),
+            error_code: Some("E001".into()),
+            property_name: Some("prop1".into()),
+            attempted_value: Some("val1".into()),
+            exception: Some("ex1".into()),
         },
         ValidationFailure {
-            message: "error 2".to_string(),
+            message: "error 2".into(),
             error_code: None,
             property_name: None,
             attempted_value: None,
@@ -111,7 +111,7 @@ fn test_validation_result_failure_message_with_code() {
 
     let failure = &result.failures[0];
     assert_eq!(failure.message, "test error");
-    assert_eq!(failure.error_code, Some("ERR123".to_string()));
+    assert_eq!(failure.error_code.as_deref(), Some("ERR123"));
     assert!(failure.property_name.is_none());
     assert!(failure.attempted_value.is_none());
     assert!(failure.exception.is_none());
@@ -151,11 +151,11 @@ fn test_validation_result_kind_debug() {
 #[test]
 fn test_validation_failure_debug() {
     let failure = ValidationFailure {
-        message: "test message".to_string(),
-        error_code: Some("TEST".to_string()),
-        property_name: Some("field".to_string()),
-        attempted_value: Some("value".to_string()),
-        exception: Some("Exception info".to_string()),
+        message: "test message".into(),
+        error_code: Some("TEST".into()),
+        property_name: Some("field".into()),
+        attempted_value: Some("value".into()),
+        exception: Some("Exception info".into()),
     };
 
     let debug_str = format!("{:?}", failure);
@@ -190,11 +190,11 @@ fn test_validation_result_is_valid() {
 #[test]
 fn test_validation_failure_clone() {
     let failure = ValidationFailure {
-        message: "test message".to_string(),
-        error_code: Some("TEST".to_string()),
-        property_name: Some("field".to_string()),
-        attempted_value: Some("value".to_string()),
-        exception: Some("Exception info".to_string()),
+        message: "test message".into(),
+        error_code: Some("TEST".into()),
+        property_name: Some("field".into()),
+        attempted_value: Some("value".into()),
+        exception: Some("Exception info".into()),
     };
 
     let cloned = failure.clone();

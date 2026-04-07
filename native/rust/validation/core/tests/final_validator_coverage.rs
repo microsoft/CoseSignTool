@@ -61,11 +61,11 @@ fn test_validation_failure_default() {
 #[test]
 fn test_validation_failure_with_all_fields() {
     let failure = ValidationFailure {
-        message: "test message".to_string(),
-        error_code: Some("ERR001".to_string()),
-        property_name: Some("field_name".to_string()),
-        attempted_value: Some("bad_value".to_string()),
-        exception: Some("stack trace here".to_string()),
+        message: "test message".into(),
+        error_code: Some("ERR001".into()),
+        property_name: Some("field_name".into()),
+        attempted_value: Some("bad_value".into()),
+        exception: Some("stack trace here".into()),
     };
 
     assert_eq!(failure.message, "test message");
@@ -78,8 +78,8 @@ fn test_validation_failure_with_all_fields() {
 #[test]
 fn test_validation_failure_clone() {
     let failure = ValidationFailure {
-        message: "test".to_string(),
-        error_code: Some("E1".to_string()),
+        message: "test".into(),
+        error_code: Some("E1".into()),
         property_name: None,
         attempted_value: None,
         exception: None,
@@ -92,7 +92,7 @@ fn test_validation_failure_clone() {
 #[test]
 fn test_validation_failure_debug() {
     let failure = ValidationFailure {
-        message: "test".to_string(),
+        message: "test".into(),
         error_code: None,
         property_name: None,
         attempted_value: None,
@@ -179,11 +179,11 @@ fn test_validation_result_not_applicable_with_empty_reason() {
 fn test_validation_result_failure() {
     let failures = vec![
         ValidationFailure {
-            message: "error 1".to_string(),
+            message: "error 1".into(),
             ..ValidationFailure::default()
         },
         ValidationFailure {
-            message: "error 2".to_string(),
+            message: "error 2".into(),
             ..ValidationFailure::default()
         },
     ];
@@ -339,7 +339,7 @@ fn test_validation_options_debug() {
 
 #[test]
 fn test_validation_error_cose_decode_display() {
-    let error = CoseSign1ValidationError::CoseDecode("invalid CBOR".to_string());
+    let error = CoseSign1ValidationError::CoseDecode("invalid CBOR".into());
     let display = format!("{}", error);
 
     assert!(display.contains("COSE decode failed"));
@@ -348,7 +348,7 @@ fn test_validation_error_cose_decode_display() {
 
 #[test]
 fn test_validation_error_trust_display() {
-    let error = CoseSign1ValidationError::Trust("trust plan failed".to_string());
+    let error = CoseSign1ValidationError::Trust("trust plan failed".into());
     let display = format!("{}", error);
 
     assert!(display.contains("trust evaluation failed"));
@@ -357,14 +357,14 @@ fn test_validation_error_trust_display() {
 
 #[test]
 fn test_validation_error_debug() {
-    let error = CoseSign1ValidationError::CoseDecode("test".to_string());
+    let error = CoseSign1ValidationError::CoseDecode("test".into());
     let debug_str = format!("{:?}", error);
     assert!(debug_str.contains("CoseDecode"));
 }
 
 #[test]
 fn test_validation_error_is_error_trait() {
-    let error = CoseSign1ValidationError::Trust("test".to_string());
+    let error = CoseSign1ValidationError::Trust("test".into());
 
     // Should implement std::error::Error
     fn assert_error<T: std::error::Error>() {}
@@ -483,8 +483,8 @@ fn test_counter_signature_resolution_result_clone() {
 #[test]
 fn test_validation_failure_equality() {
     let f1 = ValidationFailure {
-        message: "test".to_string(),
-        error_code: Some("E1".to_string()),
+        message: "test".into(),
+        error_code: Some("E1".into()),
         property_name: None,
         attempted_value: None,
         exception: None,

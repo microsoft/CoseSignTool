@@ -28,7 +28,7 @@ fn determine_cose_algorithm(key_type: &str, curve: Option<&str>) -> Result<i64, 
     match key_type {
         "EC" => {
             let curve_name = curve
-                .ok_or_else(|| AkvError::InvalidKeyType("EC key missing curve name".to_string()))?;
+                .ok_or_else(|| AkvError::InvalidKeyType("EC key missing curve name".into()))?;
             curve_to_cose_algorithm(curve_name).ok_or_else(|| {
                 AkvError::InvalidKeyType(format!("Unsupported EC curve: {}", curve_name))
             })

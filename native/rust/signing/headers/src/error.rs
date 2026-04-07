@@ -1,24 +1,26 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+use std::borrow::Cow;
+
 /// Errors that can occur when working with COSE headers and CWT claims.
 #[derive(Debug)]
 pub enum HeaderError {
-    CborEncodingError(String),
+    CborEncodingError(Cow<'static, str>),
 
-    CborDecodingError(String),
+    CborDecodingError(Cow<'static, str>),
 
     InvalidClaimType {
         label: i64,
-        expected: String,
-        actual: String,
+        expected: Cow<'static, str>,
+        actual: Cow<'static, str>,
     },
 
-    MissingRequiredClaim(String),
+    MissingRequiredClaim(Cow<'static, str>),
 
-    InvalidTimestamp(String),
+    InvalidTimestamp(Cow<'static, str>),
 
-    ComplexClaimValue(String),
+    ComplexClaimValue(Cow<'static, str>),
 }
 
 impl std::fmt::Display for HeaderError {

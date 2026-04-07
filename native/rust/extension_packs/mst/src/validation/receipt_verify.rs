@@ -49,7 +49,7 @@ pub fn base64url_decode(input: &str) -> Result<Vec<u8>, String> {
 
 #[derive(Debug)]
 pub enum ReceiptVerifyError {
-    ReceiptDecode(String),
+    ReceiptDecode(Cow<'static, str>),
     MissingAlg,
     MissingKid,
     UnsupportedAlg(i64),
@@ -57,12 +57,12 @@ pub enum ReceiptVerifyError {
     MissingVdp,
     MissingProof,
     MissingIssuer,
-    JwksParse(String),
-    JwksFetch(String),
-    JwkNotFound(String),
-    JwkUnsupported(String),
-    StatementReencode(String),
-    SigStructureEncode(String),
+    JwksParse(Cow<'static, str>),
+    JwksFetch(Cow<'static, str>),
+    JwkNotFound(Cow<'static, str>),
+    JwkUnsupported(Cow<'static, str>),
+    StatementReencode(Cow<'static, str>),
+    SigStructureEncode(Cow<'static, str>),
     DataHashMismatch,
     SignatureInvalid,
 }
@@ -160,7 +160,7 @@ pub fn verify_mst_receipt(
     input: ReceiptVerifyInput<'_>,
 ) -> Result<ReceiptVerifyOutput, ReceiptVerifyError> {
     let receipt = CoseSign1Message::parse(input.receipt_bytes)
-        .map_err(|e| ReceiptVerifyError::ReceiptDecode(e.to_string()))?;
+        .map_err(|e| ReceiptVerifyError::ReceiptDecode(e.to_string().into()))?;
 
     // Extract receipt headers using typed CoseHeaderMap accessors.
     let alg = receipt
@@ -216,7 +216,7 @@ pub fn verify_mst_receipt(
     let verifier = input
         .jwk_verifier_factory
         .verifier_from_ec_jwk(&ec_jwk, alg)
-        .map_err(|e| ReceiptVerifyError::JwkUnsupported(format!("jwk_verifier: {e}")))?;
+        .map_err(|e| ReceiptVerifyError::JwkUnsupported(format!("jwk_verifier: {e}").into()))?;
 
     // Convert to Arc<str> for cheap cloning in fact production.
     let issuer: Arc<str> = Arc::from(issuer);
@@ -259,7 +259,7 @@ pub fn verify_mst_receipt(
 
         let sig_structure = receipt
             .sig_structure_bytes(acc.as_slice(), None)
-            .map_err(|e| ReceiptVerifyError::SigStructureEncode(e.to_string()))?;
+            .map_err(|e| ReceiptVerifyError::SigStructureEncode(e.to_string().into()))?;
         if let Ok(true) = verifier.verify(sig_structure.as_slice(), receipt.signature()) {
             return Ok(ReceiptVerifyOutput {
                 trusted: true,
@@ -301,11 +301,11 @@ pub fn sha256_concat_slices(left: &[u8; 32], right: &[u8; 32]) -> [u8; 32] {
 pub fn reencode_statement_with_cleared_unprotected_headers(
     statement_bytes: &[u8],
 ) -> Result<Vec<u8>, ReceiptVerifyError> {
-    let was_tagged =
-        is_cose_sign1_tagged_18(statement_bytes).map_err(ReceiptVerifyError::StatementReencode)?;
+    let was_tagged = is_cose_sign1_tagged_18(statement_bytes)
+        .map_err(|e| ReceiptVerifyError::StatementReencode(e.into()))?;
 
     let msg = CoseSign1Message::parse(statement_bytes)
-        .map_err(|e| ReceiptVerifyError::StatementReencode(e.to_string()))?;
+        .map_err(|e| ReceiptVerifyError::StatementReencode(e.to_string().into()))?;
 
     // Match .NET verifier behavior: clear *all* unprotected headers.
 
@@ -315,30 +315,30 @@ pub fn reencode_statement_with_cleared_unprotected_headers(
     if was_tagged {
         // tag(18) is a single-byte CBOR tag header: 0xD2.
         enc.encode_tag(18)
-            .map_err(|e| ReceiptVerifyError::StatementReencode(e.to_string()))?;
+            .map_err(|e| ReceiptVerifyError::StatementReencode(e.to_string().into()))?;
     }
 
     enc.encode_array(4)
-        .map_err(|e| ReceiptVerifyError::StatementReencode(e.to_string()))?;
+        .map_err(|e| ReceiptVerifyError::StatementReencode(e.to_string().into()))?;
 
     // protected header bytes are a bstr (containing map bytes)
     enc.encode_bstr(msg.protected.as_bytes())
-        .map_err(|e| ReceiptVerifyError::StatementReencode(e.to_string()))?;
+        .map_err(|e| ReceiptVerifyError::StatementReencode(e.to_string().into()))?;
 
     // unprotected header: empty map
     enc.encode_map(0)
-        .map_err(|e| ReceiptVerifyError::StatementReencode(e.to_string()))?;
+        .map_err(|e| ReceiptVerifyError::StatementReencode(e.to_string().into()))?;
 
     // payload: bstr / nil
     match msg.payload() {
         Some(p) => enc.encode_bstr(p),
         None => enc.encode_null(),
     }
-    .map_err(|e| ReceiptVerifyError::StatementReencode(e.to_string()))?;
+    .map_err(|e| ReceiptVerifyError::StatementReencode(e.to_string().into()))?;
 
     // signature: bstr
     enc.encode_bstr(msg.signature())
-        .map_err(|e| ReceiptVerifyError::StatementReencode(e.to_string()))?;
+        .map_err(|e| ReceiptVerifyError::StatementReencode(e.to_string().into()))?;
 
     Ok(enc.into_bytes())
 }
@@ -372,9 +372,9 @@ pub(crate) fn resolve_receipt_signing_key(
     }
 
     if !allow_network_fetch {
-        return Err(ReceiptVerifyError::JwksParse(
-            "MissingOfflineJwks".to_string(),
-        ));
+        return Err(ReceiptVerifyError::JwksParse(Cow::Borrowed(
+            "MissingOfflineJwks",
+        )));
     }
 
     let jwks_json = fetch_jwks_for_issuer(issuer, jwks_api_version, client)?;
@@ -390,7 +390,7 @@ pub(crate) fn fetch_jwks_for_issuer(
     if let Some(ct_client) = client {
         return ct_client
             .get_public_keys()
-            .map_err(|e| ReceiptVerifyError::JwksFetch(e.to_string()));
+            .map_err(|e| ReceiptVerifyError::JwksFetch(e.to_string().into()));
     }
 
     // Create a temporary client for the issuer endpoint
@@ -401,7 +401,7 @@ pub(crate) fn fetch_jwks_for_issuer(
     };
 
     let endpoint =
-        url::Url::parse(&base).map_err(|e| ReceiptVerifyError::JwksFetch(e.to_string()))?;
+        url::Url::parse(&base).map_err(|e| ReceiptVerifyError::JwksFetch(e.to_string().into()))?;
 
     let mut config = code_transparency_client::CodeTransparencyClientConfig::default();
     if let Some(v) = jwks_api_version {
@@ -411,7 +411,7 @@ pub(crate) fn fetch_jwks_for_issuer(
     let temp_client = code_transparency_client::CodeTransparencyClient::new(endpoint, config);
     temp_client
         .get_public_keys()
-        .map_err(|e| ReceiptVerifyError::JwksFetch(e.to_string()))
+        .map_err(|e| ReceiptVerifyError::JwksFetch(e.to_string().into()))
 }
 
 #[derive(Clone, Debug)]
@@ -432,7 +432,7 @@ impl MstCcfInclusionProof {
         let mut d = cose_sign1_primitives::provider::decoder(proof_blob);
         let map_len = d
             .decode_map_len()
-            .map_err(|e| ReceiptVerifyError::ReceiptDecode(e.to_string()))?;
+            .map_err(|e| ReceiptVerifyError::ReceiptDecode(e.to_string().into()))?;
 
         let mut leaf_raw: Option<Vec<u8>> = None;
         let mut path: Option<Vec<(bool, [u8; 32])>> = None;
@@ -440,23 +440,23 @@ impl MstCcfInclusionProof {
         for _ in 0..map_len.unwrap_or(usize::MAX) {
             let k = d
                 .decode_i64()
-                .map_err(|e| ReceiptVerifyError::ReceiptDecode(e.to_string()))?;
+                .map_err(|e| ReceiptVerifyError::ReceiptDecode(e.to_string().into()))?;
             if k == 1 {
                 leaf_raw = Some(
                     d.decode_raw()
-                        .map_err(|e| ReceiptVerifyError::ReceiptDecode(e.to_string()))?
+                        .map_err(|e| ReceiptVerifyError::ReceiptDecode(e.to_string().into()))?
                         .to_vec(),
                 );
             } else if k == 2 {
                 let v_raw = d
                     .decode_raw()
-                    .map_err(|e| ReceiptVerifyError::ReceiptDecode(e.to_string()))?
+                    .map_err(|e| ReceiptVerifyError::ReceiptDecode(e.to_string().into()))?
                     .to_vec();
                 path = Some(parse_path(&v_raw)?);
             } else {
                 // Skip unknown keys
                 d.skip()
-                    .map_err(|e| ReceiptVerifyError::ReceiptDecode(e.to_string()))?;
+                    .map_err(|e| ReceiptVerifyError::ReceiptDecode(e.to_string().into()))?;
             }
         }
 
@@ -477,33 +477,37 @@ pub fn parse_leaf(leaf_bytes: &[u8]) -> Result<([u8; 32], String, [u8; 32]), Rec
     let mut d = cose_sign1_primitives::provider::decoder(leaf_bytes);
     let _arr_len = d
         .decode_array_len()
-        .map_err(|e| ReceiptVerifyError::ReceiptDecode(e.to_string()))?;
+        .map_err(|e| ReceiptVerifyError::ReceiptDecode(e.to_string().into()))?;
 
     let internal_txn_hash_slice = d.decode_bstr().map_err(|e| {
-        ReceiptVerifyError::ReceiptDecode(format!("leaf_missing_internal_txn_hash: {}", e))
+        ReceiptVerifyError::ReceiptDecode(format!("leaf_missing_internal_txn_hash: {}", e).into())
     })?;
     let internal_txn_hash: [u8; 32] = internal_txn_hash_slice.try_into().map_err(|_| {
-        ReceiptVerifyError::ReceiptDecode(format!(
-            "unexpected_internal_txn_hash_len: {}",
-            internal_txn_hash_slice.len()
-        ))
+        ReceiptVerifyError::ReceiptDecode(
+            format!(
+                "unexpected_internal_txn_hash_len: {}",
+                internal_txn_hash_slice.len()
+            )
+            .into(),
+        )
     })?;
 
     let internal_evidence = d
         .decode_tstr()
         .map_err(|e| {
-            ReceiptVerifyError::ReceiptDecode(format!("leaf_missing_internal_evidence: {}", e))
+            ReceiptVerifyError::ReceiptDecode(
+                format!("leaf_missing_internal_evidence: {}", e).into(),
+            )
         })?
         .to_string();
 
-    let data_hash_slice = d
-        .decode_bstr()
-        .map_err(|e| ReceiptVerifyError::ReceiptDecode(format!("leaf_missing_data_hash: {}", e)))?;
+    let data_hash_slice = d.decode_bstr().map_err(|e| {
+        ReceiptVerifyError::ReceiptDecode(format!("leaf_missing_data_hash: {}", e).into())
+    })?;
     let data_hash: [u8; 32] = data_hash_slice.try_into().map_err(|_| {
-        ReceiptVerifyError::ReceiptDecode(format!(
-            "unexpected_data_hash_len: {}",
-            data_hash_slice.len()
-        ))
+        ReceiptVerifyError::ReceiptDecode(
+            format!("unexpected_data_hash_len: {}", data_hash_slice.len()).into(),
+        )
     })?;
 
     Ok((internal_txn_hash, internal_evidence, data_hash))
@@ -514,31 +518,30 @@ pub fn parse_path(bytes: &[u8]) -> Result<Vec<(bool, [u8; 32])>, ReceiptVerifyEr
     let mut d = cose_sign1_primitives::provider::decoder(bytes);
     let arr_len = d
         .decode_array_len()
-        .map_err(|e| ReceiptVerifyError::ReceiptDecode(e.to_string()))?;
+        .map_err(|e| ReceiptVerifyError::ReceiptDecode(e.to_string().into()))?;
 
     let mut out = Vec::new();
     for _ in 0..arr_len.unwrap_or(usize::MAX) {
         let item_raw = d
             .decode_raw()
-            .map_err(|e| ReceiptVerifyError::ReceiptDecode(e.to_string()))?
+            .map_err(|e| ReceiptVerifyError::ReceiptDecode(e.to_string().into()))?
             .to_vec();
         let mut vd = cose_sign1_primitives::provider::decoder(&item_raw);
         let _pair_len = vd
             .decode_array_len()
-            .map_err(|e| ReceiptVerifyError::ReceiptDecode(e.to_string()))?;
+            .map_err(|e| ReceiptVerifyError::ReceiptDecode(e.to_string().into()))?;
 
-        let is_left = vd
-            .decode_bool()
-            .map_err(|e| ReceiptVerifyError::ReceiptDecode(format!("path_missing_dir: {}", e)))?;
+        let is_left = vd.decode_bool().map_err(|e| {
+            ReceiptVerifyError::ReceiptDecode(format!("path_missing_dir: {}", e).into())
+        })?;
 
-        let bytes_item = vd
-            .decode_bstr()
-            .map_err(|e| ReceiptVerifyError::ReceiptDecode(format!("path_missing_hash: {}", e)))?;
+        let bytes_item = vd.decode_bstr().map_err(|e| {
+            ReceiptVerifyError::ReceiptDecode(format!("path_missing_hash: {}", e).into())
+        })?;
         let hash: [u8; 32] = bytes_item.try_into().map_err(|_| {
-            ReceiptVerifyError::ReceiptDecode(format!(
-                "unexpected_path_hash_len: {}",
-                bytes_item.len()
-            ))
+            ReceiptVerifyError::ReceiptDecode(
+                format!("unexpected_path_hash_len: {}", bytes_item.len()).into(),
+            )
         })?;
 
         out.push((is_left, hash));
@@ -557,9 +560,9 @@ pub fn extract_proof_blobs(
     let pairs = match vdp_value {
         CoseHeaderValue::Map(pairs) => pairs,
         _ => {
-            return Err(ReceiptVerifyError::ReceiptDecode(
-                "vdp_not_a_map".to_string(),
-            ))
+            return Err(ReceiptVerifyError::ReceiptDecode(Cow::Borrowed(
+                "vdp_not_a_map",
+            )))
         }
     };
 
@@ -571,9 +574,9 @@ pub fn extract_proof_blobs(
         let arr = match value {
             CoseHeaderValue::Array(arr) => arr,
             _ => {
-                return Err(ReceiptVerifyError::ReceiptDecode(
-                    "proof_not_array".to_string(),
-                ))
+                return Err(ReceiptVerifyError::ReceiptDecode(Cow::Borrowed(
+                    "proof_not_array",
+                )))
             }
         };
 
@@ -582,9 +585,9 @@ pub fn extract_proof_blobs(
             match item {
                 CoseHeaderValue::Bytes(b) => out.push(b.clone()),
                 _ => {
-                    return Err(ReceiptVerifyError::ReceiptDecode(
-                        "proof_item_not_bstr".to_string(),
-                    ))
+                    return Err(ReceiptVerifyError::ReceiptDecode(Cow::Borrowed(
+                        "proof_item_not_bstr",
+                    )))
                 }
             }
         }
@@ -608,9 +611,9 @@ pub fn validate_cose_alg_supported(alg: i64) -> Result<(), ReceiptVerifyError> {
 /// Validate that the receipt `alg` is compatible with the JWK curve.
 pub fn validate_receipt_alg_against_jwk(jwk: &Jwk, alg: i64) -> Result<(), ReceiptVerifyError> {
     let Some(crv) = jwk.crv.as_deref() else {
-        return Err(ReceiptVerifyError::JwkUnsupported(
-            "missing_crv".to_string(),
-        ));
+        return Err(ReceiptVerifyError::JwkUnsupported(Cow::Borrowed(
+            "missing_crv",
+        )));
     };
 
     let ok = matches!(
@@ -619,9 +622,9 @@ pub fn validate_receipt_alg_against_jwk(jwk: &Jwk, alg: i64) -> Result<(), Recei
     );
 
     if !ok {
-        return Err(ReceiptVerifyError::JwkUnsupported(format!(
-            "alg_curve_mismatch: alg={alg} crv={crv}"
-        )));
+        return Err(ReceiptVerifyError::JwkUnsupported(
+            format!("alg_curve_mismatch: alg={alg} crv={crv}").into(),
+        ));
     }
     Ok(())
 }
@@ -665,7 +668,7 @@ pub struct Jwk {
 
 pub fn find_jwk_for_kid(jwks_json: &str, kid: &str) -> Result<Jwk, ReceiptVerifyError> {
     let jwks: Jwks = serde_json::from_str(jwks_json)
-        .map_err(|e| ReceiptVerifyError::JwksParse(e.to_string()))?;
+        .map_err(|e| ReceiptVerifyError::JwksParse(e.to_string().into()))?;
 
     for k in jwks.keys {
         if k.kid.as_deref() == Some(kid) {
@@ -673,7 +676,7 @@ pub fn find_jwk_for_kid(jwks_json: &str, kid: &str) -> Result<Jwk, ReceiptVerify
         }
     }
 
-    Err(ReceiptVerifyError::JwkNotFound(kid.to_string()))
+    Err(ReceiptVerifyError::JwkNotFound(kid.to_string().into()))
 }
 
 /// Convert a local (serde-parsed) JWK to a `crypto_primitives::EcJwk`.
@@ -682,25 +685,30 @@ pub fn find_jwk_for_kid(jwks_json: &str, kid: &str) -> Result<Jwk, ReceiptVerify
 /// the EC fields needed for the backend-agnostic `JwkVerifierFactory` trait.
 pub fn local_jwk_to_ec_jwk<'a>(jwk: &'a Jwk) -> Result<EcJwk<'a>, ReceiptVerifyError> {
     if jwk.kty != "EC" {
-        return Err(ReceiptVerifyError::JwkUnsupported(format!(
-            "kty={}",
-            jwk.kty
-        )));
+        return Err(ReceiptVerifyError::JwkUnsupported(
+            format!("kty={}", jwk.kty).into(),
+        ));
     }
 
     let crv = jwk
         .crv
         .as_deref()
-        .ok_or_else(|| ReceiptVerifyError::JwkUnsupported("missing_crv".to_string()))?;
+        .ok_or(ReceiptVerifyError::JwkUnsupported(Cow::Borrowed(
+            "missing_crv",
+        )))?;
 
     let x = jwk
         .x
         .as_deref()
-        .ok_or_else(|| ReceiptVerifyError::JwkUnsupported("missing_x".to_string()))?;
+        .ok_or(ReceiptVerifyError::JwkUnsupported(Cow::Borrowed(
+            "missing_x",
+        )))?;
     let y = jwk
         .y
         .as_deref()
-        .ok_or_else(|| ReceiptVerifyError::JwkUnsupported("missing_y".to_string()))?;
+        .ok_or(ReceiptVerifyError::JwkUnsupported(Cow::Borrowed(
+            "missing_y",
+        )))?;
 
     Ok(EcJwk {
         kty: Cow::Borrowed(&jwk.kty),

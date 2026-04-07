@@ -361,7 +361,7 @@ pub mod fluent_ext {
     impl From<&str> for CwtClaimKey {
         /// Convert a borrowed text claim key into a `CwtClaimKey`.
         fn from(value: &str) -> Self {
-            Self::Text(value.to_string())
+            Self::Text(value.into())
         }
     }
 

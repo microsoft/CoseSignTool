@@ -65,11 +65,11 @@ fn test_validation_failure_fields() {
     assert!(failure.exception.is_none());
 
     // Test field assignment
-    failure.message = "Test message".to_string();
-    failure.error_code = Some("TEST_CODE".to_string());
-    failure.property_name = Some("test_prop".to_string());
-    failure.attempted_value = Some("test_val".to_string());
-    failure.exception = Some("test_exception".to_string());
+    failure.message = "Test message".into();
+    failure.error_code = Some("TEST_CODE".into());
+    failure.property_name = Some("test_prop".into());
+    failure.attempted_value = Some("test_val".into());
+    failure.exception = Some("test_exception".into());
 
     assert_eq!(failure.message, "Test message");
     assert_eq!(failure.error_code.as_deref(), Some("TEST_CODE"));
@@ -81,7 +81,7 @@ fn test_validation_failure_fields() {
 #[test]
 fn test_validation_result_methods() {
     // Test success result
-    let success_result = ValidationResult::success("TestValidator".to_string(), None);
+    let success_result = ValidationResult::success("TestValidator", None);
     assert!(success_result.is_valid());
     assert!(!success_result.is_failure());
     assert_eq!(success_result.kind, ValidationResultKind::Success);
@@ -119,7 +119,7 @@ fn test_validation_result_with_metadata() {
     metadata.insert("test_key".to_string(), "test_value".to_string());
     metadata.insert("another_key".to_string(), "another_value".to_string());
 
-    let result = ValidationResult::success("TestValidator".to_string(), Some(metadata.clone()));
+    let result = ValidationResult::success("TestValidator", Some(metadata.clone()));
     assert!(result.is_valid());
     assert_eq!(result.metadata, metadata);
     assert_eq!(result.metadata.get("test_key").unwrap(), "test_value");
@@ -222,13 +222,13 @@ fn test_validation_options_with_detached_payload() {
 
 #[test]
 fn test_validation_error_types() {
-    let decode_error = CoseSign1ValidationError::CoseDecode("Invalid CBOR".to_string());
+    let decode_error = CoseSign1ValidationError::CoseDecode("Invalid CBOR".into());
     match decode_error {
         CoseSign1ValidationError::CoseDecode(msg) => assert_eq!(msg, "Invalid CBOR"),
         _ => panic!("Unexpected error type"),
     }
 
-    let trust_error = CoseSign1ValidationError::Trust("Trust evaluation failed".to_string());
+    let trust_error = CoseSign1ValidationError::Trust("Trust evaluation failed".into());
     match trust_error {
         CoseSign1ValidationError::Trust(msg) => assert_eq!(msg, "Trust evaluation failed"),
         _ => panic!("Unexpected error type"),
@@ -244,8 +244,8 @@ fn test_validation_result_metadata_reason_key() {
 #[test]
 fn test_cloneable_types() {
     let failure = ValidationFailure {
-        message: "test".to_string(),
-        error_code: Some("CODE".to_string()),
+        message: "test".into(),
+        error_code: Some("CODE".into()),
         property_name: None,
         attempted_value: None,
         exception: None,
@@ -276,8 +276,8 @@ fn test_partial_eq_implementations() {
     let failure2 = ValidationFailure::default();
     assert_eq!(failure1, failure2);
 
-    let result1 = ValidationResult::success("test".to_string(), None);
-    let result2 = ValidationResult::success("test".to_string(), None);
+    let result1 = ValidationResult::success("test", None);
+    let result2 = ValidationResult::success("test", None);
     assert_eq!(result1, result2);
 
     let result3 = ValidationResult::failure_message("test", "error", None);
@@ -291,7 +291,7 @@ fn test_debug_implementations() {
     let debug_str = format!("{:?}", failure);
     assert!(debug_str.contains("ValidationFailure"));
 
-    let result = ValidationResult::success("test".to_string(), None);
+    let result = ValidationResult::success("test", None);
     let debug_str = format!("{:?}", result);
     assert!(debug_str.contains("ValidationResult"));
 
@@ -450,7 +450,7 @@ struct MockPostSignatureValidator;
 
 impl PostSignatureValidator for MockPostSignatureValidator {
     fn validate(&self, _context: &PostSignatureValidationContext) -> ValidationResult {
-        ValidationResult::success("MockPostSigValidator".to_string(), None)
+        ValidationResult::success("MockPostSigValidator", None)
     }
 
     fn validate_async<'a>(
@@ -702,7 +702,7 @@ fn test_validation_result_helper_methods() {
     let mut metadata = BTreeMap::new();
     metadata.insert("key".to_string(), "value".to_string());
 
-    let result = ValidationResult::success("TestValidator".to_string(), Some(metadata));
+    let result = ValidationResult::success("TestValidator", Some(metadata));
     assert!(result.is_valid());
     assert!(!result.is_failure());
 
@@ -755,11 +755,11 @@ fn test_validation_failure_comprehensive() {
     assert!(failure.message.is_empty());
     assert!(failure.error_code.is_none());
 
-    failure.message = "Test failure message".to_string();
-    failure.error_code = Some("TEST_CODE".to_string());
-    failure.property_name = Some("test_property".to_string());
-    failure.attempted_value = Some("test_value".to_string());
-    failure.exception = Some("test_exception".to_string());
+    failure.message = "Test failure message".into();
+    failure.error_code = Some("TEST_CODE".into());
+    failure.property_name = Some("test_property".into());
+    failure.attempted_value = Some("test_value".into());
+    failure.exception = Some("test_exception".into());
 
     // Test that all fields are properly set
     assert_eq!(failure.message, "Test failure message");

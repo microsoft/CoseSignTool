@@ -765,23 +765,26 @@ fn test_receipt_verify_error_display_all_variants() {
     assert_eq!(
         format!(
             "{}",
-            ReceiptVerifyError::SigStructureEncode("err".to_string())
+            ReceiptVerifyError::SigStructureEncode(Cow::Borrowed("err"))
         ),
         "sig_structure_encode_failed: err"
     );
     assert_eq!(
         format!(
             "{}",
-            ReceiptVerifyError::StatementReencode("re".to_string())
+            ReceiptVerifyError::StatementReencode(Cow::Borrowed("re"))
         ),
         "statement_reencode_failed: re"
     );
     assert_eq!(
-        format!("{}", ReceiptVerifyError::JwkUnsupported("un".to_string())),
+        format!(
+            "{}",
+            ReceiptVerifyError::JwkUnsupported(Cow::Borrowed("un"))
+        ),
         "jwk_unsupported: un"
     );
     assert_eq!(
-        format!("{}", ReceiptVerifyError::JwksFetch("fetch".to_string())),
+        format!("{}", ReceiptVerifyError::JwksFetch(Cow::Borrowed("fetch"))),
         "jwks_fetch_failed: fetch"
     );
 }

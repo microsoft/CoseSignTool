@@ -227,30 +227,30 @@ fn validation_result_failure_message_with_none_error_code() {
 fn validation_result_failure_message_with_some_error_code() {
     let r = ValidationResult::failure_message("sig", "bad", Some("E001"));
     assert!(r.is_failure());
-    assert_eq!(Some("E001".to_string()), r.failures[0].error_code);
+    assert_eq!(r.failures[0].error_code.as_deref(), Some("E001"));
 }
 
 #[test]
 fn validation_result_failure_with_multiple_failures() {
     let failures = vec![
         ValidationFailure {
-            message: "a".to_string(),
-            error_code: Some("X".to_string()),
-            property_name: Some("prop".to_string()),
-            attempted_value: Some("val".to_string()),
-            exception: Some("ex".to_string()),
+            message: "a".into(),
+            error_code: Some("X".into()),
+            property_name: Some("prop".into()),
+            attempted_value: Some("val".into()),
+            exception: Some("ex".into()),
         },
         ValidationFailure {
-            message: "b".to_string(),
+            message: "b".into(),
             ..ValidationFailure::default()
         },
     ];
     let r = ValidationResult::failure("multi", failures);
     assert!(r.is_failure());
     assert_eq!(2, r.failures.len());
-    assert_eq!(Some("prop".to_string()), r.failures[0].property_name);
-    assert_eq!(Some("val".to_string()), r.failures[0].attempted_value);
-    assert_eq!(Some("ex".to_string()), r.failures[0].exception);
+    assert_eq!(r.failures[0].property_name.as_deref(), Some("prop"));
+    assert_eq!(r.failures[0].attempted_value.as_deref(), Some("val"));
+    assert_eq!(r.failures[0].exception.as_deref(), Some("ex"));
 }
 
 // ---------------------------------------------------------------------------
@@ -347,8 +347,8 @@ fn signature_stage_algorithm_mismatch_returns_failure() {
 
     assert_eq!(ValidationResultKind::Failure, result.signature.kind);
     assert_eq!(
-        Some(CoseSign1Validator::ERROR_CODE_ALGORITHM_MISMATCH.to_string()),
-        result.signature.failures[0].error_code
+        result.signature.failures[0].error_code.as_deref(),
+        Some(CoseSign1Validator::ERROR_CODE_ALGORITHM_MISMATCH)
     );
     assert!(result.signature.failures[0].message.contains("-35"));
     assert!(result.signature.failures[0].message.contains("-7"));
@@ -578,8 +578,8 @@ fn buffered_signature_fails_when_alg_missing() {
         .unwrap();
     assert_eq!(ValidationResultKind::Failure, result.signature.kind);
     assert_eq!(
-        Some(CoseSign1Validator::ERROR_CODE_NO_APPLICABLE_SIGNATURE_VALIDATOR.to_string()),
-        result.signature.failures[0].error_code
+        result.signature.failures[0].error_code.as_deref(),
+        Some(CoseSign1Validator::ERROR_CODE_NO_APPLICABLE_SIGNATURE_VALIDATOR)
     );
 }
 
@@ -589,11 +589,11 @@ fn buffered_signature_fails_when_alg_missing() {
 
 #[test]
 fn validation_error_display_formats() {
-    let e1 = CoseSign1ValidationError::CoseDecode("bad cbor".to_string());
+    let e1 = CoseSign1ValidationError::CoseDecode("bad cbor".into());
     let s1 = format!("{e1}");
     assert!(s1.contains("bad cbor"));
 
-    let e2 = CoseSign1ValidationError::Trust("plan failed".to_string());
+    let e2 = CoseSign1ValidationError::Trust("plan failed".into());
     let s2 = format!("{e2}");
     assert!(s2.contains("plan failed"));
 }

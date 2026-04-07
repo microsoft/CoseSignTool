@@ -11,6 +11,7 @@
 use cose_sign1_primitives::{CoseHeaderLabel, CoseHeaderValue};
 use cose_sign1_transparent_mst::validation::*;
 use sha2::{Digest, Sha256};
+use std::borrow::Cow;
 
 // Test validate_cose_alg_supported function
 #[test]
@@ -300,7 +301,7 @@ fn test_extract_proof_blobs_multiple_labels() {
 #[test]
 fn test_receipt_verify_error_display() {
     let errors = vec![
-        ReceiptVerifyError::ReceiptDecode("test decode".to_string()),
+        ReceiptVerifyError::ReceiptDecode(Cow::Borrowed("test decode")),
         ReceiptVerifyError::MissingAlg,
         ReceiptVerifyError::MissingKid,
         ReceiptVerifyError::UnsupportedAlg(-999),
@@ -308,12 +309,12 @@ fn test_receipt_verify_error_display() {
         ReceiptVerifyError::MissingVdp,
         ReceiptVerifyError::MissingProof,
         ReceiptVerifyError::MissingIssuer,
-        ReceiptVerifyError::JwksParse("parse error".to_string()),
-        ReceiptVerifyError::JwksFetch("fetch error".to_string()),
-        ReceiptVerifyError::JwkNotFound("test_kid".to_string()),
-        ReceiptVerifyError::JwkUnsupported("unsupported".to_string()),
-        ReceiptVerifyError::StatementReencode("reencode error".to_string()),
-        ReceiptVerifyError::SigStructureEncode("sig error".to_string()),
+        ReceiptVerifyError::JwksParse(Cow::Borrowed("parse error")),
+        ReceiptVerifyError::JwksFetch(Cow::Borrowed("fetch error")),
+        ReceiptVerifyError::JwkNotFound(Cow::Borrowed("test_kid")),
+        ReceiptVerifyError::JwkUnsupported(Cow::Borrowed("unsupported")),
+        ReceiptVerifyError::StatementReencode(Cow::Borrowed("reencode error")),
+        ReceiptVerifyError::SigStructureEncode(Cow::Borrowed("sig error")),
         ReceiptVerifyError::DataHashMismatch,
         ReceiptVerifyError::SignatureInvalid,
     ];
@@ -324,7 +325,7 @@ fn test_receipt_verify_error_display() {
 
         // Verify each error type has expected content in display string
         match &error {
-            ReceiptVerifyError::ReceiptDecode(msg) => assert!(display_str.contains(msg)),
+            ReceiptVerifyError::ReceiptDecode(msg) => assert!(display_str.contains(msg.as_ref())),
             ReceiptVerifyError::MissingAlg => assert!(display_str.contains("missing_alg")),
             ReceiptVerifyError::UnsupportedAlg(alg) => {
                 assert!(display_str.contains(&alg.to_string()))

@@ -971,12 +971,12 @@ fn streaming_no_alg_returns_no_applicable_validator() {
 
     assert_eq!(ValidationResultKind::Failure, result.signature.kind);
     assert_eq!(
-        Some(CoseSign1Validator::ERROR_CODE_NO_APPLICABLE_SIGNATURE_VALIDATOR.to_string()),
         result
             .signature
             .failures
             .first()
-            .and_then(|f| f.error_code.clone())
+            .and_then(|f| f.error_code.as_deref()),
+        Some(CoseSign1Validator::ERROR_CODE_NO_APPLICABLE_SIGNATURE_VALIDATOR),
     );
 }
 
@@ -1090,12 +1090,12 @@ fn streaming_finalize_false_returns_failure() {
 
     assert_eq!(ValidationResultKind::Failure, result.signature.kind);
     assert_eq!(
-        Some(CoseSign1Validator::ERROR_CODE_SIGNATURE_VERIFICATION_FAILED.to_string()),
         result
             .signature
             .failures
             .first()
-            .and_then(|f| f.error_code.clone())
+            .and_then(|f| f.error_code.as_deref()),
+        Some(CoseSign1Validator::ERROR_CODE_SIGNATURE_VERIFICATION_FAILED),
     );
 }
 
@@ -1877,7 +1877,7 @@ fn validator_advanced_constructor() {
 
 #[test]
 fn validation_error_display_trust() {
-    let err = CoseSign1ValidationError::Trust("bad trust".to_string());
+    let err = CoseSign1ValidationError::Trust("bad trust".into());
     assert!(err.to_string().contains("trust evaluation failed"));
     assert!(err.to_string().contains("bad trust"));
 
@@ -1887,7 +1887,7 @@ fn validation_error_display_trust() {
 
 #[test]
 fn validation_error_display_cose_decode() {
-    let err = CoseSign1ValidationError::CoseDecode("invalid cbor".to_string());
+    let err = CoseSign1ValidationError::CoseDecode("invalid cbor".into());
     assert!(err.to_string().contains("COSE decode failed"));
 }
 

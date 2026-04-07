@@ -332,7 +332,7 @@ pub extern "C" fn cose_sign1_validator_validate_bytes(
                     .overall
                     .failures
                     .first()
-                    .map(|f| f.message.clone())
+                    .map(|f| f.message.clone().into_owned())
                     .unwrap_or_else(|| "Validation failed".to_string());
                 (false, Some(msg))
             }

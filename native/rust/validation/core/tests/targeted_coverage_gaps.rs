@@ -395,12 +395,12 @@ fn validator_skip_post_signature_validation() {
 
 #[test]
 fn cose_sign1_validation_error_display() {
-    let err = CoseSign1ValidationError::CoseDecode("bad cbor".to_string());
+    let err = CoseSign1ValidationError::CoseDecode("bad cbor".into());
     let display = format!("{err}");
     assert!(display.contains("COSE decode failed"));
     assert!(display.contains("bad cbor"));
 
-    let err2 = CoseSign1ValidationError::Trust("plan eval failed".to_string());
+    let err2 = CoseSign1ValidationError::Trust("plan eval failed".into());
     let display2 = format!("{err2}");
     assert!(display2.contains("trust evaluation failed"));
 }

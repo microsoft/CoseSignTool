@@ -45,12 +45,26 @@ public sealed partial class IndirectSignatureFactory : IDisposable
     /// <summary>
     /// The HashAlgorithm this factory is using.
     /// </summary>
+    /// <remarks>
+    /// WARNING: This instance is NOT thread-safe for ComputeHash operations.
+    /// Use <see cref="CreateHashAlgorithm"/> to create a thread-safe instance for hashing.
+    /// </remarks>
     public HashAlgorithm HashAlgorithm => InternalHashAlgorithm;
 
     /// <summary>
     /// The HashAlgorightmName this factory is using.
     /// </summary>
     public HashAlgorithmName HashAlgorithmName => InternalHashAlgorithmName;
+
+    /// <summary>
+    /// Creates a new <see cref="System.Security.Cryptography.HashAlgorithm"/> instance that is safe for use on the calling thread.
+    /// </summary>
+    /// <returns>A new <see cref="System.Security.Cryptography.HashAlgorithm"/> instance. Callers are responsible for disposing this instance.</returns>
+    private HashAlgorithm CreateHashAlgorithm()
+    {
+        return CoseSign1MessageIndirectSignatureExtensions.CreateHashAlgorithmFromName(InternalHashAlgorithmName)
+            ?? throw new InvalidOperationException($"Failed to create HashAlgorithm for {InternalHashAlgorithmName}");
+    }
 
     /// <summary>
     /// The CoseSign1 Message Factory this factory is using.

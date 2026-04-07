@@ -946,6 +946,82 @@ public class IndirectSignatureFactoryTests
         Assert.That(result, Is.Not.Empty);
     }
 
+    /// <summary>
+    /// Validates that a single <see cref="IndirectSignatureFactory"/> instance can safely produce
+    /// indirect signatures from multiple threads concurrently without throwing
+    /// <see cref="System.Security.Cryptography.CryptographicException"/>.
+    /// Regression test for https://github.com/microsoft/CoseSignTool/issues/191.
+    /// </summary>
+    [Test]
+    public void ConcurrentHashComputationShouldNotThrow()
+    {
+        // Arrange — one shared factory, many threads
+        Mock<ISigningService<SigningOptions>> mockSigningService = CreateMockSigningService();
+        mockSigningService
+            .Setup(s => s.GetCoseSigner(It.IsAny<SigningContext>()))
+            .Returns(CreateMockCoseSigner);
+
+        IndirectSignatureFactory factory = new(mockSigningService.Object);
+        int degreeOfParallelism = Environment.ProcessorCount * 2;
+        int iterationsPerThread = 20;
+
+        // Act — hammer the factory from many threads at once
+        Assert.DoesNotThrow(() =>
+        {
+            Parallel.For(0, degreeOfParallelism * iterationsPerThread, new ParallelOptions { MaxDegreeOfParallelism = degreeOfParallelism }, i =>
+            {
+                byte[] payload = new byte[128];
+                Random.Shared.NextBytes(payload);
+
+                byte[] result = factory.CreateCoseSign1MessageBytes(
+                    payload,
+                    "application/test.concurrent");
+
+                Assert.That(result, Is.Not.Null);
+                Assert.That(result, Is.Not.Empty);
+            });
+        });
+    }
+
+    /// <summary>
+    /// Validates that the async indirect signature creation path is also safe under
+    /// concurrent usage from multiple threads.
+    /// Regression test for https://github.com/microsoft/CoseSignTool/issues/191.
+    /// </summary>
+    [Test]
+    public async Task ConcurrentAsyncHashComputationShouldNotThrow()
+    {
+        // Arrange — one shared factory, many concurrent tasks
+        Mock<ISigningService<SigningOptions>> mockSigningService = CreateMockSigningService();
+        mockSigningService
+            .Setup(s => s.GetCoseSigner(It.IsAny<SigningContext>()))
+            .Returns(CreateMockCoseSigner);
+
+        IndirectSignatureFactory factory = new(mockSigningService.Object);
+        int concurrentTasks = Environment.ProcessorCount * 4;
+
+        // Act — launch many concurrent async operations
+        Task[] tasks = new Task[concurrentTasks];
+        for (int i = 0; i < concurrentTasks; i++)
+        {
+            tasks[i] = Task.Run(async () =>
+            {
+                byte[] payload = new byte[128];
+                Random.Shared.NextBytes(payload);
+
+                byte[] result = await factory.CreateCoseSign1MessageBytesAsync(
+                    payload,
+                    "application/test.concurrent.async");
+
+                Assert.That(result, Is.Not.Null);
+                Assert.That(result, Is.Not.Empty);
+            });
+        }
+
+        // Assert — all tasks complete without CryptographicException
+        Assert.DoesNotThrowAsync(async () => await Task.WhenAll(tasks));
+    }
+
     private CoseSigner CreateMockCoseSigner()
     {
         // Create a real CoseSigner with RSA key for testing

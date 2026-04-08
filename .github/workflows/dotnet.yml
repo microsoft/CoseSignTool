@@ -38,21 +38,28 @@ jobs:
 
     - name: Check changed paths
       id: filter
-      uses: dorny/paths-filter@v3
-      with:
-        filters: |
-          native:
-            - 'native/**'
-          dotnet:
-            - '**/*.cs'
-            - '**/*.csproj'
-            - '**/*.sln'
-            - '*.props'
-            - '*.targets'
-            - 'Directory.Build.props'
-            - 'Directory.Packages.props'
-            - 'Nuget.config'
-            - 'global.json'
+      shell: bash
+      run: |
+        # Determine the base ref to diff against
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          BASE="${{ github.event.pull_request.base.sha }}"
+        else
+          BASE="${{ github.event.before }}"
+        fi
+
+        CHANGED=$(git diff --name-only "$BASE" "${{ github.sha }}" 2>/dev/null || git diff --name-only HEAD~1 HEAD)
+
+        if echo "$CHANGED" | grep -q '^native/'; then
+          echo "native=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "native=false" >> "$GITHUB_OUTPUT"
+        fi
+
+        if echo "$CHANGED" | grep -qE '\.(cs|csproj|sln)$|\.props$|\.targets$|Directory\.Build|Directory\.Packages|Nuget\.config|global\.json'; then
+          echo "dotnet=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "dotnet=false" >> "$GITHUB_OUTPUT"
+        fi
 
   #### PULL REQUEST EVENTS ####
 
@@ -144,14 +151,21 @@ jobs:
         }
 
     - name: Setup Rust (stable)
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        components: clippy, rustfmt
+      shell: pwsh
+      run: |
+        rustup toolchain install stable --profile minimal --component clippy,rustfmt
+        rustup default stable
 
     - name: Cache Rust build artifacts
-      uses: Swatinem/rust-cache@v2
+      uses: actions/cache@v4
       with:
-        workspaces: native/rust -> target
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          native/rust/target
+        key: rust-${{ runner.os }}-${{ hashFiles('native/rust/Cargo.lock') }}
+        restore-keys: |
+          rust-${{ runner.os }}-
 
     - name: Rust format check
       shell: pwsh
@@ -180,9 +194,9 @@ jobs:
         cargo clippy --workspace -- -D warnings
 
     - name: Setup Rust (nightly, for coverage)
-      uses: dtolnay/rust-toolchain@nightly
-      with:
-        components: llvm-tools-preview
+      shell: pwsh
+      run: |
+        rustup toolchain install nightly --profile minimal --component llvm-tools-preview
 
     - name: Cache cargo-llvm-cov
       uses: actions/cache@v4
@@ -249,17 +263,26 @@ jobs:
         }
 
     - name: Setup Rust (stable)
-      uses: dtolnay/rust-toolchain@stable
+      shell: pwsh
+      run: |
+        rustup toolchain install stable --profile minimal
+        rustup default stable
 
     - name: Setup Rust (nightly, for coverage)
-      uses: dtolnay/rust-toolchain@nightly
-      with:
-        components: llvm-tools-preview
+      shell: pwsh
+      run: |
+        rustup toolchain install nightly --profile minimal --component llvm-tools-preview
 
     - name: Cache Rust build artifacts
-      uses: Swatinem/rust-cache@v2
+      uses: actions/cache@v4
       with:
-        workspaces: native/rust -> target
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          native/rust/target
+        key: rust-cpp-${{ runner.os }}-${{ hashFiles('native/rust/Cargo.lock') }}
+        restore-keys: |
+          rust-cpp-${{ runner.os }}-
 
     - name: Install OpenCppCoverage
       shell: pwsh
@@ -299,10 +322,31 @@ jobs:
 
       - name: Generate changelog
         if: ${{ github.event_name == 'push' }}
-        uses: tj-actions/github-changelog-generator@v1.19
-        with:
-          output: CHANGELOG.md
-          token: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Generate changelog from merged PRs since last tag using GitHub API only.
+          # No third-party actions — eliminates supply chain risk (tj-actions incident).
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -z "$LAST_TAG" ]; then
+            SINCE=""
+          else
+            TAG_DATE=$(git log -1 --format=%aI "$LAST_TAG")
+            SINCE="&since=$TAG_DATE"
+          fi
+
+          REPO="${{ github.repository }}"
+          echo "# Changelog" > CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          echo "## Recent Changes" >> CHANGELOG.md
+          echo "" >> CHANGELOG.md
+
+          # Fetch merged PRs since last tag
+          curl -sf -H "Authorization: token $GITHUB_TOKEN" \
+            "https://api.github.com/repos/$REPO/pulls?state=closed&sort=updated&direction=desc&per_page=50${SINCE}" \
+            | jq -r '.[] | select(.merged_at != null) | "- \(.title) (#\(.number))"' \
+            >> CHANGELOG.md 2>/dev/null || echo "- No changes since last release" >> CHANGELOG.md
 
       - name: Commit changelog
         if: ${{ github.event_name == 'push' }}
@@ -686,21 +730,24 @@ jobs:
 
     # Upload the zipped assets to the release.
     - name: Upload binary archives
-      uses: svenstaro/upload-release-action@v2
-      with:
-        repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: ./published/CoseSignTool-*.zip
-        file_glob: true
-        overwrite: true
-        tag: ${{ needs.create_release.outputs.tag_name }}
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        TAG="${{ needs.create_release.outputs.tag_name }}"
+        for zip in ./published/CoseSignTool-*.zip; do
+          echo "Uploading $zip to release $TAG..."
+          gh release upload "$TAG" "$zip" --clobber
+        done
 
     # Commented out until we decide to support publishing of nuget packages.
-    # Upload the NuGet packages to the release (commented out for now)
+    # Upload the NuGet packages to the release
     # - name: Upload NuGet packages
-    #   uses: svenstaro/upload-release-action@v2
-    #   with:
-    #     repo_token: ${{ secrets.GITHUB_TOKEN }}
-    #     file: ./published/packages/*.nupkg
-    #     file_glob: true
-    #     overwrite: true
-    #     tag: ${{ needs.create_release.outputs.tag_name }}
+    #   shell: bash
+    #   env:
+    #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #   run: |
+    #     TAG="${{ needs.create_release.outputs.tag_name }}"
+    #     for pkg in ./published/packages/*.nupkg; do
+    #       gh release upload "$TAG" "$pkg" --clobber
+    #     done

@@ -1,18 +1,50 @@
-//! Trust policy authoring FFI bindings.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+//! C-ABI projection for `cose_sign1_validation_primitives`.
 //!
-//! This crate exposes a C ABI for authoring a bundled compiled trust plan and attaching it
-//! to a validator builder.
+//! This crate provides C-compatible FFI exports for trust policy and trust plan
+//! authoring. It exposes a C ABI for composing compiled trust plans from the
+//! default plans provided by configured trust packs and attaching them to a
+//! validator builder.
+//!
+//! # Architecture
 //!
 //! Design goal: per-pack modularity.
 //! - Packs (certificates/MST/AKV/...) remain separate crates and can be added to the base
 //!   `cose_sign1_validator_builder_t` independently.
 //! - Trust-plan authoring is exposed as a separate pack (`cose_sign1_validation_primitives_ffi`).
+//! - Future expansions can add declarative rule/predicate authoring in a stable way.
 //!
-//! Current scope (M3 foundation): compile a bundled plan by composing the *default trust plans*
-//! provided by configured trust packs. This is the minimal, deterministic authoring surface that
-//! works well across C and C++.
+//! # ABI Stability
 //!
-//! Future expansions can add declarative rule/predicate authoring in a stable way.
+//! All exported functions use `extern "C"` calling convention.
+//! Opaque handle types are passed as `*mut` (owned) or `*const` (borrowed).
+//!
+//! # Panic Safety
+//!
+//! All exported functions are wrapped in `catch_unwind` to prevent
+//! Rust panics from crossing the FFI boundary.
+//!
+//! # Error Handling
+//!
+//! Functions return `cose_status_t` (0 = OK, non-zero = error).
+//! On error, call `cose_last_error_message_utf8()` for details.
+//! Error state is thread-local and safe for concurrent use.
+//!
+//! # Memory Ownership
+//!
+//! - `*mut T` parameters transfer ownership TO this function (consumed)
+//! - `*const T` parameters are borrowed (caller retains ownership)
+//! - `*mut *mut T` out-parameters transfer ownership FROM this function (caller must free)
+//! - Every handle type has a corresponding `*_free()` function:
+//!   - `cose_sign1_trust_plan_builder_free` for trust plan builder handles
+//!   - `cose_sign1_compiled_trust_plan_free` for compiled trust plan handles
+//!   - `cose_sign1_trust_policy_builder_free` for trust policy builder handles
+//!
+//! # Thread Safety
+//!
+//! All functions are thread-safe. Error state is thread-local.
 
 #![deny(unsafe_op_in_unsafe_fn)]
 #![allow(clippy::not_unsafe_ptr_arg_deref)]

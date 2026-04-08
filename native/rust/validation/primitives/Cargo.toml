@@ -21,7 +21,6 @@ regex = { workspace = true, optional = true }
 anyhow.workspace = true
 cbor_primitives = { path = "../../primitives/cbor" }
 cbor_primitives_everparse = { path = "../../primitives/cbor/everparse" }
-once_cell.workspace = true
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly)'] }

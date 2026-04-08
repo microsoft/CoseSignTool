@@ -15,6 +15,7 @@ use cose_sign1_validation_primitives::{
 use crate::validation::facts::{AasComplianceFact, AasSigningServiceIdentifiedFact};
 
 pub mod facts;
+pub mod fluent_ext;
 
 /// Produces AAS-specific facts.
 pub struct AasFactProducer;

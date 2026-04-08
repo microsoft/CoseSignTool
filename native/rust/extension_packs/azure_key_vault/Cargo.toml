@@ -19,11 +19,11 @@ crypto_primitives = { path = "../../primitives/crypto" }
 cose_sign1_crypto_openssl = { path = "../../primitives/crypto/openssl" }
 sha2 = { workspace = true }
 regex = { workspace = true }
-once_cell = { workspace = true }
 url = { workspace = true }
 azure_core = { workspace = true, features = ["reqwest", "reqwest_native_tls"] }
 azure_identity = { workspace = true }
 azure_security_keyvault_keys = { workspace = true }
+azure_security_keyvault_certificates = { workspace = true }
 tokio = { workspace = true, features = ["rt"] }
 
 [dev-dependencies]

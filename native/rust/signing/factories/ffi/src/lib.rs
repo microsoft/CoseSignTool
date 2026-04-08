@@ -5,26 +5,45 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
-//! C/C++ FFI for COSE_Sign1 message factories.
+//! C-ABI projection for `cose_sign1_factories`.
 //!
-//! This crate (`cose_sign1_factories_ffi`) provides FFI-safe wrappers for creating
-//! COSE_Sign1 messages using the factory pattern. It supports both direct and indirect
-//! signatures, with streaming and file-based payloads.
+//! This crate provides C-compatible FFI exports for creating COSE_Sign1 messages
+//! using the factory pattern. It supports both direct and indirect signatures,
+//! with streaming and file-based payloads, and transparency provider integration.
 //!
-//! ## Error Handling
+//! # ABI Stability
+//!
+//! All exported functions use `extern "C"` calling convention.
+//! Opaque handle types are passed as `*mut` (owned) or `*const` (borrowed).
+//! The ABI version is available via `cose_sign1_factories_abi_version()`.
+//!
+//! # Panic Safety
+//!
+//! All exported functions are wrapped in `catch_unwind` to prevent
+//! Rust panics from crossing the FFI boundary.
+//!
+//! # Error Handling
 //!
 //! All functions follow a consistent error handling pattern:
 //! - Return value: 0 = success, negative = error code
 //! - `out_error` parameter: Set to error handle on failure (caller must free)
 //! - Output parameters: Only valid if return is 0
 //!
-//! ## Memory Management
+//! # Memory Ownership
 //!
-//! Handles returned by this library must be freed using the corresponding `*_free` function:
-//! - `cose_sign1_factories_free` for factory handles
-//! - `cose_sign1_factories_error_free` for error handles
-//! - `cose_sign1_factories_string_free` for string pointers
-//! - `cose_sign1_factories_bytes_free` for byte buffer pointers
+//! - `*mut T` parameters transfer ownership TO this function (consumed)
+//! - `*const T` parameters are borrowed (caller retains ownership)
+//! - `*mut *mut T` out-parameters transfer ownership FROM this function (caller must free)
+//! - Every handle type has a corresponding `*_free()` function:
+//!   - `cose_sign1_factories_free` for factory handles
+//!   - `cose_sign1_factories_error_free` for error handles
+//!   - `cose_sign1_factories_string_free` for string pointers
+//!   - `cose_sign1_factories_bytes_free` for byte buffer pointers
+//!
+//! # Thread Safety
+//!
+//! All functions are thread-safe. Handles are not internally synchronized,
+//! so concurrent mutation requires external synchronization.
 
 pub mod error;
 pub mod provider;
@@ -876,10 +895,10 @@ impl std::io::Read for CallbackReader {
         let result = unsafe { (self.callback)(buf.as_mut_ptr(), to_read, self.user_data) };
 
         if result < 0 {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("callback read error: {}", result),
-            ));
+            return Err(std::io::Error::other(format!(
+                "callback read error: {}",
+                result
+            )));
         }
 
         let bytes_read = result as usize;

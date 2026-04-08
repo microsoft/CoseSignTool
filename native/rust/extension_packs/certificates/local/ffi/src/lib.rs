@@ -5,10 +5,47 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
-//! FFI bindings for local certificate creation and loading.
+//! C-ABI projection for `cose_sign1_certificates_local`.
 //!
-//! This crate provides C-compatible FFI exports for the `cose_sign1_certificates_local` crate,
-//! enabling certificate creation, chain building, and certificate loading from C/C++ code.
+//! This crate provides C-compatible FFI exports for local certificate creation
+//! and loading. It wraps the `cose_sign1_certificates_local` crate, enabling
+//! C/C++ code to create ephemeral certificates, build certificate chains, and
+//! load certificates from PEM or DER encoded files.
+//!
+//! # ABI Stability
+//!
+//! All exported functions use `extern "C"` calling convention.
+//! Opaque handle types are passed as `*mut` (owned) or `*const` (borrowed).
+//! The ABI version is available via `cose_cert_local_ffi_abi_version()`.
+//!
+//! # Panic Safety
+//!
+//! All exported functions are wrapped in `catch_unwind` to prevent
+//! Rust panics from crossing the FFI boundary.
+//!
+//! # Error Handling
+//!
+//! Functions return `cose_status_t` (0 = OK, non-zero = error).
+//! On error, call `cose_cert_local_last_error_message_utf8()` for a
+//! thread-local error description. Call `cose_cert_local_last_error_clear()`
+//! to reset error state.
+//!
+//! # Memory Ownership
+//!
+//! - `*mut T` parameters transfer ownership TO this function (consumed)
+//! - `*const T` parameters are borrowed (caller retains ownership)
+//! - `*mut *mut T` out-parameters transfer ownership FROM this function (caller must free)
+//! - Every handle type has a corresponding `*_free()` function:
+//!   - `cose_cert_local_factory_free` for factory handles
+//!   - `cose_cert_local_chain_free` for chain handles
+//!   - `cose_cert_local_bytes_free` for byte buffers
+//!   - `cose_cert_local_array_free` for array pointers
+//!   - `cose_cert_local_lengths_array_free` for length array pointers
+//!   - `cose_cert_local_string_free` for error message strings
+//!
+//! # Thread Safety
+//!
+//! All functions are thread-safe. Error state is thread-local.
 
 use cose_sign1_certificates_local::{
     CertificateChainFactory, CertificateChainOptions, CertificateFactory, CertificateOptions,

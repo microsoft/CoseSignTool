@@ -62,10 +62,9 @@ fn signing_key_resolver_can_resolve_non_p256_ec_keys_without_failing_resolution(
 }
 
 #[test]
-fn signing_key_resolver_reports_key_mismatch_for_es256_instead_of_parse_failure() {
-    // If the leaf certificate's public key is not compatible with ES256, verification should
-    // report a clean mismatch/unsupported error (not an x509 parse error).
-    // The OpenSSL provider defaults to ES256 for all EC keys (curve detection is a TODO).
+fn signing_key_resolver_detects_p384_curve_and_assigns_es384() {
+    // The OpenSSL provider detects the EC curve from the leaf certificate's public key
+    // and assigns the correct COSE algorithm: P-384 → ES384 (-35).
 
     let key_pair = KeyPair::generate_for(&PKCS_ECDSA_P384_SHA384).unwrap();
     let params = CertificateParams::new(vec!["resolver-pqc-smoke".to_string()]).unwrap();
@@ -85,11 +84,11 @@ fn signing_key_resolver_reports_key_mismatch_for_es256_instead_of_parse_failure(
     assert!(res.is_success);
 
     let key = res.cose_key.unwrap();
-    // OpenSSL provider defaults to ES256 for all EC keys (P-384 detection not implemented)
-    assert_eq!(key.algorithm(), -7, "EC key defaults to ES256");
+    // P-384 curve correctly detected → ES384 (COSE algorithm -35)
+    assert_eq!(key.algorithm(), -35, "P-384 key should be assigned ES384");
 
-    // P-384 key with ES256 algorithm: garbage signature returns false or error
-    let result = key.verify(b"sig_structure", &[0u8; 64]);
+    // Garbage signature against correct algorithm should not verify
+    let result = key.verify(b"sig_structure", &[0u8; 96]);
     match result {
         Ok(false) => {} // Expected - signature doesn't verify
         Err(_) => {}    // Also acceptable - verification error

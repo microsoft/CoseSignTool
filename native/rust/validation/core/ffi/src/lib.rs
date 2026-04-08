@@ -1,10 +1,49 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 #![deny(unsafe_op_in_unsafe_fn)]
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
-//! Base FFI crate for COSE Sign1 validation.
+//! C-ABI projection for `cose_sign1_validation`.
 //!
-//! This crate provides the core validator types and error-handling infrastructure.
-//! Pack-specific functionality (X.509, MST, AKV, trust policy) lives in separate FFI crates.
+//! This crate provides C-compatible FFI exports for COSE_Sign1 message validation.
+//! It is the base validation FFI crate that exposes the core validator builder,
+//! validator runner, and validation result types. Pack-specific functionality
+//! (X.509 certificates, MST, Azure Key Vault, trust policy authoring) lives in
+//! separate FFI crates that extend the validator builder exposed here.
+//!
+//! # ABI Stability
+//!
+//! All exported functions use `extern "C"` calling convention.
+//! Opaque handle types are passed as `*mut` (owned) or `*const` (borrowed).
+//! The ABI version is available via `cose_sign1_validation_abi_version()`.
+//!
+//! # Panic Safety
+//!
+//! All exported functions are wrapped in `catch_unwind` to prevent
+//! Rust panics from crossing the FFI boundary.
+//!
+//! # Error Handling
+//!
+//! Functions return `cose_status_t` (0 = OK, non-zero = error).
+//! On error, call `cose_last_error_message_utf8()` for a thread-local
+//! error description. Call `cose_last_error_clear()` to reset error state.
+//! Error state is thread-local and safe for concurrent use.
+//!
+//! # Memory Ownership
+//!
+//! - `*mut T` parameters transfer ownership TO this function (consumed)
+//! - `*const T` parameters are borrowed (caller retains ownership)
+//! - `*mut *mut T` out-parameters transfer ownership FROM this function (caller must free)
+//! - Every handle type has a corresponding `*_free()` function:
+//!   - `cose_sign1_validator_builder_free` for builder handles
+//!   - `cose_sign1_validator_free` for validator handles
+//!   - `cose_sign1_validation_result_free` for result handles
+//!   - `cose_string_free` for error message strings
+//!
+//! # Thread Safety
+//!
+//! All functions are thread-safe. Error state is thread-local.
 
 pub mod provider;
 

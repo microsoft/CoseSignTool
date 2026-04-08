@@ -188,7 +188,7 @@ pub fn load_from_store_by_thumbprint_default(
 }
 
 // ============================================================================
-// Non-Windows stubs
+// Non-Windows platform fallbacks
 // ============================================================================
 
 #[cfg(not(all(target_os = "windows", feature = "windows-store")))]

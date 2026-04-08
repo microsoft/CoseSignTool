@@ -8,9 +8,9 @@ use cose_sign1_validation_primitives::policy::TrustPolicyBuilder;
 use cose_sign1_validation_primitives::rules::FnRule;
 use cose_sign1_validation_primitives::subject::TrustSubject;
 use cose_sign1_validation_primitives::TrustDecision;
-use once_cell::sync::Lazy;
 use std::borrow::Cow;
 use std::sync::Arc;
+use std::sync::LazyLock;
 
 #[derive(Debug)]
 struct ExampleFact {
@@ -42,7 +42,7 @@ impl TrustFactProducer for ExampleProducer {
     }
 
     fn provides(&self) -> &'static [FactKey] {
-        static PROVIDED: Lazy<[FactKey; 1]> = Lazy::new(|| [FactKey::of::<ExampleFact>()]);
+        static PROVIDED: LazyLock<[FactKey; 1]> = LazyLock::new(|| [FactKey::of::<ExampleFact>()]);
         &*PROVIDED
     }
 }

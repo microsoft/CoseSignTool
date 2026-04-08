@@ -13,7 +13,6 @@ test-utils = []
 
 [dependencies]
 sha2.workspace = true
-once_cell.workspace = true
 url.workspace = true
 serde.workspace = true
 serde_json.workspace = true

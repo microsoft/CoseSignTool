@@ -19,6 +19,24 @@ on:
   release:
     types: [ created ]    # Trigger on new releases.
   workflow_dispatch:       # Allow manual triggering from the Actions tab.
+    inputs:
+      release_scope:
+        description: 'Component to release (GA)'
+        required: true
+        type: choice
+        options:
+          - 'dotnet'
+          - 'native'
+          - 'both'
+        default: 'dotnet'
+      release_type:
+        description: 'Version bump after GA release'
+        required: true
+        type: choice
+        options:
+          - 'minor'
+          - 'patch'
+        default: 'minor'
 
 jobs:
 
@@ -324,29 +342,52 @@ jobs:
         if: ${{ github.event_name == 'push' }}
         shell: bash
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Generate changelog from merged PRs since last tag using GitHub API only.
-          # No third-party actions — eliminates supply chain risk (tj-actions incident).
-          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-          if [ -z "$LAST_TAG" ]; then
-            SINCE=""
-          else
-            TAG_DATE=$(git log -1 --format=%aI "$LAST_TAG")
-            SINCE="&since=$TAG_DATE"
-          fi
-
-          REPO="${{ github.repository }}"
+          # Cumulative changelog using GitHub's generate-notes API.
+          # Produces a full history: delta for current release + bodies from all previous releases.
           echo "# Changelog" > CHANGELOG.md
           echo "" >> CHANGELOG.md
-          echo "## Recent Changes" >> CHANGELOG.md
+
+          PREVIOUS_TAG=$(gh release list --limit 1 --json tagName --jq '.[0].tagName' 2>/dev/null || echo "")
+          echo "Previous tag: $PREVIOUS_TAG"
+
+          if [ -n "$PREVIOUS_TAG" ]; then
+            NOTES=$(gh api repos/${{ github.repository }}/releases/generate-notes \
+              -f tag_name="pending" \
+              -f target_commitish="${{ github.sha }}" \
+              -f previous_tag_name="$PREVIOUS_TAG" \
+              --jq '.body' 2>/dev/null || echo "")
+          else
+            NOTES=$(gh api repos/${{ github.repository }}/releases/generate-notes \
+              -f tag_name="pending" \
+              -f target_commitish="${{ github.sha }}" \
+              --jq '.body' 2>/dev/null || echo "")
+          fi
+
+          if [ -n "$NOTES" ]; then
+            echo "$NOTES" >> CHANGELOG.md
+            echo "" >> CHANGELOG.md
+          fi
+
+          # Append previous release bodies for cumulative history
+          echo "---" >> CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          echo "## Previous Releases" >> CHANGELOG.md
           echo "" >> CHANGELOG.md
 
-          # Fetch merged PRs since last tag
-          curl -sf -H "Authorization: token $GITHUB_TOKEN" \
-            "https://api.github.com/repos/$REPO/pulls?state=closed&sort=updated&direction=desc&per_page=50${SINCE}" \
-            | jq -r '.[] | select(.merged_at != null) | "- \(.title) (#\(.number))"' \
-            >> CHANGELOG.md 2>/dev/null || echo "- No changes since last release" >> CHANGELOG.md
+          gh release list --limit 50 --json tagName --jq '.[].tagName' 2>/dev/null | while read -r TAG; do
+            BODY=$(gh release view "$TAG" --json body --jq '.body' 2>/dev/null || echo "")
+            if [ -n "$BODY" ]; then
+              echo "### $TAG" >> CHANGELOG.md
+              echo "" >> CHANGELOG.md
+              echo "$BODY" >> CHANGELOG.md
+              echo "" >> CHANGELOG.md
+            fi
+          done
+
+          echo "Generated cumulative CHANGELOG.md:"
+          wc -l CHANGELOG.md
 
       - name: Commit changelog
         if: ${{ github.event_name == 'push' }}
@@ -751,3 +792,458 @@ jobs:
     #     for pkg in ./published/packages/*.nupkg; do
     #       gh release upload "$TAG" "$pkg" --clobber
     #     done
+
+  ##############################################################################
+  # NATIVE RELEASE — Auto pre-release on push to main (when native/ changed)
+  #
+  # Version source: native/rust/Cargo.toml [workspace.package] version field.
+  # Tag format:     native-v{version}-pre{N}  (pre-release)
+  #                 native-v{version}          (GA, via workflow_dispatch)
+  #
+  # These jobs are independent of the .NET release pipeline. Both can release
+  # from the same push if both native/ and dotnet files changed.
+  ##############################################################################
+
+  native_pre_release:
+    name: Native Pre-release
+    if: ${{ github.event_name == 'push' && needs.detect-changes.outputs.native == 'true' }}
+    needs: [ detect-changes, create_changelog ]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      tag_name: ${{ steps.create-tag.outputs.tag }}
+      version: ${{ steps.create-tag.outputs.version }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Determine version and create tag
+      id: create-tag
+      shell: bash
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        # Read version from workspace Cargo.toml (single source of truth for native)
+        VERSION=$(grep -oP '(?<=^version = ")[^"]+' native/rust/Cargo.toml)
+        echo "Workspace version: $VERSION"
+
+        # Find latest native pre-release tag to determine next pre-release number
+        LATEST=$(gh release list --limit 100 --json tagName \
+          --jq '[.[].tagName | select(startswith("native-v"))] | sort_by(.) | last // empty' 2>/dev/null || echo "")
+        echo "Latest native tag: $LATEST"
+
+        if [ -z "$LATEST" ]; then
+          NEW_TAG="native-v${VERSION}-pre1"
+        elif [[ "$LATEST" =~ ^native-v(.+)-pre([0-9]+)$ ]]; then
+          PRE=$((${BASH_REMATCH[2]} + 1))
+          NEW_TAG="native-v${VERSION}-pre${PRE}"
+        else
+          # Latest was a GA release — start new pre-release series
+          NEW_TAG="native-v${VERSION}-pre1"
+        fi
+
+        echo "New tag: $NEW_TAG"
+        echo "tag=$NEW_TAG" >> "$GITHUB_OUTPUT"
+        echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+    - name: Generate native changelog and create pre-release
+      shell: bash
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        TAG="${{ steps.create-tag.outputs.tag }}"
+
+        # Find previous native release for changelog delta
+        PREV_TAG=$(gh release list --limit 100 --json tagName \
+          --jq '[.[].tagName | select(startswith("native-v"))] | sort_by(.) | last // empty' 2>/dev/null || echo "")
+
+        # Generate delta notes via GitHub's release notes API
+        if [ -n "$PREV_TAG" ]; then
+          NOTES=$(gh api repos/${{ github.repository }}/releases/generate-notes \
+            -f tag_name="$TAG" \
+            -f target_commitish="${{ github.sha }}" \
+            -f previous_tag_name="$PREV_TAG" \
+            --jq '.body' 2>/dev/null || echo "")
+        else
+          NOTES=$(gh api repos/${{ github.repository }}/releases/generate-notes \
+            -f tag_name="$TAG" \
+            -f target_commitish="${{ github.sha }}" \
+            --jq '.body' 2>/dev/null || echo "")
+        fi
+
+        # Build cumulative changelog (current delta + all previous native releases)
+        echo "# Native Changelog" > NATIVE_CHANGELOG.md
+        echo "" >> NATIVE_CHANGELOG.md
+        if [ -n "$NOTES" ]; then
+          echo "$NOTES" >> NATIVE_CHANGELOG.md
+          echo "" >> NATIVE_CHANGELOG.md
+        fi
+        echo "---" >> NATIVE_CHANGELOG.md
+        echo "" >> NATIVE_CHANGELOG.md
+        echo "## Previous Native Releases" >> NATIVE_CHANGELOG.md
+        echo "" >> NATIVE_CHANGELOG.md
+        gh release list --limit 50 --json tagName --jq '.[].tagName' 2>/dev/null | \
+          grep '^native-v' | while read -r T; do
+            BODY=$(gh release view "$T" --json body --jq '.body' 2>/dev/null || echo "")
+            if [ -n "$BODY" ]; then
+              echo "### $T" >> NATIVE_CHANGELOG.md
+              echo "" >> NATIVE_CHANGELOG.md
+              echo "$BODY" >> NATIVE_CHANGELOG.md
+              echo "" >> NATIVE_CHANGELOG.md
+            fi
+          done
+
+        echo "Generated cumulative native changelog:"
+        wc -l NATIVE_CHANGELOG.md
+
+        # Create the pre-release
+        gh release create "$TAG" \
+          --title "Native Release $TAG" \
+          --notes-file NATIVE_CHANGELOG.md \
+          --prerelease
+
+  # ── Native Pre-release Assets ──────────────────────────────────────────
+  # Builds Rust workspace in release mode and archives static/dynamic libraries
+  # plus C and C++ headers for each target platform.
+  native_pre_release_assets:
+    name: native-release-${{ matrix.target }}
+    needs: [ detect-changes, native_pre_release ]
+    if: ${{ github.event_name == 'push' && needs.detect-changes.outputs.native == 'true' }}
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    env:
+      VCPKG_ROOT: C:\vcpkg
+      OPENSSL_DIR: C:\vcpkg\installed\x64-windows
+    strategy:
+      matrix:
+        include:
+          - target: win-x64
+            triple: x86_64-pc-windows-msvc
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Cache vcpkg packages
+      uses: actions/cache@v4
+      with:
+        path: C:\vcpkg\installed
+        key: vcpkg-openssl-x64-windows-v1
+
+    - name: Install OpenSSL via vcpkg
+      shell: pwsh
+      run: |
+        if (Test-Path "$env:VCPKG_ROOT\installed\x64-windows\lib\libssl.lib") {
+          Write-Host "OpenSSL already cached" -ForegroundColor Green
+        } else {
+          & "$env:VCPKG_ROOT\vcpkg" install openssl:x64-windows
+        }
+
+    - name: Setup Rust (stable)
+      shell: pwsh
+      run: |
+        rustup toolchain install stable --profile minimal
+        rustup default stable
+
+    - name: Cache Rust build artifacts
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          native/rust/target
+        key: rust-release-${{ runner.os }}-${{ hashFiles('native/rust/Cargo.lock') }}
+        restore-keys: |
+          rust-release-${{ runner.os }}-
+
+    - name: Build Rust workspace (release)
+      shell: pwsh
+      working-directory: native/rust
+      run: |
+        $env:PATH = "$env:VCPKG_ROOT\installed\x64-windows\bin;$env:PATH"
+        cargo build --workspace --exclude cose-openssl --release
+
+    - name: Archive native libraries and headers
+      shell: pwsh
+      run: |
+        $tag = "${{ needs.native_pre_release.outputs.tag_name }}"
+        $archiveDir = "native-release"
+
+        # Create directory structure
+        New-Item -ItemType Directory -Force -Path "$archiveDir/lib"
+        New-Item -ItemType Directory -Force -Path "$archiveDir/include/c"
+        New-Item -ItemType Directory -Force -Path "$archiveDir/include/cpp"
+
+        # Copy static libraries (.lib)
+        Get-ChildItem -Path "native/rust/target/release" -Filter "*.lib" -File |
+          Where-Object { $_.Name -notmatch 'build_script|deps' } |
+          Copy-Item -Destination "$archiveDir/lib/"
+
+        # Copy dynamic libraries (.dll)
+        Get-ChildItem -Path "native/rust/target/release" -Filter "*.dll" -File |
+          Copy-Item -Destination "$archiveDir/lib/"
+
+        # Copy C headers
+        if (Test-Path "native/c/include") {
+          Copy-Item -Path "native/c/include/*" -Destination "$archiveDir/include/c/" -Recurse
+        }
+
+        # Copy C++ headers
+        if (Test-Path "native/c_pp/include") {
+          Copy-Item -Path "native/c_pp/include/*" -Destination "$archiveDir/include/cpp/" -Recurse
+        }
+
+        # Copy license and docs
+        Copy-Item -Path "LICENSE" -Destination "$archiveDir/"
+        if (Test-Path "native/README.md") {
+          Copy-Item -Path "native/README.md" -Destination "$archiveDir/"
+        }
+
+        # Create version file
+        "$tag" | Out-File -FilePath "$archiveDir/VERSION" -Encoding utf8 -NoNewline
+
+        # Create archive
+        Compress-Archive -Path "$archiveDir/*" -DestinationPath "CoseSignTool-Native-${{ matrix.target }}.zip"
+
+        Write-Host "Archive contents:"
+        Get-ChildItem -Path "$archiveDir" -Recurse | ForEach-Object {
+          Write-Host "  $($_.FullName.Replace("$archiveDir\", ''))"
+        }
+
+    - name: Upload native archive
+      shell: bash
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        TAG="${{ needs.native_pre_release.outputs.tag_name }}"
+        gh release upload "$TAG" "CoseSignTool-Native-${{ matrix.target }}.zip" --clobber
+
+  ##############################################################################
+  # MANUAL GA RELEASE — "Mint Release" via workflow_dispatch
+  #
+  # Supports releasing Native, .NET, or both independently.
+  # Requires the "release_scope" input to specify what to release.
+  #
+  # Native GA release:
+  #   1. Reads version from native/rust/Cargo.toml
+  #   2. Creates GA tag: native-v{version}
+  #   3. Builds release-mode artifacts
+  #   4. Bumps version to next minor/patch, commits
+  #
+  # .NET GA release:
+  #   Uses existing create_release + release_assets jobs.
+  ##############################################################################
+
+  native_mint_release:
+    name: Native GA Release
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      (github.event.inputs.release_scope == 'native' || github.event.inputs.release_scope == 'both')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      tag_name: ${{ steps.ga.outputs.tag }}
+      version: ${{ steps.ga.outputs.version }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Determine GA version
+      id: ga
+      shell: bash
+      run: |
+        VERSION=$(grep -oP '(?<=^version = ")[^"]+' native/rust/Cargo.toml)
+        TAG="native-v${VERSION}"
+        echo "GA version: $VERSION (tag: $TAG)"
+        echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+        echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+    - name: Generate GA changelog and create release
+      shell: bash
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        TAG="${{ steps.ga.outputs.tag }}"
+
+        # Find previous native release for delta
+        PREV_TAG=$(gh release list --limit 100 --json tagName \
+          --jq '[.[].tagName | select(startswith("native-v"))] | sort_by(.) | last // empty' 2>/dev/null || echo "")
+
+        # Generate cumulative changelog
+        echo "# Native Release ${{ steps.ga.outputs.version }}" > NATIVE_CHANGELOG.md
+        echo "" >> NATIVE_CHANGELOG.md
+
+        if [ -n "$PREV_TAG" ]; then
+          NOTES=$(gh api repos/${{ github.repository }}/releases/generate-notes \
+            -f tag_name="$TAG" \
+            -f target_commitish="${{ github.sha }}" \
+            -f previous_tag_name="$PREV_TAG" \
+            --jq '.body' 2>/dev/null || echo "")
+        else
+          NOTES=$(gh api repos/${{ github.repository }}/releases/generate-notes \
+            -f tag_name="$TAG" \
+            -f target_commitish="${{ github.sha }}" \
+            --jq '.body' 2>/dev/null || echo "")
+        fi
+
+        if [ -n "$NOTES" ]; then
+          echo "$NOTES" >> NATIVE_CHANGELOG.md
+          echo "" >> NATIVE_CHANGELOG.md
+        fi
+
+        echo "---" >> NATIVE_CHANGELOG.md
+        echo "" >> NATIVE_CHANGELOG.md
+        echo "## Previous Native Releases" >> NATIVE_CHANGELOG.md
+        echo "" >> NATIVE_CHANGELOG.md
+        gh release list --limit 50 --json tagName --jq '.[].tagName' 2>/dev/null | \
+          grep '^native-v' | while read -r T; do
+            BODY=$(gh release view "$T" --json body --jq '.body' 2>/dev/null || echo "")
+            if [ -n "$BODY" ]; then
+              echo "### $T" >> NATIVE_CHANGELOG.md
+              echo "" >> NATIVE_CHANGELOG.md
+              echo "$BODY" >> NATIVE_CHANGELOG.md
+              echo "" >> NATIVE_CHANGELOG.md
+            fi
+          done
+
+        # Create GA release (not a pre-release)
+        gh release create "$TAG" \
+          --title "Native Release ${{ steps.ga.outputs.version }}" \
+          --notes-file NATIVE_CHANGELOG.md
+
+    - name: Bump to next development version
+      shell: bash
+      run: |
+        VERSION=$(grep -oP '(?<=^version = ")[^"]+' native/rust/Cargo.toml)
+        IFS='.' read -r major minor patch <<< "$VERSION"
+
+        if [ "${{ github.event.inputs.release_type }}" == "patch" ]; then
+          NEXT="$major.$minor.$((patch + 1))"
+        else
+          NEXT="$major.$((minor + 1)).0"
+        fi
+
+        sed -i "s/^version = \"$VERSION\"/version = \"$NEXT\"/" native/rust/Cargo.toml
+
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add native/rust/Cargo.toml
+        git commit -m "Bump native version to $NEXT [skip ci]"
+        git push
+
+  # ── Native GA Release Assets ────────────────────────────────────────────
+  native_mint_release_assets:
+    name: native-ga-${{ matrix.target }}
+    needs: [ native_mint_release ]
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      (github.event.inputs.release_scope == 'native' || github.event.inputs.release_scope == 'both')
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    env:
+      VCPKG_ROOT: C:\vcpkg
+      OPENSSL_DIR: C:\vcpkg\installed\x64-windows
+    strategy:
+      matrix:
+        include:
+          - target: win-x64
+            triple: x86_64-pc-windows-msvc
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ needs.native_mint_release.outputs.tag_name }}
+
+    - name: Cache vcpkg packages
+      uses: actions/cache@v4
+      with:
+        path: C:\vcpkg\installed
+        key: vcpkg-openssl-x64-windows-v1
+
+    - name: Install OpenSSL via vcpkg
+      shell: pwsh
+      run: |
+        if (Test-Path "$env:VCPKG_ROOT\installed\x64-windows\lib\libssl.lib") {
+          Write-Host "OpenSSL already cached" -ForegroundColor Green
+        } else {
+          & "$env:VCPKG_ROOT\vcpkg" install openssl:x64-windows
+        }
+
+    - name: Setup Rust (stable)
+      shell: pwsh
+      run: |
+        rustup toolchain install stable --profile minimal
+        rustup default stable
+
+    - name: Cache Rust build artifacts
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          native/rust/target
+        key: rust-release-${{ runner.os }}-${{ hashFiles('native/rust/Cargo.lock') }}
+        restore-keys: |
+          rust-release-${{ runner.os }}-
+
+    - name: Build Rust workspace (release)
+      shell: pwsh
+      working-directory: native/rust
+      run: |
+        $env:PATH = "$env:VCPKG_ROOT\installed\x64-windows\bin;$env:PATH"
+        cargo build --workspace --exclude cose-openssl --release
+
+    - name: Archive native libraries and headers
+      shell: pwsh
+      run: |
+        $tag = "${{ needs.native_mint_release.outputs.tag_name }}"
+        $archiveDir = "native-release"
+
+        New-Item -ItemType Directory -Force -Path "$archiveDir/lib"
+        New-Item -ItemType Directory -Force -Path "$archiveDir/include/c"
+        New-Item -ItemType Directory -Force -Path "$archiveDir/include/cpp"
+
+        # Copy static libraries (.lib)
+        Get-ChildItem -Path "native/rust/target/release" -Filter "*.lib" -File |
+          Where-Object { $_.Name -notmatch 'build_script|deps' } |
+          Copy-Item -Destination "$archiveDir/lib/"
+
+        # Copy dynamic libraries (.dll)
+        Get-ChildItem -Path "native/rust/target/release" -Filter "*.dll" -File |
+          Copy-Item -Destination "$archiveDir/lib/"
+
+        # Copy C headers
+        if (Test-Path "native/c/include") {
+          Copy-Item -Path "native/c/include/*" -Destination "$archiveDir/include/c/" -Recurse
+        }
+
+        # Copy C++ headers
+        if (Test-Path "native/c_pp/include") {
+          Copy-Item -Path "native/c_pp/include/*" -Destination "$archiveDir/include/cpp/" -Recurse
+        }
+
+        # Copy license and docs
+        Copy-Item -Path "LICENSE" -Destination "$archiveDir/"
+        if (Test-Path "native/README.md") {
+          Copy-Item -Path "native/README.md" -Destination "$archiveDir/"
+        }
+
+        "$tag" | Out-File -FilePath "$archiveDir/VERSION" -Encoding utf8 -NoNewline
+
+        Compress-Archive -Path "$archiveDir/*" -DestinationPath "CoseSignTool-Native-${{ matrix.target }}.zip"
+
+    - name: Upload native archive
+      shell: bash
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        TAG="${{ needs.native_mint_release.outputs.tag_name }}"
+        gh release upload "$TAG" "CoseSignTool-Native-${{ matrix.target }}.zip" --clobber

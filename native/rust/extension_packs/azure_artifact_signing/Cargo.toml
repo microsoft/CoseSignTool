@@ -25,6 +25,8 @@ azure_identity = { workspace = true }
 tokio = { workspace = true, features = ["rt"] }
 base64 = { workspace = true }
 sha2 = { workspace = true }
+openssl = { workspace = true }
+x509-parser = { workspace = true }
 
 [dev-dependencies]
 cose_sign1_validation_primitives = { path = "../../validation/primitives" }

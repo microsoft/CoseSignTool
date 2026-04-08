@@ -37,8 +37,9 @@ impl AzureKeyVaultCertificateSource {
 
     /// Fetch the signing certificate from AKV.
     ///
-    /// Retrieves the certificate associated with the key by constructing the
-    /// certificate URL from the key URL and making a GET request.
+    /// Uses the Azure Key Vault Certificates SDK to retrieve the certificate
+    /// associated with the key. Constructs the certificate name from the key
+    /// URL pattern: `https://{vault}/keys/{name}/{version}`.
     ///
     /// Returns `(leaf_cert_der, chain_ders)` where chain_ders is ordered leaf-first.
     /// Currently returns the leaf certificate only — full chain extraction
@@ -50,54 +51,54 @@ impl AzureKeyVaultCertificateSource {
         cert_name: &str,
         credential: std::sync::Arc<dyn azure_core::credentials::TokenCredential>,
     ) -> Result<(Vec<u8>, Vec<Vec<u8>>), AkvError> {
-        use azure_security_keyvault_keys::KeyClient;
+        use azure_security_keyvault_certificates::CertificateClient;
 
         let runtime = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
             .map_err(|e| AkvError::General(e.to_string()))?;
 
-        // Use the KeyClient to access the vault's HTTP pipeline, then
-        // construct the certificate URL manually.
-        // AKV certificates API: GET {vault}/certificates/{name}?api-version=7.4
-        let cert_url = format!(
-            "{}/certificates/{}?api-version=7.4",
-            vault_url.trim_end_matches('/'),
-            cert_name,
-        );
-
-        let client = KeyClient::new(vault_url, credential, None)
+        let client = CertificateClient::new(vault_url, credential, None)
             .map_err(|e| AkvError::CertificateSourceError(e.to_string()))?;
 
-        // Use the key client's get_key to at least verify connectivity,
-        // then the certificate DER is obtained from the response.
-        // For a proper implementation, we'd use the certificates API directly.
-        // For now, return the public key bytes as a placeholder certificate.
-        let key_bytes = self.crypto_client.public_key_bytes().map_err(|e| {
+        let response = runtime
+            .block_on(client.get_certificate(cert_name, None))
+            .map_err(|e| {
+                AkvError::CertificateSourceError(format!(
+                    "failed to get certificate '{}': {}",
+                    cert_name, e
+                ))
+            })?;
+
+        let certificate = response.into_model().map_err(|e| {
             AkvError::CertificateSourceError(format!(
-                "failed to get public key for certificate: {}",
-                e
+                "failed to deserialize certificate '{}': {}",
+                cert_name, e
             ))
         })?;
 
-        // The public key bytes are not a valid certificate, but this
-        // unblocks the initialization path. A full implementation would
-        // parse the x5c chain from the JWT token or fetch via Azure Certs API.
-        let _ = (runtime, cert_url, client); // suppress unused warnings
-        Ok((key_bytes, Vec::new()))
+        // The `cer` field contains the DER-encoded X.509 certificate
+        let cert_der: Vec<u8> = certificate.cer.ok_or_else(|| {
+            AkvError::CertificateSourceError(
+                "certificate response missing 'cer' (DER) field".into(),
+            )
+        })?;
+
+        // Return leaf cert with empty chain — full chain extraction from
+        // PKCS#12 secret would require an additional get_secret() call.
+        // Callers should use initialize() with the full chain when available.
+        Ok((cert_der, Vec::new()))
     }
 
     /// Initialize with pre-fetched certificate and chain data.
     ///
-    /// This is the primary initialization path — call either this method
-    /// or use `fetch_certificate()` + `initialize()` together.
+    /// Use either `fetch_certificate()` to retrieve from AKV, or call this
+    /// method directly with certificate data obtained through another source.
     pub fn initialize(
         &mut self,
         certificate_der: Vec<u8>,
         chain: Vec<Vec<u8>>,
     ) -> Result<(), CertificateError> {
-        // In a real impl, this would fetch from AKV.
-        // For now, accept pre-fetched data (enables mock testing).
         self.certificate_der = certificate_der.clone();
         self.chain = chain.clone();
         let mut full_chain = vec![certificate_der];

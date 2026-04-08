@@ -11,7 +11,7 @@ use cose_sign1_signing::{
     CoseSigner, HeaderContributor, HeaderContributorContext, SigningContext, SigningError,
     SigningService, SigningServiceMetadata,
 };
-use crypto_primitives::CryptoSigner;
+use crypto_primitives::{CryptoSigner, CryptoVerifier};
 
 use crate::signing::certificate_header_contributor::CertificateHeaderContributor;
 use crate::signing::certificate_signing_options::CertificateSigningOptions;
@@ -139,11 +139,65 @@ impl SigningService for CertificateSigningService {
 
     fn verify_signature(
         &self,
-        _message_bytes: &[u8],
+        message_bytes: &[u8],
         _context: &SigningContext,
     ) -> Result<bool, SigningError> {
-        // TODO: Implement post-sign verification
-        Ok(true)
+        // Parse the COSE_Sign1 message
+        let msg = cose_sign1_primitives::CoseSign1Message::parse(message_bytes).map_err(|e| {
+            SigningError::VerificationFailed {
+                detail: format!("failed to parse COSE_Sign1: {}", e).into(),
+            }
+        })?;
+
+        // Extract the public key from the signing certificate
+        let cert_der = self
+            .certificate_source
+            .get_signing_certificate()
+            .map_err(|e| SigningError::VerificationFailed {
+                detail: format!("certificate source: {}", e).into(),
+            })?;
+
+        let x509 = openssl::x509::X509::from_der(cert_der).map_err(|e| {
+            SigningError::VerificationFailed {
+                detail: format!("failed to parse certificate: {}", e).into(),
+            }
+        })?;
+
+        let public_key_der = x509
+            .public_key()
+            .map_err(|e| SigningError::VerificationFailed {
+                detail: format!("failed to extract public key: {}", e).into(),
+            })?
+            .public_key_to_der()
+            .map_err(|e| SigningError::VerificationFailed {
+                detail: format!("failed to encode public key: {}", e).into(),
+            })?;
+
+        // Determine algorithm from the signing key provider
+        let algorithm = self.signing_key_provider.algorithm();
+
+        // Create verifier from the certificate's public key
+        let verifier = cose_sign1_crypto_openssl::evp_verifier::EvpVerifier::from_der(
+            &public_key_der,
+            algorithm,
+        )
+        .map_err(|e| SigningError::VerificationFailed {
+            detail: format!("verifier creation: {}", e).into(),
+        })?;
+
+        // Build Sig_structure and verify
+        let payload = msg.payload().unwrap_or_default();
+        let sig_structure = msg.sig_structure_bytes(payload, None).map_err(|e| {
+            SigningError::VerificationFailed {
+                detail: format!("sig_structure: {}", e).into(),
+            }
+        })?;
+
+        verifier
+            .verify(&sig_structure, msg.signature())
+            .map_err(|e| SigningError::VerificationFailed {
+                detail: format!("verify: {}", e).into(),
+            })
     }
 }
 

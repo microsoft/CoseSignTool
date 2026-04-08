@@ -43,3 +43,32 @@ impl FactProperties for AasComplianceFact {
         }
     }
 }
+
+/// Field-name constants for declarative trust policies.
+pub mod fields {
+    pub mod aas_identified {
+        pub const IS_ATS_ISSUED: &str = "is_ats_issued";
+    }
+
+    pub mod aas_compliance {
+        pub const SCITT_COMPLIANT: &str = "scitt_compliant";
+    }
+}
+
+/// Typed fields for fluent trust-policy authoring.
+pub mod typed_fields {
+    use super::{AasComplianceFact, AasSigningServiceIdentifiedFact};
+    use cose_sign1_validation_primitives::field::Field;
+
+    pub mod aas_identified {
+        use super::*;
+        pub const IS_ATS_ISSUED: Field<AasSigningServiceIdentifiedFact, bool> =
+            Field::new(crate::validation::facts::fields::aas_identified::IS_ATS_ISSUED);
+    }
+
+    pub mod aas_compliance {
+        use super::*;
+        pub const SCITT_COMPLIANT: Field<AasComplianceFact, bool> =
+            Field::new(crate::validation::facts::fields::aas_compliance::SCITT_COMPLIANT);
+    }
+}

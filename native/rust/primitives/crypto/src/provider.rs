@@ -25,7 +25,7 @@ pub trait CryptoProvider: Send + Sync {
     fn name(&self) -> &str;
 }
 
-/// Stub provider when no crypto feature is enabled.
+/// Null Object provider when no crypto feature is enabled.
 ///
 /// All operations return `UnsupportedOperation` errors.
 /// This allows compilation when no crypto backend is selected.

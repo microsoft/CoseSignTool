@@ -91,11 +91,7 @@ fn detect_algorithm_from_private_key(
     use openssl::pkey::Id;
 
     match pkey.id() {
-        Id::EC => {
-            // Default to ES256 for EC keys
-            // TODO: Detect curve and choose appropriate algorithm
-            Ok(-7) // ES256
-        }
+        Id::EC => detect_ec_algorithm_from_private_key(pkey),
         Id::RSA => {
             // Default to RS256 for RSA keys
             Ok(-257) // RS256
@@ -136,10 +132,7 @@ fn detect_algorithm_from_public_key(
     use openssl::pkey::Id;
 
     match pkey.id() {
-        Id::EC => {
-            // Default to ES256 for EC keys
-            Ok(-7) // ES256
-        }
+        Id::EC => detect_ec_algorithm_from_public_key(pkey),
         Id::RSA => {
             // Default to RS256 for RSA keys when algorithm not specified.
             // When used via x5chain resolution, the resolver overrides this
@@ -171,6 +164,53 @@ fn detect_algorithm_from_public_key(
         _ => Err(CryptoError::UnsupportedOperation(format!(
             "Unsupported key type: {:?}",
             pkey.id()
+        ))),
+    }
+}
+
+/// Detects the COSE EC algorithm from an EC private key by inspecting the curve.
+///
+/// Maps NIST curves to COSE algorithm identifiers:
+/// - P-256 (prime256v1 / secp256r1) -> ES256 (-7)
+/// - P-384 (secp384r1) -> ES384 (-35)
+/// - P-521 (secp521r1) -> ES512 (-36)
+fn detect_ec_algorithm_from_private_key(
+    pkey: &openssl::pkey::PKey<openssl::pkey::Private>,
+) -> Result<i64, CryptoError> {
+    let ec_key = pkey
+        .ec_key()
+        .map_err(|e| CryptoError::InvalidKey(format!("Failed to extract EC key: {}", e)))?;
+    let nid = ec_key
+        .group()
+        .curve_name()
+        .ok_or_else(|| CryptoError::UnsupportedOperation("EC key has unnamed curve".into()))?;
+    ec_nid_to_cose_algorithm(nid)
+}
+
+/// Detects the COSE EC algorithm from an EC public key by inspecting the curve.
+fn detect_ec_algorithm_from_public_key(
+    pkey: &openssl::pkey::PKey<openssl::pkey::Public>,
+) -> Result<i64, CryptoError> {
+    let ec_key = pkey
+        .ec_key()
+        .map_err(|e| CryptoError::InvalidKey(format!("Failed to extract EC key: {}", e)))?;
+    let nid = ec_key
+        .group()
+        .curve_name()
+        .ok_or_else(|| CryptoError::UnsupportedOperation("EC key has unnamed curve".into()))?;
+    ec_nid_to_cose_algorithm(nid)
+}
+
+/// Maps an OpenSSL EC curve NID to the corresponding COSE algorithm identifier.
+fn ec_nid_to_cose_algorithm(nid: openssl::nid::Nid) -> Result<i64, CryptoError> {
+    use openssl::nid::Nid;
+    match nid {
+        Nid::X9_62_PRIME256V1 => Ok(-7), // ES256
+        Nid::SECP384R1 => Ok(-35),       // ES384
+        Nid::SECP521R1 => Ok(-36),       // ES512
+        _ => Err(CryptoError::UnsupportedOperation(format!(
+            "Unsupported EC curve: {:?}",
+            nid
         ))),
     }
 }

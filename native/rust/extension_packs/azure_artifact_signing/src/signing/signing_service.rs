@@ -54,18 +54,29 @@ impl AasCertificateSourceAdapter {
             return Ok(());
         }
 
-        // Fetch root cert as the chain (PKCS#7 parsing TODO — for now use root as single cert)
-        let root_der = self
+        // Fetch the PKCS#7 certificate chain from AAS
+        let pkcs7_bytes = self
             .inner
-            .fetch_root_certificate()
+            .fetch_certificate_chain_pkcs7()
             .map_err(|e| CertificateError::ChainBuildFailed(e.to_string()))?;
 
-        // For now, we use the root cert as a placeholder leaf cert.
-        // In production, the sign response returns the signing certificate.
-        let _ = self.leaf_cert.set(root_der.clone());
+        // Parse PKCS#7 DER to extract individual certificates
+        let certs = parse_pkcs7_chain(&pkcs7_bytes).map_err(|e| {
+            CertificateError::ChainBuildFailed(format!("PKCS#7 parse failed: {}", e))
+        })?;
+
+        if certs.is_empty() {
+            return Err(CertificateError::ChainBuildFailed(
+                "PKCS#7 chain contains no certificates".into(),
+            ));
+        }
+
+        // First certificate is the leaf (signing cert), rest are intermediates/root
+        let leaf_cert = certs[0].clone();
+        let _ = self.leaf_cert.set(leaf_cert);
         let _ = self
             .chain_builder
-            .set(ExplicitCertificateChainBuilder::new(vec![root_der]));
+            .set(ExplicitCertificateChainBuilder::new(certs));
 
         Ok(())
     }
@@ -267,5 +278,120 @@ impl SigningService for AzureArtifactSigningService {
     ) -> Result<bool, SigningError> {
         // Delegate to CertificateSigningService — standard cert-based verification
         self.inner.verify_signature(message_bytes, ctx)
+    }
+}
+
+/// Parse a DER-encoded PKCS#7 (SignedData) bundle or single certificate to
+/// extract individual DER-encoded X.509 certificates, ordered leaf-first.
+///
+/// AAS returns certificate chains as `application/pkcs7-mime` DER or as a
+/// single `application/x-x509-ca-cert` DER certificate.
+///
+/// Extraction strategy:
+/// 1. Try parsing as a single X.509 DER certificate (simplest case)
+/// 2. Try parsing as PKCS#7 DER and scan for embedded X.509 certificates
+///    using ASN.1 SEQUENCE tag markers within the structure
+fn parse_pkcs7_chain(response_bytes: &[u8]) -> Result<Vec<Vec<u8>>, String> {
+    // Strategy 1: Single X.509 DER certificate
+    if let Ok(x509) = openssl::x509::X509::from_der(response_bytes) {
+        return Ok(vec![x509
+            .to_der()
+            .map_err(|e| format!("cert to DER: {}", e))?]);
+    }
+
+    // Strategy 2: PKCS#7 signed-data — extract certs via ASN.1 scanning.
+    //
+    // PKCS#7 SignedData contains a SET OF Certificate in its `certificates`
+    // field. Each certificate is an ASN.1 SEQUENCE. We verify the outer
+    // structure is valid PKCS#7 first, then scan for embedded certificates
+    // by trying X509::from_der at each SEQUENCE tag offset.
+    let _pkcs7 = openssl::pkcs7::Pkcs7::from_der(response_bytes)
+        .map_err(|e| format!("invalid PKCS#7 DER: {}", e))?;
+
+    // Scan the DER bytes for embedded X.509 certificate SEQUENCE structures.
+    // This is a robust approach that works regardless of the openssl crate's
+    // level of PKCS#7 API support.
+    let certs = extract_embedded_certificates(response_bytes);
+
+    if certs.is_empty() {
+        Err("no certificates found in PKCS#7 bundle".into())
+    } else {
+        Ok(certs)
+    }
+}
+
+/// Scan DER bytes for embedded X.509 certificate structures.
+///
+/// Walks the byte buffer looking for ASN.1 SEQUENCE tags (0x30) followed by
+/// valid multi-byte lengths, and attempts to parse each candidate region as
+/// an X.509 certificate. This handles both PKCS#7 and raw DER cert bundles.
+fn extract_embedded_certificates(der: &[u8]) -> Vec<Vec<u8>> {
+    let mut certs = Vec::new();
+    let mut offset = 0;
+
+    while offset < der.len() {
+        // Look for ASN.1 SEQUENCE tag (0x30)
+        if der[offset] != 0x30 {
+            offset += 1;
+            continue;
+        }
+
+        // Determine the length of this SEQUENCE
+        if let Some(seq_len) = read_asn1_length(der, offset + 1) {
+            let header_len = asn1_header_length(der, offset + 1);
+            let total_len = 1 + header_len + seq_len;
+
+            if offset + total_len <= der.len() {
+                let candidate = &der[offset..offset + total_len];
+                if let Ok(x509) = openssl::x509::X509::from_der(candidate) {
+                    if let Ok(cert_der) = x509.to_der() {
+                        certs.push(cert_der);
+                        offset += total_len;
+                        continue;
+                    }
+                }
+            }
+        }
+        offset += 1;
+    }
+    certs
+}
+
+/// Read an ASN.1 length value starting at `offset` in `der`.
+fn read_asn1_length(der: &[u8], offset: usize) -> Option<usize> {
+    if offset >= der.len() {
+        return None;
+    }
+    let first = der[offset] as usize;
+    if first < 0x80 {
+        // Short form
+        Some(first)
+    } else if first == 0x80 {
+        // Indefinite length — not supported for certificates
+        None
+    } else {
+        // Long form: first byte = 0x80 | num_length_bytes
+        let num_bytes = first & 0x7F;
+        if num_bytes > 4 || offset + 1 + num_bytes > der.len() {
+            return None;
+        }
+        let mut length = 0usize;
+        for i in 0..num_bytes {
+            length = (length << 8) | (der[offset + 1 + i] as usize);
+        }
+        Some(length)
+    }
+}
+
+/// Calculate the number of bytes used by the ASN.1 length encoding.
+fn asn1_header_length(der: &[u8], offset: usize) -> usize {
+    if offset >= der.len() {
+        return 0;
+    }
+    let first = der[offset] as usize;
+    if first < 0x80 {
+        1
+    } else {
+        1 + (first & 0x7F)
     }
 }

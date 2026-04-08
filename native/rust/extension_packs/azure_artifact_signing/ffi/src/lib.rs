@@ -42,8 +42,10 @@
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
 use cose_sign1_azure_artifact_signing::options::AzureArtifactSigningOptions;
+use cose_sign1_azure_artifact_signing::validation::fluent_ext::AasPrimarySigningKeyScopeRulesExt;
 use cose_sign1_azure_artifact_signing::validation::AzureArtifactSigningTrustPack;
 use cose_sign1_validation_ffi::{cose_sign1_validator_builder_t, cose_status_t, with_catch_unwind};
+use cose_sign1_validation_ffi::{cose_trust_policy_builder_t, with_trust_policy_builder_mut};
 use std::ffi::{c_char, CStr};
 use std::sync::Arc;
 
@@ -139,6 +141,46 @@ pub extern "C" fn cose_sign1_validator_builder_with_ats_pack_ex(
     })
 }
 
-// TODO: Add trust policy builder helpers once the fact types are stabilized:
-// cose_sign1_ats_trust_policy_builder_require_ats_identified
-// cose_sign1_ats_trust_policy_builder_require_ats_compliant
+/// Trust-policy helper: require that the signing certificate was issued by
+/// Azure Artifact Signing.
+///
+/// Adds a requirement on `AasSigningServiceIdentifiedFact.is_ats_issued == true`
+/// to the primary signing key scope of the trust policy.
+///
+/// # Safety
+///
+/// `policy_builder` must be a valid, non-null pointer to a `cose_trust_policy_builder_t`.
+#[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
+pub extern "C" fn cose_sign1_ats_trust_policy_builder_require_ats_identified(
+    policy_builder: *mut cose_trust_policy_builder_t,
+) -> cose_status_t {
+    with_catch_unwind(|| {
+        with_trust_policy_builder_mut(policy_builder, |b| {
+            b.for_primary_signing_key(|s| s.require_ats_identified())
+        })?;
+        Ok(cose_status_t::COSE_OK)
+    })
+}
+
+/// Trust-policy helper: require that the signing operation is SCITT compliant
+/// (AAS-issued with SCITT headers present).
+///
+/// Adds a requirement on `AasComplianceFact.scitt_compliant == true`
+/// to the primary signing key scope of the trust policy.
+///
+/// # Safety
+///
+/// `policy_builder` must be a valid, non-null pointer to a `cose_trust_policy_builder_t`.
+#[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
+pub extern "C" fn cose_sign1_ats_trust_policy_builder_require_ats_compliant(
+    policy_builder: *mut cose_trust_policy_builder_t,
+) -> cose_status_t {
+    with_catch_unwind(|| {
+        with_trust_policy_builder_mut(policy_builder, |b| {
+            b.for_primary_signing_key(|s| s.require_ats_compliant())
+        })?;
+        Ok(cose_status_t::COSE_OK)
+    })
+}

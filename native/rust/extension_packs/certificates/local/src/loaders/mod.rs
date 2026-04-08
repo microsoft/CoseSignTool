@@ -9,7 +9,7 @@
 //! - **DER** - Binary X.509 certificate format
 //! - **PEM** - Base64-encoded X.509 with BEGIN/END markers
 //! - **PFX** - PKCS#12 archives (password-protected, feature-gated)
-//! - **Windows Store** - Windows certificate store (platform-specific, stub)
+//! - **Windows Store** - Windows certificate store (platform-specific, feature-gated)
 //!
 //! ## Format Support
 //!

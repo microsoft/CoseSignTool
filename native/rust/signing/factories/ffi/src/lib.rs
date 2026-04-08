@@ -895,10 +895,10 @@ impl std::io::Read for CallbackReader {
         let result = unsafe { (self.callback)(buf.as_mut_ptr(), to_read, self.user_data) };
 
         if result < 0 {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("callback read error: {}", result),
-            ));
+            return Err(std::io::Error::other(format!(
+                "callback read error: {}",
+                result
+            )));
         }
 
         let bytes_read = result as usize;

@@ -20,10 +20,12 @@
   </ItemGroup>
   <!-- Azure Packages -->
   <ItemGroup>
-    <PackageVersion Include="Azure.Core" Version="1.51.1" />
-    <PackageVersion Include="Azure.Identity" Version="1.18.0" />
-    <PackageVersion Include="Azure.Security.CodeTransparency" Version="1.0.0-beta.8" />
-    <PackageVersion Include="Azure.Developer.ArtifactSigning.CryptoProvider" Version="0.1.72" />
+    <PackageVersion Include="Azure.Core" Version="1.50.0" />
+    <PackageVersion Include="Azure.Identity" Version="1.17.0" />
+    <PackageVersion Include="Azure.Security.CodeTransparency" Version="1.0.0-beta.5" />
+    <PackageVersion Include="Azure.Developer.TrustedSigning.CryptoProvider" Version="0.1.60" />
+    <PackageVersion Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
+    <PackageVersion Include="Spectre.Console" Version="0.49.1" />
   </ItemGroup>
   <!-- Testing Framework Packages -->
   <ItemGroup>

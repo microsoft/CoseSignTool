@@ -3,7 +3,40 @@
 
 #![cfg_attr(coverage_nightly, feature(coverage_attribute))]
 
-//! Azure Artifact Signing pack FFI bindings.
+//! C-ABI projection for `cose_sign1_azure_artifact_signing`.
+//!
+//! This crate provides C-compatible FFI exports for the Azure Artifact Signing
+//! (AAS) extension pack. It enables C/C++ consumers to register the AAS trust
+//! pack with a validator builder, with support for both default and custom
+//! trust options (endpoint URL, account name, certificate profile name).
+//!
+//! # ABI Stability
+//!
+//! All exported functions use `extern "C"` calling convention.
+//! Opaque handle types are passed as `*mut` (owned) or `*const` (borrowed).
+//! The ABI version is available via `cose_sign1_ats_abi_version()`.
+//!
+//! # Panic Safety
+//!
+//! All exported functions are wrapped in `catch_unwind` to prevent
+//! Rust panics from crossing the FFI boundary.
+//!
+//! # Error Handling
+//!
+//! Functions return `cose_status_t` (0 = OK, non-zero = error).
+//! On error, call `cose_last_error_message_utf8()` for details.
+//! Error state is thread-local and safe for concurrent use.
+//!
+//! # Memory Ownership
+//!
+//! - `*mut T` parameters transfer ownership TO this function (consumed)
+//! - `*const T` parameters are borrowed (caller retains ownership)
+//! - `*mut *mut T` out-parameters transfer ownership FROM this function (caller must free)
+//! - Every handle type has a corresponding `*_free()` function
+//!
+//! # Thread Safety
+//!
+//! All functions are thread-safe. Error state is thread-local.
 
 #![deny(unsafe_op_in_unsafe_fn)]
 #![allow(clippy::not_unsafe_ptr_arg_deref)]

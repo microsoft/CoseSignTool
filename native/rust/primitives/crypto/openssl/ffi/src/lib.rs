@@ -5,33 +5,49 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
-//! C/C++ FFI projections for OpenSSL crypto provider.
+//! C-ABI projection for `cose_sign1_crypto_openssl`.
 //!
-//! This crate provides FFI-safe wrappers around the `cose_sign1_crypto_openssl` crypto provider,
-//! allowing C and C++ code to create signers and verifiers backed by OpenSSL.
+//! This crate provides C-compatible FFI exports for the OpenSSL crypto provider,
+//! allowing C and C++ code to create cryptographic signers and verifiers backed by
+//! OpenSSL. It supports DER- and PEM-encoded keys, JWK-based EC and RSA verifiers,
+//! and provides the core signing and verification primitives used by the COSE_Sign1
+//! signing pipeline.
 //!
-//! ## Error Handling
+//! # ABI Stability
 //!
-//! All functions follow a consistent error handling pattern:
-//! - Return value: `cose_status_t` (0 = success, non-zero = error)
-//! - Thread-local error storage: retrieve via `cose_last_error_message_utf8()`
-//! - Output parameters: Only valid if return is `COSE_OK`
+//! All exported functions use `extern "C"` calling convention.
+//! Opaque handle types are passed as `*mut` (owned) or `*const` (borrowed).
+//! The ABI version is available via `cose_crypto_openssl_abi_version()`.
 //!
-//! ## Memory Management
+//! # Panic Safety
 //!
-//! Handles returned by this library must be freed using the corresponding `*_free` function:
-//! - `cose_crypto_openssl_provider_free` for provider handles
-//! - `cose_crypto_signer_free` for signer handles
-//! - `cose_crypto_verifier_free` for verifier handles
-//! - `cose_crypto_bytes_free` for byte buffers
-//! - `cose_string_free` for error message strings
+//! All exported functions are wrapped in `catch_unwind` to prevent
+//! Rust panics from crossing the FFI boundary.
 //!
-//! ## Thread Safety
+//! # Error Handling
 //!
-//! All handles are thread-safe and can be used from multiple threads. However, handles
-//! are not internally synchronized, so concurrent mutation requires external synchronization.
+//! Functions return `cose_status_t` (0 = OK, non-zero = error).
+//! Thread-local error storage: retrieve via `cose_last_error_message_utf8()`.
+//! Call `cose_last_error_clear()` to reset error state.
+//! Output parameters are only valid if the return value is `COSE_OK`.
 //!
-//! ## Example (C)
+//! # Memory Ownership
+//!
+//! - `*mut T` parameters transfer ownership TO this function (consumed)
+//! - `*const T` parameters are borrowed (caller retains ownership)
+//! - `*mut *mut T` out-parameters transfer ownership FROM this function (caller must free)
+//! - Every handle type has a corresponding `*_free()` function:
+//!   - `cose_crypto_openssl_provider_free` for provider handles
+//!   - `cose_crypto_signer_free` for signer handles
+//!   - `cose_crypto_verifier_free` for verifier handles
+//!   - `cose_crypto_bytes_free` for byte buffers
+//!   - `cose_string_free` for error message strings
+//!
+//! # Thread Safety
+//!
+//! All functions are thread-safe. Error state is thread-local.
+//!
+//! # Example (C)
 //!
 //! ```c
 //! #include "cose_crypto_openssl_ffi.h"

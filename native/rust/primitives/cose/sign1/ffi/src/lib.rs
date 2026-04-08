@@ -5,36 +5,51 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
-//! C/C++ FFI projections for cose_sign1_primitives types and message verification.
+//! C-ABI projection for `cose_sign1_primitives`.
 //!
-//! This crate provides FFI-safe wrappers around the `cose_sign1_primitives` types,
-//! allowing C and C++ code to parse and verify COSE_Sign1 messages.
+//! This crate provides C-compatible FFI exports for parsing and verifying COSE_Sign1
+//! messages. It wraps the `cose_sign1_primitives` types, allowing C and C++ code to
+//! parse COSE_Sign1 messages, access headers and payloads, and verify signatures.
 //!
-//! ## Error Handling
+//! # ABI Stability
+//!
+//! All exported functions use `extern "C"` calling convention.
+//! Opaque handle types are passed as `*mut` (owned) or `*const` (borrowed).
+//! The ABI version is available via `cose_sign1_ffi_abi_version()`.
+//!
+//! # Panic Safety
+//!
+//! All exported functions are wrapped in `catch_unwind` to prevent
+//! Rust panics from crossing the FFI boundary.
+//!
+//! # Error Handling
 //!
 //! All functions follow a consistent error handling pattern:
 //! - Return value: 0 = success, negative = error code
 //! - `out_error` parameter: Set to error handle on failure (caller must free)
 //! - Output parameters: Only valid if return is 0
 //!
-//! ## Memory Management
+//! # Memory Ownership
 //!
-//! Handles returned by this library must be freed using the corresponding `*_free` function:
-//! - `cose_sign1_message_free` for message handles
-//! - `cose_sign1_error_free` for error handles
-//! - `cose_sign1_string_free` for string pointers
-//! - `cose_headermap_free` for header map handles
-//! - `cose_key_free` for key handles
+//! - `*mut T` parameters transfer ownership TO this function (consumed)
+//! - `*const T` parameters are borrowed (caller retains ownership)
+//! - `*mut *mut T` out-parameters transfer ownership FROM this function (caller must free)
+//! - Every handle type has a corresponding `*_free()` function:
+//!   - `cose_sign1_message_free` for message handles
+//!   - `cose_sign1_error_free` for error handles
+//!   - `cose_sign1_string_free` for string pointers
+//!   - `cose_headermap_free` for header map handles
+//!   - `cose_key_free` for key handles
 //!
 //! Pointers to internal data (e.g., from `cose_sign1_message_protected_bytes`) are valid
 //! only as long as the parent handle is valid.
 //!
-//! ## Thread Safety
+//! # Thread Safety
 //!
-//! All handles are thread-safe and can be used from multiple threads. However, handles
-//! are not internally synchronized, so concurrent mutation requires external synchronization.
+//! All functions are thread-safe. Handles are not internally synchronized,
+//! so concurrent mutation requires external synchronization.
 //!
-//! ## Example (C)
+//! # Example (C)
 //!
 //! ```c
 //! #include "cose_sign1_primitives_ffi.h"

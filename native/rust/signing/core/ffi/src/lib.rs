@@ -5,38 +5,54 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
-//! C/C++ FFI for COSE_Sign1 message signing operations.
+//! C-ABI projection for `cose_sign1_signing`.
 //!
-//! This crate (`cose_sign1_signing_ffi`) provides FFI-safe wrappers for creating and signing
-//! COSE_Sign1 messages from C and C++ code. It uses `cose_sign1_primitives` for types and
-//! `cbor_primitives_everparse` for CBOR encoding.
+//! This crate provides C-compatible FFI exports for COSE_Sign1 message signing
+//! operations. It wraps the `cose_sign1_signing` crate, enabling C and C++ code
+//! to build COSE_Sign1 messages with custom headers, sign payloads using callback
+//! keys or crypto signers, and manage signing services and factories for direct
+//! and indirect signatures (including file-based and streaming variants).
 //!
 //! For verification operations, see `cose_sign1_primitives_ffi`.
 //!
-//! ## Error Handling
+//! # ABI Stability
+//!
+//! All exported functions use `extern "C"` calling convention.
+//! Opaque handle types are passed as `*mut` (owned) or `*const` (borrowed).
+//! The ABI version is available via `cose_sign1_signing_abi_version()`.
+//!
+//! # Panic Safety
+//!
+//! All exported functions are wrapped in `catch_unwind` to prevent
+//! Rust panics from crossing the FFI boundary.
+//!
+//! # Error Handling
 //!
 //! All functions follow a consistent error handling pattern:
 //! - Return value: 0 = success, negative = error code
 //! - `out_error` parameter: Set to error handle on failure (caller must free)
 //! - Output parameters: Only valid if return is 0
 //!
-//! ## Memory Management
+//! # Memory Ownership
 //!
-//! Handles returned by this library must be freed using the corresponding `*_free` function:
-//! - `cose_sign1_builder_free` for builder handles
-//! - `cose_headermap_free` for header map handles
-//! - `cose_key_free` for key handles
-//! - `cose_sign1_signing_service_free` for signing service handles
-//! - `cose_sign1_factory_free` for factory handles
-//! - `cose_sign1_signing_error_free` for error handles
-//! - `cose_sign1_string_free` for string pointers
-//! - `cose_sign1_bytes_free` for byte buffer pointers
-//! - `cose_sign1_cose_bytes_free` for COSE message bytes returned by factory functions
+//! - `*mut T` parameters transfer ownership TO this function (consumed)
+//! - `*const T` parameters are borrowed (caller retains ownership)
+//! - `*mut *mut T` out-parameters transfer ownership FROM this function (caller must free)
+//! - Every handle type has a corresponding `*_free()` function:
+//!   - `cose_sign1_builder_free` for builder handles
+//!   - `cose_headermap_free` for header map handles
+//!   - `cose_key_free` for key handles
+//!   - `cose_sign1_signing_service_free` for signing service handles
+//!   - `cose_sign1_factory_free` for factory handles
+//!   - `cose_sign1_signing_error_free` for error handles
+//!   - `cose_sign1_string_free` for string pointers
+//!   - `cose_sign1_bytes_free` for byte buffer pointers
+//!   - `cose_sign1_cose_bytes_free` for COSE message bytes returned by factory functions
 //!
-//! ## Thread Safety
+//! # Thread Safety
 //!
-//! All handles are thread-safe and can be used from multiple threads. However, handles
-//! are not internally synchronized, so concurrent mutation requires external synchronization.
+//! All functions are thread-safe. Handles are not internally synchronized,
+//! so concurrent mutation requires external synchronization.
 
 pub mod error;
 pub mod provider;
@@ -2892,8 +2908,8 @@ impl cose_sign1_signing::SigningService for SimpleSigningService {
     }
 
     fn service_metadata(&self) -> &cose_sign1_signing::SigningServiceMetadata {
-        static METADATA: once_cell::sync::Lazy<cose_sign1_signing::SigningServiceMetadata> =
-            once_cell::sync::Lazy::new(|| {
+        static METADATA: std::sync::LazyLock<cose_sign1_signing::SigningServiceMetadata> =
+            std::sync::LazyLock::new(|| {
                 cose_sign1_signing::SigningServiceMetadata::new(
                     "FFI Signing Service".to_string(),
                     "1.0.0".to_string(),

@@ -265,8 +265,8 @@ fn signing_key_verify_es256_returns_true_for_valid_signature() {
 }
 
 #[test]
-fn signing_key_verify_returns_err_for_unsupported_alg() {
-    // Use a P-384 certificate. OpenSSL provider defaults to ES256 for all EC keys.
+fn signing_key_verify_p384_resolves_to_es384_and_rejects_garbage() {
+    // Use a P-384 certificate. OpenSSL provider detects EC curve: P-384 → ES384 (-35).
     let key_pair = KeyPair::generate_for(&PKCS_ECDSA_P384_SHA384).unwrap();
     let params = CertificateParams::new(vec!["verify-unsupported-alg".to_string()]).unwrap();
     let cert = params.self_signed(&key_pair).unwrap();
@@ -286,11 +286,11 @@ fn signing_key_verify_returns_err_for_unsupported_alg() {
     assert!(res.is_success);
 
     let key = res.cose_key.unwrap();
-    // OpenSSL provider defaults to ES256 for all EC keys
-    assert_eq!(key.algorithm(), -7, "EC key defaults to ES256");
+    // P-384 curve correctly detected → ES384 (COSE algorithm -35)
+    assert_eq!(key.algorithm(), -35, "P-384 key should be assigned ES384");
 
-    // P-384 key with ES256 algorithm: verification may error or return false
-    let result = key.verify(b"sig_structure", &[0u8; 64]);
+    // Garbage signature should not verify
+    let result = key.verify(b"sig_structure", &[0u8; 96]);
     match result {
         Ok(false) => {} // Expected - signature doesn't verify
         Err(_) => {}    // Also acceptable - verification error
@@ -299,8 +299,8 @@ fn signing_key_verify_returns_err_for_unsupported_alg() {
 }
 
 #[test]
-fn signing_key_verify_es256_rejects_non_p256_certificate_key() {
-    // Use a P-384 leaf. OpenSSL provider defaults to ES256 for all EC keys.
+fn signing_key_verify_es384_rejects_non_matching_signature() {
+    // Use a P-384 leaf. OpenSSL provider detects EC curve: P-384 → ES384 (-35).
     let key_pair = KeyPair::generate_for(&PKCS_ECDSA_P384_SHA384).unwrap();
     let params = CertificateParams::new(vec!["verify-es256-alg-mismatch".to_string()]).unwrap();
     let cert = params.self_signed(&key_pair).unwrap();
@@ -320,11 +320,11 @@ fn signing_key_verify_es256_rejects_non_p256_certificate_key() {
     assert!(res.is_success);
 
     let key = res.cose_key.unwrap();
-    // OpenSSL provider defaults to ES256 for all EC keys
-    assert_eq!(key.algorithm(), -7, "EC key defaults to ES256");
+    // P-384 curve correctly detected → ES384 (COSE algorithm -35)
+    assert_eq!(key.algorithm(), -35, "P-384 key should be assigned ES384");
 
-    // P-384 key with ES256 algorithm: verification may error or return false
-    let result = key.verify(b"sig_structure", &[0u8; 64]);
+    // Garbage signature against correct algorithm should fail verification
+    let result = key.verify(b"sig_structure", &[0u8; 96]);
     match result {
         Ok(false) => {} // Expected - signature doesn't verify
         Err(_) => {}    // Also acceptable - verification error

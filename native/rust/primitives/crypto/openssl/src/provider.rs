@@ -18,7 +18,7 @@ impl CryptoProvider for OpenSslCryptoProvider {
         &self,
         private_key_der: &[u8],
     ) -> Result<Box<dyn CryptoSigner>, CryptoError> {
-        // Parse DER to detect algorithm, default to ES256 for EC keys
+        // Parse DER to detect algorithm based on key type and EC curve
         let pkey = openssl::pkey::PKey::private_key_from_der(private_key_der)
             .map_err(|e| CryptoError::InvalidKey(format!("Failed to parse private key: {}", e)))?;
 

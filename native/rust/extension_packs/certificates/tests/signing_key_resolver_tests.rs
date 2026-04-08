@@ -222,9 +222,9 @@ fn verify_es256_oid_mismatch_returns_invalid_key() {
 }
 
 #[test]
-fn verify_es256_wrong_key_length_returns_invalid_key() {
+fn verify_es384_wrong_key_with_garbage_signature() {
     // Use a P-384 cert (97-byte public key) with id-ecPublicKey OID.
-    // OpenSSL provider defaults to ES256 for all EC keys (curve detection not implemented).
+    // OpenSSL provider correctly detects EC curve: P-384 → ES384 (-35).
     let key_pair = rcgen::KeyPair::generate_for(&rcgen::PKCS_ECDSA_P384_SHA384).unwrap();
     let params = rcgen::CertificateParams::new(vec!["p384-test.example.com".to_string()]).unwrap();
     let cert = params.self_signed(&key_pair).unwrap();
@@ -233,11 +233,11 @@ fn verify_es256_wrong_key_length_returns_invalid_key() {
     let protected = protected_x5chain_bstr(&cert_der);
     let key = resolve_key(&protected).cose_key.unwrap();
 
-    // OpenSSL provider defaults to ES256 for all EC keys
-    assert_eq!(key.algorithm(), -7, "EC key defaults to ES256");
+    // P-384 curve correctly detected → ES384 (COSE algorithm -35)
+    assert_eq!(key.algorithm(), -35, "P-384 key should be assigned ES384");
 
-    // P-384 key with ES256 algorithm: verification may error or return false
-    let result = key.verify(b"sig_structure", &[0u8; 64]);
+    // Garbage signature against correct algorithm should not verify
+    let result = key.verify(b"sig_structure", &[0u8; 96]);
     match result {
         Ok(false) => {} // Expected - signature doesn't verify
         Err(_) => {}    // Also acceptable - verification error

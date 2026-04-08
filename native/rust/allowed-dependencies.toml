@@ -108,6 +108,7 @@ ring = "Local hashing for message digests"
 azure_core = "Azure SDK HTTP pipeline with retry, telemetry, credentials"
 azure_identity = "Azure identity credentials (DeveloperToolsCredential, ManagedIdentity, ClientSecret)"
 azure_security_keyvault_keys = "Azure Key Vault Keys client (sign, verify, get_key)"
+azure_security_keyvault_certificates = "Azure Key Vault Certificates client (fetch X.509 leaf cert)"
 tokio = "Async runtime for Azure SDK (block_on at FFI boundary)"
 
 [crate.cose_sign1_azure_artifact_signing]
@@ -115,6 +116,8 @@ azure_core = "Azure SDK HTTP pipeline for AAS certificate/signing API calls"
 azure_identity = "Azure identity credentials for authenticating to AAS"
 tokio = "Async runtime for Azure SDK (block_on at FFI boundary)"
 once_cell = "Lazy initialization of AAS clients"
+openssl = "X.509 certificate parsing for PKCS#7 chain extraction and EKU inspection"
+x509-parser = "Direct X.509 extension parsing for EKU OID extraction"
 
 [crate.x509]
 x509-parser = "X.509 certificate parsing"
@@ -161,6 +164,7 @@ ring = "Local hashing for message digests"
 azure_core = "Azure SDK HTTP pipeline with retry, telemetry, credentials"
 azure_identity = "Azure identity credentials (DeveloperToolsCredential, ManagedIdentity, ClientSecret)"
 azure_security_keyvault_keys = "Azure Key Vault Keys client (sign, verify, get_key)"
+azure_security_keyvault_certificates = "Azure Key Vault Certificates client (fetch X.509 leaf cert)"
 tokio = "Async runtime for Azure SDK (block_on at FFI boundary)"
 
 [crate.azure_artifact_signing]
@@ -169,6 +173,8 @@ azure_identity = "Azure identity credentials for authenticating to AAS"
 tokio = "Async runtime for Azure SDK (block_on at FFI boundary)"
 once_cell = "Lazy initialization of AAS clients"
 base64 = "Base64 encoding/decoding for digest and cert bytes"
+openssl = "X.509 certificate parsing for PKCS#7 chain extraction and EKU inspection"
+x509-parser = "Direct X.509 extension parsing for EKU OID extraction"
 
 [crate.client]
 azure_core = "Azure SDK HTTP pipeline"

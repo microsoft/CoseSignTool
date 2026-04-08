@@ -35,5 +35,8 @@ cbor_primitives_everparse = { path = "../../primitives/cbor/everparse" }
 cose_sign1_crypto_openssl = { path = "../../primitives/crypto/openssl" }
 openssl = { workspace = true }
 
+[[example]]
+name = "certificate_trust_validation"
+
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }

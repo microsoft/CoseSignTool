@@ -198,10 +198,12 @@ where
         if derived.is_empty() {
             return Ok(match self.on_empty {
                 OnEmptyBehavior::Allow => crate::decision::TrustDecision::trusted(),
-                OnEmptyBehavior::Deny => crate::decision::TrustDecision::denied(vec![format!(
-                    "No subjects in scope {}",
-                    self.scope.scope_name()
-                )]),
+                OnEmptyBehavior::Deny => {
+                    crate::decision::TrustDecision::denied(vec![std::borrow::Cow::Owned(format!(
+                        "No subjects in scope {}",
+                        self.scope.scope_name()
+                    ))])
+                }
             });
         }
 

@@ -7,6 +7,7 @@
 
 use std::sync::{Arc, Mutex};
 
+use cose_sign1_primitives::ArcSlice;
 use cose_sign1_signing::{CryptographicKeyType, SigningKeyMetadata, SigningServiceKey};
 use crypto_primitives::{CryptoError, CryptoSigner};
 
@@ -27,7 +28,7 @@ fn determine_cose_algorithm(key_type: &str, curve: Option<&str>) -> Result<i64, 
     match key_type {
         "EC" => {
             let curve_name = curve
-                .ok_or_else(|| AkvError::InvalidKeyType("EC key missing curve name".to_string()))?;
+                .ok_or_else(|| AkvError::InvalidKeyType("EC key missing curve name".into()))?;
             curve_to_cose_algorithm(curve_name).ok_or_else(|| {
                 AkvError::InvalidKeyType(format!("Unsupported EC curve: {}", curve_name))
             })
@@ -61,8 +62,8 @@ pub struct AzureKeyVaultSigningKey {
     pub(crate) crypto_client: Arc<Box<dyn KeyVaultCryptoClient>>,
     pub(crate) algorithm: i64,
     pub(crate) metadata: SigningKeyMetadata,
-    /// Cached COSE_Key bytes (lazily computed).
-    pub(crate) cached_cose_key: Arc<Mutex<Option<Vec<u8>>>>,
+    /// Cached COSE_Key bytes (lazily computed). Stored as ArcSlice for zero-copy sharing.
+    pub(crate) cached_cose_key: Arc<Mutex<Option<ArcSlice>>>,
 }
 
 impl AzureKeyVaultSigningKey {
@@ -105,7 +106,7 @@ impl AzureKeyVaultSigningKey {
     /// Builds a COSE_Key representation of the public key.
     ///
     /// Uses double-checked locking for caching (matches V2 pattern).
-    pub fn get_cose_key_bytes(&self) -> Result<Vec<u8>, AkvError> {
+    pub fn get_cose_key_bytes(&self) -> Result<ArcSlice, AkvError> {
         // First check without locking (fast path)
         {
             let guard = self
@@ -128,7 +129,7 @@ impl AzureKeyVaultSigningKey {
         }
 
         // Build COSE_Key map
-        let cose_key_bytes = self.build_cose_key_cbor()?;
+        let cose_key_bytes: ArcSlice = self.build_cose_key_cbor()?.into();
         *guard = Some(cose_key_bytes.clone());
         Ok(cose_key_bytes)
     }

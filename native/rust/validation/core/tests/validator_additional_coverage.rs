@@ -47,7 +47,7 @@ fn test_validation_result_is_failure() {
     let failure = ValidationResult::failure(
         "test",
         vec![ValidationFailure {
-            message: "error".to_string(),
+            message: "error".into(),
             ..Default::default()
         }],
     );
@@ -117,10 +117,7 @@ fn test_validation_result_failure_with_message() {
     assert_eq!(result.kind, ValidationResultKind::Failure);
     assert_eq!(result.failures.len(), 1);
     assert_eq!(result.failures[0].message, "Something failed");
-    assert_eq!(
-        result.failures[0].error_code,
-        Some("ERROR_CODE".to_string())
-    );
+    assert_eq!(result.failures[0].error_code.as_deref(), Some("ERROR_CODE"));
 }
 
 #[test]
@@ -136,15 +133,15 @@ fn test_validation_result_failure_with_message_no_code() {
 fn test_validation_result_failure_multiple() {
     let failures = vec![
         ValidationFailure {
-            message: "Failure 1".to_string(),
-            error_code: Some("CODE1".to_string()),
-            property_name: Some("prop1".to_string()),
-            attempted_value: Some("val1".to_string()),
-            exception: Some("exc1".to_string()),
+            message: "Failure 1".into(),
+            error_code: Some("CODE1".into()),
+            property_name: Some("prop1".into()),
+            attempted_value: Some("val1".into()),
+            exception: Some("exc1".into()),
         },
         ValidationFailure {
-            message: "Failure 2".to_string(),
-            error_code: Some("CODE2".to_string()),
+            message: "Failure 2".into(),
+            error_code: Some("CODE2".into()),
             ..Default::default()
         },
     ];
@@ -171,17 +168,17 @@ fn test_validation_failure_default() {
 #[test]
 fn test_validation_failure_full_fields() {
     let failure = ValidationFailure {
-        message: "Test message".to_string(),
-        error_code: Some("TEST_CODE".to_string()),
-        property_name: Some("property".to_string()),
-        attempted_value: Some("value".to_string()),
-        exception: Some("exception details".to_string()),
+        message: "Test message".into(),
+        error_code: Some("TEST_CODE".into()),
+        property_name: Some("property".into()),
+        attempted_value: Some("value".into()),
+        exception: Some("exception details".into()),
     };
     assert_eq!(failure.message, "Test message");
-    assert_eq!(failure.error_code, Some("TEST_CODE".to_string()));
-    assert_eq!(failure.property_name, Some("property".to_string()));
-    assert_eq!(failure.attempted_value, Some("value".to_string()));
-    assert_eq!(failure.exception, Some("exception details".to_string()));
+    assert_eq!(failure.error_code.as_deref(), Some("TEST_CODE"));
+    assert_eq!(failure.property_name.as_deref(), Some("property"));
+    assert_eq!(failure.attempted_value.as_deref(), Some("value"));
+    assert_eq!(failure.exception.as_deref(), Some("exception details"));
 }
 
 // =====================================================================
@@ -293,7 +290,7 @@ fn test_validation_options_with_associated_data() {
 
 #[test]
 fn test_cose_decode_error_display() {
-    let error = CoseSign1ValidationError::CoseDecode("test error".to_string());
+    let error = CoseSign1ValidationError::CoseDecode("test error".into());
     let display = format!("{}", error);
     assert!(display.contains("COSE decode failed"));
     assert!(display.contains("test error"));
@@ -301,7 +298,7 @@ fn test_cose_decode_error_display() {
 
 #[test]
 fn test_trust_error_display() {
-    let error = CoseSign1ValidationError::Trust("trust failed".to_string());
+    let error = CoseSign1ValidationError::Trust("trust failed".into());
     let display = format!("{}", error);
     assert!(display.contains("trust evaluation failed"));
     assert!(display.contains("trust failed"));
@@ -310,7 +307,7 @@ fn test_trust_error_display() {
 #[test]
 fn test_cose_sign1_validation_error_is_error() {
     use std::error::Error;
-    let error = CoseSign1ValidationError::CoseDecode("test".to_string());
+    let error = CoseSign1ValidationError::CoseDecode("test".into());
     let _e: &dyn Error = &error;
 }
 
@@ -744,24 +741,24 @@ fn test_validation_options_combinations() {
 fn test_validation_failure_partial_fields() {
     // Test ValidationFailure with only some fields set
     let failure1 = ValidationFailure {
-        message: "message".to_string(),
+        message: "message".into(),
         error_code: None,
-        property_name: Some("prop".to_string()),
+        property_name: Some("prop".into()),
         attempted_value: None,
         exception: None,
     };
     assert_eq!(failure1.message, "message");
-    assert_eq!(failure1.property_name, Some("prop".to_string()));
+    assert_eq!(failure1.property_name.as_deref(), Some("prop"));
 
     let failure2 = ValidationFailure {
-        message: "".to_string(),
-        error_code: Some("CODE".to_string()),
+        message: "".into(),
+        error_code: Some("CODE".into()),
         property_name: None,
-        attempted_value: Some("attempted".to_string()),
+        attempted_value: Some("attempted".into()),
         exception: None,
     };
-    assert_eq!(failure2.error_code, Some("CODE".to_string()));
-    assert_eq!(failure2.attempted_value, Some("attempted".to_string()));
+    assert_eq!(failure2.error_code.as_deref(), Some("CODE"));
+    assert_eq!(failure2.attempted_value.as_deref(), Some("attempted"));
 }
 
 #[test]
@@ -771,8 +768,8 @@ fn test_validation_result_clone_equality() {
     assert_eq!(result1, result2);
 
     let failure = ValidationFailure {
-        message: "test".to_string(),
-        error_code: Some("CODE".to_string()),
+        message: "test".into(),
+        error_code: Some("CODE".into()),
         property_name: None,
         attempted_value: None,
         exception: None,

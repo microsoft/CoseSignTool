@@ -7,6 +7,7 @@ use did_x509::error::DidX509Error;
 use did_x509::x509_extensions::{
     extract_eku_oids, extract_extended_key_usage, extract_fulcio_issuer, is_ca_certificate,
 };
+use std::borrow::Cow;
 use x509_parser::prelude::*;
 
 // Helper function to create test certificate with extensions
@@ -83,8 +84,9 @@ fn test_extract_functions_basic_coverage() {
     }
 
     // Verify function signatures exist
-    let _ = extract_extended_key_usage as fn(&X509Certificate) -> Vec<String>;
-    let _ = extract_eku_oids as fn(&X509Certificate) -> Result<Vec<String>, DidX509Error>;
+    let _ = extract_extended_key_usage as fn(&X509Certificate) -> Vec<Cow<'static, str>>;
+    let _ =
+        extract_eku_oids as fn(&X509Certificate) -> Result<Vec<Cow<'static, str>>, DidX509Error>;
     let _ = is_ca_certificate as fn(&X509Certificate) -> bool;
     let _ = extract_fulcio_issuer as fn(&X509Certificate) -> Option<String>;
 }

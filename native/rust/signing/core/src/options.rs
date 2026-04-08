@@ -6,6 +6,7 @@
 /// Options for signing operations.
 ///
 /// Maps V2 `DirectSignatureOptions` and related options classes.
+#[must_use = "builders do nothing unless consumed"]
 #[derive(Debug, Clone)]
 pub struct SigningOptions {
     /// Additional header contributors for this signing operation.

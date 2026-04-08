@@ -639,7 +639,7 @@ fn roundtrip_large_negative_timestamp() {
 
 #[test]
 fn header_error_display_cbor_encoding() {
-    let e = HeaderError::CborEncodingError("test-enc".to_string());
+    let e = HeaderError::CborEncodingError("test-enc".into());
     let msg = format!("{}", e);
     assert!(msg.contains("CBOR encoding error"));
     assert!(msg.contains("test-enc"));
@@ -647,7 +647,7 @@ fn header_error_display_cbor_encoding() {
 
 #[test]
 fn header_error_display_cbor_decoding() {
-    let e = HeaderError::CborDecodingError("test-dec".to_string());
+    let e = HeaderError::CborDecodingError("test-dec".into());
     let msg = format!("{}", e);
     assert!(msg.contains("CBOR decoding error"));
     assert!(msg.contains("test-dec"));
@@ -657,8 +657,8 @@ fn header_error_display_cbor_decoding() {
 fn header_error_display_invalid_claim_type() {
     let e = HeaderError::InvalidClaimType {
         label: 1,
-        expected: "text".to_string(),
-        actual: "integer".to_string(),
+        expected: "text".into(),
+        actual: "integer".into(),
     };
     let msg = format!("{}", e);
     assert!(msg.contains("Invalid CWT claim type"));
@@ -667,7 +667,7 @@ fn header_error_display_invalid_claim_type() {
 
 #[test]
 fn header_error_display_missing_required_claim() {
-    let e = HeaderError::MissingRequiredClaim("subject".to_string());
+    let e = HeaderError::MissingRequiredClaim("subject".into());
     let msg = format!("{}", e);
     assert!(msg.contains("Missing required claim"));
     assert!(msg.contains("subject"));
@@ -675,21 +675,21 @@ fn header_error_display_missing_required_claim() {
 
 #[test]
 fn header_error_display_invalid_timestamp() {
-    let e = HeaderError::InvalidTimestamp("negative".to_string());
+    let e = HeaderError::InvalidTimestamp("negative".into());
     let msg = format!("{}", e);
     assert!(msg.contains("Invalid timestamp"));
 }
 
 #[test]
 fn header_error_display_complex_claim_value() {
-    let e = HeaderError::ComplexClaimValue("nested".to_string());
+    let e = HeaderError::ComplexClaimValue("nested".into());
     let msg = format!("{}", e);
     assert!(msg.contains("Custom claim value too complex"));
 }
 
 #[test]
 fn header_error_is_std_error() {
-    let e = HeaderError::CborEncodingError("x".to_string());
+    let e = HeaderError::CborEncodingError("x".into());
     let _: &dyn std::error::Error = &e;
 }
 

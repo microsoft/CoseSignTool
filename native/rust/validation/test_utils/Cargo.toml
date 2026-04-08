@@ -1,8 +1,8 @@
 [package]
 name = "cose_sign1_validation_test_utils"
 version = "0.1.0"
-edition = "2021"
-license = "MIT"
+edition = { workspace = true }
+license = { workspace = true }
 
 [lib]
 test = false

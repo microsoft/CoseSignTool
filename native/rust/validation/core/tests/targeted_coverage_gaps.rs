@@ -17,6 +17,7 @@ use cose_sign1_validation_primitives::facts::{TrustFactEngine, TrustFactSet};
 use cose_sign1_validation_primitives::subject::TrustSubject;
 use cose_sign1_validation_test_utils::SimpleTrustPack;
 use sha2::Digest;
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
@@ -394,12 +395,12 @@ fn validator_skip_post_signature_validation() {
 
 #[test]
 fn cose_sign1_validation_error_display() {
-    let err = CoseSign1ValidationError::CoseDecode("bad cbor".to_string());
+    let err = CoseSign1ValidationError::CoseDecode("bad cbor".into());
     let display = format!("{err}");
     assert!(display.contains("COSE decode failed"));
     assert!(display.contains("bad cbor"));
 
-    let err2 = CoseSign1ValidationError::Trust("plan eval failed".to_string());
+    let err2 = CoseSign1ValidationError::Trust("plan eval failed".into());
     let display2 = format!("{err2}");
     assert!(display2.contains("trust evaluation failed"));
 }
@@ -699,16 +700,16 @@ fn cwt_claim_scalar_via_get_property() {
     let fact = CwtClaimsFact {
         scalar_claims: {
             let mut m = BTreeMap::new();
-            m.insert(42, CwtClaimScalar::Str("hello".to_string()));
+            m.insert(42, CwtClaimScalar::Str("hello".into()));
             m.insert(43, CwtClaimScalar::I64(999));
             m.insert(44, CwtClaimScalar::Bool(true));
             m
         },
         raw_claims: BTreeMap::new(),
         raw_claims_text: BTreeMap::new(),
-        iss: Some("issuer".to_string()),
+        iss: Some("issuer".into()),
         sub: None,
-        aud: Some("audience".to_string()),
+        aud: Some("audience".into()),
         exp: Some(100),
         nbf: Some(50),
         iat: Some(75),
@@ -774,7 +775,7 @@ fn cwt_claims_fact_claim_value_accessors() {
             let mut bool_enc = p.encoder();
             bool_enc.encode_bool(true).unwrap();
             m.insert(
-                "flag".to_string(),
+                "flag".into(),
                 Arc::from(bool_enc.into_bytes().into_boxed_slice()),
             );
             m
@@ -808,7 +809,7 @@ fn content_type_fact_get_property() {
     use cose_sign1_validation_primitives::fact_properties::{FactProperties, FactValue};
 
     let fact = ContentTypeFact {
-        content_type: "application/json".to_string(),
+        content_type: "application/json".into(),
     };
     assert!(matches!(
         fact.get_property("content_type"),
@@ -853,7 +854,7 @@ fn counter_signature_envelope_integrity_get_property() {
 
     let fact = CounterSignatureEnvelopeIntegrityFact {
         sig_structure_intact: true,
-        details: Some("verified".to_string()),
+        details: Some(Cow::Borrowed("verified")),
     };
     assert!(matches!(
         fact.get_property("sig_structure_intact"),
@@ -1055,7 +1056,7 @@ fn indirect_signature_content_type_stripping_cose_hash_v() {
     };
     assert!(!ct_facts.is_empty());
     // The +cose-hash-v suffix should be stripped
-    assert_eq!(ct_facts[0].content_type, "application/test");
+    assert_eq!(&*ct_facts[0].content_type, "application/test");
 }
 
 #[test]
@@ -1079,7 +1080,7 @@ fn indirect_signature_content_type_stripping_legacy_hash() {
         other => panic!("expected Available, got {other:?}"),
     };
     assert!(!ct_facts.is_empty());
-    assert_eq!(ct_facts[0].content_type, "application/vnd.example");
+    assert_eq!(&*ct_facts[0].content_type, "application/vnd.example");
 }
 
 #[test]
@@ -1310,7 +1311,7 @@ fn content_type_from_preimage_content_type_header() {
         other => panic!("expected Available, got {other:?}"),
     };
     assert!(!ct_facts.is_empty());
-    assert_eq!(ct_facts[0].content_type, "application/original");
+    assert_eq!(&*ct_facts[0].content_type, "application/original");
 }
 
 #[test]
@@ -1344,7 +1345,7 @@ fn content_type_from_preimage_int_content_type() {
         other => panic!("expected Available, got {other:?}"),
     };
     assert!(!ct_facts.is_empty());
-    assert_eq!(ct_facts[0].content_type, "coap/50");
+    assert_eq!(&*ct_facts[0].content_type, "coap/50");
 }
 
 #[test]

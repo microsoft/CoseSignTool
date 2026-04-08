@@ -100,9 +100,12 @@ impl SignatureFactoryProvider for CustomFactory {
         options: &dyn Any,
     ) -> Result<Vec<u8>, FactoryError> {
         // Downcast options to CustomOptions
-        let custom_opts = options
-            .downcast_ref::<CustomOptions>()
-            .ok_or_else(|| FactoryError::InvalidInput("Expected CustomOptions".to_string()))?;
+        let custom_opts =
+            options
+                .downcast_ref::<CustomOptions>()
+                .ok_or_else(|| FactoryError::InvalidInput {
+                    detail: "Expected CustomOptions".into(),
+                })?;
 
         // For testing, just use direct signature with the custom field in AAD
         let mut context = SigningContext::from_bytes(payload.to_vec());
@@ -124,9 +127,9 @@ impl SignatureFactoryProvider for CustomFactory {
             .verify_signature(&message_bytes, &context)?;
 
         if !verification_result {
-            return Err(FactoryError::VerificationFailed(
-                "Post-sign verification failed".to_string(),
-            ));
+            return Err(FactoryError::VerificationFailed {
+                detail: "Post-sign verification failed".into(),
+            });
         }
 
         Ok(message_bytes)
@@ -139,7 +142,9 @@ impl SignatureFactoryProvider for CustomFactory {
         options: &dyn Any,
     ) -> Result<CoseSign1Message, FactoryError> {
         let bytes = self.create_bytes_dyn(payload, content_type, options)?;
-        CoseSign1Message::parse(&bytes).map_err(|e| FactoryError::SigningFailed(e.to_string()))
+        CoseSign1Message::parse(&bytes).map_err(|e| FactoryError::SigningFailed {
+            detail: e.to_string().into(),
+        })
     }
 }
 
@@ -264,9 +269,9 @@ fn test_create_with_unregistered_type_fails() {
     );
 
     match result.unwrap_err() {
-        FactoryError::SigningFailed(msg) => {
+        FactoryError::SigningFailed { detail } => {
             assert!(
-                msg.contains("No factory registered"),
+                detail.contains("No factory registered"),
                 "Error should mention unregistered factory"
             );
         }

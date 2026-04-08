@@ -406,7 +406,9 @@ impl SignatureFactoryProvider for SimpleCustomFactory {
     ) -> Result<CoseSign1Message, FactoryError> {
         let bytes: Vec<u8> = self.create_bytes_dyn(payload, content_type, options)?;
         // This will fail to parse as valid COSE, which is fine — we test the error path
-        CoseSign1Message::parse(&bytes).map_err(|e| FactoryError::SigningFailed(e.to_string()))
+        CoseSign1Message::parse(&bytes).map_err(|e| FactoryError::SigningFailed {
+            detail: e.to_string().into(),
+        })
     }
 }
 
@@ -434,21 +436,34 @@ fn router_create_with_custom_factory_invoked() {
 /// Exercises Display on all FactoryError variants.
 #[test]
 fn factory_error_display_variants() {
-    let e1 = FactoryError::SigningFailed("sign err".to_string());
+    let e1 = FactoryError::SigningFailed {
+        detail: "sign err".into(),
+    };
     assert!(format!("{}", e1).contains("Signing failed"));
 
-    let e2 = FactoryError::VerificationFailed("verify err".to_string());
+    let e2 = FactoryError::VerificationFailed {
+        detail: "verify err".into(),
+    };
     assert!(format!("{}", e2).contains("Verification failed"));
 
-    let e3 = FactoryError::InvalidInput("bad input".to_string());
+    let e3 = FactoryError::InvalidInput {
+        detail: "bad input".into(),
+    };
     assert!(format!("{}", e3).contains("Invalid input"));
 
-    let e4 = FactoryError::CborError("cbor err".to_string());
+    let e4 = FactoryError::CborError {
+        detail: "cbor err".into(),
+    };
     assert!(format!("{}", e4).contains("CBOR error"));
 
-    let e5 = FactoryError::TransparencyFailed("tp err".to_string());
+    let e5 = FactoryError::TransparencyFailed {
+        detail: "tp err".into(),
+    };
     assert!(format!("{}", e5).contains("Transparency failed"));
 
-    let e6 = FactoryError::PayloadTooLargeForEmbedding(200, 100);
+    let e6 = FactoryError::PayloadTooLargeForEmbedding {
+        actual: 200,
+        max: 100,
+    };
     assert!(format!("{}", e6).contains("too large"));
 }

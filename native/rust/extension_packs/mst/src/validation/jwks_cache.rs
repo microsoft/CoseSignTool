@@ -23,7 +23,7 @@
 use code_transparency_client::JwksDocument;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::RwLock;
+use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 
 /// Default TTL for cached JWKS entries (1 hour).
@@ -38,8 +38,8 @@ pub const DEFAULT_VERIFICATION_WINDOW: usize = 20;
 /// A cached JWKS entry with metadata.
 #[derive(Debug, Clone)]
 struct CacheEntry {
-    /// The cached JWKS document.
-    jwks: JwksDocument,
+    /// The cached JWKS document, wrapped in Arc for zero-copy sharing.
+    jwks: Arc<JwksDocument>,
     /// When this entry was last fetched/refreshed.
     fetched_at: Instant,
     /// Count of consecutive key-lookup misses against this entry.
@@ -163,7 +163,7 @@ impl JwksCache {
                 (
                     issuer,
                     CacheEntry {
-                        jwks,
+                        jwks: Arc::new(jwks),
                         fetched_at: now,
                         consecutive_misses: 0,
                     },
@@ -184,9 +184,12 @@ impl JwksCache {
 
     /// Look up a cached JWKS for an issuer. Returns `None` if not cached or stale.
     ///
+    /// Returns an `Arc<JwksDocument>` — callers get a refcount bump instead of
+    /// a deep clone (5-50 KB saved per lookup).
+    ///
     /// A stale entry (older than `refresh_interval`) returns `None` so the
     /// caller fetches fresh data and calls [`insert`](Self::insert).
-    pub fn get(&self, issuer: &str) -> Option<JwksDocument> {
+    pub fn get(&self, issuer: &str) -> Option<Arc<JwksDocument>> {
         let inner = self.inner.read().ok()?;
         let entry = inner.entries.get(issuer)?;
 
@@ -230,7 +233,7 @@ impl JwksCache {
         inner.entries.insert(
             issuer.to_string(),
             CacheEntry {
-                jwks,
+                jwks: Arc::new(jwks),
                 fetched_at: Instant::now(),
                 consecutive_misses: 0,
             },
@@ -325,7 +328,7 @@ impl JwksCache {
             let serializable: HashMap<&str, &JwksDocument> = inner
                 .entries
                 .iter()
-                .map(|(k, v)| (k.as_str(), &v.jwks))
+                .map(|(k, v)| (k.as_str(), v.jwks.as_ref()))
                 .collect();
             if let Ok(json) = serde_json::to_string_pretty(&serializable) {
                 let _ = std::fs::write(path, json);

@@ -91,13 +91,11 @@ impl TrustFactProducer for CoseSign1MessageFactProducer {
         })?;
 
         // Parse or use already-parsed message
-        let msg: Arc<CoseSign1Message> = if let Some(m) = ctx.cose_sign1_message() {
-            // Clone the Arc from the context
-            // We trust the engine to have stored it as Arc
-            Arc::new(m.clone())
+        let msg: Arc<CoseSign1Message> = if let Some(m) = ctx.cose_sign1_message_arc() {
+            m
         } else {
             // Message should always be available from the validator
-            ctx.mark_error::<CoseSign1MessagePartsFact>("no parsed message in context".to_string());
+            ctx.mark_error::<CoseSign1MessagePartsFact>("no parsed message in context");
             for k in self.provides() {
                 ctx.mark_produced(*k);
             }
@@ -190,7 +188,7 @@ fn produce_cwt_claims_facts(
             produce_cwt_claims_from_map(ctx, pairs)
         }
         _ => {
-            ctx.mark_error::<CwtClaimsFact>("CwtClaimsValueNotMap".to_string());
+            ctx.mark_error::<CwtClaimsFact>("CwtClaimsValueNotMap");
             Ok(())
         }
     }
@@ -203,11 +201,11 @@ fn produce_cwt_claims_from_map(
 ) -> Result<(), TrustError> {
     let mut scalar_claims: BTreeMap<i64, CwtClaimScalar> = BTreeMap::new();
     let mut raw_claims: BTreeMap<i64, Arc<[u8]>> = BTreeMap::new();
-    let mut raw_claims_text: BTreeMap<String, Arc<[u8]>> = BTreeMap::new();
+    let mut raw_claims_text: BTreeMap<Arc<str>, Arc<[u8]>> = BTreeMap::new();
 
-    let mut iss: Option<String> = None;
-    let mut sub: Option<String> = None;
-    let mut aud: Option<String> = None;
+    let mut iss: Option<Arc<str>> = None;
+    let mut sub: Option<Arc<str>> = None;
+    let mut aud: Option<Arc<str>> = None;
     let mut exp: Option<i64> = None;
     let mut nbf: Option<i64> = None;
     let mut iat: Option<i64> = None;
@@ -247,7 +245,8 @@ fn produce_cwt_claims_from_map(
             }
             CoseHeaderLabel::Text(k) => {
                 if let Some(bytes) = value_bytes {
-                    raw_claims_text.insert(k.clone(), Arc::from(bytes.into_boxed_slice()));
+                    raw_claims_text
+                        .insert(Arc::from(k.as_str()), Arc::from(bytes.into_boxed_slice()));
                 }
 
                 match (k.as_str(), &value_str, value_i64) {
@@ -279,10 +278,10 @@ fn produce_cwt_claims_from_map(
 }
 
 /// Extract a string from a CoseHeaderValue.
-fn extract_string(value: &CoseHeaderValue) -> Option<String> {
+fn extract_string(value: &CoseHeaderValue) -> Option<Arc<str>> {
     match value {
-        CoseHeaderValue::Text(s) => Some(s.to_string()),
-        CoseHeaderValue::Bytes(b) => std::str::from_utf8(b.as_ref()).ok().map(String::from),
+        CoseHeaderValue::Text(s) => Some(Arc::from(&**s)),
+        CoseHeaderValue::Bytes(b) => std::str::from_utf8(b.as_ref()).ok().map(Arc::from),
         _ => None,
     }
 }
@@ -360,7 +359,7 @@ fn produce_cwt_claims_from_bytes(
     let map_len = match d.decode_map_len() {
         Ok(Some(len)) => len,
         Ok(None) => {
-            ctx.mark_error::<CwtClaimsFact>("cwt_claims indefinite map not supported".to_string());
+            ctx.mark_error::<CwtClaimsFact>("cwt_claims indefinite map not supported");
             return Ok(());
         }
         Err(e) => {
@@ -371,11 +370,11 @@ fn produce_cwt_claims_from_bytes(
 
     let mut scalar_claims: BTreeMap<i64, CwtClaimScalar> = BTreeMap::new();
     let mut raw_claims: BTreeMap<i64, Arc<[u8]>> = BTreeMap::new();
-    let mut raw_claims_text: BTreeMap<String, Arc<[u8]>> = BTreeMap::new();
+    let mut raw_claims_text: BTreeMap<Arc<str>, Arc<[u8]>> = BTreeMap::new();
 
-    let mut iss: Option<String> = None;
-    let mut sub: Option<String> = None;
-    let mut aud: Option<String> = None;
+    let mut iss: Option<Arc<str>> = None;
+    let mut sub: Option<Arc<str>> = None;
+    let mut aud: Option<Arc<str>> = None;
     let mut exp: Option<i64> = None;
     let mut nbf: Option<i64> = None;
     let mut iat: Option<i64> = None;
@@ -399,18 +398,16 @@ fn produce_cwt_claims_from_bytes(
         let key_i64 = cbor_primitives::RawCbor::new(&key_bytes).try_as_i64();
         let key_text = cbor_primitives::RawCbor::new(&key_bytes)
             .try_as_str()
-            .map(String::from);
+            .map(Arc::<str>::from);
 
         let value_raw = cbor_primitives::RawCbor::new(&value_bytes);
-        let value_str = value_raw.try_as_str().map(String::from);
+        let value_str = value_raw.try_as_str().map(Arc::<str>::from);
         let value_i64 = value_raw.try_as_i64();
         let value_bool = value_raw.try_as_bool();
 
         if let Some(k) = key_i64 {
-            raw_claims.insert(k, Arc::from(value_bytes.clone().into_boxed_slice()));
-
             if let Some(s) = &value_str {
-                scalar_claims.insert(k, CwtClaimScalar::Str(s.clone()));
+                scalar_claims.insert(k, CwtClaimScalar::Str(Arc::clone(s)));
             } else if let Some(n) = value_i64 {
                 scalar_claims.insert(k, CwtClaimScalar::I64(n));
             } else if let Some(b) = value_bool {
@@ -418,33 +415,49 @@ fn produce_cwt_claims_from_bytes(
             }
 
             match (k, &value_str, value_i64) {
-                (1, Some(s), _) => iss = Some(s.clone()),
-                (2, Some(s), _) => sub = Some(s.clone()),
-                (3, Some(s), _) => aud = Some(s.clone()),
+                (1, Some(s), _) => iss = Some(Arc::clone(s)),
+                (2, Some(s), _) => sub = Some(Arc::clone(s)),
+                (3, Some(s), _) => aud = Some(Arc::clone(s)),
                 (4, _, Some(n)) => exp = Some(n),
                 (5, _, Some(n)) => nbf = Some(n),
                 (6, _, Some(n)) => iat = Some(n),
                 _ => {}
             }
 
+            raw_claims.insert(k, Arc::from(value_bytes.into_boxed_slice()));
             continue;
         }
 
-        if let Some(k) = key_text.as_deref() {
-            raw_claims_text.insert(
-                k.to_string(),
-                Arc::from(value_bytes.to_vec().into_boxed_slice()),
-            );
-
-            match (k, &value_str, value_i64) {
-                ("iss", Some(s), _) => iss = Some(s.clone()),
-                ("sub", Some(s), _) => sub = Some(s.clone()),
-                ("aud", Some(s), _) => aud = Some(s.clone()),
-                ("exp", _, Some(n)) => exp = Some(n),
-                ("nbf", _, Some(n)) => nbf = Some(n),
-                ("iat", _, Some(n)) => iat = Some(n),
-                _ => {}
+        if let Some(k) = key_text {
+            if let Some(s) = &value_str {
+                match &*k {
+                    "iss" => iss = Some(Arc::clone(s)),
+                    "sub" => sub = Some(Arc::clone(s)),
+                    "aud" => aud = Some(Arc::clone(s)),
+                    _ => {}
+                }
+            } else {
+                match &*k {
+                    "exp" => {
+                        if let Some(n) = value_i64 {
+                            exp = Some(n);
+                        }
+                    }
+                    "nbf" => {
+                        if let Some(n) = value_i64 {
+                            nbf = Some(n);
+                        }
+                    }
+                    "iat" => {
+                        if let Some(n) = value_i64 {
+                            iat = Some(n);
+                        }
+                    }
+                    _ => {}
+                }
             }
+
+            raw_claims_text.insert(k, Arc::from(value_bytes.into_boxed_slice()));
         }
     }
 
@@ -544,7 +557,7 @@ impl CoseSign1MessageFactProducer {
 }
 
 /// Resolve content type from COSE headers.
-fn resolve_content_type(msg: &CoseSign1Message) -> Option<String> {
+fn resolve_content_type(msg: &CoseSign1Message) -> Option<Arc<str>> {
     const CONTENT_TYPE: i64 = 3;
     const PAYLOAD_HASH_ALG: i64 = 258;
     const PREIMAGE_CONTENT_TYPE: i64 = 259;
@@ -571,7 +584,7 @@ fn resolve_content_type(msg: &CoseSign1Message) -> Option<String> {
         if let Some(i) = get_header_int(protected, &preimage_ct_label)
             .or_else(|| get_header_int(unprotected, &preimage_ct_label))
         {
-            return Some(format!("coap/{i}"));
+            return Some(Arc::from(format!("coap/{i}").as_str()));
         }
 
         return None;
@@ -584,25 +597,25 @@ fn resolve_content_type(msg: &CoseSign1Message) -> Option<String> {
     if lower.contains("+cose-hash-v") {
         let pos = lower.find("+cose-hash-v").unwrap();
         let stripped = ct[..pos].trim();
-        return (!stripped.is_empty()).then(|| stripped.to_string());
+        return (!stripped.is_empty()).then(|| Arc::from(stripped));
     }
 
     // Check for +hash-<alg> suffix (case-insensitive) and strip it
     if let Some(pos) = lower.find("+hash-") {
         let stripped = ct[..pos].trim();
-        return (!stripped.is_empty()).then(|| stripped.to_string());
+        return (!stripped.is_empty()).then(|| Arc::from(stripped));
     }
 
     Some(ct)
 }
 
 /// Get a text value from headers.
-fn get_header_text(map: &CoseHeaderMap, label: &CoseHeaderLabel) -> Option<String> {
+fn get_header_text(map: &CoseHeaderMap, label: &CoseHeaderLabel) -> Option<Arc<str>> {
     match map.get(label)? {
-        CoseHeaderValue::Text(s) if !s.trim().is_empty() => Some(s.to_string()),
+        CoseHeaderValue::Text(s) if !s.trim().is_empty() => Some(Arc::from(&**s)),
         CoseHeaderValue::Bytes(b) => {
             let s = std::str::from_utf8(b.as_ref()).ok()?;
-            (!s.trim().is_empty()).then(|| s.to_string())
+            (!s.trim().is_empty()).then(|| Arc::from(s))
         }
         _ => None,
     }

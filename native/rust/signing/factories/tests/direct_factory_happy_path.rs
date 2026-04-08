@@ -75,9 +75,9 @@ impl MockSigningService {
 impl SigningService for MockSigningService {
     fn get_cose_signer(&self, _context: &SigningContext) -> Result<CoseSigner, SigningError> {
         if self.should_fail_signer {
-            return Err(SigningError::SigningFailed(
-                "Mock signer creation failed".to_string(),
-            ));
+            return Err(SigningError::SigningFailed {
+                detail: "Mock signer creation failed".into(),
+            });
         }
 
         let key = Box::new(MockKey);
@@ -376,9 +376,9 @@ fn test_direct_factory_streaming_max_embed_size() {
     );
 
     match result.unwrap_err() {
-        FactoryError::PayloadTooLargeForEmbedding(size, max_size) => {
-            assert_eq!(size, 1000);
-            assert_eq!(max_size, 500);
+        FactoryError::PayloadTooLargeForEmbedding { actual, max } => {
+            assert_eq!(actual, 1000);
+            assert_eq!(max, 500);
         }
         _ => panic!("Expected PayloadTooLargeForEmbedding error"),
     }
@@ -396,7 +396,7 @@ fn test_direct_factory_error_from_signing_service() {
     assert!(result.is_err(), "Should fail when signing service fails");
 
     match result.unwrap_err() {
-        FactoryError::SigningFailed(_) => {
+        FactoryError::SigningFailed { .. } => {
             // Expected
         }
         _ => panic!("Expected SigningFailed error"),
@@ -415,8 +415,8 @@ fn test_direct_factory_verification_failure() {
     assert!(result.is_err(), "Should fail when verification fails");
 
     match result.unwrap_err() {
-        FactoryError::VerificationFailed(msg) => {
-            assert!(msg.contains("Post-sign verification failed"));
+        FactoryError::VerificationFailed { detail } => {
+            assert!(detail.contains("Post-sign verification failed"));
         }
         _ => panic!("Expected VerificationFailed error"),
     }
@@ -425,35 +425,47 @@ fn test_direct_factory_verification_failure() {
 #[test]
 fn test_factory_error_display() {
     // Test all FactoryError variants for Display implementation
-    let signing_failed = FactoryError::SigningFailed("test signing error".to_string());
+    let signing_failed = FactoryError::SigningFailed {
+        detail: "test signing error".into(),
+    };
     assert_eq!(
         format!("{}", signing_failed),
         "Signing failed: test signing error"
     );
 
-    let verification_failed = FactoryError::VerificationFailed("test verify error".to_string());
+    let verification_failed = FactoryError::VerificationFailed {
+        detail: "test verify error".into(),
+    };
     assert_eq!(
         format!("{}", verification_failed),
         "Verification failed: test verify error"
     );
 
-    let invalid_input = FactoryError::InvalidInput("test input error".to_string());
+    let invalid_input = FactoryError::InvalidInput {
+        detail: "test input error".into(),
+    };
     assert_eq!(
         format!("{}", invalid_input),
         "Invalid input: test input error"
     );
 
-    let cbor_error = FactoryError::CborError("test cbor error".to_string());
+    let cbor_error = FactoryError::CborError {
+        detail: "test cbor error".into(),
+    };
     assert_eq!(format!("{}", cbor_error), "CBOR error: test cbor error");
 
-    let transparency_failed =
-        FactoryError::TransparencyFailed("test transparency error".to_string());
+    let transparency_failed = FactoryError::TransparencyFailed {
+        detail: "test transparency error".into(),
+    };
     assert_eq!(
         format!("{}", transparency_failed),
         "Transparency failed: test transparency error"
     );
 
-    let payload_too_large = FactoryError::PayloadTooLargeForEmbedding(1000, 500);
+    let payload_too_large = FactoryError::PayloadTooLargeForEmbedding {
+        actual: 1000,
+        max: 500,
+    };
     assert_eq!(
         format!("{}", payload_too_large),
         "Payload too large for embedding: 1000 bytes (max 500)"

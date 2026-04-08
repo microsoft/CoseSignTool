@@ -28,6 +28,7 @@ use cose_sign1_validation_primitives::facts::{FactKey, TrustFactContext, TrustFa
 use cose_sign1_validation_primitives::plan::CompiledTrustPlan;
 use cose_sign1_validation_primitives::policy::TrustPolicyBuilder;
 use cose_sign1_validation_test_utils::SimpleTrustPack;
+use std::borrow::Cow;
 use std::future::Future;
 use std::io::{Cursor, Read};
 use std::pin::Pin;
@@ -488,7 +489,7 @@ impl CounterSignatureResolver for FakeCounterSigResolver {
 
 struct IntegrityFactProducer {
     sig_structure_intact: bool,
-    details: Option<String>,
+    details: Option<Cow<'static, str>>,
 }
 
 impl TrustFactProducer for IntegrityFactProducer {
@@ -970,12 +971,12 @@ fn streaming_no_alg_returns_no_applicable_validator() {
 
     assert_eq!(ValidationResultKind::Failure, result.signature.kind);
     assert_eq!(
-        Some(CoseSign1Validator::ERROR_CODE_NO_APPLICABLE_SIGNATURE_VALIDATOR.to_string()),
         result
             .signature
             .failures
             .first()
-            .and_then(|f| f.error_code.clone())
+            .and_then(|f| f.error_code.as_deref()),
+        Some(CoseSign1Validator::ERROR_CODE_NO_APPLICABLE_SIGNATURE_VALIDATOR),
     );
 }
 
@@ -1089,12 +1090,12 @@ fn streaming_finalize_false_returns_failure() {
 
     assert_eq!(ValidationResultKind::Failure, result.signature.kind);
     assert_eq!(
-        Some(CoseSign1Validator::ERROR_CODE_SIGNATURE_VERIFICATION_FAILED.to_string()),
         result
             .signature
             .failures
             .first()
-            .and_then(|f| f.error_code.clone())
+            .and_then(|f| f.error_code.as_deref()),
+        Some(CoseSign1Validator::ERROR_CODE_SIGNATURE_VERIFICATION_FAILED),
     );
 }
 
@@ -1274,7 +1275,7 @@ fn counter_sig_bypass_sync_resolution_failed_with_integrity_fact() {
     let counter_sig_resolver: Arc<dyn CounterSignatureResolver> = Arc::new(FakeCounterSigResolver);
     let integrity_producer: Arc<dyn TrustFactProducer> = Arc::new(IntegrityFactProducer {
         sig_structure_intact: true,
-        details: Some("MST receipt verified".to_string()),
+        details: Some(Cow::Borrowed("MST receipt verified")),
     });
 
     let message_producer = CoseSign1MessageFactProducer::new()
@@ -1371,7 +1372,7 @@ fn counter_sig_bypass_sync_resolution_succeeded_with_integrity_fact() {
     let counter_sig_resolver: Arc<dyn CounterSignatureResolver> = Arc::new(FakeCounterSigResolver);
     let integrity_producer: Arc<dyn TrustFactProducer> = Arc::new(IntegrityFactProducer {
         sig_structure_intact: true,
-        details: Some("envelope verified".to_string()),
+        details: Some(Cow::Borrowed("envelope verified")),
     });
 
     let message_producer = CoseSign1MessageFactProducer::new()
@@ -1473,7 +1474,7 @@ fn async_counter_sig_bypass_resolution_failed_success() {
     let counter_sig_resolver: Arc<dyn CounterSignatureResolver> = Arc::new(FakeCounterSigResolver);
     let integrity_producer: Arc<dyn TrustFactProducer> = Arc::new(IntegrityFactProducer {
         sig_structure_intact: true,
-        details: Some("async bypass".to_string()),
+        details: Some(Cow::Borrowed("async bypass")),
     });
 
     let message_producer = CoseSign1MessageFactProducer::new()
@@ -1555,7 +1556,7 @@ fn async_counter_sig_bypass_resolution_succeeded_success() {
     let counter_sig_resolver: Arc<dyn CounterSignatureResolver> = Arc::new(FakeCounterSigResolver);
     let integrity_producer: Arc<dyn TrustFactProducer> = Arc::new(IntegrityFactProducer {
         sig_structure_intact: true,
-        details: Some("async resolved bypass".to_string()),
+        details: Some(Cow::Borrowed("async resolved bypass")),
     });
 
     let message_producer = CoseSign1MessageFactProducer::new()
@@ -1649,7 +1650,7 @@ fn counter_sig_bypass_includes_details_metadata() {
     let counter_sig_resolver: Arc<dyn CounterSignatureResolver> = Arc::new(FakeCounterSigResolver);
     let integrity_producer: Arc<dyn TrustFactProducer> = Arc::new(IntegrityFactProducer {
         sig_structure_intact: true,
-        details: Some("sha256 verified".to_string()),
+        details: Some(Cow::Borrowed("sha256 verified")),
     });
 
     let message_producer = CoseSign1MessageFactProducer::new()
@@ -1876,7 +1877,7 @@ fn validator_advanced_constructor() {
 
 #[test]
 fn validation_error_display_trust() {
-    let err = CoseSign1ValidationError::Trust("bad trust".to_string());
+    let err = CoseSign1ValidationError::Trust("bad trust".into());
     assert!(err.to_string().contains("trust evaluation failed"));
     assert!(err.to_string().contains("bad trust"));
 
@@ -1886,7 +1887,7 @@ fn validation_error_display_trust() {
 
 #[test]
 fn validation_error_display_cose_decode() {
-    let err = CoseSign1ValidationError::CoseDecode("invalid cbor".to_string());
+    let err = CoseSign1ValidationError::CoseDecode("invalid cbor".into());
     assert!(err.to_string().contains("COSE decode failed"));
 }
 

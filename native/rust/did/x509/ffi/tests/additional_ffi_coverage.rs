@@ -10,6 +10,7 @@ use did_x509::models::policy::DidX509Policy;
 use did_x509_ffi::*;
 use rcgen::string::Ia5String;
 use rcgen::{CertificateParams, DnType, ExtendedKeyUsagePurpose, KeyPair, SanType as RcgenSanType};
+use std::borrow::Cow;
 use std::ffi::{CStr, CString};
 use std::ptr;
 
@@ -116,7 +117,7 @@ fn test_parse_null_out_handle() {
 #[test]
 fn test_parse_valid_did() {
     let cert_der = generate_test_cert();
-    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string()]);
+    let policy = DidX509Policy::Eku(vec![Cow::Borrowed("1.3.6.1.5.5.7.3.3")]);
     let did_string = DidX509Builder::build_sha256(&cert_der, &[policy]).unwrap();
     let did_cstring = CString::new(did_string.as_str()).unwrap();
 
@@ -227,7 +228,7 @@ fn test_validate_null_chain() {
 #[test]
 fn test_validate_null_out_valid() {
     let cert_der = generate_test_cert();
-    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string()]);
+    let policy = DidX509Policy::Eku(vec![Cow::Borrowed("1.3.6.1.5.5.7.3.3")]);
     let did_string = DidX509Builder::build_sha256(&cert_der, &[policy]).unwrap();
     let did_cstring = CString::new(did_string.as_str()).unwrap();
 
@@ -296,7 +297,7 @@ fn test_resolve_null_did() {
 #[test]
 fn test_resolve_null_out_json() {
     let cert_der = generate_test_cert();
-    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string()]);
+    let policy = DidX509Policy::Eku(vec![Cow::Borrowed("1.3.6.1.5.5.7.3.3")]);
     let did_string = DidX509Builder::build_sha256(&cert_der, &[policy]).unwrap();
     let did_cstring = CString::new(did_string.as_str()).unwrap();
 
@@ -474,7 +475,7 @@ fn test_error_free_null() {
 #[test]
 fn test_parsed_get_fingerprint() {
     let cert_der = generate_test_cert();
-    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string()]);
+    let policy = DidX509Policy::Eku(vec![Cow::Borrowed("1.3.6.1.5.5.7.3.3")]);
     let did_string = DidX509Builder::build_sha256(&cert_der, &[policy]).unwrap();
     let did_cstring = CString::new(did_string.as_str()).unwrap();
 
@@ -514,7 +515,7 @@ fn test_parsed_get_fingerprint() {
 #[test]
 fn test_parsed_get_hash_algorithm() {
     let cert_der = generate_test_cert();
-    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string()]);
+    let policy = DidX509Policy::Eku(vec![Cow::Borrowed("1.3.6.1.5.5.7.3.3")]);
     let did_string = DidX509Builder::build_sha256(&cert_der, &[policy]).unwrap();
     let did_cstring = CString::new(did_string.as_str()).unwrap();
 
@@ -553,7 +554,7 @@ fn test_parsed_get_hash_algorithm() {
 #[test]
 fn test_parsed_get_policy_count() {
     let cert_der = generate_test_cert();
-    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string()]);
+    let policy = DidX509Policy::Eku(vec![Cow::Borrowed("1.3.6.1.5.5.7.3.3")]);
     let did_string = DidX509Builder::build_sha256(&cert_der, &[policy]).unwrap();
     let did_cstring = CString::new(did_string.as_str()).unwrap();
 

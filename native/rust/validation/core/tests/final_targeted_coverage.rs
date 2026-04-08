@@ -842,7 +842,7 @@ fn message_fact_producer_extracts_content_type() {
     let ct = engine.get_fact_set::<ContentTypeFact>(&subject).unwrap();
     match ct {
         TrustFactSet::Available(v) => {
-            assert_eq!(v[0].content_type, "application/json");
+            assert_eq!(&*v[0].content_type, "application/json");
         }
         _ => panic!("Expected ContentTypeFact Available"),
     }
@@ -866,7 +866,7 @@ fn message_fact_producer_strips_cose_hash_v_suffix() {
     let ct = engine.get_fact_set::<ContentTypeFact>(&subject).unwrap();
     match ct {
         TrustFactSet::Available(v) => {
-            assert_eq!(v[0].content_type, "application/json");
+            assert_eq!(&*v[0].content_type, "application/json");
         }
         _ => panic!("Expected ContentTypeFact Available"),
     }
@@ -890,7 +890,7 @@ fn message_fact_producer_strips_hash_alg_suffix() {
     let ct = engine.get_fact_set::<ContentTypeFact>(&subject).unwrap();
     match ct {
         TrustFactSet::Available(v) => {
-            assert_eq!(v[0].content_type, "text/plain");
+            assert_eq!(&*v[0].content_type, "text/plain");
         }
         _ => panic!("Expected ContentTypeFact Available"),
     }
@@ -1008,10 +1008,10 @@ fn message_fact_producer_primary_signing_key_subject() {
 
 #[test]
 fn validation_error_display() {
-    let e = CoseSign1ValidationError::CoseDecode("bad cbor".to_string());
+    let e = CoseSign1ValidationError::CoseDecode("bad cbor".into());
     assert!(format!("{}", e).contains("COSE decode failed"));
 
-    let e = CoseSign1ValidationError::Trust("bad trust".to_string());
+    let e = CoseSign1ValidationError::Trust("bad trust".into());
     assert!(format!("{}", e).contains("trust evaluation failed"));
 }
 

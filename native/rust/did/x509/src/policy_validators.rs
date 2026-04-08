@@ -6,10 +6,14 @@ use crate::error::DidX509Error;
 use crate::models::SanType;
 use crate::san_parser;
 use crate::x509_extensions;
+use std::borrow::Cow;
 use x509_parser::prelude::*;
 
 /// Validate Extended Key Usage (EKU) policy
-pub fn validate_eku(cert: &X509Certificate, expected_oids: &[String]) -> Result<(), DidX509Error> {
+pub fn validate_eku(
+    cert: &X509Certificate,
+    expected_oids: &[Cow<'static, str>],
+) -> Result<(), DidX509Error> {
     let ekus = x509_extensions::extract_extended_key_usage(cert);
 
     if ekus.is_empty() {

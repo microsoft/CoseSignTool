@@ -59,19 +59,22 @@ pub enum cose_status_t {
     COSE_INVALID_ARG = 3,
 }
 
-#[repr(C)]
+/// Opaque type used behind `*mut` pointers in FFI. Not intended to cross the ABI boundary by value.
+#[allow(non_camel_case_types)]
 pub struct cose_sign1_validator_builder_t {
     pub packs: Vec<Arc<dyn CoseSign1TrustPack>>,
     pub compiled_plan: Option<CoseSign1CompiledTrustPlan>,
 }
 
-#[repr(C)]
+/// Opaque type used behind `*mut` pointers in FFI. Not intended to cross the ABI boundary by value.
+#[allow(non_camel_case_types)]
 pub struct cose_sign1_validator_t {
     pub packs: Vec<Arc<dyn CoseSign1TrustPack>>,
     pub compiled_plan: Option<CoseSign1CompiledTrustPlan>,
 }
 
-#[repr(C)]
+/// Opaque type used behind `*mut` pointers in FFI. Not intended to cross the ABI boundary by value.
+#[allow(non_camel_case_types)]
 pub struct cose_sign1_validation_result_t {
     pub ok: bool,
     pub failure_message: Option<String>,
@@ -82,7 +85,8 @@ pub struct cose_sign1_validation_result_t {
 /// This lives in the base FFI crate so optional pack FFI crates (certificates/MST/AKV)
 /// can add policy helper exports without depending on (and thereby statically duplicating)
 /// the trust FFI library.
-#[repr(C)]
+/// Opaque type used behind `*mut` pointers in FFI. Not intended to cross the ABI boundary by value.
+#[allow(non_camel_case_types)]
 pub struct cose_trust_policy_builder_t {
     pub builder: Option<TrustPlanBuilder>,
 }
@@ -328,7 +332,7 @@ pub extern "C" fn cose_sign1_validator_validate_bytes(
                     .overall
                     .failures
                     .first()
-                    .map(|f| f.message.clone())
+                    .map(|f| f.message.clone().into_owned())
                     .unwrap_or_else(|| "Validation failed".to_string());
                 (false, Some(msg))
             }

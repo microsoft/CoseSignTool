@@ -16,6 +16,7 @@ use openssl::nid::Nid;
 use openssl::pkey::PKey;
 use openssl::rsa::Rsa;
 use openssl::x509::{X509Builder, X509NameBuilder};
+use std::borrow::Cow;
 
 /// Generate a self-signed RSA certificate for testing.
 fn generate_rsa_cert() -> Vec<u8> {
@@ -70,7 +71,7 @@ fn test_resolver_with_rsa_certificate() {
     let cert_der = generate_rsa_cert();
 
     // Build DID using the builder
-    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string()]);
+    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string().into()]);
     let did_string =
         DidX509Builder::build_sha256(&cert_der, &[policy]).expect("Should build DID from RSA cert");
 
@@ -100,7 +101,7 @@ fn test_resolver_with_rsa_certificate() {
 fn test_resolver_rsa_jwk_base64url_encoding() {
     let cert_der = generate_rsa_cert();
 
-    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string()]);
+    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string().into()]);
     let did_string = DidX509Builder::build_sha256(&cert_der, &[policy]).unwrap();
     let doc = DidX509Resolver::resolve(&did_string, &[&cert_der]).unwrap();
 
@@ -127,7 +128,7 @@ fn test_resolver_validation_fails_with_mismatched_chain() {
     let cert2 = generate_rsa_cert();
 
     // Build DID for cert2
-    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string()]);
+    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string().into()]);
     let did_for_cert2 = DidX509Builder::build_sha256(&cert2, &[policy]).unwrap();
 
     // Try to resolve with cert1 (wrong chain)
@@ -217,7 +218,7 @@ fn generate_p521_cert() -> Vec<u8> {
 fn test_resolver_with_p384_certificate() {
     let cert_der = generate_p384_cert();
 
-    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string()]);
+    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string().into()]);
     let did_string = DidX509Builder::build_sha256(&cert_der, &[policy])
         .expect("Should build DID from P-384 cert");
 
@@ -241,7 +242,7 @@ fn test_resolver_with_p384_certificate() {
 fn test_resolver_with_p521_certificate() {
     let cert_der = generate_p521_cert();
 
-    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string()]);
+    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string().into()]);
     let did_string = DidX509Builder::build_sha256(&cert_der, &[policy])
         .expect("Should build DID from P-521 cert");
 

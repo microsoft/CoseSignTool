@@ -11,6 +11,7 @@
 use cose_sign1_primitives::{CoseHeaderLabel, CoseHeaderValue};
 use cose_sign1_transparent_mst::validation::*;
 use sha2::{Digest, Sha256};
+use std::borrow::Cow;
 
 // Test validate_cose_alg_supported function
 #[test]
@@ -65,10 +66,10 @@ fn test_validate_cose_alg_supported_common_unsupported() {
 #[test]
 fn test_ccf_accumulator_sha256_valid() {
     let proof = MstCcfInclusionProof {
-        internal_txn_hash: vec![1u8; 32], // 32 bytes
+        internal_txn_hash: [1u8; 32], // 32 bytes
         internal_evidence: "test_evidence".to_string(),
-        data_hash: vec![2u8; 32], // 32 bytes
-        path: vec![],             // Not used in accumulator calculation
+        data_hash: [2u8; 32], // 32 bytes
+        path: vec![],         // Not used in accumulator calculation
     };
 
     let expected_data_hash = [2u8; 32];
@@ -96,56 +97,15 @@ fn test_ccf_accumulator_sha256_valid() {
     assert_eq!(&accumulator[..], &expected_accumulator[..]);
 }
 
-#[test]
-fn test_ccf_accumulator_sha256_wrong_internal_txn_hash_len() {
-    let proof = MstCcfInclusionProof {
-        internal_txn_hash: vec![1u8; 31], // Wrong length (should be 32)
-        internal_evidence: "test_evidence".to_string(),
-        data_hash: vec![2u8; 32],
-        path: vec![],
-    };
-
-    let expected_data_hash = [2u8; 32];
-    let result = ccf_accumulator_sha256(&proof, expected_data_hash);
-
-    assert!(result.is_err());
-    match result.unwrap_err() {
-        ReceiptVerifyError::ReceiptDecode(msg) => {
-            assert!(msg.contains("unexpected_internal_txn_hash_len"));
-            assert!(msg.contains("31"));
-        }
-        _ => panic!("Expected ReceiptDecode error"),
-    }
-}
-
-#[test]
-fn test_ccf_accumulator_sha256_wrong_data_hash_len() {
-    let proof = MstCcfInclusionProof {
-        internal_txn_hash: vec![1u8; 32],
-        internal_evidence: "test_evidence".to_string(),
-        data_hash: vec![2u8; 31], // Wrong length (should be 32)
-        path: vec![],
-    };
-
-    let expected_data_hash = [2u8; 32];
-    let result = ccf_accumulator_sha256(&proof, expected_data_hash);
-
-    assert!(result.is_err());
-    match result.unwrap_err() {
-        ReceiptVerifyError::ReceiptDecode(msg) => {
-            assert!(msg.contains("unexpected_data_hash_len"));
-            assert!(msg.contains("31"));
-        }
-        _ => panic!("Expected ReceiptDecode error"),
-    }
-}
+// Wrong-length hash tests have been removed because MstCcfInclusionProof now
+// uses [u8; 32] fixed arrays — invalid lengths are caught at parse time.
 
 #[test]
 fn test_ccf_accumulator_sha256_data_hash_mismatch() {
     let proof = MstCcfInclusionProof {
-        internal_txn_hash: vec![1u8; 32],
+        internal_txn_hash: [1u8; 32],
         internal_evidence: "test_evidence".to_string(),
-        data_hash: vec![2u8; 32], // Different from expected
+        data_hash: [2u8; 32], // Different from expected
         path: vec![],
     };
 
@@ -163,9 +123,9 @@ fn test_ccf_accumulator_sha256_data_hash_mismatch() {
 fn test_ccf_accumulator_sha256_edge_cases() {
     // Test with empty internal evidence
     let proof = MstCcfInclusionProof {
-        internal_txn_hash: vec![0u8; 32],
+        internal_txn_hash: [0u8; 32],
         internal_evidence: "".to_string(), // Empty
-        data_hash: vec![0u8; 32],
+        data_hash: [0u8; 32],
         path: vec![],
     };
 
@@ -175,9 +135,9 @@ fn test_ccf_accumulator_sha256_edge_cases() {
 
     // Test with very long internal evidence
     let proof2 = MstCcfInclusionProof {
-        internal_txn_hash: vec![0u8; 32],
+        internal_txn_hash: [0u8; 32],
         internal_evidence: "x".repeat(10000), // Very long
-        data_hash: vec![0u8; 32],
+        data_hash: [0u8; 32],
         path: vec![],
     };
 
@@ -207,8 +167,8 @@ fn test_extract_proof_blobs_valid() {
     assert!(result.is_ok());
     let blobs = result.unwrap();
     assert_eq!(blobs.len(), 2);
-    assert_eq!(blobs[0], proof_blob1);
-    assert_eq!(blobs[1], proof_blob2);
+    assert_eq!(&*blobs[0], &proof_blob1[..]);
+    assert_eq!(&*blobs[1], &proof_blob2[..]);
 }
 
 #[test]
@@ -334,14 +294,14 @@ fn test_extract_proof_blobs_multiple_labels() {
     assert!(result.is_ok());
     let blobs = result.unwrap();
     assert_eq!(blobs.len(), 1);
-    assert_eq!(blobs[0], proof_blob);
+    assert_eq!(&*blobs[0], &proof_blob[..]);
 }
 
 // Test error types for comprehensive coverage
 #[test]
 fn test_receipt_verify_error_display() {
     let errors = vec![
-        ReceiptVerifyError::ReceiptDecode("test decode".to_string()),
+        ReceiptVerifyError::ReceiptDecode(Cow::Borrowed("test decode")),
         ReceiptVerifyError::MissingAlg,
         ReceiptVerifyError::MissingKid,
         ReceiptVerifyError::UnsupportedAlg(-999),
@@ -349,12 +309,12 @@ fn test_receipt_verify_error_display() {
         ReceiptVerifyError::MissingVdp,
         ReceiptVerifyError::MissingProof,
         ReceiptVerifyError::MissingIssuer,
-        ReceiptVerifyError::JwksParse("parse error".to_string()),
-        ReceiptVerifyError::JwksFetch("fetch error".to_string()),
-        ReceiptVerifyError::JwkNotFound("test_kid".to_string()),
-        ReceiptVerifyError::JwkUnsupported("unsupported".to_string()),
-        ReceiptVerifyError::StatementReencode("reencode error".to_string()),
-        ReceiptVerifyError::SigStructureEncode("sig error".to_string()),
+        ReceiptVerifyError::JwksParse(Cow::Borrowed("parse error")),
+        ReceiptVerifyError::JwksFetch(Cow::Borrowed("fetch error")),
+        ReceiptVerifyError::JwkNotFound(Cow::Borrowed("test_kid")),
+        ReceiptVerifyError::JwkUnsupported(Cow::Borrowed("unsupported")),
+        ReceiptVerifyError::StatementReencode(Cow::Borrowed("reencode error")),
+        ReceiptVerifyError::SigStructureEncode(Cow::Borrowed("sig error")),
         ReceiptVerifyError::DataHashMismatch,
         ReceiptVerifyError::SignatureInvalid,
     ];
@@ -365,7 +325,7 @@ fn test_receipt_verify_error_display() {
 
         // Verify each error type has expected content in display string
         match &error {
-            ReceiptVerifyError::ReceiptDecode(msg) => assert!(display_str.contains(msg)),
+            ReceiptVerifyError::ReceiptDecode(msg) => assert!(display_str.contains(msg.as_ref())),
             ReceiptVerifyError::MissingAlg => assert!(display_str.contains("missing_alg")),
             ReceiptVerifyError::UnsupportedAlg(alg) => {
                 assert!(display_str.contains(&alg.to_string()))
@@ -451,10 +411,10 @@ fn test_validate_receipt_alg_against_jwk() {
 #[test]
 fn test_mst_ccf_inclusion_proof_traits() {
     let proof = MstCcfInclusionProof {
-        internal_txn_hash: vec![1, 2, 3],
+        internal_txn_hash: [1; 32],
         internal_evidence: "test".to_string(),
-        data_hash: vec![4, 5, 6],
-        path: vec![(true, vec![7, 8]), (false, vec![9, 10])],
+        data_hash: [4; 32],
+        path: vec![(true, [7; 32]), (false, [9; 32])],
     };
 
     // Test Clone

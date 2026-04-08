@@ -15,7 +15,6 @@
 //! - AuditedRule (line 778)
 
 use cose_sign1_validation_primitives::audit::TrustDecisionAuditBuilder;
-use cose_sign1_validation_primitives::decision::TrustDecision;
 use cose_sign1_validation_primitives::error::TrustError;
 use cose_sign1_validation_primitives::fact_properties::{
     FactProperties, FactValue, FactValueOwned,

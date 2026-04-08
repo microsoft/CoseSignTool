@@ -94,70 +94,70 @@ impl CwtClaims {
 
         encoder
             .encode_map(count)
-            .map_err(|e| HeaderError::CborEncodingError(e.to_string()))?;
+            .map_err(|e| HeaderError::CborEncodingError(e.to_string().into()))?;
 
         // Encode standard claims (in label order per CBOR deterministic encoding)
         if let Some(issuer) = &self.issuer {
             encoder
                 .encode_i64(CWTClaimsHeaderLabels::ISSUER)
-                .map_err(|e| HeaderError::CborEncodingError(e.to_string()))?;
+                .map_err(|e| HeaderError::CborEncodingError(e.to_string().into()))?;
             encoder
                 .encode_tstr(issuer)
-                .map_err(|e| HeaderError::CborEncodingError(e.to_string()))?;
+                .map_err(|e| HeaderError::CborEncodingError(e.to_string().into()))?;
         }
 
         if let Some(subject) = &self.subject {
             encoder
                 .encode_i64(CWTClaimsHeaderLabels::SUBJECT)
-                .map_err(|e| HeaderError::CborEncodingError(e.to_string()))?;
+                .map_err(|e| HeaderError::CborEncodingError(e.to_string().into()))?;
             encoder
                 .encode_tstr(subject)
-                .map_err(|e| HeaderError::CborEncodingError(e.to_string()))?;
+                .map_err(|e| HeaderError::CborEncodingError(e.to_string().into()))?;
         }
 
         if let Some(audience) = &self.audience {
             encoder
                 .encode_i64(CWTClaimsHeaderLabels::AUDIENCE)
-                .map_err(|e| HeaderError::CborEncodingError(e.to_string()))?;
+                .map_err(|e| HeaderError::CborEncodingError(e.to_string().into()))?;
             encoder
                 .encode_tstr(audience)
-                .map_err(|e| HeaderError::CborEncodingError(e.to_string()))?;
+                .map_err(|e| HeaderError::CborEncodingError(e.to_string().into()))?;
         }
 
         if let Some(exp) = self.expiration_time {
             encoder
                 .encode_i64(CWTClaimsHeaderLabels::EXPIRATION_TIME)
-                .map_err(|e| HeaderError::CborEncodingError(e.to_string()))?;
+                .map_err(|e| HeaderError::CborEncodingError(e.to_string().into()))?;
             encoder
                 .encode_i64(exp)
-                .map_err(|e| HeaderError::CborEncodingError(e.to_string()))?;
+                .map_err(|e| HeaderError::CborEncodingError(e.to_string().into()))?;
         }
 
         if let Some(nbf) = self.not_before {
             encoder
                 .encode_i64(CWTClaimsHeaderLabels::NOT_BEFORE)
-                .map_err(|e| HeaderError::CborEncodingError(e.to_string()))?;
+                .map_err(|e| HeaderError::CborEncodingError(e.to_string().into()))?;
             encoder
                 .encode_i64(nbf)
-                .map_err(|e| HeaderError::CborEncodingError(e.to_string()))?;
+                .map_err(|e| HeaderError::CborEncodingError(e.to_string().into()))?;
         }
 
         if let Some(iat) = self.issued_at {
             encoder
                 .encode_i64(CWTClaimsHeaderLabels::ISSUED_AT)
-                .map_err(|e| HeaderError::CborEncodingError(e.to_string()))?;
+                .map_err(|e| HeaderError::CborEncodingError(e.to_string().into()))?;
             encoder
                 .encode_i64(iat)
-                .map_err(|e| HeaderError::CborEncodingError(e.to_string()))?;
+                .map_err(|e| HeaderError::CborEncodingError(e.to_string().into()))?;
         }
 
         if let Some(cti) = &self.cwt_id {
             encoder
                 .encode_i64(CWTClaimsHeaderLabels::CWT_ID)
-                .map_err(|e| HeaderError::CborEncodingError(e.to_string()))?;
+                .map_err(|e| HeaderError::CborEncodingError(e.to_string().into()))?;
             encoder
                 .encode_bstr(cti)
-                .map_err(|e| HeaderError::CborEncodingError(e.to_string()))?;
+                .map_err(|e| HeaderError::CborEncodingError(e.to_string().into()))?;
         }
 
         // Encode custom claims (sorted by label for deterministic encoding)
@@ -168,33 +168,33 @@ impl CwtClaims {
             if let Some(value) = self.custom_claims.get(&label) {
                 encoder
                     .encode_i64(label)
-                    .map_err(|e| HeaderError::CborEncodingError(e.to_string()))?;
+                    .map_err(|e| HeaderError::CborEncodingError(e.to_string().into()))?;
 
                 match value {
                     CwtClaimValue::Text(s) => {
                         encoder
                             .encode_tstr(s)
-                            .map_err(|e| HeaderError::CborEncodingError(e.to_string()))?;
+                            .map_err(|e| HeaderError::CborEncodingError(e.to_string().into()))?;
                     }
                     CwtClaimValue::Integer(i) => {
                         encoder
                             .encode_i64(*i)
-                            .map_err(|e| HeaderError::CborEncodingError(e.to_string()))?;
+                            .map_err(|e| HeaderError::CborEncodingError(e.to_string().into()))?;
                     }
                     CwtClaimValue::Bytes(b) => {
                         encoder
                             .encode_bstr(b)
-                            .map_err(|e| HeaderError::CborEncodingError(e.to_string()))?;
+                            .map_err(|e| HeaderError::CborEncodingError(e.to_string().into()))?;
                     }
                     CwtClaimValue::Bool(b) => {
                         encoder
                             .encode_bool(*b)
-                            .map_err(|e| HeaderError::CborEncodingError(e.to_string()))?;
+                            .map_err(|e| HeaderError::CborEncodingError(e.to_string().into()))?;
                     }
                     CwtClaimValue::Float(f) => {
                         encoder
                             .encode_f64(*f)
-                            .map_err(|e| HeaderError::CborEncodingError(e.to_string()))?;
+                            .map_err(|e| HeaderError::CborEncodingError(e.to_string().into()))?;
                     }
                 }
             }
@@ -210,20 +210,19 @@ impl CwtClaims {
         // Expect a map
         let cbor_type = decoder
             .peek_type()
-            .map_err(|e| HeaderError::CborDecodingError(e.to_string()))?;
+            .map_err(|e| HeaderError::CborDecodingError(e.to_string().into()))?;
 
         if cbor_type != CborType::Map {
-            return Err(HeaderError::CborDecodingError(format!(
-                "Expected CBOR map, got {:?}",
-                cbor_type
-            )));
+            return Err(HeaderError::CborDecodingError(
+                format!("Expected CBOR map, got {:?}", cbor_type).into(),
+            ));
         }
 
         let map_len = decoder
             .decode_map_len()
-            .map_err(|e| HeaderError::CborDecodingError(e.to_string()))?
+            .map_err(|e| HeaderError::CborDecodingError(e.to_string().into()))?
             .ok_or_else(|| {
-                HeaderError::CborDecodingError("Indefinite-length maps not supported".to_string())
+                HeaderError::CborDecodingError("Indefinite-length maps not supported".into())
             })?;
 
         let mut claims = CwtClaims::new();
@@ -232,17 +231,16 @@ impl CwtClaims {
             // Read the label (must be an integer)
             let label_type = decoder
                 .peek_type()
-                .map_err(|e| HeaderError::CborDecodingError(e.to_string()))?;
+                .map_err(|e| HeaderError::CborDecodingError(e.to_string().into()))?;
 
             let label = match label_type {
                 CborType::UnsignedInt | CborType::NegativeInt => decoder
                     .decode_i64()
-                    .map_err(|e| HeaderError::CborDecodingError(e.to_string()))?,
+                    .map_err(|e| HeaderError::CborDecodingError(e.to_string().into()))?,
                 _ => {
-                    return Err(HeaderError::CborDecodingError(format!(
-                        "CWT claim label must be integer, got {:?}",
-                        label_type
-                    )));
+                    return Err(HeaderError::CborDecodingError(
+                        format!("CWT claim label must be integer, got {:?}", label_type).into(),
+                    ));
                 }
             };
 
@@ -252,86 +250,86 @@ impl CwtClaims {
                     claims.issuer = Some(
                         decoder
                             .decode_tstr_owned()
-                            .map_err(|e| HeaderError::CborDecodingError(e.to_string()))?,
+                            .map_err(|e| HeaderError::CborDecodingError(e.to_string().into()))?,
                     );
                 }
                 CWTClaimsHeaderLabels::SUBJECT => {
                     claims.subject = Some(
                         decoder
                             .decode_tstr_owned()
-                            .map_err(|e| HeaderError::CborDecodingError(e.to_string()))?,
+                            .map_err(|e| HeaderError::CborDecodingError(e.to_string().into()))?,
                     );
                 }
                 CWTClaimsHeaderLabels::AUDIENCE => {
                     claims.audience = Some(
                         decoder
                             .decode_tstr_owned()
-                            .map_err(|e| HeaderError::CborDecodingError(e.to_string()))?,
+                            .map_err(|e| HeaderError::CborDecodingError(e.to_string().into()))?,
                     );
                 }
                 CWTClaimsHeaderLabels::EXPIRATION_TIME => {
                     claims.expiration_time = Some(
                         decoder
                             .decode_i64()
-                            .map_err(|e| HeaderError::CborDecodingError(e.to_string()))?,
+                            .map_err(|e| HeaderError::CborDecodingError(e.to_string().into()))?,
                     );
                 }
                 CWTClaimsHeaderLabels::NOT_BEFORE => {
                     claims.not_before = Some(
                         decoder
                             .decode_i64()
-                            .map_err(|e| HeaderError::CborDecodingError(e.to_string()))?,
+                            .map_err(|e| HeaderError::CborDecodingError(e.to_string().into()))?,
                     );
                 }
                 CWTClaimsHeaderLabels::ISSUED_AT => {
                     claims.issued_at = Some(
                         decoder
                             .decode_i64()
-                            .map_err(|e| HeaderError::CborDecodingError(e.to_string()))?,
+                            .map_err(|e| HeaderError::CborDecodingError(e.to_string().into()))?,
                     );
                 }
                 CWTClaimsHeaderLabels::CWT_ID => {
                     claims.cwt_id = Some(
                         decoder
                             .decode_bstr_owned()
-                            .map_err(|e| HeaderError::CborDecodingError(e.to_string()))?,
+                            .map_err(|e| HeaderError::CborDecodingError(e.to_string().into()))?,
                     );
                 }
                 _ => {
                     // Custom claim - peek type and decode appropriately
                     let value_type = decoder
                         .peek_type()
-                        .map_err(|e| HeaderError::CborDecodingError(e.to_string()))?;
+                        .map_err(|e| HeaderError::CborDecodingError(e.to_string().into()))?;
 
                     let claim_value = match value_type {
                         CborType::TextString => {
-                            let s = decoder
-                                .decode_tstr_owned()
-                                .map_err(|e| HeaderError::CborDecodingError(e.to_string()))?;
+                            let s = decoder.decode_tstr_owned().map_err(|e| {
+                                HeaderError::CborDecodingError(e.to_string().into())
+                            })?;
                             CwtClaimValue::Text(s)
                         }
                         CborType::UnsignedInt | CborType::NegativeInt => {
-                            let i = decoder
-                                .decode_i64()
-                                .map_err(|e| HeaderError::CborDecodingError(e.to_string()))?;
+                            let i = decoder.decode_i64().map_err(|e| {
+                                HeaderError::CborDecodingError(e.to_string().into())
+                            })?;
                             CwtClaimValue::Integer(i)
                         }
                         CborType::ByteString => {
-                            let b = decoder
-                                .decode_bstr_owned()
-                                .map_err(|e| HeaderError::CborDecodingError(e.to_string()))?;
+                            let b = decoder.decode_bstr_owned().map_err(|e| {
+                                HeaderError::CborDecodingError(e.to_string().into())
+                            })?;
                             CwtClaimValue::Bytes(b)
                         }
                         CborType::Bool => {
-                            let b = decoder
-                                .decode_bool()
-                                .map_err(|e| HeaderError::CborDecodingError(e.to_string()))?;
+                            let b = decoder.decode_bool().map_err(|e| {
+                                HeaderError::CborDecodingError(e.to_string().into())
+                            })?;
                             CwtClaimValue::Bool(b)
                         }
                         CborType::Float64 | CborType::Float32 | CborType::Float16 => {
-                            let f = decoder
-                                .decode_f64()
-                                .map_err(|e| HeaderError::CborDecodingError(e.to_string()))?;
+                            let f = decoder.decode_f64().map_err(|e| {
+                                HeaderError::CborDecodingError(e.to_string().into())
+                            })?;
                             CwtClaimValue::Float(f)
                         }
                         _ => {
@@ -374,10 +372,13 @@ impl CwtClaims {
                                 }
                                 _ => {
                                     // Other complex types - just fail for now as we can't handle them properly
-                                    return Err(HeaderError::CborDecodingError(format!(
-                                        "Unsupported CWT claim value type: {:?}",
-                                        value_type
-                                    )));
+                                    return Err(HeaderError::CborDecodingError(
+                                        format!(
+                                            "Unsupported CWT claim value type: {:?}",
+                                            value_type
+                                        )
+                                        .into(),
+                                    ));
                                 }
                             }
                             continue;

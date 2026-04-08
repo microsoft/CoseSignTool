@@ -25,9 +25,13 @@ pub enum TrustFactSet<T> {
     /// Facts are available (may be empty).
     Available(Vec<Arc<T>>),
     /// Fact type is missing for this subject (with an explanatory reason).
-    Missing { reason: String },
+    ///
+    /// Uses `Arc<str>` to avoid cloning the reason string on each `get_fact_set` call.
+    Missing { reason: Arc<str> },
     /// Fact production failed (message is intended for diagnostics).
-    Error { message: String },
+    ///
+    /// Uses `Arc<str>` to avoid cloning the message string on each `get_fact_set` call.
+    Error { message: Arc<str> },
 }
 
 impl<T> TrustFactSet<T> {
@@ -109,6 +113,12 @@ impl<'a> TrustFactContext<'a> {
         self.engine.cose_sign1_message.as_deref()
     }
 
+    /// Parsed COSE message as an `Arc`, avoiding a deep clone when the caller
+    /// already needs shared ownership.
+    pub fn cose_sign1_message_arc(&self) -> Option<Arc<CoseSign1Message>> {
+        self.engine.cose_sign1_message.as_ref().map(Arc::clone)
+    }
+
     /// Which COSE header location rules should consult.
     pub fn cose_header_location(&self) -> CoseHeaderLocation {
         self.engine.cose_header_location
@@ -175,8 +185,8 @@ impl<'a> TrustFactContext<'a> {
 struct EngineState {
     facts: HashMap<SubjectId, HashMap<TypeId, Vec<Arc<dyn Any + Send + Sync>>>>,
     produced: HashSet<(SubjectId, TypeId)>,
-    missing: HashMap<(SubjectId, TypeId), String>,
-    errors: HashMap<(SubjectId, TypeId), String>,
+    missing: HashMap<(SubjectId, TypeId), Arc<str>>,
+    errors: HashMap<(SubjectId, TypeId), Arc<str>>,
 }
 
 /// Fact engine responsible for:
@@ -277,7 +287,7 @@ impl TrustFactEngine {
         match self.get_fact_set::<T>(subject)? {
             TrustFactSet::Available(v) => Ok(v),
             TrustFactSet::Missing { .. } => Ok(Vec::new()),
-            TrustFactSet::Error { message } => Err(TrustError::FactProduction(message)),
+            TrustFactSet::Error { message } => Err(TrustError::FactProduction(message.to_string())),
         }
     }
 
@@ -291,13 +301,13 @@ impl TrustFactEngine {
         let state = self.state.lock().expect("lock poisoned");
         if let Some(message) = state.errors.get(&(subject.id, TypeId::of::<T>())) {
             return Ok(TrustFactSet::Error {
-                message: message.clone(),
+                message: Arc::clone(message),
             });
         }
 
         if let Some(reason) = state.missing.get(&(subject.id, TypeId::of::<T>())) {
             return Ok(TrustFactSet::Missing {
-                reason: reason.clone(),
+                reason: Arc::clone(reason),
             });
         }
 
@@ -390,13 +400,13 @@ impl TrustFactEngine {
     /// Marks a specific subject/type as missing.
     fn mark_missing(&self, subject: SubjectId, type_id: TypeId, reason: String) {
         let mut state = self.state.lock().expect("lock poisoned");
-        state.missing.insert((subject, type_id), reason);
+        state.missing.insert((subject, type_id), Arc::from(reason));
     }
 
     /// Marks a specific subject/type as errored.
     fn mark_error(&self, subject: SubjectId, type_id: TypeId, message: String) {
         let mut state = self.state.lock().expect("lock poisoned");
-        state.errors.insert((subject, type_id), message);
+        state.errors.insert((subject, type_id), Arc::from(message));
     }
 
     /// Records an observed fact value for the subject and optionally emits an audit event.

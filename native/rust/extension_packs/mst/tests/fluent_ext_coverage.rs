@@ -66,22 +66,22 @@ fn mst_facts_expose_declarative_properties() {
     assert!(present.get_property("no_such_field").is_none());
 
     let issuer = MstReceiptIssuerFact {
-        issuer: "issuer".to_string(),
+        issuer: Arc::from("issuer"),
     };
     assert!(issuer.get_property("issuer").is_some());
 
     let kid = MstReceiptKidFact {
-        kid: "kid".to_string(),
+        kid: Arc::from("kid"),
     };
     assert!(kid.get_property("kid").is_some());
 
     let sha = MstReceiptStatementSha256Fact {
-        sha256_hex: "00".to_string(),
+        sha256_hex: Arc::from("00"),
     };
     assert!(sha.get_property("sha256_hex").is_some());
 
     let coverage = MstReceiptStatementCoverageFact {
-        coverage: "coverage".to_string(),
+        coverage: "coverage",
     };
     assert!(coverage.get_property("coverage").is_some());
 
@@ -90,7 +90,7 @@ fn mst_facts_expose_declarative_properties() {
 
     let trusted = MstReceiptTrustedFact {
         trusted: true,
-        details: Some("ok".to_string()),
+        details: Some(Arc::from("ok")),
     };
     assert!(trusted.get_property("trusted").is_some());
 }

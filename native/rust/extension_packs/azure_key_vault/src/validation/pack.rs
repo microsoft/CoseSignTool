@@ -33,8 +33,8 @@ impl Default for AzureKeyVaultTrustOptions {
         // Secure-by-default: only allow Microsoft-owned Key Vault namespaces.
         Self {
             allowed_kid_patterns: vec![
-                "https://*.vault.azure.net/keys/*".to_string(),
-                "https://*.managedhsm.azure.net/keys/*".to_string(),
+                "https://*.vault.azure.net/keys/*".into(),
+                "https://*.managedhsm.azure.net/keys/*".into(),
             ],
             require_azure_key_vault_kid: true,
         }
@@ -213,9 +213,9 @@ impl TrustFactProducer for AzureKeyVaultTrustPack {
         })?;
 
         let (is_allowed, details) = if self.options.require_azure_key_vault_kid && !is_akv {
-            (false, Some("NoPatternMatch".to_string()))
+            (false, Some("NoPatternMatch".into()))
         } else if self.compiled_patterns.is_none() {
-            (false, Some("NoAllowedPatterns".to_string()))
+            (false, Some("NoAllowedPatterns".into()))
         } else {
             let matched = self
                 .compiled_patterns
@@ -224,9 +224,9 @@ impl TrustFactProducer for AzureKeyVaultTrustPack {
             (
                 matched,
                 Some(if matched {
-                    "PatternMatched".to_string()
+                    "PatternMatched".into()
                 } else {
-                    "NoPatternMatch".to_string()
+                    "NoPatternMatch".into()
                 }),
             )
         };

@@ -88,7 +88,7 @@ fn signing_certificate_facts_are_available_when_x5chain_present() {
         .unwrap();
     match eku {
         TrustFactSet::Available(v) => {
-            assert!(v.iter().any(|f| f.oid_value == "1.3.6.1.5.5.7.3.3"));
+            assert!(v.iter().any(|f| &*f.oid_value == "1.3.6.1.5.5.7.3.3"));
         }
         _ => panic!("expected Available EKU facts"),
     }

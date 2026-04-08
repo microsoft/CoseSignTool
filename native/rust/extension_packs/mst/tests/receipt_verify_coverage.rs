@@ -7,6 +7,8 @@ use cose_sign1_crypto_openssl::jwk_verifier::OpenSslJwkVerifierFactory;
 use cose_sign1_transparent_mst::validation::receipt_verify::{
     verify_mst_receipt, ReceiptVerifyError, ReceiptVerifyInput, ReceiptVerifyOutput,
 };
+use std::borrow::Cow;
+use std::sync::Arc;
 
 #[test]
 fn test_verify_mst_receipt_invalid_cbor() {
@@ -56,7 +58,7 @@ fn test_verify_mst_receipt_empty_bytes() {
 
 #[test]
 fn test_receipt_verify_error_display_receipt_decode() {
-    let error = ReceiptVerifyError::ReceiptDecode("invalid format".to_string());
+    let error = ReceiptVerifyError::ReceiptDecode(Cow::Borrowed("invalid format"));
     let display = format!("{}", error);
     assert_eq!(display, "receipt_decode_failed: invalid format");
 }
@@ -112,42 +114,42 @@ fn test_receipt_verify_error_display_missing_issuer() {
 
 #[test]
 fn test_receipt_verify_error_display_jwks_parse() {
-    let error = ReceiptVerifyError::JwksParse("malformed json".to_string());
+    let error = ReceiptVerifyError::JwksParse(Cow::Borrowed("malformed json"));
     let display = format!("{}", error);
     assert_eq!(display, "jwks_parse_failed: malformed json");
 }
 
 #[test]
 fn test_receipt_verify_error_display_jwks_fetch() {
-    let error = ReceiptVerifyError::JwksFetch("network error".to_string());
+    let error = ReceiptVerifyError::JwksFetch(Cow::Borrowed("network error"));
     let display = format!("{}", error);
     assert_eq!(display, "jwks_fetch_failed: network error");
 }
 
 #[test]
 fn test_receipt_verify_error_display_jwk_not_found() {
-    let error = ReceiptVerifyError::JwkNotFound("key123".to_string());
+    let error = ReceiptVerifyError::JwkNotFound(Cow::Borrowed("key123"));
     let display = format!("{}", error);
     assert_eq!(display, "jwk_not_found_for_kid: key123");
 }
 
 #[test]
 fn test_receipt_verify_error_display_jwk_unsupported() {
-    let error = ReceiptVerifyError::JwkUnsupported("unsupported curve".to_string());
+    let error = ReceiptVerifyError::JwkUnsupported(Cow::Borrowed("unsupported curve"));
     let display = format!("{}", error);
     assert_eq!(display, "jwk_unsupported: unsupported curve");
 }
 
 #[test]
 fn test_receipt_verify_error_display_statement_reencode() {
-    let error = ReceiptVerifyError::StatementReencode("encoding failed".to_string());
+    let error = ReceiptVerifyError::StatementReencode(Cow::Borrowed("encoding failed"));
     let display = format!("{}", error);
     assert_eq!(display, "statement_reencode_failed: encoding failed");
 }
 
 #[test]
 fn test_receipt_verify_error_display_sig_structure_encode() {
-    let error = ReceiptVerifyError::SigStructureEncode("structure error".to_string());
+    let error = ReceiptVerifyError::SigStructureEncode(Cow::Borrowed("structure error"));
     let display = format!("{}", error);
     assert_eq!(display, "sig_structure_encode_failed: structure error");
 }
@@ -202,16 +204,16 @@ fn test_receipt_verify_input_construction() {
 fn test_receipt_verify_output_construction() {
     let output = ReceiptVerifyOutput {
         trusted: true,
-        details: Some("verification successful".to_string()),
-        issuer: "example.com".to_string(),
-        kid: "key123".to_string(),
+        details: Some(Arc::from("verification successful")),
+        issuer: Arc::from("example.com"),
+        kid: Arc::from("key123"),
         statement_sha256: [0u8; 32],
     };
 
     assert_eq!(output.trusted, true);
-    assert_eq!(output.details, Some("verification successful".to_string()));
-    assert_eq!(output.issuer, "example.com");
-    assert_eq!(output.kid, "key123");
+    assert_eq!(output.details.as_deref(), Some("verification successful"));
+    assert_eq!(&*output.issuer, "example.com");
+    assert_eq!(&*output.kid, "key123");
     assert_eq!(output.statement_sha256, [0u8; 32]);
 }
 

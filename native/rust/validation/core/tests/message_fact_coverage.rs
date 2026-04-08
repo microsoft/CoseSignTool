@@ -152,7 +152,7 @@ fn cwt_claims_map_extracts_wellknown_int_keyed_claims() {
     // Scalar claims should contain the same values.
     assert!(matches!(
         fact.scalar_claims.get(&1),
-        Some(CwtClaimScalar::Str(s)) if s == "issuer"
+        Some(CwtClaimScalar::Str(s)) if &**s == "issuer"
     ));
     assert!(matches!(
         fact.scalar_claims.get(&4),
@@ -360,7 +360,7 @@ fn cwt_claims_map_stores_unknown_int_and_text_keys() {
     // Int-keyed unknown claim.
     assert!(matches!(
         fact.scalar_claims.get(&999),
-        Some(CwtClaimScalar::Str(s)) if s == "val999"
+        Some(CwtClaimScalar::Str(s)) if &**s == "val999"
     ));
     assert!(fact.raw_claims.contains_key(&999));
 
@@ -404,7 +404,7 @@ fn content_type_returns_plain_value_without_hash_suffix() {
 
     let ct = engine.get_facts::<ContentTypeFact>(&subject).unwrap();
     assert_eq!(1, ct.len());
-    assert_eq!("application/octet-stream", ct[0].content_type);
+    assert_eq!("application/octet-stream", &*ct[0].content_type);
 }
 
 // ---------------------------------------------------------------------------
@@ -423,7 +423,7 @@ fn content_type_falls_back_to_unprotected_header() {
 
     let ct = engine.get_facts::<ContentTypeFact>(&subject).unwrap();
     assert_eq!(1, ct.len());
-    assert_eq!("text/xml", ct[0].content_type);
+    assert_eq!("text/xml", &*ct[0].content_type);
 }
 
 // ---------------------------------------------------------------------------
@@ -443,7 +443,7 @@ fn content_type_reads_preimage_from_unprotected_when_envelope_marker_in_protecte
 
     let ct = engine.get_facts::<ContentTypeFact>(&subject).unwrap();
     assert_eq!(1, ct.len());
-    assert_eq!("image/png", ct[0].content_type);
+    assert_eq!("image/png", &*ct[0].content_type);
 }
 
 // ---------------------------------------------------------------------------
@@ -463,7 +463,7 @@ fn content_type_reads_integer_preimage_from_unprotected() {
 
     let ct = engine.get_facts::<ContentTypeFact>(&subject).unwrap();
     assert_eq!(1, ct.len());
-    assert_eq!("coap/50", ct[0].content_type);
+    assert_eq!("coap/50", &*ct[0].content_type);
 }
 
 // ---------------------------------------------------------------------------
@@ -563,7 +563,7 @@ fn cwt_claims_map_extracts_string_from_utf8_bytes_value() {
     assert_eq!(fact.iss.as_deref(), Some("issuer_b"));
     assert!(matches!(
         fact.scalar_claims.get(&1),
-        Some(CwtClaimScalar::Str(s)) if s == "issuer_b"
+        Some(CwtClaimScalar::Str(s)) if &**s == "issuer_b"
     ));
 }
 

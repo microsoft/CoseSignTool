@@ -465,7 +465,7 @@ fn produce_signing_cert_facts_with_any_eku() {
         .unwrap();
     match eku {
         TrustFactSet::Available(v) => {
-            let oids: Vec<&str> = v.iter().map(|f| f.oid_value.as_str()).collect();
+            let oids: Vec<&str> = v.iter().map(|f| &*f.oid_value).collect();
             assert!(oids.contains(&"1.3.6.1.5.5.7.3.1")); // server_auth
             assert!(oids.contains(&"1.3.6.1.5.5.7.3.2")); // client_auth
             assert!(oids.contains(&"1.3.6.1.5.5.7.3.3")); // code_signing

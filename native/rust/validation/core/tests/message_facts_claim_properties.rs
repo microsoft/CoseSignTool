@@ -32,9 +32,9 @@ fn cwt_claims_get_property_all_some() {
         scalar_claims: BTreeMap::new(),
         raw_claims: BTreeMap::new(),
         raw_claims_text: BTreeMap::new(),
-        iss: Some("my-issuer".to_string()),
-        sub: Some("my-subject".to_string()),
-        aud: Some("my-audience".to_string()),
+        iss: Some("my-issuer".into()),
+        sub: Some("my-subject".into()),
+        aud: Some("my-audience".into()),
         exp: Some(1_700_000_000),
         nbf: Some(1_600_000_000),
         iat: Some(1_650_000_000),
@@ -93,7 +93,7 @@ fn cwt_claims_get_property_all_none() {
 #[test]
 fn cwt_claims_get_property_claim_prefix_all_variants() {
     let mut scalar_claims = BTreeMap::new();
-    scalar_claims.insert(10, CwtClaimScalar::Str("text-value".to_string()));
+    scalar_claims.insert(10, CwtClaimScalar::Str("text-value".into()));
     scalar_claims.insert(20, CwtClaimScalar::I64(42));
     scalar_claims.insert(30, CwtClaimScalar::Bool(false));
 
@@ -198,7 +198,7 @@ fn cwt_claims_claim_value_text_missing_key() {
 #[test]
 fn cwt_claims_claim_value_text_present_key() {
     let mut raw_claims_text = BTreeMap::new();
-    raw_claims_text.insert("mykey".to_string(), encode_cbor_text("myval"));
+    raw_claims_text.insert("mykey".into(), encode_cbor_text("myval"));
 
     let fact = CwtClaimsFact {
         scalar_claims: BTreeMap::new(),
@@ -228,7 +228,7 @@ fn cwt_claims_claim_value_text_present_key() {
 #[test]
 fn content_type_fact_get_property() {
     let fact = ContentTypeFact {
-        content_type: "application/json".to_string(),
+        content_type: "application/json".into(),
     };
 
     assert!(matches!(

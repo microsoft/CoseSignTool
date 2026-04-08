@@ -141,7 +141,9 @@ impl IndirectSignatureFactory {
         options: Option<IndirectSignatureOptions>,
     ) -> Result<CoseSign1Message, FactoryError> {
         let bytes = self.create_bytes(payload, content_type, options)?;
-        CoseSign1Message::parse(&bytes).map_err(|e| FactoryError::SigningFailed(e.to_string()))
+        CoseSign1Message::parse(&bytes).map_err(|e| FactoryError::SigningFailed {
+            detail: e.to_string().into(),
+        })
     }
 
     /// Creates a COSE_Sign1 message with an indirect signature from a streaming payload and returns it as bytes.
@@ -171,9 +173,9 @@ impl IndirectSignatureFactory {
         let options = options.unwrap_or_default();
 
         // Hash the streaming payload
-        let mut reader = payload
-            .open()
-            .map_err(|e| FactoryError::SigningFailed(format!("Failed to open payload: {}", e)))?;
+        let mut reader = payload.open().map_err(|e| FactoryError::SigningFailed {
+            detail: format!("Failed to open payload: {}", e).into(),
+        })?;
 
         let hash_bytes = match options.payload_hash_algorithm {
             HashAlgorithm::Sha256 => {
@@ -181,7 +183,9 @@ impl IndirectSignatureFactory {
                 let mut buf = vec![0u8; 65536];
                 loop {
                     let n = std::io::Read::read(reader.as_mut(), &mut buf).map_err(|e| {
-                        FactoryError::SigningFailed(format!("Failed to read payload: {}", e))
+                        FactoryError::SigningFailed {
+                            detail: format!("Failed to read payload: {}", e).into(),
+                        }
                     })?;
                     if n == 0 {
                         break;
@@ -195,7 +199,9 @@ impl IndirectSignatureFactory {
                 let mut buf = vec![0u8; 65536];
                 loop {
                     let n = std::io::Read::read(reader.as_mut(), &mut buf).map_err(|e| {
-                        FactoryError::SigningFailed(format!("Failed to read payload: {}", e))
+                        FactoryError::SigningFailed {
+                            detail: format!("Failed to read payload: {}", e).into(),
+                        }
                     })?;
                     if n == 0 {
                         break;
@@ -209,7 +215,9 @@ impl IndirectSignatureFactory {
                 let mut buf = vec![0u8; 65536];
                 loop {
                     let n = std::io::Read::read(reader.as_mut(), &mut buf).map_err(|e| {
-                        FactoryError::SigningFailed(format!("Failed to read payload: {}", e))
+                        FactoryError::SigningFailed {
+                            detail: format!("Failed to read payload: {}", e).into(),
+                        }
                     })?;
                     if n == 0 {
                         break;
@@ -260,6 +268,8 @@ impl IndirectSignatureFactory {
         options: Option<IndirectSignatureOptions>,
     ) -> Result<CoseSign1Message, FactoryError> {
         let bytes = self.create_streaming_bytes(payload, content_type, options)?;
-        CoseSign1Message::parse(&bytes).map_err(|e| FactoryError::SigningFailed(e.to_string()))
+        CoseSign1Message::parse(&bytes).map_err(|e| FactoryError::SigningFailed {
+            detail: e.to_string().into(),
+        })
     }
 }

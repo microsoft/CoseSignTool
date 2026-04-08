@@ -300,7 +300,7 @@ fn test_validate_async_trust_failure() {
         |_engine: &TrustFactEngine, _subject: &TrustSubject| -> Result<TrustDecision, TrustError> {
             Ok(TrustDecision {
                 is_trusted: false,
-                reasons: vec!["denied by test rule".to_string()],
+                reasons: vec!["denied by test rule".into()],
             })
         },
     ));
@@ -462,8 +462,8 @@ fn test_cose_key_resolution_result_failure_helper() {
     assert_eq!(ValidationResultKind::Failure, result.resolution.kind);
     assert!(!result.resolution.failures.is_empty());
     assert_eq!(
-        Some(CoseSign1Validator::ERROR_CODE_NO_SIGNING_KEY_RESOLVED.to_string()),
-        result.resolution.failures[0].error_code
+        result.resolution.failures[0].error_code.as_deref(),
+        Some(CoseSign1Validator::ERROR_CODE_NO_SIGNING_KEY_RESOLVED)
     );
 }
 

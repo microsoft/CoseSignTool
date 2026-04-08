@@ -23,6 +23,7 @@ use cose_sign1_validation_primitives::subject::TrustSubject;
 use cose_sign1_validation_primitives::{
     CoseHeaderLocation, CoseSign1Message, TrustDecision, TrustEvaluationOptions,
 };
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::future::Future;
 use std::io::Read;
@@ -53,29 +54,52 @@ impl Default for ValidationResultKind {
 }
 
 /// A single validation failure, optionally annotated with an error code and details.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+///
+/// Fields use `Cow<'static, str>` so that static string constants (the common case)
+/// avoid heap allocation while dynamic messages still work via `Cow::Owned`.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ValidationFailure {
     /// Human-readable failure message.
-    pub message: String,
+    pub message: Cow<'static, str>,
     /// Optional stable error code for programmatic handling.
-    pub error_code: Option<String>,
+    pub error_code: Option<Cow<'static, str>>,
     /// Optional property/field name associated with the failure.
-    pub property_name: Option<String>,
+    pub property_name: Option<Cow<'static, str>>,
     /// Optional attempted value (as string) associated with the failure.
-    pub attempted_value: Option<String>,
+    pub attempted_value: Option<Cow<'static, str>>,
     /// Optional exception/debug details.
-    pub exception: Option<String>,
+    pub exception: Option<Cow<'static, str>>,
+}
+
+impl Default for ValidationFailure {
+    fn default() -> Self {
+        Self {
+            message: Cow::Borrowed(""),
+            error_code: None,
+            property_name: None,
+            attempted_value: None,
+            exception: None,
+        }
+    }
 }
 
 /// Result for a single validation stage.
 ///
 /// Stages may attach structured `metadata` to aid troubleshooting and auditing.
+///
+/// ## Allocation trade-off
+/// `metadata` uses `BTreeMap<String, String>` for the key type even though most keys are static
+/// strings. This is intentional: the map type is public, and changing keys to `Cow<'static, str>`
+/// would cascade through all consumers. The key allocations are cold-path and not performance
+/// critical compared to the hot-path fact engine lookups.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct ValidationResult {
     /// Stage outcome.
     pub kind: ValidationResultKind,
     /// Friendly stage name (e.g. "Signature").
-    pub validator_name: String,
+    ///
+    /// Uses `Cow<'static, str>` to avoid allocating when the name is a compile-time constant.
+    pub validator_name: Cow<'static, str>,
     /// Failures when `kind == Failure`.
     pub failures: Vec<ValidationFailure>,
     /// Arbitrary stage metadata.
@@ -99,7 +123,7 @@ impl ValidationResult {
     ///
     /// If `metadata` is `None`, the metadata map is empty.
     pub fn success(
-        validator_name: impl Into<String>,
+        validator_name: impl Into<Cow<'static, str>>,
         metadata: Option<BTreeMap<String, String>>,
     ) -> Self {
         Self {
@@ -113,11 +137,14 @@ impl ValidationResult {
     /// Create a not-applicable stage result.
     ///
     /// If `reason` is `Some` and non-empty, it is stored under [`Self::METADATA_REASON_KEY`].
-    pub fn not_applicable(validator_name: impl Into<String>, reason: Option<&str>) -> Self {
+    pub fn not_applicable(
+        validator_name: impl Into<Cow<'static, str>>,
+        reason: Option<&str>,
+    ) -> Self {
         let mut metadata = BTreeMap::new();
         if let Some(r) = reason {
             if !r.trim().is_empty() {
-                metadata.insert(Self::METADATA_REASON_KEY.to_string(), r.to_string());
+                metadata.insert(Self::METADATA_REASON_KEY.into(), r.into());
             }
         }
         Self {
@@ -129,7 +156,10 @@ impl ValidationResult {
     }
 
     /// Create a failed stage result.
-    pub fn failure(validator_name: impl Into<String>, failures: Vec<ValidationFailure>) -> Self {
+    pub fn failure(
+        validator_name: impl Into<Cow<'static, str>>,
+        failures: Vec<ValidationFailure>,
+    ) -> Self {
         Self {
             kind: ValidationResultKind::Failure,
             validator_name: validator_name.into(),
@@ -140,15 +170,15 @@ impl ValidationResult {
 
     /// Convenience helper for a single failure message.
     pub fn failure_message(
-        validator_name: impl Into<String>,
-        message: impl Into<String>,
-        error_code: Option<&str>,
+        validator_name: impl Into<Cow<'static, str>>,
+        message: impl Into<Cow<'static, str>>,
+        error_code: Option<&'static str>,
     ) -> Self {
         Self::failure(
             validator_name,
             vec![ValidationFailure {
                 message: message.into(),
-                error_code: error_code.map(|s| s.to_string()),
+                error_code: error_code.map(Cow::Borrowed),
                 ..ValidationFailure::default()
             }],
         )
@@ -361,10 +391,11 @@ pub struct PostSignatureValidationContext<'a> {
 /// Top-level validation errors (as opposed to per-stage failures).
 ///
 /// Stage failures are represented by [`ValidationResult`] within [`CoseSign1ValidationResult`].
+/// Variants use `Cow<'static, str>` so that static messages avoid allocation.
 #[derive(Debug)]
 pub enum CoseSign1ValidationError {
-    CoseDecode(String),
-    Trust(String),
+    CoseDecode(Cow<'static, str>),
+    Trust(Cow<'static, str>),
 }
 
 impl std::fmt::Display for CoseSign1ValidationError {
@@ -624,7 +655,7 @@ impl CoseSign1Validator {
 
         let parsed_message = CoseSign1Message::parse(&cose_sign1_bytes).map_err(|e| {
             error!(stage = "parse", error = %e, "Failed to parse COSE_Sign1 message");
-            CoseSign1ValidationError::CoseDecode(e.to_string())
+            CoseSign1ValidationError::CoseDecode(e.to_string().into())
         })?;
 
         debug!(stage = "parse", algorithm = ?parsed_message.alg(), is_detached = parsed_message.is_detached(), "Message parsed");
@@ -646,7 +677,7 @@ impl CoseSign1Validator {
 
         let parsed_message = CoseSign1Message::parse(&cose_sign1_bytes).map_err(|e| {
             error!(stage = "parse", error = %e, "Failed to parse COSE_Sign1 message");
-            CoseSign1ValidationError::CoseDecode(e.to_string())
+            CoseSign1ValidationError::CoseDecode(e.to_string().into())
         })?;
 
         debug!(stage = "parse", algorithm = ?parsed_message.alg(), is_detached = parsed_message.is_detached(), "Message parsed");
@@ -689,7 +720,7 @@ impl CoseSign1Validator {
                 // (e.g. MST receipts) even when the primary key was resolved.
                 true,
             )
-            .map_err(CoseSign1ValidationError::Trust)?;
+            .map_err(|e| CoseSign1ValidationError::Trust(e.into()))?;
         info!(
             stage = "trust_evaluation",
             is_trusted = trust_decision.is_trusted,
@@ -707,6 +738,7 @@ impl CoseSign1Validator {
             // Preserve existing behavior when key resolution fails and we don't have an
             // integrity-attesting counter-signature to fall back to.
             if !trust_result.is_valid() || !counter_sig_bypassed {
+                // Clone required: resolution_result appears in both its stage slot and `overall`.
                 return Ok(CoseSign1ValidationResult {
                     resolution: resolution_result.clone(),
                     trust: ValidationResult::not_applicable(
@@ -728,8 +760,8 @@ impl CoseSign1Validator {
             // Bypass primary signature verification.
             let mut resolution_metadata = BTreeMap::new();
             resolution_metadata.insert(
-                Self::METADATA_KEY_SIGNATURE_VERIFICATION_MODE.to_string(),
-                Self::METADATA_VALUE_SIGNATURE_VERIFICATION_BYPASSED.to_string(),
+                Self::METADATA_KEY_SIGNATURE_VERIFICATION_MODE.into(),
+                Self::METADATA_VALUE_SIGNATURE_VERIFICATION_BYPASSED.into(),
             );
             let resolution_result = ValidationResult::success(
                 Self::STAGE_NAME_KEY_MATERIAL_RESOLUTION,
@@ -963,7 +995,7 @@ impl CoseSign1Validator {
                 cose_sign1_parsed.clone(),
                 true, // Always check for counter-sig bypass (OR-composed trust plans)
             )
-            .map_err(CoseSign1ValidationError::Trust)?;
+            .map_err(|e| CoseSign1ValidationError::Trust(e.into()))?;
 
         let counter_sig_bypassed = signature_stage_metadata
             .get(Self::METADATA_KEY_SIGNATURE_VERIFICATION_MODE)
@@ -992,8 +1024,8 @@ impl CoseSign1Validator {
 
             let mut resolution_metadata = BTreeMap::new();
             resolution_metadata.insert(
-                Self::METADATA_KEY_SIGNATURE_VERIFICATION_MODE.to_string(),
-                Self::METADATA_VALUE_SIGNATURE_VERIFICATION_BYPASSED.to_string(),
+                Self::METADATA_KEY_SIGNATURE_VERIFICATION_MODE.into(),
+                Self::METADATA_VALUE_SIGNATURE_VERIFICATION_BYPASSED.into(),
             );
             let resolution_result = ValidationResult::success(
                 Self::STAGE_NAME_KEY_MATERIAL_RESOLUTION,
@@ -1247,16 +1279,16 @@ impl CoseSign1Validator {
 
         let mut metadata = BTreeMap::new();
         if !diagnostics.is_empty() {
-            metadata.insert("Diagnostics".to_string(), diagnostics.join("\n"));
+            metadata.insert("Diagnostics".into(), diagnostics.join("\n"));
         }
 
         (
             ValidationResult {
                 kind: ValidationResultKind::Failure,
-                validator_name: Self::STAGE_NAME_KEY_MATERIAL_RESOLUTION.to_string(),
+                validator_name: Cow::Borrowed(Self::STAGE_NAME_KEY_MATERIAL_RESOLUTION),
                 failures: vec![ValidationFailure {
-                    message: Self::ERROR_MESSAGE_NO_SIGNING_KEY_RESOLVED.to_string(),
-                    error_code: Some(Self::ERROR_CODE_NO_SIGNING_KEY_RESOLVED.to_string()),
+                    message: Cow::Borrowed(Self::ERROR_MESSAGE_NO_SIGNING_KEY_RESOLVED),
+                    error_code: Some(Cow::Borrowed(Self::ERROR_CODE_NO_SIGNING_KEY_RESOLVED)),
                     ..ValidationFailure::default()
                 }],
                 metadata,
@@ -1299,12 +1331,12 @@ impl CoseSign1Validator {
         }
 
         let mut failure = ValidationFailure {
-            message: Self::ERROR_MESSAGE_NO_SIGNING_KEY_RESOLVED.to_string(),
-            error_code: Some(Self::ERROR_CODE_NO_SIGNING_KEY_RESOLVED.to_string()),
+            message: Cow::Borrowed(Self::ERROR_MESSAGE_NO_SIGNING_KEY_RESOLVED),
+            error_code: Some(Cow::Borrowed(Self::ERROR_CODE_NO_SIGNING_KEY_RESOLVED)),
             ..ValidationFailure::default()
         };
         if !diagnostics.is_empty() {
-            failure.exception = Some(diagnostics.join(";"));
+            failure.exception = Some(Cow::Owned(diagnostics.join(";")));
         }
 
         (
@@ -1347,8 +1379,8 @@ impl CoseSign1Validator {
         if !decision.is_trusted {
             let failures = if decision.reasons.is_empty() {
                 vec![ValidationFailure {
-                    error_code: Some(Self::ERROR_CODE_TRUST_PLAN_NOT_SATISFIED.to_string()),
-                    message: Self::ERROR_MESSAGE_TRUST_PLAN_NOT_SATISFIED.to_string(),
+                    error_code: Some(Cow::Borrowed(Self::ERROR_CODE_TRUST_PLAN_NOT_SATISFIED)),
+                    message: Cow::Borrowed(Self::ERROR_MESSAGE_TRUST_PLAN_NOT_SATISFIED),
                     ..ValidationFailure::default()
                 }]
             } else {
@@ -1356,23 +1388,23 @@ impl CoseSign1Validator {
                     .reasons
                     .iter()
                     .map(|r| ValidationFailure {
-                        error_code: Some(Self::ERROR_CODE_TRUST_PLAN_NOT_SATISFIED.to_string()),
-                        message: r.clone(),
+                        error_code: Some(Cow::Borrowed(Self::ERROR_CODE_TRUST_PLAN_NOT_SATISFIED)),
+                        message: Cow::Owned(r.to_string()),
                         ..ValidationFailure::default()
                     })
                     .collect()
             };
 
             let mut metadata = BTreeMap::new();
-            metadata.insert("TrustDecision".to_string(), format!("{decision:?}"));
+            metadata.insert("TrustDecision".into(), format!("{decision:?}"));
             if let Some(a) = audit {
-                metadata.insert("TrustDecisionAudit".to_string(), format!("{a:?}"));
+                metadata.insert("TrustDecisionAudit".into(), format!("{a:?}"));
             }
 
             return Ok((
                 ValidationResult {
                     kind: ValidationResultKind::Failure,
-                    validator_name: Self::STAGE_NAME_KEY_MATERIAL_TRUST.to_string(),
+                    validator_name: Cow::Borrowed(Self::STAGE_NAME_KEY_MATERIAL_TRUST),
                     failures,
                     metadata,
                 },
@@ -1383,11 +1415,11 @@ impl CoseSign1Validator {
 
         let mut metadata = BTreeMap::new();
         if self.options.trust_evaluation_options.bypass_trust {
-            metadata.insert("BypassTrust".to_string(), "true".to_string());
+            metadata.insert("BypassTrust".into(), "true".into());
         }
-        metadata.insert("TrustDecision".to_string(), format!("{decision:?}"));
+        metadata.insert("TrustDecision".into(), format!("{decision:?}"));
         if let Some(a) = audit {
-            metadata.insert("TrustDecisionAudit".to_string(), format!("{a:?}"));
+            metadata.insert("TrustDecisionAudit".into(), format!("{a:?}"));
         }
 
         let signature_stage_metadata = if attempt_signature_bypass {
@@ -1432,19 +1464,16 @@ impl CoseSign1Validator {
             if integrity_facts.iter().any(|f| f.sig_structure_intact) {
                 let mut metadata = BTreeMap::new();
                 metadata.insert(
-                    Self::METADATA_KEY_SIGNATURE_VERIFICATION_MODE.to_string(),
-                    Self::METADATA_VALUE_SIGNATURE_VERIFICATION_BYPASSED.to_string(),
+                    Self::METADATA_KEY_SIGNATURE_VERIFICATION_MODE.into(),
+                    Self::METADATA_VALUE_SIGNATURE_VERIFICATION_BYPASSED.into(),
                 );
 
                 if let Some(details) = integrity_facts
                     .iter()
                     .find_map(|f| f.details.as_deref())
-                    .map(str::to_string)
+                    .map(str::to_owned)
                 {
-                    metadata.insert(
-                        Self::METADATA_KEY_SIGNATURE_BYPASS_DETAILS.to_string(),
-                        details,
-                    );
+                    metadata.insert(Self::METADATA_KEY_SIGNATURE_BYPASS_DETAILS.into(), details);
                 }
 
                 return Some(metadata);
@@ -1533,8 +1562,8 @@ impl CoseSign1Validator {
 
                     let mut metadata = BTreeMap::new();
                     metadata.insert(
-                        Self::METADATA_KEY_SELECTED_VALIDATOR.to_string(),
-                        "streaming".to_string(),
+                        Self::METADATA_KEY_SELECTED_VALIDATOR.into(),
+                        "streaming".into(),
                     );
 
                     // Use streaming verification via VerifyingContext
@@ -1649,8 +1678,8 @@ impl CoseSign1Validator {
 
         let mut metadata = BTreeMap::new();
         metadata.insert(
-            Self::METADATA_KEY_SELECTED_VALIDATOR.to_string(),
-            "non-streaming".to_string(),
+            Self::METADATA_KEY_SELECTED_VALIDATOR.into(),
+            "non-streaming".into(),
         );
 
         match cose_key.verify(&sig_structure, message.signature()) {
@@ -1756,7 +1785,7 @@ impl CoseSign1Validator {
         match payload {
             Payload::Bytes(b) => {
                 if b.is_empty() {
-                    return Err(Self::ERROR_MESSAGE_SIGNATURE_MISSING_PAYLOAD.to_string());
+                    return Err(Self::ERROR_MESSAGE_SIGNATURE_MISSING_PAYLOAD.into());
                 }
                 Ok(Arc::from(b.as_slice()))
             }
@@ -1769,7 +1798,7 @@ impl CoseSign1Validator {
                     .read_to_end(&mut buf)
                     .map_err(|e| format!("detached_payload_read_failed: {e}"))?;
                 if buf.is_empty() {
-                    return Err(Self::ERROR_MESSAGE_SIGNATURE_MISSING_PAYLOAD.to_string());
+                    return Err(Self::ERROR_MESSAGE_SIGNATURE_MISSING_PAYLOAD.into());
                 }
                 Ok(Arc::from(buf.into_boxed_slice()))
             }

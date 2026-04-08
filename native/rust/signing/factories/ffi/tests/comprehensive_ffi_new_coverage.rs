@@ -228,7 +228,9 @@ fn error_inner_null_pointer_message() {
 
 #[test]
 fn error_inner_from_factory_error() {
-    let factory_err = cose_sign1_factories::FactoryError::SigningFailed("boom".into());
+    let factory_err = cose_sign1_factories::FactoryError::SigningFailed {
+        detail: "boom".into(),
+    };
     let e = ErrorInner::from_factory_error(&factory_err);
     assert_eq!(e.code, FFI_ERR_FACTORY_FAILED);
     assert!(!e.message.is_empty());

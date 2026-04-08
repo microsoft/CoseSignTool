@@ -86,7 +86,7 @@ fn test_validate_eku_no_extension() {
     let cert_der = generate_cert_without_eku();
     let (_, cert) = X509Certificate::from_der(&cert_der).unwrap();
 
-    let result = validate_eku(&cert, &["1.3.6.1.5.5.7.3.3".to_string()]);
+    let result = validate_eku(&cert, &["1.3.6.1.5.5.7.3.3".to_string().into()]);
 
     // Should fail because certificate has no EKU extension
     assert!(result.is_err());
@@ -107,8 +107,8 @@ fn test_validate_eku_missing_required_oid() {
     let result = validate_eku(
         &cert,
         &[
-            "1.3.6.1.5.5.7.3.3".to_string(), // Code Signing (present)
-            "1.3.6.1.5.5.7.3.2".to_string(), // Client Auth (missing)
+            "1.3.6.1.5.5.7.3.3".to_string().into(), // Code Signing (present)
+            "1.3.6.1.5.5.7.3.2".to_string().into(), // Client Auth (missing)
         ],
     );
 
@@ -167,7 +167,10 @@ fn test_validate_subject_unknown_attribute() {
     // Use an unknown attribute label
     let result = validate_subject(
         &cert,
-        &[("UnknownAttribute".to_string(), "SomeValue".to_string())],
+        &[(
+            "UnknownAttribute".to_string().into(),
+            "SomeValue".to_string().into(),
+        )],
     );
 
     assert!(result.is_err());
@@ -192,7 +195,7 @@ fn test_validate_subject_missing_attribute() {
     let result = validate_subject(
         &cert,
         &[
-            ("L".to_string(), "NonExistent".to_string()), // Locality
+            ("L".to_string().into(), "NonExistent".to_string().into()), // Locality
         ],
     );
 
@@ -215,7 +218,10 @@ fn test_validate_subject_value_mismatch() {
     let (_, cert) = X509Certificate::from_der(&cert_der).unwrap();
 
     // Request CommonName with wrong value
-    let result = validate_subject(&cert, &[("CN".to_string(), "Wrong Name".to_string())]);
+    let result = validate_subject(
+        &cert,
+        &[("CN".to_string().into(), "Wrong Name".to_string().into())],
+    );
 
     assert!(result.is_err());
     match result.unwrap_err() {
@@ -239,9 +245,9 @@ fn test_validate_subject_success_multiple_attributes() {
     let result = validate_subject(
         &cert,
         &[
-            ("CN".to_string(), "Test Subject".to_string()),
-            ("O".to_string(), "Test Org".to_string()),
-            ("C".to_string(), "US".to_string()),
+            ("CN".to_string().into(), "Test Subject".to_string().into()),
+            ("O".to_string().into(), "Test Org".to_string().into()),
+            ("C".to_string().into(), "US".to_string().into()),
         ],
     );
 

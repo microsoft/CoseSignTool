@@ -203,7 +203,7 @@ fn mark_error_causes_get_fact_set_to_return_error() {
     let fact_set = engine.get_fact_set::<AlphaFact>(&subject).unwrap();
     match fact_set {
         TrustFactSet::Error { message } => {
-            assert_eq!(message, "production failed");
+            assert_eq!(&*message, "production failed");
         }
         other => panic!("expected Error, got: {other:?}"),
     }
@@ -240,7 +240,7 @@ fn mark_missing_causes_get_fact_set_to_return_missing() {
     let fact_set = engine.get_fact_set::<AlphaFact>(&subject).unwrap();
     match fact_set {
         TrustFactSet::Missing { reason } => {
-            assert_eq!(reason, "not available");
+            assert_eq!(&*reason, "not available");
         }
         other => panic!("expected Missing, got: {other:?}"),
     }

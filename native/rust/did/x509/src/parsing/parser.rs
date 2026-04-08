@@ -5,6 +5,7 @@ use crate::constants::*;
 use crate::error::DidX509Error;
 use crate::models::{DidX509ParsedIdentifier, DidX509Policy, SanType};
 use crate::parsing::percent_encoding::percent_decode;
+use std::borrow::Cow;
 
 /// Encode bytes as lowercase hex string.
 fn hex_encode(bytes: &[u8]) -> String {
@@ -272,7 +273,7 @@ fn parse_eku_policy(value: &str) -> Result<DidX509Policy, DidX509Error> {
         if !is_valid_oid(oid) {
             return Err(DidX509Error::InvalidEkuOid);
         }
-        valid_oids.push(oid.into());
+        valid_oids.push(Cow::Owned(oid.to_string()));
     }
 
     Ok(DidX509Policy::Eku(valid_oids))

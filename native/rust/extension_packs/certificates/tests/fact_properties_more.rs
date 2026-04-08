@@ -6,6 +6,7 @@ use cose_sign1_certificates::validation::facts::{
     X509PublicKeyAlgorithmFact, X509SigningCertificateIdentityFact,
 };
 use cose_sign1_validation_primitives::fact_properties::{FactProperties, FactValue};
+use std::sync::Arc;
 
 // ---------------------------------------------------------------------------
 // X509ChainTrustedFact – status_summary None branch
@@ -34,9 +35,9 @@ fn chain_trusted_status_summary_none_returns_none() {
 #[test]
 fn public_key_algorithm_name_some_returns_value() {
     let fact = X509PublicKeyAlgorithmFact {
-        certificate_thumbprint: "abc".to_string(),
-        algorithm_oid: "1.2.840.113549.1.1.11".to_string(),
-        algorithm_name: Some("RSA-SHA256".to_string()),
+        certificate_thumbprint: Arc::from("abc"),
+        algorithm_oid: Arc::from("1.2.840.113549.1.1.11"),
+        algorithm_name: Some(Arc::from("RSA-SHA256")),
         is_pqc: false,
     };
 
@@ -49,8 +50,8 @@ fn public_key_algorithm_name_some_returns_value() {
 #[test]
 fn public_key_algorithm_name_none_returns_none() {
     let fact = X509PublicKeyAlgorithmFact {
-        certificate_thumbprint: "abc".to_string(),
-        algorithm_oid: "1.2.3".to_string(),
+        certificate_thumbprint: Arc::from("abc"),
+        algorithm_oid: Arc::from("1.2.3"),
         algorithm_name: None,
         is_pqc: false,
     };
@@ -68,10 +69,10 @@ fn public_key_algorithm_name_none_returns_none() {
 #[test]
 fn signing_cert_identity_unknown_property_returns_none() {
     let fact = X509SigningCertificateIdentityFact {
-        certificate_thumbprint: "t".to_string(),
-        subject: "s".to_string(),
-        issuer: "i".to_string(),
-        serial_number: "sn".to_string(),
+        certificate_thumbprint: Arc::from("t"),
+        subject: Arc::from("s"),
+        issuer: Arc::from("i"),
+        serial_number: Arc::from("sn"),
         not_before_unix_seconds: 0,
         not_after_unix_seconds: 0,
     };
@@ -85,9 +86,9 @@ fn signing_cert_identity_unknown_property_returns_none() {
 fn chain_element_identity_unknown_property_returns_none() {
     let fact = X509ChainElementIdentityFact {
         index: 0,
-        certificate_thumbprint: "t".to_string(),
-        subject: "s".to_string(),
-        issuer: "i".to_string(),
+        certificate_thumbprint: Arc::from("t"),
+        subject: Arc::from("s"),
+        issuer: Arc::from("i"),
     };
 
     assert_eq!(fact.get_property("nonexistent"), None);
@@ -112,7 +113,7 @@ fn chain_trusted_unknown_property_returns_none() {
         chain_built: false,
         is_trusted: false,
         status_flags: 0,
-        status_summary: Some("summary".to_string()),
+        status_summary: Some(Arc::from("summary")),
         element_count: 0,
     };
 
@@ -123,9 +124,9 @@ fn chain_trusted_unknown_property_returns_none() {
 #[test]
 fn public_key_algorithm_unknown_property_returns_none() {
     let fact = X509PublicKeyAlgorithmFact {
-        certificate_thumbprint: "t".to_string(),
-        algorithm_oid: "1.2.3".to_string(),
-        algorithm_name: Some("name".to_string()),
+        certificate_thumbprint: Arc::from("t"),
+        algorithm_oid: Arc::from("1.2.3"),
+        algorithm_name: Some(Arc::from("name")),
         is_pqc: false,
     };
 
@@ -141,9 +142,9 @@ fn public_key_algorithm_unknown_property_returns_none() {
 fn chain_element_identity_all_valid_properties() {
     let fact = X509ChainElementIdentityFact {
         index: 7,
-        certificate_thumbprint: "thumb123".to_string(),
-        subject: "CN=Test".to_string(),
-        issuer: "CN=Issuer".to_string(),
+        certificate_thumbprint: Arc::from("thumb123"),
+        subject: Arc::from("CN=Test"),
+        issuer: Arc::from("CN=Issuer"),
     };
 
     assert_eq!(
@@ -200,7 +201,7 @@ fn chain_trusted_all_valid_properties_with_summary() {
         chain_built: false,
         is_trusted: true,
         status_flags: 42,
-        status_summary: Some("all good".to_string()),
+        status_summary: Some(Arc::from("all good")),
         element_count: 5,
     };
 
@@ -233,9 +234,9 @@ fn chain_trusted_all_valid_properties_with_summary() {
 #[test]
 fn public_key_algorithm_all_valid_properties() {
     let fact = X509PublicKeyAlgorithmFact {
-        certificate_thumbprint: "tp".to_string(),
-        algorithm_oid: "1.3.6.1.4.1.2.267.7.6.5".to_string(),
-        algorithm_name: Some("ML-DSA-65".to_string()),
+        certificate_thumbprint: Arc::from("tp"),
+        algorithm_oid: Arc::from("1.3.6.1.4.1.2.267.7.6.5"),
+        algorithm_name: Some(Arc::from("ML-DSA-65")),
         is_pqc: true,
     };
 

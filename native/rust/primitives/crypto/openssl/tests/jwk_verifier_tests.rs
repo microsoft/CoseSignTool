@@ -24,7 +24,7 @@ fn b64url(data: &[u8]) -> String {
 }
 
 /// Generate a real P-256 key pair and return (private_pkey, EcJwk).
-fn generate_p256_jwk() -> (PKey<openssl::pkey::Private>, EcJwk) {
+fn generate_p256_jwk() -> (PKey<openssl::pkey::Private>, EcJwk<'static>) {
     let group = EcGroup::from_curve_name(Nid::X9_62_PRIME256V1).unwrap();
     let ec_key = EcKey::generate(&group).unwrap();
     let pkey = PKey::from_ec_key(ec_key.clone()).unwrap();
@@ -46,18 +46,18 @@ fn generate_p256_jwk() -> (PKey<openssl::pkey::Private>, EcJwk) {
     y_padded.extend_from_slice(&y_bytes);
 
     let jwk = EcJwk {
-        kty: "EC".to_string(),
-        crv: "P-256".to_string(),
-        x: b64url(&x_padded),
-        y: b64url(&y_padded),
-        kid: Some("test-p256".to_string()),
+        kty: "EC".into(),
+        crv: "P-256".into(),
+        x: b64url(&x_padded).into(),
+        y: b64url(&y_padded).into(),
+        kid: Some("test-p256".into()),
     };
 
     (pkey, jwk)
 }
 
 /// Generate a real P-384 key pair and return (private_pkey, EcJwk).
-fn generate_p384_jwk() -> (PKey<openssl::pkey::Private>, EcJwk) {
+fn generate_p384_jwk() -> (PKey<openssl::pkey::Private>, EcJwk<'static>) {
     let group = EcGroup::from_curve_name(Nid::SECP384R1).unwrap();
     let ec_key = EcKey::generate(&group).unwrap();
     let pkey = PKey::from_ec_key(ec_key.clone()).unwrap();
@@ -78,11 +78,11 @@ fn generate_p384_jwk() -> (PKey<openssl::pkey::Private>, EcJwk) {
     y_padded.extend_from_slice(&y_bytes);
 
     let jwk = EcJwk {
-        kty: "EC".to_string(),
-        crv: "P-384".to_string(),
-        x: b64url(&x_padded),
-        y: b64url(&y_padded),
-        kid: Some("test-p384".to_string()),
+        kty: "EC".into(),
+        crv: "P-384".into(),
+        x: b64url(&x_padded).into(),
+        y: b64url(&y_padded).into(),
+        kid: Some("test-p384".into()),
     };
 
     (pkey, jwk)
@@ -97,10 +97,10 @@ fn generate_rsa_jwk() -> (PKey<openssl::pkey::Private>, RsaJwk) {
     let e = rsa.e().to_vec();
 
     let jwk = RsaJwk {
-        kty: "RSA".to_string(),
+        kty: "RSA".into(),
         n: b64url(&n),
         e: b64url(&e),
-        kid: Some("test-rsa".to_string()),
+        kid: Some("test-rsa".into()),
     };
 
     (pkey, jwk)
@@ -198,10 +198,10 @@ fn ec_jwk_wrong_key_rejects_signature() {
 fn ec_jwk_wrong_kty_rejected() {
     let factory = OpenSslJwkVerifierFactory;
     let jwk = EcJwk {
-        kty: "RSA".to_string(), // wrong type
-        crv: "P-256".to_string(),
-        x: b64url(&[1u8; 32]),
-        y: b64url(&[2u8; 32]),
+        kty: "RSA".into(), // wrong type
+        crv: "P-256".into(),
+        x: b64url(&[1u8; 32]).into(),
+        y: b64url(&[2u8; 32]).into(),
         kid: None,
     };
     assert!(factory.verifier_from_ec_jwk(&jwk, -7).is_err());
@@ -211,10 +211,10 @@ fn ec_jwk_wrong_kty_rejected() {
 fn ec_jwk_unsupported_curve_rejected() {
     let factory = OpenSslJwkVerifierFactory;
     let jwk = EcJwk {
-        kty: "EC".to_string(),
-        crv: "secp256k1".to_string(), // not supported
-        x: b64url(&[1u8; 32]),
-        y: b64url(&[2u8; 32]),
+        kty: "EC".into(),
+        crv: "secp256k1".into(), // not supported
+        x: b64url(&[1u8; 32]).into(),
+        y: b64url(&[2u8; 32]).into(),
         kid: None,
     };
     assert!(factory.verifier_from_ec_jwk(&jwk, -7).is_err());
@@ -224,10 +224,10 @@ fn ec_jwk_unsupported_curve_rejected() {
 fn ec_jwk_wrong_coordinate_length_rejected() {
     let factory = OpenSslJwkVerifierFactory;
     let jwk = EcJwk {
-        kty: "EC".to_string(),
-        crv: "P-256".to_string(),
-        x: b64url(&[1u8; 16]), // too short for P-256
-        y: b64url(&[2u8; 32]),
+        kty: "EC".into(),
+        crv: "P-256".into(),
+        x: b64url(&[1u8; 16]).into(), // too short for P-256
+        y: b64url(&[2u8; 32]).into(),
         kid: None,
     };
     assert!(factory.verifier_from_ec_jwk(&jwk, -7).is_err());
@@ -238,10 +238,10 @@ fn ec_jwk_invalid_point_rejected() {
     let factory = OpenSslJwkVerifierFactory;
     // All-zeros is not a valid point on P-256
     let jwk = EcJwk {
-        kty: "EC".to_string(),
-        crv: "P-256".to_string(),
-        x: b64url(&[0u8; 32]),
-        y: b64url(&[0u8; 32]),
+        kty: "EC".into(),
+        crv: "P-256".into(),
+        x: b64url(&[0u8; 32]).into(),
+        y: b64url(&[0u8; 32]).into(),
         kid: None,
     };
     assert!(factory.verifier_from_ec_jwk(&jwk, -7).is_err());
@@ -266,7 +266,7 @@ fn rsa_jwk_creates_verifier() {
 fn rsa_jwk_wrong_kty_rejected() {
     let factory = OpenSslJwkVerifierFactory;
     let jwk = RsaJwk {
-        kty: "EC".to_string(), // wrong
+        kty: "EC".into(), // wrong
         n: b64url(&[1u8; 256]),
         e: b64url(&[1, 0, 1]),
         kid: None,

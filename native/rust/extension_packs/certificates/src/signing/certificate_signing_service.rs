@@ -65,11 +65,15 @@ impl SigningService for CertificateSigningService {
         let cert = self
             .certificate_source
             .get_signing_certificate()
-            .map_err(|e| SigningError::SigningFailed(e.to_string()))?;
+            .map_err(|e| SigningError::SigningFailed {
+                detail: e.to_string().into(),
+            })?;
         let chain_builder = self.certificate_source.get_chain_builder();
         let chain = chain_builder
             .build_chain(&[])
-            .map_err(|e| SigningError::SigningFailed(e.to_string()))?;
+            .map_err(|e| SigningError::SigningFailed {
+                detail: e.to_string().into(),
+            })?;
         let chain_refs: Vec<&[u8]> = chain.iter().map(|c| c.as_slice()).collect();
 
         // Initialize header maps
@@ -81,8 +85,12 @@ impl SigningService for CertificateSigningService {
             HeaderContributorContext::new(context, &*self.signing_key_provider);
 
         // 1. Add certificate headers (x5t + x5chain) to PROTECTED
-        let cert_contributor = CertificateHeaderContributor::new(cert, &chain_refs)
-            .map_err(|e| SigningError::SigningFailed(e.to_string()))?;
+        let cert_contributor =
+            CertificateHeaderContributor::new(cert, &chain_refs).map_err(|e| {
+                SigningError::SigningFailed {
+                    detail: e.to_string().into(),
+                }
+            })?;
 
         cert_contributor.contribute_protected_headers(&mut protected_headers, &contributor_context);
 
@@ -92,7 +100,9 @@ impl SigningService for CertificateSigningService {
                 &chain_refs,
                 self.options.custom_cwt_claims.as_ref(),
             )
-            .map_err(|e| SigningError::SigningFailed(e.to_string()))?;
+            .map_err(|e| SigningError::SigningFailed {
+                detail: e.to_string().into(),
+            })?;
 
             scitt_contributor
                 .contribute_protected_headers(&mut protected_headers, &contributor_context);

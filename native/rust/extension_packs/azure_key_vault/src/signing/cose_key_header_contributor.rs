@@ -6,7 +6,7 @@
 //! Embeds the public key as a COSE_Key structure in COSE headers,
 //! defaulting to UNPROTECTED headers with label -65537.
 
-use cose_sign1_primitives::{CoseHeaderLabel, CoseHeaderMap, CoseHeaderValue};
+use cose_sign1_primitives::{ArcSlice, CoseHeaderLabel, CoseHeaderMap, CoseHeaderValue};
 use cose_sign1_signing::{HeaderContributor, HeaderContributorContext, HeaderMergeStrategy};
 
 /// Private-use label for embedded COSE_Key public key.
@@ -26,8 +26,9 @@ pub enum CoseKeyHeaderLocation {
 /// Header contributor that embeds a COSE_Key public key structure.
 ///
 /// Maps V2's `PublicKeyHeaderContributor`.
+/// Stores the key as `ArcSlice` so cloning is a cheap refcount bump.
 pub struct CoseKeyHeaderContributor {
-    cose_key_cbor: Vec<u8>,
+    cose_key_cbor: ArcSlice,
     location: CoseKeyHeaderLocation,
 }
 
@@ -38,20 +39,20 @@ impl CoseKeyHeaderContributor {
     ///
     /// * `cose_key_cbor` - The CBOR-encoded COSE_Key map
     /// * `location` - Where to place the header (defaults to Unprotected)
-    pub fn new(cose_key_cbor: Vec<u8>, location: CoseKeyHeaderLocation) -> Self {
+    pub fn new(cose_key_cbor: impl Into<ArcSlice>, location: CoseKeyHeaderLocation) -> Self {
         Self {
-            cose_key_cbor,
+            cose_key_cbor: cose_key_cbor.into(),
             location,
         }
     }
 
     /// Creates a contributor that places the key in unprotected headers.
-    pub fn unprotected(cose_key_cbor: Vec<u8>) -> Self {
+    pub fn unprotected(cose_key_cbor: impl Into<ArcSlice>) -> Self {
         Self::new(cose_key_cbor, CoseKeyHeaderLocation::Unprotected)
     }
 
     /// Creates a contributor that places the key in protected headers.
-    pub fn protected(cose_key_cbor: Vec<u8>) -> Self {
+    pub fn protected(cose_key_cbor: impl Into<ArcSlice>) -> Self {
         Self::new(cose_key_cbor, CoseKeyHeaderLocation::Protected)
     }
 }
@@ -69,10 +70,7 @@ impl HeaderContributor for CoseKeyHeaderContributor {
         if self.location == CoseKeyHeaderLocation::Protected {
             let label = CoseHeaderLabel::Int(COSE_KEY_LABEL);
             if headers.get(&label).is_none() {
-                headers.insert(
-                    label,
-                    CoseHeaderValue::Bytes(self.cose_key_cbor.clone().into()),
-                );
+                headers.insert(label, CoseHeaderValue::Bytes(self.cose_key_cbor.clone()));
             }
         }
     }
@@ -85,10 +83,7 @@ impl HeaderContributor for CoseKeyHeaderContributor {
         if self.location == CoseKeyHeaderLocation::Unprotected {
             let label = CoseHeaderLabel::Int(COSE_KEY_LABEL);
             if headers.get(&label).is_none() {
-                headers.insert(
-                    label,
-                    CoseHeaderValue::Bytes(self.cose_key_cbor.clone().into()),
-                );
+                headers.insert(label, CoseHeaderValue::Bytes(self.cose_key_cbor.clone()));
             }
         }
     }

@@ -187,8 +187,8 @@ fn v2_validate_when_trust_is_denied_without_reasons_skips_signature_and_post() {
 
     assert!(result.trust.is_failure());
     assert_eq!(
-        Some("TRUST_PLAN_NOT_SATISFIED".to_string()),
-        result.trust.failures[0].error_code.clone()
+        result.trust.failures[0].error_code.as_deref(),
+        Some("TRUST_PLAN_NOT_SATISFIED")
     );
     assert_eq!(ValidationResultKind::NotApplicable, result.signature.kind);
     assert_eq!(
@@ -216,8 +216,8 @@ fn v2_validate_when_no_resolvers_returns_resolution_failure() {
 
     assert!(result.resolution.is_failure());
     assert_eq!(
-        Some("NO_SIGNING_KEY_RESOLVED".to_string()),
-        result.resolution.failures[0].error_code.clone()
+        result.resolution.failures[0].error_code.as_deref(),
+        Some("NO_SIGNING_KEY_RESOLVED")
     );
     assert_eq!(ValidationResultKind::NotApplicable, result.trust.kind);
     assert_eq!(ValidationResultKind::NotApplicable, result.signature.kind);
@@ -272,8 +272,8 @@ fn v2_validate_when_signing_key_resolved_but_wrong_key_returns_signature_failure
 
     assert!(result.signature.is_failure());
     assert_eq!(
-        Some("SIGNATURE_VERIFICATION_FAILED".to_string()),
-        result.signature.failures[0].error_code.clone()
+        result.signature.failures[0].error_code.as_deref(),
+        Some("SIGNATURE_VERIFICATION_FAILED")
     );
     assert_eq!(
         ValidationResultKind::NotApplicable,
@@ -307,8 +307,8 @@ fn v2_validate_when_detached_signature_and_no_payload_provided_returns_signature
 
     assert!(result.signature.is_failure());
     assert_eq!(
-        Some("SIGNATURE_MISSING_PAYLOAD".to_string()),
-        result.signature.failures[0].error_code.clone()
+        result.signature.failures[0].error_code.as_deref(),
+        Some("SIGNATURE_MISSING_PAYLOAD")
     );
 }
 
@@ -321,7 +321,7 @@ fn v2_validate_when_bypassing_trust_succeeds_and_includes_bypass_metadata() {
         .add_trust_source(Arc::new(FnRule::new(
             "deny",
             |_e: &TrustFactEngine, _s: &TrustSubject| {
-                Ok(TrustDecision::denied(vec!["would-fail".to_string()]))
+                Ok(TrustDecision::denied(vec!["would-fail".into()]))
             },
         )))
         .build()

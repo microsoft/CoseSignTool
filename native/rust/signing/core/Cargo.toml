@@ -1,7 +1,7 @@
 [package]
 name = "cose_sign1_signing"
-edition.workspace = true
-license.workspace = true
+edition = { workspace = true }
+license = { workspace = true }
 version = "0.1.0"
 description = "Core signing abstractions for COSE_Sign1 messages"
 

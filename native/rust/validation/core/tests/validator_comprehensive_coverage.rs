@@ -26,6 +26,7 @@ use cose_sign1_validation_primitives::evaluation_options::CoseHeaderLocation;
 use cose_sign1_validation_primitives::facts::{FactKey, TrustFactContext, TrustFactProducer};
 use cose_sign1_validation_primitives::plan::CompiledTrustPlan;
 use cose_sign1_validation_primitives::TrustEvaluationOptions;
+use std::borrow::Cow;
 use std::future::Future;
 use std::io::Read;
 use std::pin::Pin;
@@ -795,7 +796,7 @@ fn test_validation_result_helpers_comprehensive() {
     assert_eq!(failure.failures.len(), 1);
     assert_eq!(
         failure.failures[0].error_code,
-        Some("TEST_ERROR".to_string())
+        Some(Cow::Borrowed("TEST_ERROR"))
     );
 }
 

@@ -381,7 +381,7 @@ pub fn impl_build_with_eku_inner(
             }
             let c_str = unsafe { std::ffi::CStr::from_ptr(oid_ptr) };
             match c_str.to_str() {
-                Ok(s) => oids.push(s.to_string()),
+                Ok(s) => oids.push(std::borrow::Cow::Owned(s.to_string())),
                 Err(_) => {
                     set_error(
                         out_error,

@@ -71,8 +71,8 @@ impl DirectSignatureFactory {
         info!(method = "sign_direct", payload_len = payload.len(), content_type = %content_type, "Signing payload");
         let options = options.unwrap_or_default();
 
-        // Create signing context (payload copy required by SigningContext ownership model)
-        let mut context = SigningContext::from_bytes(payload.to_vec());
+        // Create signing context (zero-copy borrow of caller's payload)
+        let mut context = SigningContext::from_slice(payload);
         context.content_type = Some(content_type.to_string());
 
         // Add content type contributor (always first)
@@ -121,9 +121,9 @@ impl DirectSignatureFactory {
             .verify_signature(&message_bytes, &context)?;
 
         if !verification_result {
-            return Err(FactoryError::VerificationFailed(
-                "Post-sign verification failed".to_string(),
-            ));
+            return Err(FactoryError::VerificationFailed {
+                detail: std::borrow::Cow::Borrowed("Post-sign verification failed"),
+            });
         }
 
         // Apply transparency providers if configured
@@ -133,7 +133,9 @@ impl DirectSignatureFactory {
                 let mut current_bytes = message_bytes;
                 for provider in &self.transparency_providers {
                     current_bytes = add_proof_with_receipt_merge(provider.as_ref(), &current_bytes)
-                        .map_err(|e| FactoryError::TransparencyFailed(e.to_string()))?;
+                        .map_err(|e| FactoryError::TransparencyFailed {
+                            detail: e.to_string().into(),
+                        })?;
                 }
                 return Ok(current_bytes);
             }
@@ -160,7 +162,9 @@ impl DirectSignatureFactory {
         options: Option<DirectSignatureOptions>,
     ) -> Result<CoseSign1Message, FactoryError> {
         let bytes = self.create_bytes(payload, content_type, options)?;
-        CoseSign1Message::parse(&bytes).map_err(|e| FactoryError::SigningFailed(e.to_string()))
+        CoseSign1Message::parse(&bytes).map_err(|e| FactoryError::SigningFailed {
+            detail: e.to_string().into(),
+        })
     }
 
     /// Creates a COSE_Sign1 message with a direct signature from a streaming payload and returns it as bytes.
@@ -187,10 +191,10 @@ impl DirectSignatureFactory {
 
         // Enforce embed size limit
         if options.embed_payload && payload.size() > max_embed_size {
-            return Err(FactoryError::PayloadTooLargeForEmbedding(
-                payload.size(),
-                max_embed_size,
-            ));
+            return Err(FactoryError::PayloadTooLargeForEmbedding {
+                actual: payload.size(),
+                max: max_embed_size,
+            });
         }
 
         // Create signing context (use empty vec for context since we'll stream)
@@ -244,9 +248,9 @@ impl DirectSignatureFactory {
             .verify_signature(&message_bytes, &context)?;
 
         if !verification_result {
-            return Err(FactoryError::VerificationFailed(
-                "Post-sign verification failed".to_string(),
-            ));
+            return Err(FactoryError::VerificationFailed {
+                detail: std::borrow::Cow::Borrowed("Post-sign verification failed"),
+            });
         }
 
         // Apply transparency providers if configured
@@ -256,7 +260,9 @@ impl DirectSignatureFactory {
                 let mut current_bytes = message_bytes;
                 for provider in &self.transparency_providers {
                     current_bytes = add_proof_with_receipt_merge(provider.as_ref(), &current_bytes)
-                        .map_err(|e| FactoryError::TransparencyFailed(e.to_string()))?;
+                        .map_err(|e| FactoryError::TransparencyFailed {
+                            detail: e.to_string().into(),
+                        })?;
                 }
                 return Ok(current_bytes);
             }
@@ -283,6 +289,8 @@ impl DirectSignatureFactory {
         options: Option<DirectSignatureOptions>,
     ) -> Result<CoseSign1Message, FactoryError> {
         let bytes = self.create_streaming_bytes(payload, content_type, options)?;
-        CoseSign1Message::parse(&bytes).map_err(|e| FactoryError::SigningFailed(e.to_string()))
+        CoseSign1Message::parse(&bytes).map_err(|e| FactoryError::SigningFailed {
+            detail: e.to_string().into(),
+        })
     }
 }

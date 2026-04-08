@@ -2,14 +2,15 @@
 // Licensed under the MIT License.
 
 use did_x509::{DidDocument, VerificationMethod};
+use std::borrow::Cow;
 use std::collections::HashMap;
 
 #[test]
 fn test_did_document_to_json() {
     let mut jwk = HashMap::new();
-    jwk.insert("kty".to_string(), "RSA".to_string());
-    jwk.insert("n".to_string(), "test".to_string());
-    jwk.insert("e".to_string(), "AQAB".to_string());
+    jwk.insert(Cow::Borrowed("kty"), "RSA".to_string());
+    jwk.insert(Cow::Borrowed("n"), "test".to_string());
+    jwk.insert(Cow::Borrowed("e"), "AQAB".to_string());
 
     let doc = DidDocument {
         context: vec!["https://www.w3.org/ns/did/v1".to_string()],
@@ -33,7 +34,7 @@ fn test_did_document_to_json() {
 #[test]
 fn test_did_document_to_json_indented() {
     let mut jwk = HashMap::new();
-    jwk.insert("kty".to_string(), "EC".to_string());
+    jwk.insert(Cow::Borrowed("kty"), "EC".to_string());
 
     let doc = DidDocument {
         context: vec!["https://www.w3.org/ns/did/v1".to_string()],
@@ -56,7 +57,7 @@ fn test_did_document_to_json_indented() {
 #[test]
 fn test_did_document_clone_partial_eq() {
     let mut jwk = HashMap::new();
-    jwk.insert("kty".to_string(), "EC".to_string());
+    jwk.insert(Cow::Borrowed("kty"), "EC".to_string());
 
     let doc1 = DidDocument {
         context: vec!["https://www.w3.org/ns/did/v1".to_string()],

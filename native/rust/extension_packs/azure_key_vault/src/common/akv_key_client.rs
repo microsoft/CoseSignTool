@@ -10,6 +10,7 @@ use azure_security_keyvault_keys::{
     models::{CurveName, KeyClientGetKeyOptions, KeyType, SignParameters, SignatureAlgorithm},
     KeyClient,
 };
+use std::borrow::Cow;
 use std::sync::Arc;
 
 /// Concrete AKV crypto client wrapping `azure_security_keyvault_keys::KeyClient`.
@@ -17,9 +18,9 @@ pub struct AkvKeyClient {
     client: KeyClient,
     key_name: String,
     key_version: Option<String>,
-    key_type: String,
+    key_type: Cow<'static, str>,
     key_size: Option<usize>,
-    curve_name: Option<String>,
+    curve_name: Option<Cow<'static, str>>,
     key_id: String,
     is_hsm: bool,
     /// EC public key x-coordinate (base64url-decoded).
@@ -102,18 +103,18 @@ impl AkvKeyClient {
 
         // Map JWK key type and curve to canonical strings via pattern matching.
         // This avoids Debug-formatting key-response fields (cleartext-logging).
-        let key_type = match jwk.kty.as_ref() {
-            Some(KeyType::Ec | KeyType::EcHsm) => "EC".to_string(),
-            Some(KeyType::Rsa | KeyType::RsaHsm) => "RSA".to_string(),
-            Some(KeyType::Oct | KeyType::OctHsm) => "Oct".to_string(),
-            _ => String::new(),
+        let key_type: Cow<'static, str> = match jwk.kty.as_ref() {
+            Some(KeyType::Ec | KeyType::EcHsm) => Cow::Borrowed("EC"),
+            Some(KeyType::Rsa | KeyType::RsaHsm) => Cow::Borrowed("RSA"),
+            Some(KeyType::Oct | KeyType::OctHsm) => Cow::Borrowed("Oct"),
+            _ => Cow::Borrowed(""),
         };
-        let curve_name = jwk.crv.as_ref().map(|c| match c {
-            CurveName::P256 => "P-256".to_string(),
-            CurveName::P256K => "P-256K".to_string(),
-            CurveName::P384 => "P-384".to_string(),
-            CurveName::P521 => "P-521".to_string(),
-            _ => "Unknown".to_string(),
+        let curve_name: Option<Cow<'static, str>> = jwk.crv.as_ref().map(|c| match c {
+            CurveName::P256 => Cow::Borrowed("P-256"),
+            CurveName::P256K => Cow::Borrowed("P-256K"),
+            CurveName::P384 => Cow::Borrowed("P-384"),
+            CurveName::P521 => Cow::Borrowed("P-521"),
+            _ => Cow::Borrowed("Unknown"),
         });
         // Extract key version: prefer caller-supplied, fall back to the last
         // segment of the kid URL in the response.  The version string is

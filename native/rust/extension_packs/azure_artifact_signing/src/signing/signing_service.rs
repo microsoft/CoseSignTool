@@ -144,8 +144,11 @@ impl AzureArtifactSigningService {
     #[cfg_attr(coverage_nightly, coverage(off))]
     pub fn new(options: AzureArtifactSigningOptions) -> Result<Self, SigningError> {
         let cert_source = Arc::new(
-            AzureArtifactSigningCertificateSource::new(options.clone())
-                .map_err(|e| SigningError::KeyError(e.to_string()))?,
+            AzureArtifactSigningCertificateSource::new(options.clone()).map_err(|e| {
+                SigningError::KeyError {
+                    detail: e.to_string().into(),
+                }
+            })?,
         );
 
         Self::from_source(cert_source, options)
@@ -159,7 +162,9 @@ impl AzureArtifactSigningService {
     ) -> Result<Self, SigningError> {
         let cert_source = Arc::new(
             AzureArtifactSigningCertificateSource::with_credential(options.clone(), credential)
-                .map_err(|e| SigningError::KeyError(e.to_string()))?,
+                .map_err(|e| SigningError::KeyError {
+                    detail: e.to_string().into(),
+                })?,
         );
 
         Self::from_source(cert_source, options)
@@ -227,13 +232,17 @@ impl AzureArtifactSigningService {
         cert_source: &AzureArtifactSigningCertificateSource,
     ) -> Result<String, SigningError> {
         // Fetch root certificate to build the chain for DID:x509
-        let root_der = cert_source.fetch_root_certificate().map_err(|e| {
-            SigningError::KeyError(format!("Failed to fetch AAS root cert for DID:x509: {}", e))
-        })?;
+        let root_der =
+            cert_source
+                .fetch_root_certificate()
+                .map_err(|e| SigningError::KeyError {
+                    detail: format!("Failed to fetch AAS root cert for DID:x509: {}", e).into(),
+                })?;
 
         let chain_refs: Vec<&[u8]> = vec![root_der.as_slice()];
-        build_did_x509_from_ats_chain(&chain_refs)
-            .map_err(|e| SigningError::KeyError(format!("AAS DID:x509 generation failed: {}", e)))
+        build_did_x509_from_ats_chain(&chain_refs).map_err(|e| SigningError::KeyError {
+            detail: format!("AAS DID:x509 generation failed: {}", e).into(),
+        })
     }
 }
 

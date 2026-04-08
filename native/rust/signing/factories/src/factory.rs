@@ -295,12 +295,16 @@ impl CoseSign1MessageFactory {
         content_type: &str,
         options: &T,
     ) -> Result<CoseSign1Message, FactoryError> {
-        let factory = self.factories.get(&TypeId::of::<T>()).ok_or_else(|| {
-            FactoryError::SigningFailed(format!(
-                "No factory registered for options type {:?}",
-                std::any::type_name::<T>()
-            ))
-        })?;
+        let factory =
+            self.factories
+                .get(&TypeId::of::<T>())
+                .ok_or_else(|| FactoryError::SigningFailed {
+                    detail: format!(
+                        "No factory registered for options type {:?}",
+                        std::any::type_name::<T>()
+                    )
+                    .into(),
+                })?;
         factory.create_dyn(payload, content_type, options)
     }
 }

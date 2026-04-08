@@ -1,7 +1,8 @@
 [package]
 name = "cose_sign1_headers"
-edition.workspace = true
-license.workspace = true
+edition = { workspace = true }
+license = { workspace = true }
+description = "CWT claims and header management for COSE Sign1 messages"
 version = "0.1.0"
 
 [lib]

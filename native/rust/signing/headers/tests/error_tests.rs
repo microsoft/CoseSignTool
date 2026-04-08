@@ -5,7 +5,7 @@ use cose_sign1_headers::HeaderError;
 
 #[test]
 fn test_cbor_encoding_error_display() {
-    let error = HeaderError::CborEncodingError("test encoding error".to_string());
+    let error = HeaderError::CborEncodingError("test encoding error".into());
     assert_eq!(
         error.to_string(),
         "CBOR encoding error: test encoding error"
@@ -14,7 +14,7 @@ fn test_cbor_encoding_error_display() {
 
 #[test]
 fn test_cbor_decoding_error_display() {
-    let error = HeaderError::CborDecodingError("test decoding error".to_string());
+    let error = HeaderError::CborDecodingError("test decoding error".into());
     assert_eq!(
         error.to_string(),
         "CBOR decoding error: test decoding error"
@@ -25,8 +25,8 @@ fn test_cbor_decoding_error_display() {
 fn test_invalid_claim_type_display() {
     let error = HeaderError::InvalidClaimType {
         label: 42,
-        expected: "string".to_string(),
-        actual: "integer".to_string(),
+        expected: "string".into(),
+        actual: "integer".into(),
     };
     assert_eq!(
         error.to_string(),
@@ -36,13 +36,13 @@ fn test_invalid_claim_type_display() {
 
 #[test]
 fn test_missing_required_claim_display() {
-    let error = HeaderError::MissingRequiredClaim("issuer".to_string());
+    let error = HeaderError::MissingRequiredClaim("issuer".into());
     assert_eq!(error.to_string(), "Missing required claim: issuer");
 }
 
 #[test]
 fn test_invalid_timestamp_display() {
-    let error = HeaderError::InvalidTimestamp("timestamp out of range".to_string());
+    let error = HeaderError::InvalidTimestamp("timestamp out of range".into());
     assert_eq!(
         error.to_string(),
         "Invalid timestamp value: timestamp out of range"
@@ -51,7 +51,7 @@ fn test_invalid_timestamp_display() {
 
 #[test]
 fn test_complex_claim_value_display() {
-    let error = HeaderError::ComplexClaimValue("nested object not supported".to_string());
+    let error = HeaderError::ComplexClaimValue("nested object not supported".into());
     assert_eq!(
         error.to_string(),
         "Custom claim value too complex: nested object not supported"
@@ -60,6 +60,6 @@ fn test_complex_claim_value_display() {
 
 #[test]
 fn test_header_error_is_error_trait() {
-    let error = HeaderError::CborEncodingError("test".to_string());
+    let error = HeaderError::CborEncodingError("test".into());
     assert!(std::error::Error::source(&error).is_none());
 }

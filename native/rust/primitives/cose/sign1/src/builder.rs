@@ -37,6 +37,7 @@ pub const MAX_EMBED_PAYLOAD_SIZE: u64 = 2 * 1024 * 1024 * 1024;
 ///     .protected(protected)
 ///     .sign(&signer, b"Hello, World!")?;
 /// ```
+#[must_use = "builders do nothing unless consumed"]
 #[derive(Clone, Debug, Default)]
 pub struct CoseSign1Builder {
     protected: CoseHeaderMap,

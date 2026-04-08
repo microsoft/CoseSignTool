@@ -77,7 +77,9 @@ impl TestSigningService {
 impl SigningService for TestSigningService {
     fn get_cose_signer(&self, _ctx: &SigningContext) -> Result<CoseSigner, SigningError> {
         if self.fail_signer {
-            return Err(SigningError::SigningFailed("mock fail".into()));
+            return Err(SigningError::SigningFailed {
+                detail: "mock fail".into(),
+            });
         }
         Ok(CoseSigner::new(
             Box::new(MockKey),
@@ -329,7 +331,7 @@ fn create_streaming_bytes_payload_too_large() {
     let result = factory.create_streaming_bytes(payload, "text/plain", Some(opts));
     assert!(result.is_err());
     match result.unwrap_err() {
-        FactoryError::PayloadTooLargeForEmbedding(actual, max) => {
+        FactoryError::PayloadTooLargeForEmbedding { actual, max } => {
             assert_eq!(actual, 2000);
             assert_eq!(max, 1000);
         }
@@ -351,8 +353,8 @@ fn create_streaming_bytes_verification_failure() {
     let result = factory.create_streaming_bytes(payload, "text/plain", Some(opts));
     assert!(result.is_err());
     match result.unwrap_err() {
-        FactoryError::VerificationFailed(msg) => {
-            assert!(msg.contains("Post-sign verification failed"));
+        FactoryError::VerificationFailed { detail } => {
+            assert!(detail.contains("Post-sign verification failed"));
         }
         other => panic!("expected VerificationFailed, got: {other}"),
     }

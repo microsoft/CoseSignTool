@@ -13,6 +13,7 @@ use openssl::pkey::PKey;
 use openssl::rsa::Rsa;
 use openssl::x509::{X509Builder, X509NameBuilder};
 use rcgen::{CertificateParams, DnType, ExtendedKeyUsagePurpose, KeyPair};
+use std::borrow::Cow;
 use std::ffi::{CStr, CString};
 use std::ptr;
 
@@ -82,7 +83,7 @@ fn generate_ec_cert() -> Vec<u8> {
 #[test]
 fn test_ffi_resolve_rsa_certificate() {
     let cert_der = generate_rsa_cert();
-    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string()]);
+    let policy = DidX509Policy::Eku(vec![Cow::Borrowed("1.3.6.1.5.5.7.3.3")]);
     let did_string = DidX509Builder::build_sha256(&cert_der, &[policy]).unwrap();
     let did_cstring = CString::new(did_string.as_str()).unwrap();
 
@@ -128,7 +129,7 @@ fn test_ffi_resolve_rsa_certificate() {
 #[test]
 fn test_ffi_validate_rsa_certificate() {
     let cert_der = generate_rsa_cert();
-    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string()]);
+    let policy = DidX509Policy::Eku(vec![Cow::Borrowed("1.3.6.1.5.5.7.3.3")]);
     let did_string = DidX509Builder::build_sha256(&cert_der, &[policy]).unwrap();
     let did_cstring = CString::new(did_string.as_str()).unwrap();
 
@@ -257,7 +258,7 @@ fn test_ffi_build_with_eku_ec_certificate() {
 #[test]
 fn test_ffi_parse_and_get_fields() {
     let cert_der = generate_ec_cert();
-    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string()]);
+    let policy = DidX509Policy::Eku(vec![Cow::Borrowed("1.3.6.1.5.5.7.3.3")]);
     let did_string = DidX509Builder::build_sha256(&cert_der, &[policy]).unwrap();
     let did_cstring = CString::new(did_string.as_str()).unwrap();
 
@@ -312,7 +313,7 @@ fn test_ffi_parse_and_get_fields() {
 #[test]
 fn test_ffi_resolve_ec_verify_document_structure() {
     let cert_der = generate_ec_cert();
-    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string()]);
+    let policy = DidX509Policy::Eku(vec![Cow::Borrowed("1.3.6.1.5.5.7.3.3")]);
     let did_string = DidX509Builder::build_sha256(&cert_der, &[policy]).unwrap();
     let did_cstring = CString::new(did_string.as_str()).unwrap();
 
@@ -815,7 +816,7 @@ fn test_ffi_resolve_null_chain_entry() {
 #[test]
 fn test_ffi_parsed_get_fingerprint_null_output() {
     let cert_der = generate_ec_cert();
-    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string()]);
+    let policy = DidX509Policy::Eku(vec![Cow::Borrowed("1.3.6.1.5.5.7.3.3")]);
     let did_string = DidX509Builder::build_sha256(&cert_der, &[policy]).unwrap();
     let did_cstring = CString::new(did_string.as_str()).unwrap();
 
@@ -861,7 +862,7 @@ fn test_ffi_parsed_get_fingerprint_null_handle() {
 #[test]
 fn test_ffi_parsed_get_algorithm_null_output() {
     let cert_der = generate_ec_cert();
-    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string()]);
+    let policy = DidX509Policy::Eku(vec![Cow::Borrowed("1.3.6.1.5.5.7.3.3")]);
     let did_string = DidX509Builder::build_sha256(&cert_der, &[policy]).unwrap();
     let did_cstring = CString::new(did_string.as_str()).unwrap();
 
@@ -910,7 +911,7 @@ fn test_ffi_parsed_get_algorithm_null_handle() {
 #[test]
 fn test_ffi_parsed_get_policy_count_null_output() {
     let cert_der = generate_ec_cert();
-    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string()]);
+    let policy = DidX509Policy::Eku(vec![Cow::Borrowed("1.3.6.1.5.5.7.3.3")]);
     let did_string = DidX509Builder::build_sha256(&cert_der, &[policy]).unwrap();
     let did_cstring = CString::new(did_string.as_str()).unwrap();
 

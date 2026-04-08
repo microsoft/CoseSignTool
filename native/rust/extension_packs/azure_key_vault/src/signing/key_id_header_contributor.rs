@@ -5,14 +5,15 @@
 //!
 //! Adds the `kid` (label 4) header to PROTECTED headers with the full AKV key URI.
 
-use cose_sign1_primitives::{CoseHeaderLabel, CoseHeaderMap, CoseHeaderValue};
+use cose_sign1_primitives::{ArcSlice, CoseHeaderLabel, CoseHeaderMap, CoseHeaderValue};
 use cose_sign1_signing::{HeaderContributor, HeaderContributorContext, HeaderMergeStrategy};
 
 /// Header contributor that adds the AKV key identifier to protected headers.
 ///
 /// Maps V2's kid header contribution in `AzureKeyVaultSigningService`.
+/// Stores the kid bytes as `ArcSlice` so contributing is a cheap refcount bump.
 pub struct KeyIdHeaderContributor {
-    key_id: String,
+    kid_bytes: ArcSlice,
 }
 
 impl KeyIdHeaderContributor {
@@ -22,7 +23,9 @@ impl KeyIdHeaderContributor {
     ///
     /// * `key_id` - The full AKV key URI (e.g., `https://{vault}.vault.azure.net/keys/{name}/{version}`)
     pub fn new(key_id: String) -> Self {
-        Self { key_id }
+        Self {
+            kid_bytes: ArcSlice::from(key_id.into_bytes()),
+        }
     }
 }
 
@@ -38,10 +41,7 @@ impl HeaderContributor for KeyIdHeaderContributor {
     ) {
         let kid_label = CoseHeaderLabel::Int(4);
         if headers.get(&kid_label).is_none() {
-            headers.insert(
-                kid_label,
-                CoseHeaderValue::Bytes(self.key_id.as_bytes().to_vec().into()),
-            );
+            headers.insert(kid_label, CoseHeaderValue::Bytes(self.kid_bytes.clone()));
         }
     }
 

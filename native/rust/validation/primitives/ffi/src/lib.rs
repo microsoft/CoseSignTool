@@ -38,13 +38,15 @@ use std::ffi::{c_char, CStr};
 use std::ptr;
 use std::sync::Arc;
 
-#[repr(C)]
+/// Opaque type used behind `*mut` pointers in FFI. Not intended to cross the ABI boundary by value.
+#[allow(non_camel_case_types)]
 pub struct cose_sign1_trust_plan_builder_t {
     packs: Vec<Arc<dyn CoseSign1TrustPack>>,
     selected_plans: Vec<CompiledTrustPlan>,
 }
 
-#[repr(C)]
+/// Opaque type used behind `*mut` pointers in FFI. Not intended to cross the ABI boundary by value.
+#[allow(non_camel_case_types)]
 pub struct cose_sign1_compiled_trust_plan_t {
     bundled: CoseSign1CompiledTrustPlan,
 }

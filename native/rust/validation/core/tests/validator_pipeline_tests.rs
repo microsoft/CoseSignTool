@@ -242,12 +242,12 @@ fn validate_bytes_signature_missing_payload_when_detached_and_no_payload_provide
 
     assert_eq!(ValidationResultKind::Failure, result.signature.kind);
     assert_eq!(
-        Some(CoseSign1Validator::ERROR_CODE_SIGNATURE_MISSING_PAYLOAD.to_string()),
         result
             .signature
             .failures
             .first()
-            .and_then(|f| f.error_code.clone())
+            .and_then(|f| f.error_code.as_deref()),
+        Some(CoseSign1Validator::ERROR_CODE_SIGNATURE_MISSING_PAYLOAD)
     );
 }
 
@@ -268,12 +268,12 @@ fn validate_bytes_signature_errors_when_alg_missing() {
 
     assert_eq!(ValidationResultKind::Failure, result.signature.kind);
     assert_eq!(
-        Some(CoseSign1Validator::ERROR_CODE_NO_APPLICABLE_SIGNATURE_VALIDATOR.to_string()),
         result
             .signature
             .failures
             .first()
-            .and_then(|f| f.error_code.clone())
+            .and_then(|f| f.error_code.as_deref()),
+        Some(CoseSign1Validator::ERROR_CODE_NO_APPLICABLE_SIGNATURE_VALIDATOR)
     );
 }
 
@@ -315,12 +315,12 @@ fn validate_bytes_embedded_payload_signature_success_and_failure_paths() {
             .unwrap();
         assert_eq!(ValidationResultKind::Failure, result.signature.kind);
         assert_eq!(
-            Some(CoseSign1Validator::ERROR_CODE_SIGNATURE_VERIFICATION_FAILED.to_string()),
             result
                 .signature
                 .failures
                 .first()
-                .and_then(|f| f.error_code.clone())
+                .and_then(|f| f.error_code.as_deref()),
+            Some(CoseSign1Validator::ERROR_CODE_SIGNATURE_VERIFICATION_FAILED)
         );
     }
 
@@ -340,12 +340,12 @@ fn validate_bytes_embedded_payload_signature_success_and_failure_paths() {
             .unwrap();
         assert_eq!(ValidationResultKind::Failure, result.signature.kind);
         assert_eq!(
-            Some(CoseSign1Validator::ERROR_CODE_SIGNATURE_VERIFICATION_FAILED.to_string()),
             result
                 .signature
                 .failures
                 .first()
-                .and_then(|f| f.error_code.clone())
+                .and_then(|f| f.error_code.as_deref()),
+            Some(CoseSign1Validator::ERROR_CODE_SIGNATURE_VERIFICATION_FAILED)
         );
     }
 }

@@ -5,6 +5,8 @@
 
 use cbor_primitives::CborEncoder;
 
+use std::borrow::Cow;
+
 use cose_sign1_crypto_openssl::jwk_verifier::OpenSslJwkVerifierFactory;
 use cose_sign1_transparent_mst::validation::receipt_verify::{
     base64url_decode, find_jwk_for_kid, is_cose_sign1_tagged_18, local_jwk_to_ec_jwk, sha256,
@@ -16,7 +18,7 @@ use cose_sign1_transparent_mst::validation::receipt_verify::{
 #[test]
 fn test_receipt_verify_error_debug_all_variants() {
     let errors = vec![
-        ReceiptVerifyError::ReceiptDecode("test".to_string()),
+        ReceiptVerifyError::ReceiptDecode(Cow::Borrowed("test")),
         ReceiptVerifyError::MissingAlg,
         ReceiptVerifyError::MissingKid,
         ReceiptVerifyError::UnsupportedAlg(-100),
@@ -24,12 +26,12 @@ fn test_receipt_verify_error_debug_all_variants() {
         ReceiptVerifyError::MissingVdp,
         ReceiptVerifyError::MissingProof,
         ReceiptVerifyError::MissingIssuer,
-        ReceiptVerifyError::JwksParse("parse error".to_string()),
-        ReceiptVerifyError::JwksFetch("fetch error".to_string()),
-        ReceiptVerifyError::JwkNotFound("kid123".to_string()),
-        ReceiptVerifyError::JwkUnsupported("unsupported".to_string()),
-        ReceiptVerifyError::StatementReencode("reencode".to_string()),
-        ReceiptVerifyError::SigStructureEncode("sigstruct".to_string()),
+        ReceiptVerifyError::JwksParse(Cow::Borrowed("parse error")),
+        ReceiptVerifyError::JwksFetch(Cow::Borrowed("fetch error")),
+        ReceiptVerifyError::JwkNotFound(Cow::Borrowed("kid123")),
+        ReceiptVerifyError::JwkUnsupported(Cow::Borrowed("unsupported")),
+        ReceiptVerifyError::StatementReencode(Cow::Borrowed("reencode")),
+        ReceiptVerifyError::SigStructureEncode(Cow::Borrowed("sigstruct")),
         ReceiptVerifyError::DataHashMismatch,
         ReceiptVerifyError::SignatureInvalid,
     ];
@@ -134,7 +136,7 @@ fn test_local_jwk_to_ec_jwk_p384_valid() {
     assert_eq!(ec.crv, "P-384");
     assert_eq!(ec.x, x_b64);
     assert_eq!(ec.y, y_b64);
-    assert_eq!(ec.kid, Some("test-key".to_string()));
+    assert_eq!(ec.kid, Some(Cow::Borrowed("test-key")));
 }
 
 #[test]

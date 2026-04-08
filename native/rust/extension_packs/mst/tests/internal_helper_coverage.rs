@@ -51,10 +51,10 @@ fn test_validate_cose_alg_supported_rs256() {
 #[test]
 fn test_ccf_accumulator_sha256_valid() {
     let proof = MstCcfInclusionProof {
-        internal_txn_hash: vec![0x42; 32], // 32 bytes
+        internal_txn_hash: [0x42; 32], // 32 bytes
         internal_evidence: "test evidence".to_string(),
-        data_hash: vec![0x01; 32], // 32 bytes
-        path: vec![(true, vec![0x02; 32])],
+        data_hash: [0x01; 32], // 32 bytes
+        path: vec![(true, [0x02; 32])],
     };
 
     let expected_data_hash = [0x01; 32];
@@ -66,52 +66,15 @@ fn test_ccf_accumulator_sha256_valid() {
     assert_eq!(result.unwrap(), result2.unwrap());
 }
 
-#[test]
-fn test_ccf_accumulator_sha256_wrong_internal_txn_hash_len() {
-    let proof = MstCcfInclusionProof {
-        internal_txn_hash: vec![0x42; 31], // Wrong length
-        internal_evidence: "test evidence".to_string(),
-        data_hash: vec![0x01; 32],
-        path: vec![],
-    };
-
-    let expected_data_hash = [0x01; 32];
-    let result = ccf_accumulator_sha256(&proof, expected_data_hash);
-    assert!(result.is_err());
-    match result.unwrap_err() {
-        ReceiptVerifyError::ReceiptDecode(msg) => {
-            assert!(msg.contains("unexpected_internal_txn_hash_len: 31"));
-        }
-        _ => panic!("Wrong error type"),
-    }
-}
-
-#[test]
-fn test_ccf_accumulator_sha256_wrong_data_hash_len() {
-    let proof = MstCcfInclusionProof {
-        internal_txn_hash: vec![0x42; 32],
-        internal_evidence: "test evidence".to_string(),
-        data_hash: vec![0x01; 31], // Wrong length
-        path: vec![],
-    };
-
-    let expected_data_hash = [0x01; 32];
-    let result = ccf_accumulator_sha256(&proof, expected_data_hash);
-    assert!(result.is_err());
-    match result.unwrap_err() {
-        ReceiptVerifyError::ReceiptDecode(msg) => {
-            assert!(msg.contains("unexpected_data_hash_len: 31"));
-        }
-        _ => panic!("Wrong error type"),
-    }
-}
+// Wrong-length hash tests have been removed because MstCcfInclusionProof now
+// uses [u8; 32] fixed arrays — invalid lengths are caught at parse time.
 
 #[test]
 fn test_ccf_accumulator_sha256_data_hash_mismatch() {
     let proof = MstCcfInclusionProof {
-        internal_txn_hash: vec![0x42; 32],
+        internal_txn_hash: [0x42; 32],
         internal_evidence: "test evidence".to_string(),
-        data_hash: vec![0x01; 32],
+        data_hash: [0x01; 32],
         path: vec![],
     };
 
@@ -141,8 +104,8 @@ fn test_extract_proof_blobs_valid_map() {
 
     let result = extract_proof_blobs(&vdp_value).unwrap();
     assert_eq!(result.len(), 2);
-    assert_eq!(result[0], vec![0x01, 0x02, 0x03]);
-    assert_eq!(result[1], vec![0x04, 0x05, 0x06]);
+    assert_eq!(&*result[0], &[0x01, 0x02, 0x03]);
+    assert_eq!(&*result[1], &[0x04, 0x05, 0x06]);
 }
 
 #[test]
@@ -352,12 +315,12 @@ fn test_mst_ccf_inclusion_proof_parse_valid() {
     let proof_blob = enc.into_bytes();
     let result = MstCcfInclusionProof::parse(&proof_blob).unwrap();
 
-    assert_eq!(result.internal_txn_hash, vec![0x42; 32]);
+    assert_eq!(result.internal_txn_hash, [0x42; 32]);
     assert_eq!(result.internal_evidence, "test evidence");
-    assert_eq!(result.data_hash, vec![0x01; 32]);
+    assert_eq!(result.data_hash, [0x01; 32]);
     assert_eq!(result.path.len(), 1);
     assert_eq!(result.path[0].0, true);
-    assert_eq!(result.path[0].1, vec![0x02; 32]);
+    assert_eq!(result.path[0].1, [0x02; 32]);
 }
 
 #[test]
@@ -425,9 +388,9 @@ fn test_parse_leaf_valid() {
     let leaf_bytes = enc.into_bytes();
     let result = parse_leaf(&leaf_bytes).unwrap();
 
-    assert_eq!(result.0, vec![0x42; 32]); // internal_txn_hash
+    assert_eq!(result.0, [0x42; 32]); // internal_txn_hash
     assert_eq!(result.1, "test evidence"); // internal_evidence
-    assert_eq!(result.2, vec![0x01; 32]); // data_hash
+    assert_eq!(result.2, [0x01; 32]); // data_hash
 }
 
 #[test]
@@ -470,9 +433,9 @@ fn test_parse_path_valid() {
 
     assert_eq!(result.len(), 2);
     assert_eq!(result[0].0, true);
-    assert_eq!(result[0].1, vec![0x01; 32]);
+    assert_eq!(result[0].1, [0x01; 32]);
     assert_eq!(result[1].0, false);
-    assert_eq!(result[1].1, vec![0x02; 32]);
+    assert_eq!(result[1].1, [0x02; 32]);
 }
 
 #[test]

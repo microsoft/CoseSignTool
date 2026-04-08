@@ -6,14 +6,15 @@ use cose_sign1_certificates::validation::facts::{
     X509PublicKeyAlgorithmFact, X509SigningCertificateIdentityFact,
 };
 use cose_sign1_validation_primitives::fact_properties::{FactProperties, FactValue};
+use std::sync::Arc;
 
 #[test]
 fn certificate_fact_properties_expose_expected_fields() {
     let signing = X509SigningCertificateIdentityFact {
-        certificate_thumbprint: "thumb".to_string(),
-        subject: "subj".to_string(),
-        issuer: "iss".to_string(),
-        serial_number: "serial".to_string(),
+        certificate_thumbprint: Arc::from("thumb"),
+        subject: Arc::from("subj"),
+        issuer: Arc::from("iss"),
+        serial_number: Arc::from("serial"),
         not_before_unix_seconds: 1,
         not_after_unix_seconds: 2,
     };
@@ -46,9 +47,9 @@ fn certificate_fact_properties_expose_expected_fields() {
 
     let chain_id = X509ChainElementIdentityFact {
         index: 3,
-        certificate_thumbprint: "t".to_string(),
-        subject: "s".to_string(),
-        issuer: "i".to_string(),
+        certificate_thumbprint: Arc::from("t"),
+        subject: Arc::from("s"),
+        issuer: Arc::from("i"),
     };
 
     assert_eq!(
@@ -75,7 +76,7 @@ fn certificate_fact_properties_expose_expected_fields() {
         chain_built: true,
         is_trusted: false,
         status_flags: 123,
-        status_summary: Some("ok".to_string()),
+        status_summary: Some(Arc::from("ok")),
         element_count: 2,
     };
 
@@ -101,8 +102,8 @@ fn certificate_fact_properties_expose_expected_fields() {
     ));
 
     let alg = X509PublicKeyAlgorithmFact {
-        certificate_thumbprint: "t".to_string(),
-        algorithm_oid: "1.2.3".to_string(),
+        certificate_thumbprint: Arc::from("t"),
+        algorithm_oid: Arc::from("1.2.3"),
         algorithm_name: None,
         is_pqc: true,
     };

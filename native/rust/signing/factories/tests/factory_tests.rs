@@ -281,9 +281,11 @@ fn test_factory_register_custom_factory() {
             _content_type: &str,
             options: &dyn Any,
         ) -> Result<Vec<u8>, FactoryError> {
-            let _opts = options
-                .downcast_ref::<TestOptions>()
-                .ok_or_else(|| FactoryError::InvalidInput("Expected TestOptions".to_string()))?;
+            let _opts = options.downcast_ref::<TestOptions>().ok_or_else(|| {
+                FactoryError::InvalidInput {
+                    detail: "Expected TestOptions".into(),
+                }
+            })?;
 
             let context = SigningContext::from_bytes(payload.to_vec());
             let signer = self.signing_service.get_cose_signer(&context)?;
@@ -301,9 +303,9 @@ fn test_factory_register_custom_factory() {
                 .verify_signature(&message_bytes, &context)?;
 
             if !verification_result {
-                return Err(FactoryError::VerificationFailed(
-                    "Post-sign verification failed".to_string(),
-                ));
+                return Err(FactoryError::VerificationFailed {
+                    detail: "Post-sign verification failed".into(),
+                });
             }
 
             Ok(message_bytes)
@@ -316,7 +318,9 @@ fn test_factory_register_custom_factory() {
             options: &dyn Any,
         ) -> Result<CoseSign1Message, FactoryError> {
             let bytes = self.create_bytes_dyn(payload, content_type, options)?;
-            CoseSign1Message::parse(&bytes).map_err(|e| FactoryError::SigningFailed(e.to_string()))
+            CoseSign1Message::parse(&bytes).map_err(|e| FactoryError::SigningFailed {
+                detail: e.to_string().into(),
+            })
         }
     }
 
@@ -347,9 +351,9 @@ fn test_factory_create_with_unregistered_type_error_message() {
 
     assert!(result.is_err());
     match result.unwrap_err() {
-        FactoryError::SigningFailed(msg) => {
-            assert!(msg.contains("No factory registered"));
-            assert!(msg.contains("UnregisteredOptions"));
+        FactoryError::SigningFailed { detail } => {
+            assert!(detail.contains("No factory registered"));
+            assert!(detail.contains("UnregisteredOptions"));
         }
         _ => panic!("Expected SigningFailed error with type name"),
     }

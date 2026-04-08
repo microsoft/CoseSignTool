@@ -175,8 +175,8 @@ fn chain_trust_reports_trust_evaluation_disabled_when_not_trusting_embedded_chai
     assert!(v[0].chain_built);
     assert!(!v[0].is_trusted);
     assert_eq!(
-        Some("TrustEvaluationDisabled".to_string()),
-        v[0].status_summary
+        v[0].status_summary.as_deref(),
+        Some("TrustEvaluationDisabled")
     );
 }
 
@@ -229,7 +229,7 @@ fn chain_trust_reports_not_well_formed_when_trusting_embedded_chain_but_chain_is
     assert!(v[0].chain_built);
     assert!(!v[0].is_trusted);
     assert_eq!(
-        Some("EmbeddedChainNotWellFormed".to_string()),
-        v[0].status_summary
+        v[0].status_summary.as_deref(),
+        Some("EmbeddedChainNotWellFormed")
     );
 }

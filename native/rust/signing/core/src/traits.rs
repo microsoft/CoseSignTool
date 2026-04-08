@@ -18,7 +18,7 @@ pub trait SigningService: Send + Sync {
     /// Gets a signer for the given signing context.
     ///
     /// Maps V2 `GetSignerAsync()`.
-    fn get_cose_signer(&self, context: &SigningContext) -> Result<CoseSigner, SigningError>;
+    fn get_cose_signer(&self, context: &SigningContext<'_>) -> Result<CoseSigner, SigningError>;
 
     /// Returns whether this is a remote signing service.
     fn is_remote(&self) -> bool;
@@ -37,7 +37,7 @@ pub trait SigningService: Send + Sync {
     fn verify_signature(
         &self,
         message_bytes: &[u8],
-        context: &SigningContext,
+        context: &SigningContext<'_>,
     ) -> Result<bool, SigningError>;
 }
 

@@ -326,7 +326,7 @@ fn resolve_jwks_for_issuer(
 ) -> Option<String> {
     if let Some(ref cache) = options.jwks_cache {
         if let Some(doc) = cache.get(issuer) {
-            return serde_json::to_string(&doc).ok();
+            return serde_json::to_string(&*doc).ok();
         }
     }
     if options.allow_network_fetch {

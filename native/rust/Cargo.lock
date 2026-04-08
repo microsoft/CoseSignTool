@@ -381,7 +381,6 @@ dependencies = [
  "cose_sign1_validation_primitives",
  "crypto_primitives",
  "did_x509",
- "once_cell",
  "openssl",
  "rcgen",
  "serde_json",
@@ -418,7 +417,6 @@ dependencies = [
  "cose_sign1_validation",
  "cose_sign1_validation_primitives",
  "crypto_primitives",
- "once_cell",
  "regex",
  "serde_json",
  "sha2",
@@ -554,7 +552,6 @@ dependencies = [
  "cose_sign1_signing",
  "crypto_primitives",
  "libc",
- "once_cell",
  "openssl",
  "tempfile",
 ]
@@ -623,7 +620,6 @@ dependencies = [
  "cose_sign1_signing",
  "crypto_primitives",
  "libc",
- "once_cell",
  "openssl",
  "tempfile",
 ]
@@ -644,7 +640,6 @@ dependencies = [
  "cose_sign1_validation",
  "cose_sign1_validation_primitives",
  "crypto_primitives",
- "once_cell",
  "openssl",
  "serde",
  "serde_json",
@@ -705,7 +700,6 @@ dependencies = [
  "cbor_primitives",
  "cbor_primitives_everparse",
  "cose_sign1_primitives",
- "once_cell",
  "regex",
  "sha2",
 ]

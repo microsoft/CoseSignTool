@@ -29,22 +29,21 @@ fn main() {
 
     // Build with an EKU policy (code-signing OID 1.3.6.1.5.5.7.3.3)
     let eku_policy = DidX509Policy::Eku(vec![Cow::Borrowed("1.3.6.1.5.5.7.3.3")]);
-    let did_eku = DidX509Builder::build_sha256(&ca_der, &[eku_policy.clone()])
-        .expect("build EKU DID");
+    let did_eku =
+        DidX509Builder::build_sha256(&ca_der, &[eku_policy.clone()]).expect("build EKU DID");
     println!("  DID (EKU):     {}", did_eku);
 
     // Build with a subject policy
-    let subject_policy = DidX509Policy::Subject(vec![
-        ("CN".to_string(), "Example Leaf".to_string()),
-    ]);
+    let subject_policy =
+        DidX509Policy::Subject(vec![("CN".to_string(), "Example Leaf".to_string())]);
     let did_subject = DidX509Builder::build_sha256(&ca_der, &[subject_policy.clone()])
         .expect("build subject DID");
     println!("  DID (Subject): {}", did_subject);
 
     // Build with a SAN policy
     let san_policy = DidX509Policy::San(SanType::Dns, "leaf.example.com".to_string());
-    let did_san = DidX509Builder::build_sha256(&ca_der, &[san_policy.clone()])
-        .expect("build SAN DID");
+    let did_san =
+        DidX509Builder::build_sha256(&ca_der, &[san_policy.clone()]).expect("build SAN DID");
     println!("  DID (SAN):     {}", did_san);
 
     // ── 3. Parse DID:x509 identifiers back into components ───────────
@@ -73,13 +72,14 @@ fn main() {
     println!("  DID (Subject) valid:     {}", result.is_valid);
 
     // Demonstrate a failing validation with a wrong subject
-    let wrong_subject = DidX509Policy::Subject(vec![
-        ("CN".to_string(), "Wrong Name".to_string()),
-    ]);
-    let did_wrong = DidX509Builder::build_sha256(&ca_der, &[wrong_subject])
-        .expect("build wrong DID");
+    let wrong_subject = DidX509Policy::Subject(vec![("CN".to_string(), "Wrong Name".to_string())]);
+    let did_wrong =
+        DidX509Builder::build_sha256(&ca_der, &[wrong_subject]).expect("build wrong DID");
     let result = DidX509Validator::validate(&did_wrong, &chain).expect("validate wrong DID");
-    println!("  DID (wrong CN) valid:    {} (expected false)", result.is_valid);
+    println!(
+        "  DID (wrong CN) valid:    {} (expected false)",
+        result.is_valid
+    );
     if !result.errors.is_empty() {
         println!("  Validation errors:       {:?}", result.errors);
     }

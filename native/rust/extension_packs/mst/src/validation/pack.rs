@@ -14,10 +14,10 @@ use cose_sign1_validation_primitives::facts::{FactKey, TrustFactContext, TrustFa
 use cose_sign1_validation_primitives::ids::sha256_of_bytes;
 use cose_sign1_validation_primitives::plan::CompiledTrustPlan;
 use cose_sign1_validation_primitives::subject::TrustSubject;
-use once_cell::sync::Lazy;
 use std::borrow::Cow;
 use std::collections::HashSet;
 use std::sync::Arc;
+use std::sync::LazyLock;
 
 use crate::validation::receipt_verify::{
     verify_mst_receipt, ReceiptVerifyError, ReceiptVerifyInput,
@@ -288,7 +288,7 @@ impl TrustFactProducer for MstTrustPack {
 
     /// Return the set of fact keys this pack can produce.
     fn provides(&self) -> &'static [FactKey] {
-        static PROVIDED: Lazy<[FactKey; 11]> = Lazy::new(|| {
+        static PROVIDED: LazyLock<[FactKey; 11]> = LazyLock::new(|| {
             [
                 // Counter-signature projection (message-scoped)
                 FactKey::of::<CounterSignatureSubjectFact>(),

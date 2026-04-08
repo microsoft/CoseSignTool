@@ -23,8 +23,7 @@ fn main() {
     println!("=== Step 1: Generate ephemeral certificate ===\n");
 
     let rcgen::CertifiedKey { cert, .. } =
-        rcgen::generate_simple_self_signed(vec!["example-leaf".to_string()])
-            .expect("rcgen failed");
+        rcgen::generate_simple_self_signed(vec!["example-leaf".to_string()]).expect("rcgen failed");
     let leaf_der = cert.der().to_vec();
     println!("  Leaf cert DER size: {} bytes", leaf_der.len());
 
@@ -144,9 +143,9 @@ fn build_cose_sign1_with_x5chain(leaf_der: &[u8], payload: &[u8]) -> Vec<u8> {
     // Protected headers: CBOR bstr wrapping a CBOR map
     let mut hdr_enc = p.encoder();
     hdr_enc.encode_map(2).unwrap();
-    hdr_enc.encode_i64(1).unwrap();   // label: alg
-    hdr_enc.encode_i64(-7).unwrap();  // value: ES256
-    hdr_enc.encode_i64(33).unwrap();  // label: x5chain
+    hdr_enc.encode_i64(1).unwrap(); // label: alg
+    hdr_enc.encode_i64(-7).unwrap(); // value: ES256
+    hdr_enc.encode_i64(33).unwrap(); // label: x5chain
     hdr_enc.encode_bstr(leaf_der).unwrap();
     let protected_bytes = hdr_enc.into_bytes();
     enc.encode_bstr(&protected_bytes).unwrap();

@@ -144,8 +144,8 @@ impl cose_sign1_signing::SigningService for TestableSimpleSigningService {
     }
 
     fn service_metadata(&self) -> &cose_sign1_signing::SigningServiceMetadata {
-        static METADATA: once_cell::sync::Lazy<cose_sign1_signing::SigningServiceMetadata> =
-            once_cell::sync::Lazy::new(|| {
+        static METADATA: std::sync::LazyLock<cose_sign1_signing::SigningServiceMetadata> =
+            std::sync::LazyLock::new(|| {
                 cose_sign1_signing::SigningServiceMetadata::new(
                     "FFI Signing Service".to_string(),
                     "1.0.0".to_string(),

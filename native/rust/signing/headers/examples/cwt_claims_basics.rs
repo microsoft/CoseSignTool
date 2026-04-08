@@ -7,7 +7,7 @@
 //! Run with:
 //!   cargo run --example cwt_claims_basics -p cose_sign1_headers
 
-use cose_sign1_headers::{CwtClaimValue, CwtClaims, CWTClaimsHeaderLabels};
+use cose_sign1_headers::{CWTClaimsHeaderLabels, CwtClaimValue, CwtClaims};
 
 fn main() {
     // ── 1. Build CWT claims using the fluent API ─────────────────────
@@ -17,7 +17,7 @@ fn main() {
         .with_issuer("https://example.com/issuer")
         .with_subject("software-artifact-v2.1")
         .with_audience("https://transparency.example.com")
-        .with_issued_at(1_700_000_000)      // 2023-11-14T22:13:20Z
+        .with_issued_at(1_700_000_000) // 2023-11-14T22:13:20Z
         .with_not_before(1_700_000_000)
         .with_expiration_time(1_731_536_000) // ~1 year later
         .with_cwt_id(b"unique-claim-id-001".to_vec())
@@ -31,7 +31,10 @@ fn main() {
     println!("  Issued At:  {:?}", claims.issued_at);
     println!("  Not Before: {:?}", claims.not_before);
     println!("  Expires:    {:?}", claims.expiration_time);
-    println!("  CWT ID:     {:?}", claims.cwt_id.as_ref().map(|b| String::from_utf8_lossy(b)));
+    println!(
+        "  CWT ID:     {:?}",
+        claims.cwt_id.as_ref().map(|b| String::from_utf8_lossy(b))
+    );
     println!("  Custom:     {} claim(s)", claims.custom_claims.len());
 
     // ── 2. Serialize to CBOR bytes ───────────────────────────────────
@@ -69,8 +72,14 @@ fn main() {
     println!("    Issuer (iss):     {}", CWTClaimsHeaderLabels::ISSUER);
     println!("    Subject (sub):    {}", CWTClaimsHeaderLabels::SUBJECT);
     println!("    Audience (aud):   {}", CWTClaimsHeaderLabels::AUDIENCE);
-    println!("    Expiration (exp): {}", CWTClaimsHeaderLabels::EXPIRATION_TIME);
-    println!("    Not Before (nbf): {}", CWTClaimsHeaderLabels::NOT_BEFORE);
+    println!(
+        "    Expiration (exp): {}",
+        CWTClaimsHeaderLabels::EXPIRATION_TIME
+    );
+    println!(
+        "    Not Before (nbf): {}",
+        CWTClaimsHeaderLabels::NOT_BEFORE
+    );
     println!("    Issued At (iat):  {}", CWTClaimsHeaderLabels::ISSUED_AT);
     println!("    CWT ID (cti):     {}", CWTClaimsHeaderLabels::CWT_ID);
 
@@ -86,7 +95,10 @@ fn main() {
     println!("  Minimal CBOR:    {} bytes", minimal_bytes.len());
 
     let roundtrip = CwtClaims::from_cbor_bytes(&minimal_bytes).expect("minimal decode");
-    assert_eq!(roundtrip.subject.as_deref(), Some(CwtClaims::DEFAULT_SUBJECT));
+    assert_eq!(
+        roundtrip.subject.as_deref(),
+        Some(CwtClaims::DEFAULT_SUBJECT)
+    );
     println!("  Minimal round-trip: ✓");
 
     println!("\n=== All steps completed successfully! ===");

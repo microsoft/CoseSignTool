@@ -58,7 +58,7 @@ The interface for certificate provider plugins that extend signing capabilities:
 ```csharp
 public interface ICertificateProviderPlugin
 {
-    string ProviderName { get; }                   // Unique provider identifier (e.g., "azure-trusted-signing")
+    string ProviderName { get; }                   // Unique provider identifier (e.g., "azure-artifact-signing")
     string Description { get; }                    // Provider description for help output
     IDictionary<string, string> GetProviderOptions(); // Provider-specific command-line options
     bool CanCreateProvider(IConfiguration configuration); // Check if required parameters are present
@@ -68,7 +68,7 @@ public interface ICertificateProviderPlugin
 
 **Key Concepts:**
 - **Provider Name**: Lowercase, hyphenated identifier used with `--cert-provider` parameter
-- **Provider Options**: Custom command-line parameters specific to the provider (e.g., `--ats-endpoint`)
+- **Provider Options**: Custom command-line parameters specific to the provider (e.g., `--aas-endpoint`)
 - **Signing Key Provider**: Returns an `ICoseSigningKeyProvider` for certificate-based signing operations
 - **Configuration-Based**: Uses `IConfiguration` to access command-line parameters and settings
 
@@ -77,10 +77,10 @@ Certificate provider plugins integrate seamlessly with the built-in `sign` and p
 
 ```bash
 # Using with built-in sign command
-CoseSignTool sign --payload file.txt --cert-provider azure-trusted-signing --ats-endpoint https://... --ats-account-name myaccount
+CoseSignTool sign --payload file.txt --cert-provider azure-artifact-signing --aas-endpoint https://... --aas-account-name myaccount
 
 # Using with indirect-sign plugin command
-CoseSignTool indirect-sign --payload file.txt --signature file.cose --cert-provider azure-trusted-signing --ats-endpoint https://...
+CoseSignTool indirect-sign --payload file.txt --signature file.cose --cert-provider azure-artifact-signing --aas-endpoint https://...
 ```
 
 #### IPluginCommand
@@ -386,7 +386,7 @@ Certificate provider plugins extend the signing capabilities of CoseSignTool by 
 
 Certificate provider plugins are ideal for:
 - **Cloud HSM Integration**: Azure Key Vault, AWS KMS, Google Cloud KMS
-- **Remote Signing Services**: Azure Trusted Signing, DigiCert ONE, GlobalSign DSS
+- **Remote Signing Services**: Azure Artifact Signing, DigiCert ONE, GlobalSign DSS
 - **Hardware Security Modules**: Thales Luna, Utimaco, nCipher
 - **Smart Cards and Tokens**: YubiKey, TPM, PIV cards
 - **Custom Key Management**: Proprietary key storage and signing infrastructure
@@ -890,18 +890,18 @@ public class YourCertProviderPluginTests
 }
 ```
 
-### Example: Azure Trusted Signing Certificate Provider
+### Example: Azure Artifact Signing Certificate Provider
 
 For a complete, production-ready example of a certificate provider plugin, see:
-- **Source Code**: `CoseSignTool.AzureTrustedSigning.Plugin/`
+- **Source Code**: `CoseSignTool.AzureArtifactSigning.Plugin/`
 - **Documentation**: [CertificateProviders.md](CertificateProviders.md)
-- **Usage Guide**: [CoseSign1.Certificates.AzureTrustedSigning.md](CoseSign1.Certificates.AzureTrustedSigning.md)
+- **Usage Guide**: [CoseSign1.Certificates.AzureArtifactSigning.md](CoseSign1.Certificates.AzureArtifactSigning.md)
 
-The Azure Trusted Signing plugin demonstrates:
+The Azure Artifact Signing plugin demonstrates:
 - Integration with Azure cloud-based signing service
 - DefaultAzureCredential authentication
 - Comprehensive error handling
-- Provider-specific parameters (`--ats-endpoint`, `--ats-account-name`, `--ats-cert-profile-name`)
+- Provider-specific parameters (`--aas-endpoint`, `--aas-account-name`, `--aas-cert-profile-name`)
 - Full test coverage
 
 ## Plugin Security Model
@@ -1166,19 +1166,19 @@ CoseSignTool your_register --help
 CoseSignTool --help
 # Output:
 #   Certificate Providers:
-#     azure-trusted-signing    Azure Trusted Signing cloud-based certificate provider
+#     azure-artifact-signing    Azure Artifact Signing cloud-based certificate provider
 
 # Sign command help shows certificate providers
 CoseSignTool sign --help
 # Output includes:
 #   Certificate Providers:
 #     The following certificate provider plugins are available for signing:
-#     azure-trusted-signing    Azure Trusted Signing cloud-based certificate provider
-#       Usage: CoseSignTool sign <payload> --cert-provider azure-trusted-signing [options]
+#     azure-artifact-signing    Azure Artifact Signing cloud-based certificate provider
+#       Usage: CoseSignTool sign <payload> --cert-provider azure-artifact-signing [options]
 #       Options:
-#         --ats-endpoint
-#         --ats-account-name
-#         --ats-cert-profile-name
+#         --aas-endpoint
+#         --aas-account-name
+#         --aas-cert-profile-name
 
 # Indirect-sign command help also shows certificate providers
 CoseSignTool indirect-sign --help
@@ -1277,41 +1277,40 @@ CoseSignTool mst_register --endpoint https://your-mst-instance.azure.com --paylo
 CoseSignTool mst_register --endpoint https://your-cts-instance.azure.com --payload file.txt --signature file.cose
 ```
 
-### Certificate Provider Plugin: Azure Trusted Signing
+### Certificate Provider Plugin: Azure Artifact Signing
 
-The CoseSignTool includes a production-ready certificate provider plugin for Azure Trusted Signing, demonstrating best practices for cloud-based signing services.
+The CoseSignTool includes a production-ready certificate provider plugin for Azure Artifact Signing, demonstrating best practices for cloud-based signing services.
 
-> **📖 Complete Documentation**: For comprehensive Azure Trusted Signing documentation, including setup, authentication, and advanced scenarios, see [CertificateProviders.md](CertificateProviders.md) and [CoseSign1.Certificates.AzureTrustedSigning.md](CoseSign1.Certificates.AzureTrustedSigning.md).
-
+> **📖 Complete Documentation**: For comprehensive Azure Artifact Signing documentation, including setup, authentication, and advanced scenarios, see [CertificateProviders.md](CertificateProviders.md) and [CoseSign1.Certificates.AzureArtifactSigning.md](CoseSign1.Certificates.AzureArtifactSigning.md).
 #### Quick Start
 
-The Azure Trusted Signing plugin integrates with the `sign` and `indirect-sign` commands:
+The Azure Artifact Signing plugin integrates with the `sign` and `indirect-sign` commands:
 
 ```bash
-# Sign with Azure Trusted Signing (using DefaultAzureCredential)
+# Sign with Azure Artifact Signing (using DefaultAzureCredential)
 CoseSignTool sign --payload myfile.txt \
-    --cert-provider azure-trusted-signing \
-    --ats-endpoint https://myaccount.codesigning.azure.net \
-    --ats-account-name myaccount \
-    --ats-cert-profile-name myprofile
+    --cert-provider azure-artifact-signing \
+    --aas-endpoint https://myaccount.codesigning.azure.net \
+    --aas-account-name myaccount \
+    --aas-cert-profile-name myprofile
 
-# Indirect sign with Azure Trusted Signing
+# Indirect sign with Azure Artifact Signing
 CoseSignTool indirect-sign --payload myfile.txt --signature myfile.cose \
-    --cert-provider azure-trusted-signing \
-    --ats-endpoint https://myaccount.codesigning.azure.net \
-    --ats-account-name myaccount \
-    --ats-cert-profile-name myprofile
+    --cert-provider azure-artifact-signing \
+    --aas-endpoint https://myaccount.codesigning.azure.net \
+    --aas-account-name myaccount \
+    --aas-cert-profile-name myprofile
 ```
 
 #### Plugin Structure
 ```
-CoseSignTool.AzureTrustedSigning.Plugin/
-├── AzureTrustedSigningPlugin.cs                          # Main plugin implementation (ICertificateProviderPlugin)
-├── CoseSignTool.AzureTrustedSigning.Plugin.csproj       # Project with dependency isolation
-└── [Dependencies copied to plugins/CoseSignTool.AzureTrustedSigning.Plugin/]
+CoseSignTool.AzureArtifactSigning.Plugin/
+├── AzureArtifactSigningPlugin.cs                          # Main plugin implementation (ICertificateProviderPlugin)
+├── CoseSignTool.AzureArtifactSigning.Plugin.csproj       # Project with dependency isolation
+└── [Dependencies copied to plugins/CoseSignTool.AzureArtifactSigning.Plugin/]
     ├── Azure.CodeSigning.dll
     ├── Azure.Core.dll
-    ├── Azure.Developer.TrustedSigning.CryptoProvider.dll
+    ├── Azure.Developer.ArtifactSigning.CryptoProvider.dll
     └── ...
 ```
 
@@ -1320,13 +1319,13 @@ CoseSignTool.AzureTrustedSigning.Plugin/
 1. **Dependency Isolation**: All Azure dependencies packaged in plugin subdirectory
 2. **Secure Authentication**: DefaultAzureCredential for passwordless auth
 3. **Provider-Specific Options**: Custom parameters (`--ats-*`) with prefix to avoid conflicts
-4. **Integration with CoseSign1.Certificates**: Uses `AzureTrustedSigningCoseSigningKeyProvider`
+4. **Integration with CoseSign1.Certificates**: Uses `AzureArtifactSigningCoseSigningKeyProvider`
 5. **Comprehensive Testing**: Full unit test coverage demonstrating plugin testing patterns
 
 #### Authentication Flow
 
 ```csharp
-// Azure Trusted Signing uses DefaultAzureCredential:
+// Azure Artifact Signing uses DefaultAzureCredential:
 // 1. Environment variables (AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_CLIENT_SECRET)
 // 2. Managed Identity (when running in Azure)
 // 3. Visual Studio / VS Code credentials
@@ -1335,10 +1334,10 @@ CoseSignTool.AzureTrustedSigning.Plugin/
 
 // Never requires credentials on command line
 CoseSignTool sign --payload file.txt \
-    --cert-provider azure-trusted-signing \
-    --ats-endpoint https://myaccount.codesigning.azure.net \
-    --ats-account-name myaccount \
-    --ats-cert-profile-name myprofile
+    --cert-provider azure-artifact-signing \
+    --aas-endpoint https://myaccount.codesigning.azure.net \
+    --aas-account-name myaccount \
+    --aas-cert-profile-name myprofile
 ```
 
 #### Usage in CI/CD
@@ -1349,29 +1348,29 @@ CoseSignTool sign --payload file.txt \
   with:
     creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-- name: Sign with Azure Trusted Signing
+- name: Sign with Azure Artifact Signing
   run: |
     CoseSignTool sign --payload artifact.bin \
-      --cert-provider azure-trusted-signing \
-      --ats-endpoint ${{ secrets.ATS_ENDPOINT }} \
-      --ats-account-name ${{ secrets.ATS_ACCOUNT }} \
-      --ats-cert-profile-name ${{ secrets.ATS_PROFILE }}
+      --cert-provider azure-artifact-signing \
+      --aas-endpoint ${{ secrets.AAS_ENDPOINT }} \
+      --aas-account-name ${{ secrets.AAS_ACCOUNT }} \
+      --aas-cert-profile-name ${{ secrets.AAS_PROFILE }}
 ```
 
 **Azure DevOps:**
 ```yaml
 - task: AzureCLI@2
-  displayName: 'Sign with Azure Trusted Signing'
+  displayName: 'Sign with Azure Artifact Signing'
   inputs:
     azureSubscription: 'MyServiceConnection'
     scriptType: 'bash'
     scriptLocation: 'inlineScript'
     inlineScript: |
       CoseSignTool sign --payload artifact.bin \
-        --cert-provider azure-trusted-signing \
-        --ats-endpoint $(ATS_ENDPOINT) \
-        --ats-account-name $(ATS_ACCOUNT) \
-        --ats-cert-profile-name $(ATS_PROFILE)
+        --cert-provider azure-artifact-signing \
+        --aas-endpoint $(AAS_ENDPOINT) \
+        --aas-account-name $(AAS_ACCOUNT) \
+        --aas-cert-profile-name $(AAS_PROFILE)
 ```
 
 ## Best Practices
@@ -1388,8 +1387,8 @@ CoseSignTool sign --payload file.txt \
 ### Certificate Provider Plugin Development
 
 1. **Secure Credentials**: Use `DefaultAzureCredential`, environment variables, or OS credential stores - never command-line parameters
-2. **Provider Naming**: Use lowercase with hyphens (e.g., `azure-trusted-signing`, not `AzureTrustedSigning`)
-3. **Option Prefixing**: Prefix provider-specific options to avoid conflicts (e.g., `--ats-endpoint`, not `--endpoint`)
+2. **Provider Naming**: Use lowercase with hyphens (e.g., `azure-artifact-signing`, not `AzureArtifactSigning`)
+3. **Option Prefixing**: Prefix provider-specific options to avoid conflicts (e.g., `--aas-endpoint`, not `--endpoint`)
 4. **Validation**: Implement `CanCreateProvider` to quickly validate required parameters
 5. **Remote Signing**: Implement custom `AsymmetricAlgorithm` subclass for HSM/remote signing
 6. **Certificate Chains**: Include intermediate certificates via `AdditionalCertificates` property

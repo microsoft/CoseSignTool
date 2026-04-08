@@ -11,7 +11,7 @@ CoseSignTool and CoseHandler support three commands/methods:
 Additionally, CoseSignTool supports:
 - **Plugin System**: Extend the tool with custom commands and third-party integrations (Microsoft's Signing Transparency, etc.)
 - **Certificate Provider Plugins**: Use cloud-based signing services, HSMs, or custom certificate sources
-  - Built-in support for **Azure Trusted Signing** (Microsoft's managed signing service)
+  - Built-in support for **Azure Artifact Signing** (Microsoft's managed signing service)
   - Extensible architecture for custom certificate providers
   - See [CertificateProviders.md](./docs/CertificateProviders.md) for details
 - **SCITT Compliance**: Automatic CWT (CBOR Web Token) Claims with DID:x509 identifiers for supply chain transparency
@@ -61,12 +61,12 @@ CoseSignTool sign --payload payload.txt --pfx mycert.pfx --SignatureFile signatu
 CoseSignTool sign --payload payload.txt --pfx mycert.pfx --SignatureFile signature.cose \
   --scitt false
 
-# Using Azure Trusted Signing (cloud-based signing)
+# Using Azure Artifact Signing (cloud-based signing)
 CoseSignTool sign --payload payload.txt --SignatureFile signature.cose \
-  --cp azure-trusted-signing \
-  --ats-endpoint https://contoso.codesigning.azure.net \
-  --ats-account-name ContosoAccount \
-  --ats-cert-profile-name ContosoProfile
+  --cp azure-artifact-signing \
+  --aas-endpoint https://contoso.codesigning.azure.net \
+  --aas-account-name ContosoAccount \
+  --aas-cert-profile-name ContosoProfile
 ```
 
 For complete documentation, see [SCITTCompliance.md](./docs/SCITTCompliance.md) and [CertificateProviders.md](./docs/CertificateProviders.md)

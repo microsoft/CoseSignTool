@@ -50,4 +50,67 @@ public class CoseX509ThumbprintTests
     {
         _ = new CoseX509Thumprint(SelfSignedCert1, HashAlgorithmName.SHA3_512);
     }
+
+    /// <summary>
+    /// Validates that a single <see cref="CoseX509Thumprint"/> instance can safely call
+    /// <see cref="CoseX509Thumprint.Match"/> from multiple threads concurrently without
+    /// throwing <see cref="CryptographicException"/>.
+    /// Regression test for https://github.com/microsoft/CoseSignTool/issues/191.
+    /// </summary>
+    [TestMethod]
+    public void ConcurrentMatchShouldNotThrow()
+    {
+        // Arrange — one shared thumbprint, many threads calling Match
+        CoseX509Thumprint thumbprint = new(SelfSignedCert1);
+        int degreeOfParallelism = Environment.ProcessorCount * 2;
+        int iterationsPerThread = 50;
+
+        // Act & Assert — hammer Match() from many threads at once
+        Action concurrentAction = () =>
+        {
+            Parallel.For(0, degreeOfParallelism * iterationsPerThread, new ParallelOptions { MaxDegreeOfParallelism = degreeOfParallelism }, i =>
+            {
+                // Alternate between matching and non-matching certs
+                if (i % 2 == 0)
+                {
+                    thumbprint.Match(SelfSignedCert1).Should().BeTrue();
+                }
+                else
+                {
+                    thumbprint.Match(SelfSignedCert2).Should().BeFalse();
+                }
+            });
+        };
+
+        concurrentAction.Should().NotThrow<CryptographicException>();
+    }
+
+    /// <summary>
+    /// Validates that concurrent construction of <see cref="CoseX509Thumprint"/> instances
+    /// with different hash algorithms is thread-safe.
+    /// Regression test for https://github.com/microsoft/CoseSignTool/issues/191.
+    /// </summary>
+    [TestMethod]
+    public void ConcurrentConstructionAndMatchShouldNotThrow()
+    {
+        // Arrange
+        HashAlgorithmName[] algorithms = new[] { HashAlgorithmName.SHA256, HashAlgorithmName.SHA384, HashAlgorithmName.SHA512 };
+        int degreeOfParallelism = Environment.ProcessorCount * 2;
+        int iterationsPerThread = 30;
+
+        // Act & Assert — create thumbprints and match from many threads
+        Action concurrentAction = () =>
+        {
+            Parallel.For(0, degreeOfParallelism * iterationsPerThread, new ParallelOptions { MaxDegreeOfParallelism = degreeOfParallelism }, i =>
+            {
+                HashAlgorithmName algo = algorithms[i % algorithms.Length];
+                CoseX509Thumprint thumbprint = new(SelfSignedCert1, algo);
+
+                thumbprint.Match(SelfSignedCert1).Should().BeTrue();
+                thumbprint.Match(SelfSignedCert2).Should().BeFalse();
+            });
+        };
+
+        concurrentAction.Should().NotThrow<CryptographicException>();
+    }
 }

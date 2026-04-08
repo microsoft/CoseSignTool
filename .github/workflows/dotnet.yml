@@ -1,7 +1,7 @@
 #### Build, Test, and Publish ####
 # This is the main workflow for the CoseSignTool project. It handles the following events:
-#   - Pull requests: When a user submits a pull request, or pushes a commit to an existing pull request, this workflow 
-#       - generates a changelog and commits it to the working branch, and then 
+#   - Pull requests: When a user submits a pull request, or pushes a commit to an existing pull request, this workflow
+#       - generates a changelog and commits it to the working branch, and then
 #       - builds and tests the code.
 #   - Pushes to the main branch: When a user pushes a commit to the main branch, this workflow
 #       - creates a semantically versioned tag,
@@ -22,7 +22,7 @@ on:
 jobs:
 
   #### PULL REQUEST EVENTS ####
-  
+
   # Build and test the code.
   build:
     name: build-${{matrix.os}}${{matrix.runtime_id && format('-{0}', matrix.runtime_id) || ''}}
@@ -43,10 +43,10 @@ jobs:
             dir_command: ls -a -R
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@v3
+      uses: actions/setup-dotnet@v5
       with:
         dotnet-version: 8.0.x
 
@@ -62,7 +62,7 @@ jobs:
           dotnet build --configuration Debug CoseSignTool.sln
           dotnet test --no-restore CoseSign1.Tests/CoseSign1.Tests.csproj
           dotnet test --no-restore CoseSign1.Certificates.Tests/CoseSign1.Certificates.Tests.csproj
-          dotnet test --no-restore CoseSign1.Certificates.AzureTrustedSigning.Tests/CoseSign1.Certificates.AzureTrustedSigning.Tests.csproj
+          dotnet test --no-restore CoseSign1.Certificates.AzureArtifactSigning.Tests/CoseSign1.Certificates.AzureArtifactSigning.Tests.csproj
           dotnet test --no-restore CoseSign1.Headers.Tests/CoseSign1.Headers.Tests.csproj
           dotnet test --no-restore CoseIndirectSignature.Tests/CoseIndirectSignature.Tests.csproj
           dotnet test --no-restore CoseSign1.Transparent.Tests/CoseSign1.Transparent.Tests.csproj
@@ -73,65 +73,89 @@ jobs:
           dotnet test --no-restore CoseSignTool.MST.Plugin.Tests/CoseSignTool.MST.Plugin.Tests.csproj
           dotnet test --no-restore CoseSignTool.IndirectSignature.Plugin.Tests/CoseSignTool.IndirectSignature.Plugin.Tests.csproj
 
-    # List the contents of the working directory to make sure all the artifacts are there.  
+    # Build Release to catch issues the internal ADO pipeline would hit (e.g. netstandard2.0 API surface differences).
+    - name: Build Release
+      run: dotnet build --configuration Release CoseSignTool.sln
+
+    # List the contents of the working directory to make sure all the artifacts are there.
     - name: List working directory
       run: ${{ matrix.dir_command }}
 
-  # Create a changelog that includes all the PRs merged since the last release.
-  # If it's not a pull request, skip to the build job.
+  # Changelog generation.
+  # On pull requests: passes without action — changelog is generated at release time.
+  # On push to main: generates a cumulative changelog as an artifact for the create_release job.
+  # The changelog is NOT committed to the repo because the org-level branch protection
+  # ruleset blocks direct pushes to main (even from GITHUB_TOKEN).
+  # The generated changelog is cumulative — it contains entries for ALL releases, not just
+  # the latest one, so each release body includes the full project history.
   create_changelog:
-    needs: [ build ]  # Wait here so we don't create any race conditions.
     runs-on: ubuntu-latest
     permissions:
-      actions: write
-      contents: write
-      deployments: write
-      packages: write
-      pull-requests: write
-      security-events: write
-      statuses: write
+      contents: read
     steps:
-      # Checkout the working branch.
-      - name: Checkout code
-        if: ${{ github.event_name == 'pull_request' }}
-        uses: actions/checkout@v2
-          
-      # Sync the changelog version.
-      - name: Fetch and checkout
-        if: ${{ github.event_name == 'pull_request' }}
+      - name: Generate cumulative changelog
+        if: ${{ github.event_name == 'push' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          echo "Fetch from repository."
-          git fetch
-          echo "Undo any user changes to CHANGELOG.md. This is needed because the user's copy becomes obsolete after every checkin."
-          git reset -- CHANGELOG.md
-          echo "Checkout the working branch."
-          git checkout $GITHUB_HEAD_REF
+          echo "# Changelog" > CHANGELOG.md
+          echo "" >> CHANGELOG.md
 
-      # Generate the new changelog.
-      - name: Generate changelog
-        if: ${{ github.event_name == 'pull_request' }}
-        uses: tj-actions/github-changelog-generator@v1.19
-        with:
-          output: CHANGELOG.md
-          token: ${{ secrets.GITHUB_TOKEN }}
+          # Find the latest release tag via the GitHub API (no local tags needed).
+          PREVIOUS_TAG=$(gh release list --limit 1 --json tagName --jq '.[0].tagName' 2>/dev/null || echo "")
+          echo "Previous tag: $PREVIOUS_TAG"
 
-      # Commit the changelog.
-      - name: Commit changelog
-        if: ${{ github.event_name == 'pull_request' }}
-        run: |
-          git add CHANGELOG.md
-          if git diff-index --quiet HEAD; then
-            echo "No changes were logged."
+          # Generate delta release notes for the current (upcoming) release using GitHub's API.
+          if [ -n "$PREVIOUS_TAG" ]; then
+            NOTES=$(gh api repos/${{ github.repository }}/releases/generate-notes \
+              -f tag_name="pending" \
+              -f target_commitish="${{ github.sha }}" \
+              -f previous_tag_name="$PREVIOUS_TAG" \
+              --jq '.body' 2>/dev/null || echo "")
           else
-            git commit --allow-empty -m "Update changelog for release"
-            git push
+            NOTES=$(gh api repos/${{ github.repository }}/releases/generate-notes \
+              -f tag_name="pending" \
+              -f target_commitish="${{ github.sha }}" \
+              --jq '.body' 2>/dev/null || echo "")
           fi
 
-      # Print default message if changelog is not updated.
-      - name: Print exit message when changelog is not updated
-        if: ${{ github.event_name != 'pull_request' }}
+          if [ -n "$NOTES" ]; then
+            echo "$NOTES" >> CHANGELOG.md
+            echo "" >> CHANGELOG.md
+          fi
+
+          # Append the body text from all previous releases (newest first) to make it cumulative.
+          echo "---" >> CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          echo "## Previous Releases" >> CHANGELOG.md
+          echo "" >> CHANGELOG.md
+
+          gh release list --limit 50 --json tagName --jq '.[].tagName' | while read -r TAG; do
+            BODY=$(gh release view "$TAG" --json body --jq '.body' 2>/dev/null || echo "")
+            if [ -n "$BODY" ]; then
+              echo "### $TAG" >> CHANGELOG.md
+              echo "" >> CHANGELOG.md
+              echo "$BODY" >> CHANGELOG.md
+              echo "" >> CHANGELOG.md
+            fi
+          done
+
+          echo "Generated cumulative CHANGELOG.md:"
+          wc -l CHANGELOG.md
+
+      - name: Upload changelog artifact
+        if: ${{ github.event_name == 'push' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: changelog
+          path: CHANGELOG.md
+
+      - name: Skip for PRs
+        if: ${{ github.event_name == 'pull_request' }}
+        run: echo "Changelog will be generated at release time when this PR is merged to main."
+
+      - name: No-op for other events
+        if: ${{ github.event_name != 'push' && github.event_name != 'pull_request' }}
         run: echo "Changelog is already up to date."
 
   #### PUSH EVENTS ####
@@ -142,6 +166,7 @@ jobs:
   create_release:
     name: Create Release
     if: ${{ github.event_name == 'push' || github.event_name == 'release'}}
+    needs: [ create_changelog ]  # Ensure changelog is committed before tagging.
     runs-on: ubuntu-latest
     permissions:
       actions: write
@@ -152,23 +177,22 @@ jobs:
       security-events: write
       statuses: write
     outputs:
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
       tag_name: ${{ steps.output_tag_name.outputs.tag_name }}
     steps:
 
     # Checkout the main branch and fetch tags.
     - name: Checkout code
       if: ${{ github.event_name == 'push' }}
-      uses: actions/checkout@v3
+      uses: actions/checkout@v6
+      with:
+        fetch-depth: 0  # Full history needed for tag discovery.
 
-    # Checkout the main branch so we can see the correct tag set.
-    - name: Fetch and checkout main
+    # Download the changelog generated by the create_changelog job.
+    - name: Download changelog
       if: ${{ github.event_name == 'push' }}
-      run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        git fetch
-        git checkout main
+      uses: actions/download-artifact@v4
+      with:
+        name: changelog
 
     # Create a semantically versioned tag that increments the last release.
     #   If the last release is a pre-release, increment the pre-release number, so v1.2.3-pre4 becomes v1.2.3-pre5.
@@ -177,7 +201,9 @@ jobs:
       if: ${{ github.event_name == 'push' }}
       id: new-tag    # Output: ${{ steps.new-tag.outputs.newtag }}
       run: |
-        CURRENT_TAG=$(git tag | sort --version-sort | tail -n1)
+        # Filter to only well-formed tags (vX.Y.Z or vX.Y.Z-preN) to avoid malformed tags
+        # like "v.1.5.5" or "1.6.2" breaking the version sort.
+        CURRENT_TAG=$(git tag | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+(-pre[0-9]+)?$' | sort --version-sort | tail -n1)
         echo "Current tag is $CURRENT_TAG"
         if [[ $CURRENT_TAG =~ ^v([0-9]+\.[0-9]+\.[0-9]+)(-pre([0-9]+))?$ ]]; then
           BASE_VERSION=${BASH_REMATCH[1]}
@@ -210,39 +236,32 @@ jobs:
             fi
           done
 
-          echo "::set-output name=newtag::$NEW_TAG"
+          echo "newtag=$NEW_TAG" >> "$GITHUB_OUTPUT"
         else
-          echo "Invalid tag format"
+          echo "Invalid tag format: '$CURRENT_TAG'"
           exit 1
         fi
 
     # Create the release. This should generate a release event, which will trigger the release_assets job.
     - name: Create Release
       if: ${{ github.event_name == 'push' }}
-      id: create_release
-      uses: actions/create-release@v1
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        # Get the tag name and release name from the previous step.
-        tag_name: ${{ steps.new-tag.outputs.newtag }}
-        release_name: Release ${{ steps.new-tag.outputs.newtag }}
-
-        # Generate release text from changelog.
-        body_path: ./CHANGELOG.md
-
-        # Always use prerelease for automated releases. Official releases are created manually.
-        prerelease: true
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        gh release create "${{ steps.new-tag.outputs.newtag }}" \
+          --title "Release ${{ steps.new-tag.outputs.newtag }}" \
+          --notes-file ./CHANGELOG.md \
+          --prerelease
 
     # Output the semver tag if it's a push event, or the most recent tag if it's a release event.
     - name: Output tag name
       id: output_tag_name
       run: |
         if [ "${{ github.event_name }}" == "push" ]; then
-          echo "::set-output name=tag_name::${{ steps.new-tag.outputs.newtag }}"
+          echo "tag_name=${{ steps.new-tag.outputs.newtag }}" >> "$GITHUB_OUTPUT"
           echo "Generated semver tag is ${{ steps.new-tag.outputs.newtag }}."
         else
-          echo "::set-output name=tag_name::${{ github.event.release.tag_name }}"
+          echo "tag_name=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
           echo "Current release tag is ${{ github.event.release.tag_name }}."
         fi
 
@@ -291,7 +310,7 @@ jobs:
     steps:
     # Checkout the branch.
     - name: Checkout code again
-      uses: actions/checkout@v3
+      uses: actions/checkout@v6
 
     # Restore all projects including plugins.
     # Plugin projects are not direct ProjectReferences of CoseSignTool — they are discovered
@@ -311,33 +330,33 @@ jobs:
         # Remove the 'v' prefix from VERSION for VersionNgt property
         VERSION_WITHOUT_V=$(echo "$VERSION" | sed 's/^v//')
         RUNTIME_ID=${{ matrix.runtime_id }}
-        
+
         echo "Publishing single-file self-contained executable for runtime: $RUNTIME_ID"
         echo "Plugins will be bundled inside the executable"
-        
+
         dotnet publish --no-restore --configuration Debug --self-contained true --runtime $RUNTIME_ID --output published/debug --property:FileVersion=$VERSION --property:VersionNgt=$VERSION_WITHOUT_V --property:PublishSingleFile=true CoseSignTool/CoseSignTool.csproj
         dotnet publish --no-restore --configuration Release --self-contained true --runtime $RUNTIME_ID --output published/release --property:FileVersion=$VERSION --property:VersionNgt=$VERSION_WITHOUT_V --property:PublishSingleFile=true CoseSignTool/CoseSignTool.csproj
-        
+
         # PublishSingleFile=true bundles everything into a single executable:
         # - The .NET runtime (self-contained)
         # - All plugins (bundled and extracted on first run)
         # - No separate plugins folder needed - everything is in the exe
       shell: bash
-    
+
     # Verify the single-file executable was created correctly
     # With PublishSingleFile=true and IncludeAllContentForSelfExtract=true, plugins are bundled INSIDE the exe
     - name: Verify single-file executable
       run: |
         Write-Host "Verifying single-file self-contained executable..."
         Write-Host ""
-        
+
         # Check debug output
         Write-Host "=== Debug build ==="
         $debugExe = Get-ChildItem "published/debug/CoseSignTool*" -File | Where-Object { $_.Extension -eq '.exe' -or $_.Extension -eq '' } | Select-Object -First 1
         if ($debugExe) {
           $sizeMB = [math]::Round($debugExe.Length / 1MB, 2)
           Write-Host "✅ Found: $($debugExe.Name) ($sizeMB MB)"
-          
+
           # Plugins are bundled inside, so exe should be > 40MB (contains runtime + plugins)
           if ($sizeMB -gt 40) {
             Write-Host "✅ Size indicates plugins are bundled (expected for single-file with plugins)"
@@ -348,21 +367,21 @@ jobs:
           Write-Host "❌ CoseSignTool executable not found in debug output!"
           exit 1
         }
-        
+
         # Check that plugins folder does NOT exist (should be bundled in exe)
         if (Test-Path "published/debug/plugins") {
           Write-Host "⚠️  Plugins folder exists - it should be cleaned up for single-file publish"
         } else {
           Write-Host "✅ No external plugins folder (correctly bundled in exe)"
         }
-        
+
         Write-Host ""
         Write-Host "=== Release build ==="
         $releaseExe = Get-ChildItem "published/release/CoseSignTool*" -File | Where-Object { $_.Extension -eq '.exe' -or $_.Extension -eq '' } | Select-Object -First 1
         if ($releaseExe) {
           $sizeMB = [math]::Round($releaseExe.Length / 1MB, 2)
           Write-Host "✅ Found: $($releaseExe.Name) ($sizeMB MB)"
-          
+
           if ($sizeMB -gt 40) {
             Write-Host "✅ Size indicates plugins are bundled"
           } else {
@@ -372,13 +391,13 @@ jobs:
           Write-Host "❌ CoseSignTool executable not found in release output!"
           exit 1
         }
-        
+
         if (Test-Path "published/release/plugins") {
           Write-Host "⚠️  Plugins folder exists - it should be cleaned up for single-file publish"
         } else {
           Write-Host "✅ No external plugins folder (correctly bundled in exe)"
         }
-        
+
         Write-Host ""
         Write-Host "Single-file verification complete. Plugins are bundled inside the executable."
         Write-Host "On first run, the exe will extract to a temp directory including the plugins folder."
@@ -407,11 +426,11 @@ jobs:
     - name: Create NuGet packages
       run: |
         echo "📦 Creating NuGet packages for library projects..."
-        
+
         VERSION=${{ needs.create_release.outputs.tag_name }}
         # Remove the 'v' prefix from VERSION for VersionNgt property
         VERSION_WITHOUT_V=$(echo "$VERSION" | sed 's/^v//')
-        
+
         # Define library projects that should be packaged (excluding plugins and test projects)
         LIBRARY_PROJECTS=(
           "CoseHandler/CoseHandler.csproj"
@@ -424,16 +443,16 @@ jobs:
           "CoseSign1.Transparent.MST/CoseSign1.Transparent.MST.csproj"
           "CoseSignTool.Abstractions/CoseSignTool.Abstractions.csproj"
         )
-        
+
         # Create packages directory
         mkdir -p published/packages
-        
+
         # Pack each library project
         for project in "${LIBRARY_PROJECTS[@]}"; do
           if [ -f "$project" ]; then
             project_name=$(basename "${project%.*}")
             echo "📦 Creating package for $project_name..."
-            
+
             dotnet pack "$project" \
               --configuration Release \
               --property:FileVersion=$VERSION \
@@ -441,7 +460,7 @@ jobs:
               --property:VersionNgt=$VERSION_WITHOUT_V \
               --output published/packages \
               --verbosity minimal
-            
+
             if [ $? -eq 0 ]; then
               echo "✅ Successfully created package for $project_name"
             else
@@ -451,7 +470,7 @@ jobs:
             echo "⚠️  Project file not found: $project"
           fi
         done
-        
+
         # List created packages
         echo ""
         echo "📋 Created NuGet packages:"
@@ -462,7 +481,7 @@ jobs:
         else
           echo "❌ No packages directory found"
         fi
-        
+
         echo "🎯 NuGet package creation completed."
       shell: bash
 
@@ -492,21 +511,23 @@ jobs:
 
     # Upload the zipped assets to the release.
     - name: Upload binary archives
-      uses: svenstaro/upload-release-action@v2
-      with:
-        repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: ./published/CoseSignTool-*.zip
-        file_glob: true
-        overwrite: true
-        tag: ${{ needs.create_release.outputs.tag_name }}
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        for f in ./published/CoseSignTool-*.zip; do
+          echo "Uploading $f..."
+          gh release upload "${{ needs.create_release.outputs.tag_name }}" "$f" --clobber
+        done
+      shell: bash
 
     # Commented out until we decide to support publishing of nuget packages.
     # Upload the NuGet packages to the release (commented out for now)
     # - name: Upload NuGet packages
-    #   uses: svenstaro/upload-release-action@v2
-    #   with:
-    #     repo_token: ${{ secrets.GITHUB_TOKEN }}
-    #     file: ./published/packages/*.nupkg
-    #     file_glob: true
-    #     overwrite: true
-    #     tag: ${{ needs.create_release.outputs.tag_name }}
+    #   env:
+    #     GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #   run: |
+    #     for f in ./published/packages/*.nupkg; do
+    #       echo "Uploading $f..."
+    #       gh release upload "${{ needs.create_release.outputs.tag_name }}" "$f" --clobber
+    #     done
+    #   shell: bash

@@ -77,15 +77,15 @@ var customProvider = new CustomCertificateProvider(cert);
 var headerExtender = customProvider.CreateHeaderExtenderWithCWTClaims();
 ```
 
-### Azure Trusted Signing: Enhanced DID:X509:0 Format
+### Azure Artifact Signing: Enhanced DID:X509:0 Format
 
-**Azure Trusted Signing** certificates include Microsoft-specific Enhanced Key Usage (EKU) extensions that identify certificate purposes. When Microsoft EKUs are detected, a specialized EKU-based DID format is generated per the [DID:X509 EKU Policy specification](https://github.com/microsoft/did-x509/blob/main/specification.md#eku-policy):
+**Azure Artifact Signing** certificates include Microsoft-specific Enhanced Key Usage (EKU) extensions that identify certificate purposes. When Microsoft EKUs are detected, a specialized EKU-based DID format is generated per the [DID:X509 EKU Policy specification](https://github.com/microsoft/did-x509/blob/main/specification.md#eku-policy):
 
 ```
 did:x509:0:sha256:{base64url-hash}::eku:{oid}
 ```
 
-This Azure Trusted Signing specific format:
+This Azure Artifact Signing specific format:
 - **Uses base64url encoding**: Certificate hash is base64url-encoded (43 characters for SHA256, not 64-character hex)
 - **Detects Microsoft EKUs**: Checks for any EKU starting with `1.3.6.1.4.1.311`
 - **Generates EKU-based DID**: When Microsoft EKUs are present, includes the deepest greatest EKU in the DID
@@ -100,7 +100,7 @@ This Azure Trusted Signing specific format:
 did:x509:0:sha256:WE4P5dd8DnLHSkyHaIjhp4udlkF9LqoKwCvu9gl38jk::eku:1.3.6.1.4.1.311.10.3.13
 ```
 
-For more details, see [CoseSign1.Certificates.AzureTrustedSigning.md](CoseSign1.Certificates.AzureTrustedSigning.md#scitt-compliance-and-didx5090-support).
+For more details, see [CoseSign1.Certificates.AzureArtifactSigning.md](CoseSign1.Certificates.AzureArtifactSigning.md#scitt-compliance-and-didx5090-support).
 
 ## Using SCITT Compliance in CoseSignTool
 

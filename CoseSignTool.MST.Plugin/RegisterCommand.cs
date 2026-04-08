@@ -1,7 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-using CoseSign1.Transparent.MST.Extensions;
 using System.Security.Cryptography.Cose;
 
 namespace CoseSignTool.MST.Plugin;
@@ -47,8 +46,13 @@ public class RegisterCommand : MstCommandBase
         CancellationToken cancellationToken)
     {
         Logger.LogVerbose("Creating transparency service");
-        // Create the transparency service with logging
+        // Create the transparency service with polling options and logging
+        var pollingOptions = new CoseSign1.Transparent.MST.MstPollingOptions
+        {
+            PollingInterval = TimeSpan.FromMilliseconds(DefaultPollingIntervalMs)
+        };
         CoseSign1.Transparent.TransparencyService transparencyService = client.ToCoseSign1TransparencyService(
+            pollingOptions,
             logVerbose: Logger.LogVerbose,
             logWarning: Logger.LogWarning,
             logError: Logger.LogError);

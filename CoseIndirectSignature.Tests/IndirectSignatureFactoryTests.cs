@@ -502,4 +502,81 @@ public class IndirectSignatureFactoryTests
         indirectSignature.TryGetPayloadHashAlgorithm(out CoseHashAlgorithm? algo).Should().BeTrue();
         algo!.Should().Be(CoseHashAlgorithm.SHA256);
     }
+
+    /// <summary>
+    /// Validates that a single <see cref="IndirectSignatureFactory"/> instance can safely produce
+    /// indirect signatures from multiple threads concurrently without throwing
+    /// <see cref="System.Security.Cryptography.CryptographicException"/>
+    /// ("Concurrent operations from multiple threads on this type are not supported.").
+    /// Regression test for https://github.com/microsoft/CoseSignTool/issues/191.
+    /// </summary>
+    [Test]
+    public void ConcurrentHashComputationShouldNotThrow()
+    {
+        // Arrange — one shared factory, many threads
+        ICoseSigningKeyProvider coseSigningKeyProvider = TestUtils.SetupMockSigningKeyProvider();
+        using IndirectSignatureFactory factory = new();
+        int degreeOfParallelism = Environment.ProcessorCount * 2;
+        int iterationsPerThread = 20;
+
+        // Act — hammer the factory from many threads at once
+        Action concurrentAction = () =>
+        {
+            Parallel.For(0, degreeOfParallelism * iterationsPerThread, new ParallelOptions { MaxDegreeOfParallelism = degreeOfParallelism }, i =>
+            {
+                byte[] payload = new byte[128];
+                Random.Shared.NextBytes(payload);
+
+                CoseSign1Message result = factory.CreateIndirectSignature(
+                    payload,
+                    coseSigningKeyProvider,
+                    "application/test.concurrent");
+
+                // Verify each result is valid
+                result.IsIndirectSignature().Should().BeTrue();
+                result.SignatureMatches(payload).Should().BeTrue();
+            });
+        };
+
+        // Assert — no CryptographicException from concurrent ComputeHash
+        concurrentAction.Should().NotThrow<CryptographicException>();
+    }
+
+    /// <summary>
+    /// Validates that the async indirect signature creation path is also safe under
+    /// concurrent usage from multiple threads.
+    /// Regression test for https://github.com/microsoft/CoseSignTool/issues/191.
+    /// </summary>
+    [Test]
+    public async Task ConcurrentAsyncHashComputationShouldNotThrow()
+    {
+        // Arrange — one shared factory, many concurrent tasks
+        ICoseSigningKeyProvider coseSigningKeyProvider = TestUtils.SetupMockSigningKeyProvider();
+        using IndirectSignatureFactory factory = new();
+        int concurrentTasks = Environment.ProcessorCount * 4;
+
+        // Act — launch many concurrent async operations
+        Task[] tasks = new Task[concurrentTasks];
+        for (int i = 0; i < concurrentTasks; i++)
+        {
+            tasks[i] = Task.Run(async () =>
+            {
+                byte[] payload = new byte[128];
+                Random.Shared.NextBytes(payload);
+
+                CoseSign1Message result = await factory.CreateIndirectSignatureAsync(
+                    payload,
+                    coseSigningKeyProvider,
+                    "application/test.concurrent.async");
+
+                // Verify each result is valid
+                result.IsIndirectSignature().Should().BeTrue();
+                result.SignatureMatches(payload).Should().BeTrue();
+            });
+        }
+
+        // Assert — all tasks complete without CryptographicException
+        Func<Task> awaitAll = async () => await Task.WhenAll(tasks);
+        await awaitAll.Should().NotThrowAsync<CryptographicException>();
+    }
 }

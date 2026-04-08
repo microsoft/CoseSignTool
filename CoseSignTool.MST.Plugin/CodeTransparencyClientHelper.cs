@@ -25,6 +25,8 @@ internal static class CodeTransparencyClientHelper
     public static async Task<CodeTransparencyClient> CreateClientAsync(string endpoint, string? tokenEnvVarName, CancellationToken cancellationToken = default)
     {
         Uri uri = new Uri(endpoint);
+        CodeTransparencyClientOptions clientOptions = new CodeTransparencyClientOptions();
+        clientOptions.ConfigureMstPerformanceOptimizations();
 
         // Use the specified environment variable name or default to MST_TOKEN
         string envVarName = tokenEnvVarName ?? "MST_TOKEN";
@@ -36,7 +38,7 @@ internal static class CodeTransparencyClientHelper
             // Use AzureKeyCredential for access tokens as documented in:
             // https://github.com/Azure/azure-sdk-for-net/blob/main/sdk/confidentialledger/Azure.Security.CodeTransparency/samples/Sample3_UseYourCredentials.md
             AzureKeyCredential credential = new AzureKeyCredential(token);
-            return new CodeTransparencyClient(uri, credential);
+            return new CodeTransparencyClient(uri, credential, clientOptions);
         }
 
         // Use default Azure credential (managed identity, Azure CLI, etc.) when no token is provided
@@ -45,7 +47,7 @@ internal static class CodeTransparencyClientHelper
         DefaultAzureCredential defaultCred = new DefaultAzureCredential(); // CodeQL [SM05137] This is non-production testing code which is not deployed.
         string[] defaultScopes = new[] { "https://confidential-ledger.azure.com/.default" };
         AccessToken defaultToken = await defaultCred.GetTokenAsync(new TokenRequestContext(defaultScopes), cancellationToken);
-        return new CodeTransparencyClient(uri, new AzureKeyCredential(defaultToken.Token));
+        return new CodeTransparencyClient(uri, new AzureKeyCredential(defaultToken.Token), clientOptions);
     }
 }
 

@@ -39,9 +39,10 @@ public sealed partial class IndirectSignatureFactory
 
         if (!payloadHashed)
         {
+            using HashAlgorithm hasher = this.CreateHashAlgorithm();
             hash = streamPayload != null
-                                 ? InternalHashAlgorithm.ComputeHash(streamPayload)
-                                 : InternalHashAlgorithm.ComputeHash(bytePayload!.Value.ToArray());
+                                 ? hasher.ComputeHash(streamPayload)
+                                 : hasher.ComputeHash(bytePayload!.Value.ToArray());
         }
         else
         {
@@ -100,9 +101,10 @@ public sealed partial class IndirectSignatureFactory
             // Note: HashAlgorithm.ComputeHashAsync is not available in netstandard2.0
             // For better async support in the future, consider targeting net6.0+ where
             // ComputeHashAsync is available on specific hash algorithm implementations
+            using HashAlgorithm hasher = this.CreateHashAlgorithm();
             hash = streamPayload != null
-                                 ? InternalHashAlgorithm.ComputeHash(streamPayload)
-                                 : InternalHashAlgorithm.ComputeHash(bytePayload!.Value.ToArray());
+                                 ? hasher.ComputeHash(streamPayload)
+                                 : hasher.ComputeHash(bytePayload!.Value.ToArray());
         }
         else
         {

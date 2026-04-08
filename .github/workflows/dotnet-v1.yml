@@ -59,8 +59,8 @@ jobs:
           - os: macos-latest
             runtime_id: osx-arm64
     steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-dotnet@v4
+    - uses: actions/checkout@v6
+    - uses: actions/setup-dotnet@v5
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
@@ -88,16 +88,50 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         ref: ${{ github.head_ref }}
         fetch-depth: 0
 
-    - name: Generate changelog
-      uses: tj-actions/github-changelog-generator@v1.19
-      with:
-        output: CHANGELOG.md
-        token: ${{ secrets.GITHUB_TOKEN }}
+    - name: Generate cumulative changelog
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        echo "# Changelog" > CHANGELOG.md
+        echo "" >> CHANGELOG.md
+        PREVIOUS_TAG=$(gh release list --limit 1 --json tagName --jq '.[0].tagName' 2>/dev/null || echo "")
+        echo "Previous tag: $PREVIOUS_TAG"
+        if [ -n "$PREVIOUS_TAG" ]; then
+          NOTES=$(gh api repos/${{ github.repository }}/releases/generate-notes \
+            -f tag_name="pending" \
+            -f target_commitish="${{ github.sha }}" \
+            -f previous_tag_name="$PREVIOUS_TAG" \
+            --jq '.body' 2>/dev/null || echo "")
+        else
+          NOTES=$(gh api repos/${{ github.repository }}/releases/generate-notes \
+            -f tag_name="pending" \
+            -f target_commitish="${{ github.sha }}" \
+            --jq '.body' 2>/dev/null || echo "")
+        fi
+        if [ -n "$NOTES" ]; then
+          echo "$NOTES" >> CHANGELOG.md
+          echo "" >> CHANGELOG.md
+        fi
+        echo "---" >> CHANGELOG.md
+        echo "" >> CHANGELOG.md
+        echo "## Previous Releases" >> CHANGELOG.md
+        echo "" >> CHANGELOG.md
+        gh release list --limit 50 --json tagName --jq '.[].tagName' | while read -r TAG; do
+          BODY=$(gh release view "$TAG" --json body --jq '.body' 2>/dev/null || echo "")
+          if [ -n "$BODY" ]; then
+            echo "### $TAG" >> CHANGELOG.md
+            echo "" >> CHANGELOG.md
+            echo "$BODY" >> CHANGELOG.md
+            echo "" >> CHANGELOG.md
+          fi
+        done
+        echo "Generated cumulative CHANGELOG.md:"
+        wc -l CHANGELOG.md
 
     - name: Commit changelog
       run: |
@@ -123,7 +157,7 @@ jobs:
       version: ${{ steps.bump.outputs.version }}
       tag: ${{ steps.bump.outputs.tag }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         fetch-depth: 0
         token: ${{ secrets.GITHUB_TOKEN }}
@@ -176,13 +210,13 @@ jobs:
         fi
 
     - name: Create pre-release
-      uses: softprops/action-gh-release@v2
-      with:
-        tag_name: ${{ steps.bump.outputs.tag }}
-        name: ${{ steps.bump.outputs.tag }}
-        body_path: ./CHANGELOG.md
-        prerelease: true
-        generate_release_notes: true
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        gh release create "${{ steps.bump.outputs.tag }}" \
+          --title "Release ${{ steps.bump.outputs.tag }}" \
+          --notes-file ./CHANGELOG.md \
+          --prerelease
 
   pre_release_assets:
     name: pre-release-${{ matrix.runtime_id }}
@@ -203,11 +237,11 @@ jobs:
           - os: macos-latest
             runtime_id: osx-arm64
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         ref: release/v1
 
-    - uses: actions/setup-dotnet@v4
+    - uses: actions/setup-dotnet@v5
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
@@ -263,23 +297,26 @@ jobs:
           zip -rj CoseSignTool-${{ matrix.runtime_id }}.zip release/
         fi
 
-    - name: Upload archive
-      uses: svenstaro/upload-release-action@v2
-      with:
-        repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: published/CoseSignTool-${{ matrix.runtime_id }}.zip
-        overwrite: true
-        tag: ${{ needs.pre_release.outputs.tag }}
+    - name: Upload binary archives
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        for f in ./published/CoseSignTool-${{ matrix.runtime_id }}.zip; do
+          echo "Uploading $f..."
+          gh release upload "${{ needs.pre_release.outputs.tag }}" "$f" --clobber
+        done
+      shell: bash
 
     - name: Upload NuGet packages
       if: matrix.runtime_id == 'linux-x64'
-      uses: svenstaro/upload-release-action@v2
-      with:
-        repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: published/packages/*.nupkg
-        file_glob: true
-        overwrite: true
-        tag: ${{ needs.pre_release.outputs.tag }}
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        for f in ./published/packages/*.nupkg; do
+          echo "Uploading $f..."
+          gh release upload "${{ needs.pre_release.outputs.tag }}" "$f" --clobber
+        done
+      shell: bash
 
   ##############################################################################
   # MANUAL "MINT RELEASE" — GA release with 2-maintainer approval
@@ -297,12 +334,12 @@ jobs:
       ga_version: ${{ steps.ga.outputs.ga_version }}
       ga_tag: ${{ steps.ga.outputs.ga_tag }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         fetch-depth: 0
         token: ${{ secrets.GITHUB_TOKEN }}
 
-    - uses: actions/setup-dotnet@v4
+    - uses: actions/setup-dotnet@v5
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
@@ -370,13 +407,12 @@ jobs:
         git push --follow-tags
 
     - name: Create GA release
-      uses: softprops/action-gh-release@v2
-      with:
-        tag_name: ${{ steps.ga.outputs.ga_tag }}
-        name: ${{ steps.ga.outputs.ga_version }}
-        body_path: ./CHANGELOG.md
-        prerelease: false
-        generate_release_notes: true
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        gh release create "${{ steps.ga.outputs.ga_tag }}" \
+          --title "Release ${{ steps.ga.outputs.ga_version }}" \
+          --notes-file ./CHANGELOG.md
 
   mint_release_assets:
     name: release-${{ matrix.runtime_id }}
@@ -398,11 +434,11 @@ jobs:
           - os: macos-latest
             runtime_id: osx-arm64
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         ref: ${{ needs.mint_release.outputs.ga_tag }}
 
-    - uses: actions/setup-dotnet@v4
+    - uses: actions/setup-dotnet@v5
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
 
@@ -453,20 +489,23 @@ jobs:
           zip -rj CoseSignTool-${{ matrix.runtime_id }}.zip release/
         fi
 
-    - name: Upload archive
-      uses: svenstaro/upload-release-action@v2
-      with:
-        repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: published/CoseSignTool-${{ matrix.runtime_id }}.zip
-        overwrite: true
-        tag: ${{ needs.mint_release.outputs.ga_tag }}
+    - name: Upload binary archives
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        for f in ./published/CoseSignTool-${{ matrix.runtime_id }}.zip; do
+          echo "Uploading $f..."
+          gh release upload "${{ needs.mint_release.outputs.ga_tag }}" "$f" --clobber
+        done
+      shell: bash
 
     - name: Upload NuGet packages
       if: matrix.runtime_id == 'linux-x64'
-      uses: svenstaro/upload-release-action@v2
-      with:
-        repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: published/packages/*.nupkg
-        file_glob: true
-        overwrite: true
-        tag: ${{ needs.mint_release.outputs.ga_tag }}
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        for f in ./published/packages/*.nupkg; do
+          echo "Uploading $f..."
+          gh release upload "${{ needs.mint_release.outputs.ga_tag }}" "$f" --clobber
+        done
+      shell: bash

@@ -14,22 +14,22 @@ fn test_software_key_provider_name() {
 #[test]
 fn test_supports_algorithms() {
     let provider = SoftwareKeyProvider::new();
-    // RSA is not supported with ring backend
-    assert!(!provider.supports_algorithm(KeyAlgorithm::Rsa));
+    assert!(provider.supports_algorithm(KeyAlgorithm::Rsa));
     assert!(provider.supports_algorithm(KeyAlgorithm::Ecdsa));
     #[cfg(feature = "pqc")]
     assert!(!provider.supports_algorithm(KeyAlgorithm::MlDsa));
 }
 
 #[test]
-fn test_key_generation_rsa_not_supported() {
+fn test_key_generation_rsa_supported() {
     let provider = SoftwareKeyProvider::new();
     let result = provider.generate_key(KeyAlgorithm::Rsa, Some(2048));
-    assert!(result.is_err());
-    assert!(matches!(
-        result,
-        Err(CertLocalError::UnsupportedAlgorithm(_))
-    ));
+    assert!(result.is_ok(), "RSA key generation should succeed: {:?}", result.err());
+    let key = result.unwrap();
+    assert_eq!(key.algorithm, KeyAlgorithm::Rsa);
+    assert_eq!(key.key_size, 2048);
+    assert!(!key.private_key_der.is_empty());
+    assert!(!key.public_key_der.is_empty());
 }
 
 #[test]

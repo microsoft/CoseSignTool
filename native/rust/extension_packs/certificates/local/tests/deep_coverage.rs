@@ -61,9 +61,9 @@ fn software_key_provider_supports_ecdsa() {
 }
 
 #[test]
-fn software_key_provider_does_not_support_rsa() {
+fn software_key_provider_supports_rsa() {
     let provider = SoftwareKeyProvider::new();
-    assert!(!provider.supports_algorithm(KeyAlgorithm::Rsa));
+    assert!(provider.supports_algorithm(KeyAlgorithm::Rsa));
 }
 
 #[test]
@@ -90,23 +90,25 @@ fn software_key_provider_generate_ecdsa_with_explicit_size() {
 }
 
 #[test]
-fn software_key_provider_generate_rsa_fails() {
+fn software_key_provider_generate_rsa_succeeds() {
     let provider = SoftwareKeyProvider::new();
-    let result = provider.generate_key(KeyAlgorithm::Rsa, None);
+    let key = provider.generate_key(KeyAlgorithm::Rsa, None).unwrap();
 
-    assert!(result.is_err());
-    let err = format!("{}", result.unwrap_err());
-    assert!(
-        err.contains("not supported") || err.contains("not yet implemented"),
-        "got: {err}"
-    );
+    assert_eq!(key.algorithm, KeyAlgorithm::Rsa);
+    assert_eq!(key.key_size, KeyAlgorithm::Rsa.default_key_size());
+    assert!(!key.private_key_der.is_empty());
+    assert!(!key.public_key_der.is_empty());
 }
 
 #[test]
-fn software_key_provider_generate_rsa_with_size_fails() {
+fn software_key_provider_generate_rsa_with_size_succeeds() {
     let provider = SoftwareKeyProvider::new();
-    let result = provider.generate_key(KeyAlgorithm::Rsa, Some(2048));
-    assert!(result.is_err());
+    let key = provider.generate_key(KeyAlgorithm::Rsa, Some(2048)).unwrap();
+
+    assert_eq!(key.algorithm, KeyAlgorithm::Rsa);
+    assert_eq!(key.key_size, 2048);
+    assert!(!key.private_key_der.is_empty());
+    assert!(!key.public_key_der.is_empty());
 }
 
 // ===========================================================================
@@ -243,10 +245,11 @@ fn certificate_options_add_subject_alternative_name() {
 #[test]
 fn certificate_options_add_custom_extension_der() {
     let ext_bytes = vec![0x30, 0x03, 0x01, 0x01, 0xFF];
-    let opts = CertificateOptions::new().add_custom_extension_der(ext_bytes.clone());
+    let opts = CertificateOptions::new().add_custom_extension_der("1.2.3.4.5", false, ext_bytes.clone());
 
-    assert_eq!(opts.custom_extensions_der.len(), 1);
-    assert_eq!(opts.custom_extensions_der[0], ext_bytes);
+    assert_eq!(opts.custom_extensions.len(), 1);
+    assert_eq!(opts.custom_extensions[0].oid, "1.2.3.4.5");
+    assert_eq!(opts.custom_extensions[0].value, ext_bytes);
 }
 
 #[test]
@@ -504,7 +507,7 @@ fn certificate_factory_trait_key_provider() {
     let provider: &dyn PrivateKeyProvider = factory.key_provider();
     assert_eq!(provider.name(), "SoftwareKeyProvider");
     assert!(provider.supports_algorithm(KeyAlgorithm::Ecdsa));
-    assert!(!provider.supports_algorithm(KeyAlgorithm::Rsa));
+    assert!(provider.supports_algorithm(KeyAlgorithm::Rsa));
 }
 
 // ===========================================================================

@@ -5,12 +5,12 @@
 //!
 //! Covers:
 //! - factory.rs: EphemeralCertificateFactory self-signed creation, issuer-signed creation,
-//!   RSA unsupported error, get_generated_key, release_key, CA cert with path constraints,
+//!   RSA support, get_generated_key, release_key, CA cert with path constraints,
 //!   key_provider accessor.
 //! - loaders/pem.rs: missing end marker, invalid base64, no-certificate PEM,
 //!   PEM with unknown label.
 //! - software_key.rs: Default, name(), supports_algorithm(), generate_key() for ECDSA,
-//!   generate_key() for unsupported RSA.
+//!   generate_key() for RSA.
 
 use cose_sign1_certificates_local::certificate::Certificate;
 use cose_sign1_certificates_local::error::CertLocalError;
@@ -62,9 +62,9 @@ fn software_key_provider_supports_ecdsa() {
 }
 
 #[test]
-fn software_key_provider_does_not_support_rsa() {
+fn software_key_provider_supports_rsa() {
     let provider = SoftwareKeyProvider::new();
-    assert!(!provider.supports_algorithm(KeyAlgorithm::Rsa));
+    assert!(provider.supports_algorithm(KeyAlgorithm::Rsa));
 }
 
 // ===========================================================================
@@ -91,20 +91,17 @@ fn software_key_provider_generate_ecdsa_key_with_size() {
 }
 
 // ===========================================================================
-// software_key.rs — generate_key RSA unsupported (L64-67)
+// software_key.rs — generate_key RSA succeeds
 // ===========================================================================
 
 #[test]
-fn software_key_provider_generate_rsa_unsupported() {
+fn software_key_provider_generate_rsa_key() {
     let provider = SoftwareKeyProvider::new();
-    let result = provider.generate_key(KeyAlgorithm::Rsa, None);
-    assert!(result.is_err());
-    match result.unwrap_err() {
-        CertLocalError::UnsupportedAlgorithm(msg) => {
-            assert!(msg.contains("not supported"));
-        }
-        other => panic!("expected UnsupportedAlgorithm, got {other:?}"),
-    }
+    let key = provider.generate_key(KeyAlgorithm::Rsa, None).unwrap();
+    assert_eq!(key.algorithm, KeyAlgorithm::Rsa);
+    assert_eq!(key.key_size, 2048);
+    assert!(!key.private_key_der.is_empty());
+    assert!(!key.public_key_der.is_empty());
 }
 
 // ===========================================================================
@@ -131,22 +128,17 @@ fn factory_create_self_signed_ecdsa() {
 }
 
 // ===========================================================================
-// factory.rs — create_certificate RSA unsupported error (L156-159)
+// factory.rs — create_certificate RSA succeeds
 // ===========================================================================
 
 #[test]
-fn factory_create_rsa_returns_unsupported() {
+fn factory_create_rsa_certificate() {
     let factory = make_factory();
     let opts = CertificateOptions::new().with_key_algorithm(KeyAlgorithm::Rsa);
 
-    let result = factory.create_certificate(opts);
-    assert!(result.is_err());
-    match result.unwrap_err() {
-        CertLocalError::UnsupportedAlgorithm(msg) => {
-            assert!(msg.contains("RSA"));
-        }
-        other => panic!("expected UnsupportedAlgorithm, got {other:?}"),
-    }
+    let cert = factory.create_certificate(opts).unwrap();
+    assert!(!cert.cert_der.is_empty());
+    assert!(cert.has_private_key());
 }
 
 // ===========================================================================

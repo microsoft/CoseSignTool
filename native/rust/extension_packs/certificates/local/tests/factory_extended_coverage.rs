@@ -105,9 +105,9 @@ fn test_certificate_options_signed_by() {
 #[test]
 fn test_certificate_options_add_custom_extension_der() {
     let ext = vec![0x30, 0x00]; // Empty sequence
-    let options = CertificateOptions::new().add_custom_extension_der(ext.clone());
-    assert_eq!(options.custom_extensions_der.len(), 1);
-    assert_eq!(options.custom_extensions_der[0], ext);
+    let options = CertificateOptions::new().add_custom_extension_der("1.2.3.4", false, ext.clone());
+    assert_eq!(options.custom_extensions.len(), 1);
+    assert_eq!(options.custom_extensions[0].value, ext);
 }
 
 #[test]

@@ -28,13 +28,33 @@ pub struct CertificateChainOptions {
     /// Default: "CN=Ephemeral Leaf Certificate"
     pub leaf_name: String,
 
-    /// Cryptographic algorithm for all certificates in the chain.
-    /// Default: RSA
+    /// Cryptographic algorithm for all certificates in the chain (default).
+    /// Overridden per-tier by root_key_algorithm, intermediate_key_algorithm,
+    /// leaf_key_algorithm when set.
+    /// Default: ECDSA
     pub key_algorithm: KeyAlgorithm,
 
+    /// Override algorithm for root CA. If None, uses key_algorithm.
+    pub root_key_algorithm: Option<KeyAlgorithm>,
+
+    /// Override algorithm for intermediate CA. If None, uses key_algorithm.
+    pub intermediate_key_algorithm: Option<KeyAlgorithm>,
+
+    /// Override algorithm for leaf certificate. If None, uses key_algorithm.
+    pub leaf_key_algorithm: Option<KeyAlgorithm>,
+
     /// Key size for all certificates in the chain.
-    /// If None, uses algorithm defaults.
+    /// If None, uses algorithm defaults. Per-tier overrides below take precedence.
     pub key_size: Option<u32>,
+
+    /// Override key size for root CA.
+    pub root_key_size: Option<u32>,
+
+    /// Override key size for intermediate CA.
+    pub intermediate_key_size: Option<u32>,
+
+    /// Override key size for leaf certificate.
+    pub leaf_key_size: Option<u32>,
 
     /// Validity duration for the root CA.
     /// Default: 10 years
@@ -70,7 +90,13 @@ impl Default for CertificateChainOptions {
             intermediate_name: Some("CN=Ephemeral Intermediate CA".into()),
             leaf_name: "CN=Ephemeral Leaf Certificate".into(),
             key_algorithm: KeyAlgorithm::Ecdsa,
+            root_key_algorithm: None,
+            intermediate_key_algorithm: None,
+            leaf_key_algorithm: None,
             key_size: None,
+            root_key_size: None,
+            intermediate_key_size: None,
+            leaf_key_size: None,
             root_validity: Duration::from_secs(3650 * 24 * 60 * 60), // 10 years
             intermediate_validity: Duration::from_secs(1825 * 24 * 60 * 60), // 5 years
             leaf_validity: Duration::from_secs(365 * 24 * 60 * 60),  // 1 year
@@ -105,15 +131,51 @@ impl CertificateChainOptions {
         self
     }
 
-    /// Sets the key algorithm for all certificates.
+    /// Sets the default key algorithm for all certificates.
     pub fn with_key_algorithm(mut self, algorithm: KeyAlgorithm) -> Self {
         self.key_algorithm = algorithm;
         self
     }
 
-    /// Sets the key size for all certificates.
+    /// Sets the key algorithm for the root CA only (hybrid chain support).
+    pub fn with_root_key_algorithm(mut self, algorithm: KeyAlgorithm) -> Self {
+        self.root_key_algorithm = Some(algorithm);
+        self
+    }
+
+    /// Sets the key algorithm for the intermediate CA only (hybrid chain support).
+    pub fn with_intermediate_key_algorithm(mut self, algorithm: KeyAlgorithm) -> Self {
+        self.intermediate_key_algorithm = Some(algorithm);
+        self
+    }
+
+    /// Sets the key algorithm for the leaf certificate only (hybrid chain support).
+    pub fn with_leaf_key_algorithm(mut self, algorithm: KeyAlgorithm) -> Self {
+        self.leaf_key_algorithm = Some(algorithm);
+        self
+    }
+
+    /// Sets the default key size for all certificates.
     pub fn with_key_size(mut self, size: u32) -> Self {
         self.key_size = Some(size);
+        self
+    }
+
+    /// Sets the key size for the root CA only.
+    pub fn with_root_key_size(mut self, size: u32) -> Self {
+        self.root_key_size = Some(size);
+        self
+    }
+
+    /// Sets the key size for the intermediate CA only.
+    pub fn with_intermediate_key_size(mut self, size: u32) -> Self {
+        self.intermediate_key_size = Some(size);
+        self
+    }
+
+    /// Sets the key size for the leaf certificate only.
+    pub fn with_leaf_key_size(mut self, size: u32) -> Self {
+        self.leaf_key_size = Some(size);
         self
     }
 
@@ -152,6 +214,18 @@ impl CertificateChainOptions {
         self.leaf_enhanced_key_usages = Some(usages);
         self
     }
+
+    /// Resolves the effective algorithm for a tier.
+    fn resolve_algorithm(&self, tier_override: Option<KeyAlgorithm>) -> KeyAlgorithm {
+        tier_override.unwrap_or(self.key_algorithm)
+    }
+
+    /// Resolves the effective key size for a tier.
+    fn resolve_key_size(&self, tier_override: Option<u32>, algorithm: KeyAlgorithm) -> u32 {
+        tier_override
+            .or(self.key_size)
+            .unwrap_or_else(|| algorithm.default_key_size())
+    }
 }
 
 /// Factory for creating certificate chains (root → intermediate → leaf).
@@ -179,20 +253,22 @@ impl CertificateChainFactory {
     }
 
     /// Creates a certificate chain with the specified options.
+    ///
+    /// Supports hybrid chains where each tier can use a different key algorithm.
+    /// For example: ECDSA root → ECDSA intermediate → EdDSA leaf.
     pub fn create_chain_with_options(
         &self,
         options: CertificateChainOptions,
     ) -> Result<Vec<Certificate>, CertLocalError> {
-        let key_size = options
-            .key_size
-            .unwrap_or_else(|| options.key_algorithm.default_key_size());
+        let root_algo = options.resolve_algorithm(options.root_key_algorithm);
+        let root_size = options.resolve_key_size(options.root_key_size, root_algo);
 
         // Create root CA
         let root = self.certificate_factory.create_certificate(
             CertificateOptions::new()
                 .with_subject_name(&options.root_name)
-                .with_key_algorithm(options.key_algorithm)
-                .with_key_size(key_size)
+                .with_key_algorithm(root_algo)
+                .with_key_size(root_size)
                 .with_validity(options.root_validity)
                 .as_ca(if options.intermediate_name.is_some() {
                     1
@@ -208,12 +284,15 @@ impl CertificateChainFactory {
         // Determine the issuer for the leaf
         let (leaf_issuer, intermediate) =
             if let Some(intermediate_name) = &options.intermediate_name {
+                let inter_algo = options.resolve_algorithm(options.intermediate_key_algorithm);
+                let inter_size = options.resolve_key_size(options.intermediate_key_size, inter_algo);
+
                 // Create intermediate CA
                 let intermediate = self.certificate_factory.create_certificate(
                     CertificateOptions::new()
                         .with_subject_name(intermediate_name)
-                        .with_key_algorithm(options.key_algorithm)
-                        .with_key_size(key_size)
+                        .with_key_algorithm(inter_algo)
+                        .with_key_size(inter_size)
                         .with_validity(options.intermediate_validity)
                         .as_ca(0)
                         .with_key_usage(KeyUsageFlags {
@@ -228,10 +307,13 @@ impl CertificateChainFactory {
             };
 
         // Create leaf certificate
+        let leaf_algo = options.resolve_algorithm(options.leaf_key_algorithm);
+        let leaf_size = options.resolve_key_size(options.leaf_key_size, leaf_algo);
+
         let mut leaf_opts = CertificateOptions::new()
             .with_subject_name(&options.leaf_name)
-            .with_key_algorithm(options.key_algorithm)
-            .with_key_size(key_size)
+            .with_key_algorithm(leaf_algo)
+            .with_key_size(leaf_size)
             .with_validity(options.leaf_validity)
             .with_key_usage(KeyUsageFlags::DIGITAL_SIGNATURE)
             .signed_by(leaf_issuer);

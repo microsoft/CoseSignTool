@@ -318,22 +318,17 @@ fn create_cert_with_zero_not_before_offset() {
 }
 
 // ===========================================================================
-// factory.rs — RSA unsupported path (lines 156-160) — verify error message
+// factory.rs — RSA certificate creation succeeds
 // ===========================================================================
 
 #[test]
-fn create_cert_rsa_unsupported_error_message() {
+fn create_cert_rsa_succeeds() {
     let factory = make_factory();
     let opts = CertificateOptions::new().with_key_algorithm(KeyAlgorithm::Rsa);
 
-    let err = factory.create_certificate(opts).unwrap_err();
-    let msg = format!("{}", err);
-    assert!(
-        msg.to_lowercase().contains("not yet implemented")
-            || msg.to_lowercase().contains("unsupported"),
-        "error should mention unsupported: got '{}'",
-        msg
-    );
+    let cert = factory.create_certificate(opts).unwrap();
+    assert!(!cert.cert_der.is_empty());
+    assert!(cert.has_private_key());
 }
 
 // ===========================================================================

@@ -57,6 +57,6 @@ pub use error::CertLocalError;
 pub use factory::EphemeralCertificateFactory;
 pub use key_algorithm::KeyAlgorithm;
 pub use loaders::{CertificateFormat, LoadedCertificate};
-pub use options::{CertificateOptions, HashAlgorithm, KeyUsageFlags};
+pub use options::{CertificateOptions, CustomExtension, HashAlgorithm, KeyUsageFlags, SigningPadding};
 pub use software_key::SoftwareKeyProvider;
 pub use traits::{CertificateFactory, GeneratedKey, PrivateKeyProvider};

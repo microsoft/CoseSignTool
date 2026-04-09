@@ -19,6 +19,38 @@ pub enum HashAlgorithm {
     Sha512,
 }
 
+/// RSA signature padding mode.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum SigningPadding {
+    /// PKCS#1 v1.5 padding (default, most compatible).
+    #[default]
+    Pkcs1v15,
+    /// Probabilistic Signature Scheme (PSS) padding (RFC 4055).
+    Pss,
+}
+
+/// A custom X.509v3 extension to add to the certificate.
+#[derive(Debug, Clone)]
+pub struct CustomExtension {
+    /// OID string (e.g., "2.5.29.17" or "1.2.3.4.5.6").
+    pub oid: String,
+    /// Whether this extension is marked critical.
+    pub critical: bool,
+    /// DER-encoded extension value (the OCTET STRING payload).
+    pub value: Vec<u8>,
+}
+
+impl CustomExtension {
+    /// Creates a new custom extension.
+    pub fn new(oid: impl Into<String>, critical: bool, value: Vec<u8>) -> Self {
+        Self {
+            oid: oid.into(),
+            critical,
+            value,
+        }
+    }
+}
+
 /// Key usage flags for X.509 certificates.
 #[derive(Debug, Clone, Copy)]
 pub struct KeyUsageFlags {
@@ -51,6 +83,8 @@ pub struct CertificateOptions {
     pub key_size: Option<u32>,
     /// Hash algorithm for certificate signing.
     pub hash_algorithm: HashAlgorithm,
+    /// RSA signature padding mode (only applies to RSA keys).
+    pub signing_padding: SigningPadding,
     /// Certificate validity duration from creation time.
     pub validity: Duration,
     /// Not-before offset from current time (negative for clock skew tolerance).
@@ -67,8 +101,8 @@ pub struct CertificateOptions {
     pub subject_alternative_names: Vec<String>,
     /// Issuer certificate for chain signing (if None, creates self-signed).
     pub issuer: Option<Box<Certificate>>,
-    /// Custom extensions in DER format.
-    pub custom_extensions_der: Vec<Vec<u8>>,
+    /// Custom X.509v3 extensions.
+    pub custom_extensions: Vec<CustomExtension>,
 }
 
 impl Default for CertificateOptions {
@@ -78,6 +112,7 @@ impl Default for CertificateOptions {
             key_algorithm: KeyAlgorithm::default(),
             key_size: None,
             hash_algorithm: HashAlgorithm::default(),
+            signing_padding: SigningPadding::default(),
             validity: Duration::from_secs(3600), // 1 hour
             not_before_offset: Duration::from_secs(5 * 60), // 5 minutes
             is_ca: false,
@@ -86,7 +121,7 @@ impl Default for CertificateOptions {
             enhanced_key_usages: vec!["1.3.6.1.5.5.7.3.3".to_string()], // Code signing
             subject_alternative_names: Vec::new(),
             issuer: None,
-            custom_extensions_der: Vec::new(),
+            custom_extensions: Vec::new(),
         }
     }
 }
@@ -118,6 +153,12 @@ impl CertificateOptions {
     /// Sets the hash algorithm.
     pub fn with_hash_algorithm(mut self, algorithm: HashAlgorithm) -> Self {
         self.hash_algorithm = algorithm;
+        self
+    }
+
+    /// Sets the RSA signing padding mode.
+    pub fn with_signing_padding(mut self, padding: SigningPadding) -> Self {
+        self.signing_padding = padding;
         self
     }
 
@@ -164,9 +205,20 @@ impl CertificateOptions {
         self
     }
 
-    /// Adds a custom extension in DER format.
-    pub fn add_custom_extension_der(mut self, extension: Vec<u8>) -> Self {
-        self.custom_extensions_der.push(extension);
+    /// Adds a custom X.509v3 extension.
+    pub fn add_custom_extension(mut self, extension: CustomExtension) -> Self {
+        self.custom_extensions.push(extension);
+        self
+    }
+
+    /// Adds a custom extension from OID, criticality, and DER value.
+    pub fn add_custom_extension_der(
+        mut self,
+        oid: impl Into<String>,
+        critical: bool,
+        value: Vec<u8>,
+    ) -> Self {
+        self.custom_extensions.push(CustomExtension::new(oid, critical, value));
         self
     }
 }

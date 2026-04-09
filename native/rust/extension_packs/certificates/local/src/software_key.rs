@@ -41,8 +41,11 @@ impl PrivateKeyProvider for SoftwareKeyProvider {
         match _algorithm {
             KeyAlgorithm::Rsa => true,
             KeyAlgorithm::Ecdsa => true,
+            KeyAlgorithm::EdDsa => true,
             #[cfg(feature = "pqc")]
             KeyAlgorithm::MlDsa => true,
+            #[cfg(feature = "composite")]
+            KeyAlgorithm::Composite => true,
         }
     }
 
@@ -99,6 +102,26 @@ impl PrivateKeyProvider for SoftwareKeyProvider {
                     key_size: size,
                 })
             }
+            KeyAlgorithm::EdDsa => {
+                let pkey = match size {
+                    448 => PKey::generate_ed448(),
+                    _ => PKey::generate_ed25519(),
+                }
+                .map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
+                let private_key_der = pkey
+                    .private_key_to_der()
+                    .map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
+                let public_key_der = pkey
+                    .public_key_to_der()
+                    .map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
+
+                Ok(GeneratedKey {
+                    private_key_der,
+                    public_key_der,
+                    algorithm,
+                    key_size: size,
+                })
+            }
             #[cfg(feature = "pqc")]
             KeyAlgorithm::MlDsa => {
                 use cose_sign1_crypto_openssl::{generate_mldsa_key_der, MlDsaVariant};
@@ -113,6 +136,68 @@ impl PrivateKeyProvider for SoftwareKeyProvider {
 
                 let (private_key_der, public_key_der) =
                     generate_mldsa_key_der(variant).map_err(CertLocalError::KeyGenerationFailed)?;
+
+                Ok(GeneratedKey {
+                    private_key_der,
+                    public_key_der,
+                    algorithm,
+                    key_size: size,
+                })
+            }
+            #[cfg(feature = "composite")]
+            KeyAlgorithm::Composite => {
+                // Composite key generation uses OpenSSL 3.5+ composite provider.
+                // The algorithm name encodes both the PQC and classical components.
+                let alg_name = match size {
+                    44 => "MLDSA44-ECDSA-P256-SHA256",
+                    87 => "MLDSA87-ECDSA-P384-SHA384",
+                    _ => "MLDSA65-ECDSA-P384-SHA384", // default
+                };
+
+                // Generate via EVP_PKEY_keygen with the composite algorithm name.
+                // This requires OpenSSL 3.5+ with the default provider chain.
+                use foreign_types::ForeignType;
+
+                let pkey = unsafe {
+                    let ctx = openssl_sys::EVP_PKEY_CTX_new_from_name(
+                        std::ptr::null_mut(),
+                        alg_name.as_ptr() as *const std::os::raw::c_char,
+                        std::ptr::null(),
+                    );
+                    if ctx.is_null() {
+                        return Err(CertLocalError::KeyGenerationFailed(format!(
+                            "EVP_PKEY_CTX_new_from_name({}) failed — OpenSSL 3.5+ with composite provider required",
+                            alg_name
+                        )));
+                    }
+
+                    let rc = openssl_sys::EVP_PKEY_keygen_init(ctx);
+                    if rc != 1 {
+                        openssl_sys::EVP_PKEY_CTX_free(ctx);
+                        return Err(CertLocalError::KeyGenerationFailed(format!(
+                            "EVP_PKEY_keygen_init({}) failed", alg_name
+                        )));
+                    }
+
+                    let mut pkey_raw: *mut openssl_sys::EVP_PKEY = std::ptr::null_mut();
+                    let rc = openssl_sys::EVP_PKEY_keygen(ctx, &mut pkey_raw);
+                    openssl_sys::EVP_PKEY_CTX_free(ctx);
+
+                    if rc != 1 || pkey_raw.is_null() {
+                        return Err(CertLocalError::KeyGenerationFailed(format!(
+                            "EVP_PKEY_keygen({}) failed", alg_name
+                        )));
+                    }
+
+                    PKey::from_ptr(pkey_raw)
+                };
+
+                let private_key_der = pkey
+                    .private_key_to_der()
+                    .map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
+                let public_key_der = pkey
+                    .public_key_to_der()
+                    .map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
 
                 Ok(GeneratedKey {
                     private_key_der,

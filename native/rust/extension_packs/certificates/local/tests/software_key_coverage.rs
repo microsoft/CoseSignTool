@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 //! Targeted tests for uncovered paths in cose_sign1_certificates_local:
-//! - SoftwareKeyProvider RSA error path
+//! - SoftwareKeyProvider RSA support
 //! - SoftwareKeyProvider ECDSA generation
 //! - Factory ML-DSA branches (marked coverage(off) if pqc not enabled)
 //! - Certificate DER and PEM loader error paths
@@ -14,14 +14,14 @@ use cose_sign1_certificates_local::traits::PrivateKeyProvider;
 // ========== SoftwareKeyProvider ==========
 
 #[test]
-fn software_key_rsa_not_supported() {
+fn software_key_rsa_supported() {
     let provider = SoftwareKeyProvider::new();
-    // RSA is not supported
-    assert!(!provider.supports_algorithm(KeyAlgorithm::Rsa));
-    let result = provider.generate_key(KeyAlgorithm::Rsa, None);
-    assert!(result.is_err());
-    let err = format!("{}", result.unwrap_err());
-    assert!(err.contains("not yet implemented") || err.contains("not supported"));
+    assert!(provider.supports_algorithm(KeyAlgorithm::Rsa));
+    let key = provider.generate_key(KeyAlgorithm::Rsa, None).unwrap();
+    assert_eq!(key.algorithm, KeyAlgorithm::Rsa);
+    assert_eq!(key.key_size, KeyAlgorithm::Rsa.default_key_size());
+    assert!(!key.private_key_der.is_empty());
+    assert!(!key.public_key_der.is_empty());
 }
 
 #[test]

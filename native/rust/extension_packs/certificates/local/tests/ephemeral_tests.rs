@@ -94,9 +94,11 @@ fn test_create_certificate_rsa_4096() {
         .with_key_algorithm(KeyAlgorithm::Rsa)
         .with_key_size(4096);
 
-    // RSA is not supported with ring backend
-    let result = factory.create_certificate(options);
-    assert!(result.is_err());
+    let cert = factory.create_certificate(options).unwrap();
+    assert!(!cert.cert_der.is_empty());
+    assert!(cert.has_private_key());
+    let subject = cert.subject().unwrap();
+    assert!(subject.contains("RSA 4096 Certificate"), "subject: {subject}");
 }
 
 #[test]

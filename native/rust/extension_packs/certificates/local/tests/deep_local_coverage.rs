@@ -4,7 +4,7 @@
 //! Deep coverage tests for cose_sign1_certificates_local factory.rs.
 //!
 //! Targets uncovered lines in factory.rs:
-//! - RSA unsupported error path (line 156-160)
+//! - RSA certificate creation path
 //! - Issuer-signed certificate path (lines 228-256)
 //! - Issuer without private key error (lines 245-248)
 //! - CA certificate creation with BasicConstraints + KeyUsage (lines 211-224)
@@ -29,24 +29,21 @@ fn parse_cert(der: &[u8]) -> X509Certificate<'_> {
 }
 
 // =========================================================================
-// factory.rs — RSA unsupported path (lines 156-160)
+// factory.rs — RSA certificate creation succeeds
 // =========================================================================
 
 #[test]
-fn create_certificate_rsa_returns_unsupported() {
+fn create_certificate_rsa_succeeds() {
     let factory = make_factory();
     let opts = CertificateOptions::new()
-        .with_subject_name("CN=RSA Unsupported")
+        .with_subject_name("CN=RSA Certificate")
         .with_key_algorithm(KeyAlgorithm::Rsa);
 
-    let result = factory.create_certificate(opts);
-    assert!(result.is_err());
-    let err = result.unwrap_err();
-    let msg = format!("{}", err);
-    assert!(
-        msg.contains("not yet implemented") || msg.contains("unsupported"),
-        "got: {msg}"
-    );
+    let cert = factory.create_certificate(opts).unwrap();
+    assert!(!cert.cert_der.is_empty());
+    assert!(cert.has_private_key());
+    let subject = cert.subject().unwrap();
+    assert!(subject.contains("RSA Certificate"), "subject: {subject}");
 }
 
 // =========================================================================

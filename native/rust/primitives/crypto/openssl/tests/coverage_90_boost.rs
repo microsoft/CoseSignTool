@@ -242,7 +242,7 @@ fn streaming_sign_verify_ec384() {
     let priv_der = pkey.private_key_to_der().unwrap();
     let pub_der = pkey.public_key_to_der().unwrap();
 
-    // Explicitly pass ES384 algorithm (-35) since provider defaults EC to ES256
+    // Explicitly pass ES384 algorithm (-35) matching the P-384 key curve
     let signer = EvpSigner::from_der(&priv_der, -35).unwrap();
     let verifier = EvpVerifier::from_der(&pub_der, -35).unwrap();
 

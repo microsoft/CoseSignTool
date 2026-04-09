@@ -20,5 +20,8 @@ hex = "0.4"
 sha2.workspace = true
 openssl = { workspace = true }
 
+[[example]]
+name = "did_x509_basics"
+
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly)'] }

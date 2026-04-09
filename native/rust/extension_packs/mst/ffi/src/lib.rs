@@ -1,6 +1,41 @@
-//! Transparent MST pack FFI bindings.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+//! C-ABI projection for `cose_sign1_transparent_mst`.
 //!
-//! This crate exposes the Microsoft Secure Transparency (MST) receipt verification pack to C/C++ consumers.
+//! This crate provides C-compatible FFI exports for the Microsoft Secure
+//! Transparency (MST) extension pack. It enables C/C++ consumers to register
+//! the MST trust pack with a validator builder, author trust policies that
+//! constrain MST receipt properties (presence, KID, signature verification,
+//! statement coverage, statement SHA-256 hash, and trust status), and interact
+//! with the MST transparency service for creating and retrieving entries.
+//!
+//! # ABI Stability
+//!
+//! All exported functions use `extern "C"` calling convention.
+//! Opaque handle types are passed as `*mut` (owned) or `*const` (borrowed).
+//!
+//! # Panic Safety
+//!
+//! All exported functions are wrapped in `catch_unwind` to prevent
+//! Rust panics from crossing the FFI boundary.
+//!
+//! # Error Handling
+//!
+//! Functions return `cose_status_t` (0 = OK, non-zero = error).
+//! On error, call `cose_last_error_message_utf8()` for details.
+//! Error state is thread-local and safe for concurrent use.
+//!
+//! # Memory Ownership
+//!
+//! - `*mut T` parameters transfer ownership TO this function (consumed)
+//! - `*const T` parameters are borrowed (caller retains ownership)
+//! - `*mut *mut T` out-parameters transfer ownership FROM this function (caller must free)
+//! - Every handle type has a corresponding `*_free()` function
+//!
+//! # Thread Safety
+//!
+//! All functions are thread-safe. Error state is thread-local.
 
 #![cfg_attr(coverage_nightly, feature(coverage_attribute))]
 #![deny(unsafe_op_in_unsafe_fn)]

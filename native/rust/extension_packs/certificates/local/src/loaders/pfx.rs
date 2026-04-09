@@ -211,7 +211,7 @@ pub fn load_from_pfx_no_password<P: AsRef<Path>>(path: P) -> Result<Certificate,
 }
 
 // ============================================================================
-// Non-pfx stubs
+// Non-pfx feature fallbacks
 // ============================================================================
 
 #[cfg(not(feature = "pfx"))]

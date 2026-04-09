@@ -1,9 +1,44 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
 #![deny(unsafe_op_in_unsafe_fn)]
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
-//! X.509 certificates pack FFI bindings.
+//! C-ABI projection for `cose_sign1_certificates`.
 //!
-//! This crate exposes the X.509 certificate validation pack to C/C++ consumers.
+//! This crate provides C-compatible FFI exports for the X.509 certificate
+//! validation extension pack. It enables C/C++ consumers to register the
+//! certificate trust pack with a validator builder and to author trust policies
+//! that constrain X.509 chain properties such as trust anchor, chain element
+//! identity, validity periods, public key algorithms, and signing certificate
+//! identity.
+//!
+//! # ABI Stability
+//!
+//! All exported functions use `extern "C"` calling convention.
+//! Opaque handle types are passed as `*mut` (owned) or `*const` (borrowed).
+//!
+//! # Panic Safety
+//!
+//! All exported functions are wrapped in `catch_unwind` to prevent
+//! Rust panics from crossing the FFI boundary.
+//!
+//! # Error Handling
+//!
+//! Functions return `cose_status_t` (0 = OK, non-zero = error).
+//! On error, call `cose_last_error_message_utf8()` for details.
+//! Error state is thread-local and safe for concurrent use.
+//!
+//! # Memory Ownership
+//!
+//! - `*mut T` parameters transfer ownership TO this function (consumed)
+//! - `*const T` parameters are borrowed (caller retains ownership)
+//! - `*mut *mut T` out-parameters transfer ownership FROM this function (caller must free)
+//! - Every handle type has a corresponding `*_free()` function
+//!
+//! # Thread Safety
+//!
+//! All functions are thread-safe. Error state is thread-local.
 
 use cose_sign1_certificates::validation::facts::{
     X509ChainElementIdentityFact, X509ChainElementValidityFact, X509ChainTrustedFact,

@@ -78,27 +78,48 @@ fn find_deepest_greatest_microsoft_eku(chain_ders: &[&[u8]]) -> Option<String> {
 
 /// Extract EKU OIDs from a DER-encoded X.509 certificate.
 ///
+/// Uses `x509-parser` to parse the certificate and extract Extended Key Usage
+/// OIDs from the EKU extension.
+///
 /// Returns None if parsing fails or no EKU extension is present.
 fn extract_eku_oids(cert_der: &[u8]) -> Option<Vec<String>> {
-    // Use x509-parser if available, or fall back to a simple approach
-    // For now, try the did_x509 crate's parsing which already handles this
-    // The did_x509 crate extracts EKUs internally — we need a way to access them.
-    //
-    // TODO: When x509-parser is available as a dep, use:
-    //   let (_, cert) = x509_parser::parse_x509_certificate(cert_der).ok()?;
-    //   let eku = cert.extended_key_usage().ok()??;
-    //   Some(eku.value.other.iter().map(|oid| oid.to_id_string()).collect())
-    //
-    // For now, delegate to did_x509's internal parsing by attempting to build
-    // and extracting the EKU from the resulting DID string.
-    let chain = &[cert_der];
-    if let Ok(did) = did_x509::DidX509Builder::build_from_chain_with_eku(chain) {
-        // Parse the DID to extract the EKU OID: did:x509:0:sha256:...::eku:{oid}
-        if let Some(eku_part) = did.split("::eku:").nth(1) {
-            return Some(vec![eku_part.to_string()]);
-        }
+    use x509_parser::prelude::*;
+
+    let (_, cert) = X509Certificate::from_der(cert_der).ok()?;
+    let eku_ext = cert.extended_key_usage().ok().flatten()?;
+    let eku = &eku_ext.value;
+
+    let mut oids = Vec::new();
+    if eku.any {
+        oids.push("2.5.29.37.0".to_string());
     }
-    None
+    if eku.server_auth {
+        oids.push("1.3.6.1.5.5.7.3.1".to_string());
+    }
+    if eku.client_auth {
+        oids.push("1.3.6.1.5.5.7.3.2".to_string());
+    }
+    if eku.code_signing {
+        oids.push("1.3.6.1.5.5.7.3.3".to_string());
+    }
+    if eku.email_protection {
+        oids.push("1.3.6.1.5.5.7.3.4".to_string());
+    }
+    if eku.time_stamping {
+        oids.push("1.3.6.1.5.5.7.3.8".to_string());
+    }
+    if eku.ocsp_signing {
+        oids.push("1.3.6.1.5.5.7.3.9".to_string());
+    }
+    for other_oid in &eku.other {
+        oids.push(other_oid.to_id_string());
+    }
+
+    if oids.is_empty() {
+        None
+    } else {
+        Some(oids)
+    }
 }
 
 /// Get the numeric value of the last segment of an OID.

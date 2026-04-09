@@ -28,24 +28,38 @@ jobs:
 
     - name: Check changed paths
       id: filter
-      uses: dorny/paths-filter@v3
-      with:
-        filters: |
-          native:
-            - 'native/**'
-          native_c_cpp:
-            - 'native/**/*.c'
-            - 'native/**/*.cpp'
-            - 'native/**/*.h'
-            - 'native/**/*.hpp'
-          dotnet:
-            - '**/*.cs'
-            - '**/*.csproj'
-            - '**/*.sln'
-            - '*.props'
-            - '*.targets'
-            - 'Directory.Build.props'
-            - 'Directory.Packages.props'
+      shell: bash
+      run: |
+        if [ "${{ github.event_name }}" = "pull_request" ]; then
+          BASE="${{ github.event.pull_request.base.sha }}"
+        else
+          BASE="${{ github.event.before }}"
+        fi
+
+        CHANGED=$(git diff --name-only "$BASE" "${{ github.sha }}" 2>/dev/null || git diff --name-only HEAD~1 HEAD)
+
+        if echo "$CHANGED" | grep -q '^native/'; then
+          echo "native=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "native=false" >> "$GITHUB_OUTPUT"
+        fi
+
+        if echo "$CHANGED" | grep -qE '\.(c|cpp|h|hpp)$' | grep -q '^native/'; then
+          echo "native_c_cpp=true" >> "$GITHUB_OUTPUT"
+        else
+          # Check more carefully for C/C++ files under native/
+          if echo "$CHANGED" | grep -q '^native/.*\.\(c\|cpp\|h\|hpp\)$'; then
+            echo "native_c_cpp=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "native_c_cpp=false" >> "$GITHUB_OUTPUT"
+          fi
+        fi
+
+        if echo "$CHANGED" | grep -qE '\.(cs|csproj|sln)$|\.props$|\.targets$|Directory\.Build|Directory\.Packages'; then
+          echo "dotnet=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "dotnet=false" >> "$GITHUB_OUTPUT"
+        fi
 
   analyze-csharp:
     name: codeql-csharp

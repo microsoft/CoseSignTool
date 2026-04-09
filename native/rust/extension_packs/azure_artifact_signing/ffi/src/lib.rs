@@ -3,14 +3,49 @@
 
 #![cfg_attr(coverage_nightly, feature(coverage_attribute))]
 
-//! Azure Artifact Signing pack FFI bindings.
+//! C-ABI projection for `cose_sign1_azure_artifact_signing`.
+//!
+//! This crate provides C-compatible FFI exports for the Azure Artifact Signing
+//! (AAS) extension pack. It enables C/C++ consumers to register the AAS trust
+//! pack with a validator builder, with support for both default and custom
+//! trust options (endpoint URL, account name, certificate profile name).
+//!
+//! # ABI Stability
+//!
+//! All exported functions use `extern "C"` calling convention.
+//! Opaque handle types are passed as `*mut` (owned) or `*const` (borrowed).
+//! The ABI version is available via `cose_sign1_ats_abi_version()`.
+//!
+//! # Panic Safety
+//!
+//! All exported functions are wrapped in `catch_unwind` to prevent
+//! Rust panics from crossing the FFI boundary.
+//!
+//! # Error Handling
+//!
+//! Functions return `cose_status_t` (0 = OK, non-zero = error).
+//! On error, call `cose_last_error_message_utf8()` for details.
+//! Error state is thread-local and safe for concurrent use.
+//!
+//! # Memory Ownership
+//!
+//! - `*mut T` parameters transfer ownership TO this function (consumed)
+//! - `*const T` parameters are borrowed (caller retains ownership)
+//! - `*mut *mut T` out-parameters transfer ownership FROM this function (caller must free)
+//! - Every handle type has a corresponding `*_free()` function
+//!
+//! # Thread Safety
+//!
+//! All functions are thread-safe. Error state is thread-local.
 
 #![deny(unsafe_op_in_unsafe_fn)]
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
 use cose_sign1_azure_artifact_signing::options::AzureArtifactSigningOptions;
+use cose_sign1_azure_artifact_signing::validation::fluent_ext::AasPrimarySigningKeyScopeRulesExt;
 use cose_sign1_azure_artifact_signing::validation::AzureArtifactSigningTrustPack;
 use cose_sign1_validation_ffi::{cose_sign1_validator_builder_t, cose_status_t, with_catch_unwind};
+use cose_sign1_validation_ffi::{cose_trust_policy_builder_t, with_trust_policy_builder_mut};
 use std::ffi::{c_char, CStr};
 use std::sync::Arc;
 
@@ -106,6 +141,46 @@ pub extern "C" fn cose_sign1_validator_builder_with_ats_pack_ex(
     })
 }
 
-// TODO: Add trust policy builder helpers once the fact types are stabilized:
-// cose_sign1_ats_trust_policy_builder_require_ats_identified
-// cose_sign1_ats_trust_policy_builder_require_ats_compliant
+/// Trust-policy helper: require that the signing certificate was issued by
+/// Azure Artifact Signing.
+///
+/// Adds a requirement on `AasSigningServiceIdentifiedFact.is_ats_issued == true`
+/// to the primary signing key scope of the trust policy.
+///
+/// # Safety
+///
+/// `policy_builder` must be a valid, non-null pointer to a `cose_trust_policy_builder_t`.
+#[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
+pub extern "C" fn cose_sign1_ats_trust_policy_builder_require_ats_identified(
+    policy_builder: *mut cose_trust_policy_builder_t,
+) -> cose_status_t {
+    with_catch_unwind(|| {
+        with_trust_policy_builder_mut(policy_builder, |b| {
+            b.for_primary_signing_key(|s| s.require_ats_identified())
+        })?;
+        Ok(cose_status_t::COSE_OK)
+    })
+}
+
+/// Trust-policy helper: require that the signing operation is SCITT compliant
+/// (AAS-issued with SCITT headers present).
+///
+/// Adds a requirement on `AasComplianceFact.scitt_compliant == true`
+/// to the primary signing key scope of the trust policy.
+///
+/// # Safety
+///
+/// `policy_builder` must be a valid, non-null pointer to a `cose_trust_policy_builder_t`.
+#[no_mangle]
+#[cfg_attr(coverage_nightly, coverage(off))]
+pub extern "C" fn cose_sign1_ats_trust_policy_builder_require_ats_compliant(
+    policy_builder: *mut cose_trust_policy_builder_t,
+) -> cose_status_t {
+    with_catch_unwind(|| {
+        with_trust_policy_builder_mut(policy_builder, |b| {
+            b.for_primary_signing_key(|s| s.require_ats_compliant())
+        })?;
+        Ok(cose_status_t::COSE_OK)
+    })
+}

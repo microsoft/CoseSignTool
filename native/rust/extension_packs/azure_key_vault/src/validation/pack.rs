@@ -7,8 +7,8 @@ use cose_sign1_validation::fluent::*;
 use cose_sign1_validation_primitives::error::TrustError;
 use cose_sign1_validation_primitives::facts::{FactKey, TrustFactContext, TrustFactProducer};
 use cose_sign1_validation_primitives::plan::CompiledTrustPlan;
-use once_cell::sync::Lazy;
 use regex::Regex;
+use std::sync::LazyLock;
 use url::Url;
 
 pub mod fluent_ext {
@@ -243,7 +243,7 @@ impl TrustFactProducer for AzureKeyVaultTrustPack {
 
     /// Return the set of fact keys this producer can emit.
     fn provides(&self) -> &'static [FactKey] {
-        static PROVIDED: Lazy<[FactKey; 2]> = Lazy::new(|| {
+        static PROVIDED: LazyLock<[FactKey; 2]> = LazyLock::new(|| {
             [
                 FactKey::of::<AzureKeyVaultKidDetectedFact>(),
                 FactKey::of::<AzureKeyVaultKidAllowedFact>(),

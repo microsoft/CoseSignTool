@@ -5,29 +5,45 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
-//! C/C++ FFI for DID:x509 parsing, building, validation and resolution.
+//! C-ABI projection for `did_x509`.
 //!
-//! This crate (`did_x509_ffi`) provides FFI-safe wrappers for working with DID:x509
-//! identifiers from C and C++ code. It uses the `did_x509` crate for core functionality.
+//! This crate provides C-compatible FFI exports for DID:x509 identifier
+//! operations. It wraps the `did_x509` crate, enabling C and C++ code to
+//! parse, build, validate, and resolve DID:x509 identifiers against X.509
+//! certificate chains.
 //!
-//! ## Error Handling
+//! # ABI Stability
+//!
+//! All exported functions use `extern "C"` calling convention.
+//! Opaque handle types are passed as `*mut` (owned) or `*const` (borrowed).
+//! The ABI version is available via `did_x509_abi_version()`.
+//!
+//! # Panic Safety
+//!
+//! All exported functions are wrapped in `catch_unwind` to prevent
+//! Rust panics from crossing the FFI boundary.
+//!
+//! # Error Handling
 //!
 //! All functions follow a consistent error handling pattern:
 //! - Return value: 0 = success, negative = error code
 //! - `out_error` parameter: Set to error handle on failure (caller must free)
 //! - Output parameters: Only valid if return is 0
 //!
-//! ## Memory Management
+//! # Memory Ownership
 //!
-//! Handles and strings returned by this library must be freed using the corresponding `*_free` function:
-//! - `did_x509_parsed_free` for parsed identifier handles
-//! - `did_x509_error_free` for error handles
-//! - `did_x509_string_free` for string pointers
+//! - `*mut T` parameters transfer ownership TO this function (consumed)
+//! - `*const T` parameters are borrowed (caller retains ownership)
+//! - `*mut *mut T` out-parameters transfer ownership FROM this function (caller must free)
+//! - Every handle type has a corresponding `*_free()` function:
+//!   - `did_x509_parsed_free` for parsed identifier handles
+//!   - `did_x509_error_free` for error handles
+//!   - `did_x509_string_free` for string pointers
 //!
-//! ## Thread Safety
+//! # Thread Safety
 //!
-//! All handles are thread-safe and can be used from multiple threads. However, handles
-//! are not internally synchronized, so concurrent mutation requires external synchronization.
+//! All functions are thread-safe. Handles are not internally synchronized,
+//! so concurrent mutation requires external synchronization.
 
 pub mod error;
 pub mod types;

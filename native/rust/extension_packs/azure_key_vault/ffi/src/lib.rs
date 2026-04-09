@@ -1,6 +1,42 @@
-//! Azure Key Vault pack FFI bindings.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+//! C-ABI projection for `cose_sign1_azure_key_vault`.
 //!
-//! This crate exposes the Azure Key Vault KID validation pack and signing key creation to C/C++ consumers.
+//! This crate provides C-compatible FFI exports for the Azure Key Vault
+//! extension pack. It enables C/C++ consumers to register the Azure Key Vault
+//! trust pack with a validator builder, author trust policies that constrain
+//! Key Vault KID properties (detection, allowed/denied lists), and create
+//! signing keys and signing services backed by Azure Key Vault.
+//!
+//! # ABI Stability
+//!
+//! All exported functions use `extern "C"` calling convention.
+//! Opaque handle types are passed as `*mut` (owned) or `*const` (borrowed).
+//!
+//! # Panic Safety
+//!
+//! All exported functions are wrapped in `catch_unwind` to prevent
+//! Rust panics from crossing the FFI boundary.
+//!
+//! # Error Handling
+//!
+//! Functions return `cose_status_t` (0 = OK, non-zero = error).
+//! On error, call `cose_last_error_message_utf8()` for details.
+//! Error state is thread-local and safe for concurrent use.
+//!
+//! # Memory Ownership
+//!
+//! - `*mut T` parameters transfer ownership TO this function (consumed)
+//! - `*const T` parameters are borrowed (caller retains ownership)
+//! - `*mut *mut T` out-parameters transfer ownership FROM this function (caller must free)
+//! - Every handle type has a corresponding `*_free()` function:
+//!   - `cose_akv_key_client_free` for key client handles
+//!   - `cose_sign1_akv_signing_service_free` for signing service handles
+//!
+//! # Thread Safety
+//!
+//! All functions are thread-safe. Error state is thread-local.
 
 #![cfg_attr(coverage_nightly, feature(coverage_attribute))]
 #![deny(unsafe_op_in_unsafe_fn)]

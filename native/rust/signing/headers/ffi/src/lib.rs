@@ -5,31 +5,45 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
-//! C/C++ FFI for COSE Sign1 CWT Claims operations.
+//! C-ABI projection for `cose_sign1_headers`.
 //!
-//! This crate (`cose_sign1_headers_ffi`) provides FFI-safe wrappers for creating and managing
-//! CWT (CBOR Web Token) Claims from C and C++ code. It uses `cose_sign1_headers` for types and
-//! `cbor_primitives_everparse` for CBOR encoding/decoding.
+//! This crate provides C-compatible FFI exports for creating and managing CWT
+//! (CBOR Web Token) Claims from C and C++ code. It wraps the `cose_sign1_headers`
+//! crate and uses `cbor_primitives_everparse` for CBOR encoding/decoding.
 //!
-//! ## Error Handling
+//! # ABI Stability
+//!
+//! All exported functions use `extern "C"` calling convention.
+//! Opaque handle types are passed as `*mut` (owned) or `*const` (borrowed).
+//! The ABI version is available via `cose_cwt_claims_abi_version()`.
+//!
+//! # Panic Safety
+//!
+//! All exported functions are wrapped in `catch_unwind` to prevent
+//! Rust panics from crossing the FFI boundary.
+//!
+//! # Error Handling
 //!
 //! All functions follow a consistent error handling pattern:
 //! - Return value: 0 = success, negative = error code
 //! - `out_error` parameter: Set to error handle on failure (caller must free)
 //! - Output parameters: Only valid if return is 0
 //!
-//! ## Memory Management
+//! # Memory Ownership
 //!
-//! Handles returned by this library must be freed using the corresponding `*_free` function:
-//! - `cose_cwt_claims_free` for CWT claims handles
-//! - `cose_cwt_error_free` for error handles
-//! - `cose_cwt_string_free` for string pointers
-//! - `cose_cwt_bytes_free` for byte buffer pointers
+//! - `*mut T` parameters transfer ownership TO this function (consumed)
+//! - `*const T` parameters are borrowed (caller retains ownership)
+//! - `*mut *mut T` out-parameters transfer ownership FROM this function (caller must free)
+//! - Every handle type has a corresponding `*_free()` function:
+//!   - `cose_cwt_claims_free` for CWT claims handles
+//!   - `cose_cwt_error_free` for error handles
+//!   - `cose_cwt_string_free` for string pointers
+//!   - `cose_cwt_bytes_free` for byte buffer pointers
 //!
-//! ## Thread Safety
+//! # Thread Safety
 //!
-//! All handles are thread-safe and can be used from multiple threads. However, handles
-//! are not internally synchronized, so concurrent mutation requires external synchronization.
+//! All functions are thread-safe. Handles are not internally synchronized,
+//! so concurrent mutation requires external synchronization.
 
 pub mod error;
 pub mod provider;

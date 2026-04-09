@@ -323,6 +323,75 @@ fn test_get_cose_signer_certificate_source_failure() {
 
 #[test]
 fn test_verify_signature_returns_true() {
+    // Generate a real EC P-256 key pair and self-signed certificate
+    let key_pair = rcgen::KeyPair::generate_for(&rcgen::PKCS_ECDSA_P256_SHA256).unwrap();
+    let cert_params = rcgen::CertificateParams::new(vec!["test.example.com".to_string()]).unwrap();
+    let cert = cert_params.self_signed(&key_pair).unwrap();
+    let cert_der = cert.der().to_vec();
+
+    // Build a COSE_Sign1 message signed by this key
+    let payload = b"test payload for verification";
+
+    // Create an OpenSSL signer from the private key DER
+    let private_key_der = key_pair.serialize_der();
+    let signer =
+        cose_sign1_crypto_openssl::evp_signer::EvpSigner::from_der(&private_key_der, -7).unwrap();
+
+    // Build and sign a tagged COSE_Sign1 message
+    let builder = cose_sign1_primitives::CoseSign1Builder::new().tagged(true);
+    let signed_bytes = builder.sign(&signer, payload).expect("sign");
+
+    // Now set up CertificateSigningService with the real cert
+    let source = Box::new(MockCertificateSource::new(cert_der, vec![]));
+    let provider = Arc::new(MockSigningKeyProvider::new(false));
+    let options = CertificateSigningOptions::default();
+
+    let service = CertificateSigningService::new(source, provider, options);
+    let context = SigningContext::from_bytes(vec![]);
+
+    let result = service.verify_signature(&signed_bytes, &context);
+    assert!(result.is_ok(), "verify_signature failed: {:?}", result);
+    assert!(result.unwrap(), "signature should be valid");
+}
+
+#[test]
+fn test_verify_signature_rejects_tampered_message() {
+    // Generate a real EC P-256 key pair and self-signed certificate
+    let key_pair = rcgen::KeyPair::generate_for(&rcgen::PKCS_ECDSA_P256_SHA256).unwrap();
+    let cert_params = rcgen::CertificateParams::new(vec!["test.example.com".to_string()]).unwrap();
+    let cert = cert_params.self_signed(&key_pair).unwrap();
+    let cert_der = cert.der().to_vec();
+
+    // Build a COSE_Sign1 message signed by this key
+    let payload = b"original payload";
+    let private_key_der = key_pair.serialize_der();
+    let signer =
+        cose_sign1_crypto_openssl::evp_signer::EvpSigner::from_der(&private_key_der, -7).unwrap();
+
+    let builder = cose_sign1_primitives::CoseSign1Builder::new().tagged(true);
+    let mut signed_bytes = builder.sign(&signer, payload).expect("sign");
+
+    // Tamper with the last byte of the signature
+    let len = signed_bytes.len();
+    signed_bytes[len - 1] ^= 0xFF;
+
+    let source = Box::new(MockCertificateSource::new(cert_der, vec![]));
+    let provider = Arc::new(MockSigningKeyProvider::new(false));
+    let options = CertificateSigningOptions::default();
+    let service = CertificateSigningService::new(source, provider, options);
+    let context = SigningContext::from_bytes(vec![]);
+
+    let result = service.verify_signature(&signed_bytes, &context);
+    // Either returns Ok(false) or Err — both indicate invalid signature
+    match result {
+        Ok(false) => {} // Verification correctly returned false
+        Err(_) => {}    // Verification error is also acceptable for tampered data
+        Ok(true) => panic!("tampered message should not verify as valid"),
+    }
+}
+
+#[test]
+fn test_verify_signature_invalid_message_returns_error() {
     let cert = create_test_cert();
     let source = Box::new(MockCertificateSource::new(cert, vec![]));
     let provider = Arc::new(MockSigningKeyProvider::new(false));
@@ -331,10 +400,9 @@ fn test_verify_signature_returns_true() {
     let service = CertificateSigningService::new(source, provider, options);
     let context = SigningContext::from_bytes(vec![]);
 
-    // Currently returns true (TODO implementation)
+    // Garbage bytes are not a valid COSE_Sign1 message
     let result = service.verify_signature(&[1, 2, 3, 4], &context);
-    assert!(result.is_ok());
-    assert!(result.unwrap());
+    assert!(result.is_err(), "invalid message bytes should return Err");
 }
 
 #[test]

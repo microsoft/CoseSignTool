@@ -23,9 +23,10 @@ did_x509 = { path = "../../did/x509" }
 azure_core = { workspace = true }
 azure_identity = { workspace = true }
 tokio = { workspace = true, features = ["rt"] }
-once_cell = { workspace = true }
 base64 = { workspace = true }
 sha2 = { workspace = true }
+openssl = { workspace = true }
+x509-parser = { workspace = true }
 
 [dev-dependencies]
 cose_sign1_validation_primitives = { path = "../../validation/primitives" }

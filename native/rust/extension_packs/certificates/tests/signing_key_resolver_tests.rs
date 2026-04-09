@@ -15,9 +15,12 @@
 use cbor_primitives::{CborEncoder, CborProvider};
 use cbor_primitives_everparse::EverParseCborProvider;
 use cose_sign1_certificates::validation::signing_key_resolver::X509CertificateCoseKeyResolver;
+use cose_sign1_certificates_local::{
+    Certificate, CertificateFactory, CertificateOptions, EphemeralCertificateFactory,
+    KeyAlgorithm, SoftwareKeyProvider,
+};
 use cose_sign1_validation::fluent::*;
 use cose_sign1_validation_primitives::CoseHeaderLocation;
-use rcgen::{generate_simple_self_signed, CertifiedKey, KeyPair};
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -68,14 +71,27 @@ fn protected_x5chain_empty_array() -> Vec<u8> {
 
 /// Generate a self-signed EC P-256 certificate DER.
 fn gen_p256_cert_der() -> Vec<u8> {
-    let CertifiedKey { cert, .. } =
-        generate_simple_self_signed(vec!["resolver-test.example.com".to_string()]).unwrap();
-    cert.der().as_ref().to_vec()
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=resolver-test.example.com")
+                .add_subject_alternative_name("resolver-test.example.com"),
+        )
+        .unwrap()
+        .cert_der
 }
 
-/// Generate a self-signed EC P-256 certificate and return both DER and key pair.
-fn gen_p256_cert_and_key() -> CertifiedKey<KeyPair> {
-    generate_simple_self_signed(vec!["resolver-test.example.com".to_string()]).unwrap()
+/// Generate a self-signed EC P-256 certificate with its private key.
+fn gen_p256_cert_and_key() -> Certificate {
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=resolver-test.example.com")
+                .add_subject_alternative_name("resolver-test.example.com"),
+        )
+        .unwrap()
 }
 
 /// Resolve a key from a COSE_Sign1 message with the given protected header bytes.
@@ -225,10 +241,17 @@ fn verify_es256_oid_mismatch_returns_invalid_key() {
 fn verify_es384_wrong_key_with_garbage_signature() {
     // Use a P-384 cert (97-byte public key) with id-ecPublicKey OID.
     // OpenSSL provider correctly detects EC curve: P-384 → ES384 (-35).
-    let key_pair = rcgen::KeyPair::generate_for(&rcgen::PKCS_ECDSA_P384_SHA384).unwrap();
-    let params = rcgen::CertificateParams::new(vec!["p384-test.example.com".to_string()]).unwrap();
-    let cert = params.self_signed(&key_pair).unwrap();
-    let cert_der = cert.der().to_vec();
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let p384_cert = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=p384-test.example.com")
+                .add_subject_alternative_name("p384-test.example.com")
+                .with_key_algorithm(KeyAlgorithm::Ecdsa)
+                .with_key_size(384),
+        )
+        .unwrap();
+    let cert_der = p384_cert.cert_der.clone();
 
     let protected = protected_x5chain_bstr(&cert_der);
     let key = resolve_key(&protected).cose_key.unwrap();
@@ -314,8 +337,8 @@ fn verify_es256_invalid_sig_returns_false() {
 
 #[test]
 fn verify_es256_valid_sig_returns_true() {
-    let CertifiedKey { cert, signing_key } = gen_p256_cert_and_key();
-    let cert_der = cert.der().as_ref().to_vec();
+    let cert_and_key = gen_p256_cert_and_key();
+    let cert_der = cert_and_key.cert_der.clone();
     let protected = protected_x5chain_bstr(&cert_der);
     let key = resolve_key(&protected).cose_key.unwrap();
 
@@ -326,7 +349,7 @@ fn verify_es256_valid_sig_returns_true() {
     use openssl::pkey::PKey;
     use openssl::sign::Signer;
 
-    let pkcs8_der = signing_key.serialize_der();
+    let pkcs8_der = cert_and_key.private_key_der.clone().unwrap();
     let pkey = PKey::private_key_from_der(&pkcs8_der).unwrap();
 
     let mut signer = Signer::new(MessageDigest::sha256(), &pkey).unwrap();

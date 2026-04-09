@@ -68,9 +68,21 @@ pub fn validate_subject(
             for attr in rdn.iter() {
                 if attr.attr_type().to_id_string() == oid {
                     found = true;
-                    if let Ok(value) = attr.attr_value().as_str() {
-                        actual_value = Some(value.to_string());
-                        if value == expected_value {
+                    // Try UTF8String first, then fall back to raw bytes for
+                    // PrintableString and other ASN.1 string types (e.g. CountryName).
+                    let value_str = attr
+                        .attr_value()
+                        .as_str()
+                        .ok()
+                        .map(|s| s.to_string())
+                        .or_else(|| {
+                            std::str::from_utf8(attr.attr_value().data)
+                                .ok()
+                                .map(|s| s.to_string())
+                        });
+                    if let Some(value) = value_str {
+                        actual_value = Some(value.clone());
+                        if value == *expected_value {
                             // Exact match found, continue to next expected attribute
                             break;
                         }

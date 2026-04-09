@@ -26,8 +26,9 @@ use cose_sign1_validation_primitives::facts::{TrustFactEngine, TrustFactSet};
 use cose_sign1_validation_primitives::subject::TrustSubject;
 use cose_sign1_validation_primitives::CoseHeaderLocation;
 use crypto_primitives::{CryptoError, CryptoSigner};
-use rcgen::{
-    generate_simple_self_signed, CertificateParams, CertifiedKey, KeyPair, PKCS_ECDSA_P256_SHA256,
+use cose_sign1_certificates_local::{
+    CertificateFactory, CertificateOptions, EphemeralCertificateFactory,
+    SoftwareKeyProvider,
 };
 use std::fs;
 use std::path::PathBuf;
@@ -63,33 +64,34 @@ fn make_engine(
 }
 
 fn generate_test_cert_der() -> Vec<u8> {
-    let params = CertificateParams::new(vec!["test.example.com".to_string()]).unwrap();
-    let key_pair = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256).unwrap();
-    let cert = params.self_signed(&key_pair).unwrap();
-    cert.der().to_vec()
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let cert = factory.create_certificate(
+        CertificateOptions::new()
+            .with_subject_name("CN=test.example.com")
+            .add_subject_alternative_name("test.example.com")
+    ).unwrap();
+    cert.cert_der.clone()
 }
 
 fn generate_ca_and_leaf() -> (Vec<u8>, Vec<u8>) {
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+
     // Create CA
-    let mut ca_params = CertificateParams::new(vec![]).unwrap();
-    ca_params.is_ca = rcgen::IsCa::Ca(rcgen::BasicConstraints::Unconstrained);
-    ca_params
-        .distinguished_name
-        .push(rcgen::DnType::CommonName, "Test Root CA");
-    let ca_key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256).unwrap();
-    let ca_cert = ca_params.self_signed(&ca_key).unwrap();
+    let ca_cert = factory.create_certificate(
+        CertificateOptions::new()
+            .with_subject_name("CN=Test Root CA")
+            .as_ca(u32::MAX)
+    ).unwrap();
 
     // Create leaf signed by CA
-    let mut leaf_params = CertificateParams::new(vec!["leaf.test.com".to_string()]).unwrap();
-    leaf_params.is_ca = rcgen::IsCa::NoCa;
-    leaf_params
-        .distinguished_name
-        .push(rcgen::DnType::CommonName, "Test Leaf");
-    let leaf_key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256).unwrap();
-    let issuer = rcgen::Issuer::from_ca_cert_der(ca_cert.der(), &ca_key).unwrap();
-    let leaf_cert = leaf_params.signed_by(&leaf_key, &issuer).unwrap();
+    let leaf_cert = factory.create_certificate(
+        CertificateOptions::new()
+            .with_subject_name("CN=Test Leaf")
+            .add_subject_alternative_name("leaf.test.com")
+            .signed_by(ca_cert.clone())
+    ).unwrap();
 
-    (ca_cert.der().to_vec(), leaf_cert.der().to_vec())
+    (ca_cert.cert_der.clone(), leaf_cert.cert_der.clone())
 }
 
 /// Build a COSE_Sign1 message with a protected header containing the given CBOR map bytes.
@@ -130,9 +132,13 @@ fn protected_x5chain_and_alg(cert_der: &[u8], alg: i64) -> Vec<u8> {
 
 /// Generate a self-signed EC P-256 certificate DER.
 fn gen_p256_cert_der() -> Vec<u8> {
-    let CertifiedKey { cert, .. } =
-        generate_simple_self_signed(vec!["test.example.com".to_string()]).unwrap();
-    cert.der().as_ref().to_vec()
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let cert = factory.create_certificate(
+        CertificateOptions::new()
+            .with_subject_name("CN=test.example.com")
+            .add_subject_alternative_name("test.example.com")
+    ).unwrap();
+    cert.cert_der.clone()
 }
 
 /// Resolve a key from a COSE_Sign1 message with the given protected header bytes.

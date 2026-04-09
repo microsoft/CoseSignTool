@@ -6,61 +6,78 @@
 //! Tests the policy_validators.rs functions with actual certificate generation
 //! to ensure proper validation behavior for various policy types.
 
+use cose_sign1_certificates_local::{
+    CertificateFactory, CertificateOptions, EphemeralCertificateFactory, SoftwareKeyProvider,
+};
 use did_x509::error::DidX509Error;
 use did_x509::models::SanType;
 use did_x509::policy_validators::{
     validate_eku, validate_fulcio_issuer, validate_san, validate_subject,
 };
-use rcgen::string::Ia5String;
-use rcgen::ExtendedKeyUsagePurpose;
-use rcgen::{CertificateParams, DnType, KeyPair, SanType as RcgenSanType};
+use openssl::asn1::Asn1Time;
+use openssl::bn::BigNum;
+use openssl::ec::{EcGroup, EcKey};
+use openssl::hash::MessageDigest;
+use openssl::nid::Nid;
+use openssl::pkey::PKey;
+use openssl::x509::{X509Builder, X509NameBuilder};
 use x509_parser::prelude::*;
 
 /// Helper to generate a certificate with specific EKU OIDs.
-fn generate_cert_with_eku(eku_purposes: Vec<ExtendedKeyUsagePurpose>) -> Vec<u8> {
-    let mut params = CertificateParams::default();
-    params
-        .distinguished_name
-        .push(DnType::CommonName, "Test EKU Certificate");
-
-    if !eku_purposes.is_empty() {
-        params.extended_key_usages = eku_purposes;
-    }
-
-    let key = KeyPair::generate().unwrap();
-    let cert = params.self_signed(&key).unwrap();
-    cert.der().to_vec()
+fn generate_cert_with_eku(eku_oids: Vec<String>) -> Vec<u8> {
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let options = CertificateOptions::new()
+        .with_subject_name("CN=Test EKU Certificate")
+        .with_enhanced_key_usages(eku_oids);
+    let cert = factory.create_certificate(options).unwrap();
+    cert.cert_der
 }
 
 /// Helper to generate a certificate with specific subject attributes.
-fn generate_cert_with_subject(attributes: Vec<(DnType, String)>) -> Vec<u8> {
-    let mut params = CertificateParams::default();
+/// Uses OpenSSL directly to support multi-attribute DN (CN, O, OU, C, etc.).
+fn generate_cert_with_subject(attributes: Vec<(&str, &str)>) -> Vec<u8> {
+    let group = EcGroup::from_curve_name(Nid::X9_62_PRIME256V1).unwrap();
+    let ec_key = EcKey::generate(&group).unwrap();
+    let pkey = PKey::from_ec_key(ec_key).unwrap();
 
-    for (dn_type, value) in attributes {
-        params.distinguished_name.push(dn_type, value);
+    let mut name_builder = X509NameBuilder::new().unwrap();
+    for (attr, value) in &attributes {
+        name_builder.append_entry_by_text(attr, value).unwrap();
     }
+    let subject_name = name_builder.build();
 
-    let key = KeyPair::generate().unwrap();
-    let cert = params.self_signed(&key).unwrap();
-    cert.der().to_vec()
+    let mut builder = X509Builder::new().unwrap();
+    builder.set_version(2).unwrap();
+    let serial = BigNum::from_u32(1).unwrap().to_asn1_integer().unwrap();
+    builder.set_serial_number(&serial).unwrap();
+    builder.set_subject_name(&subject_name).unwrap();
+    builder.set_issuer_name(&subject_name).unwrap();
+    builder.set_pubkey(&pkey).unwrap();
+    let not_before = Asn1Time::days_from_now(0).unwrap();
+    let not_after = Asn1Time::days_from_now(365).unwrap();
+    builder.set_not_before(&not_before).unwrap();
+    builder.set_not_after(&not_after).unwrap();
+    builder.sign(&pkey, MessageDigest::sha256()).unwrap();
+
+    builder.build().to_der().unwrap()
 }
 
 /// Helper to generate a certificate with specific SAN entries.
-fn generate_cert_with_san(san_entries: Vec<RcgenSanType>) -> Vec<u8> {
-    let mut params = CertificateParams::default();
-    params
-        .distinguished_name
-        .push(DnType::CommonName, "Test SAN Certificate");
-    params.subject_alt_names = san_entries;
-
-    let key = KeyPair::generate().unwrap();
-    let cert = params.self_signed(&key).unwrap();
-    cert.der().to_vec()
+fn generate_cert_with_san(san_entries: Vec<String>) -> Vec<u8> {
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let mut options = CertificateOptions::new()
+        .with_subject_name("CN=Test SAN Certificate")
+        .with_enhanced_key_usages(vec![]);
+    for san in san_entries {
+        options = options.add_subject_alternative_name(&san);
+    }
+    let cert = factory.create_certificate(options).unwrap();
+    cert.cert_der
 }
 
 #[test]
 fn test_validate_eku_success_single_oid() {
-    let cert_der = generate_cert_with_eku(vec![ExtendedKeyUsagePurpose::CodeSigning]);
+    let cert_der = generate_cert_with_eku(vec!["1.3.6.1.5.5.7.3.3".to_string()]);
     let (_, cert) = X509Certificate::from_der(&cert_der).unwrap();
 
     let result = validate_eku(&cert, &["1.3.6.1.5.5.7.3.3".to_string().into()]);
@@ -70,8 +87,8 @@ fn test_validate_eku_success_single_oid() {
 #[test]
 fn test_validate_eku_success_multiple_oids() {
     let cert_der = generate_cert_with_eku(vec![
-        ExtendedKeyUsagePurpose::CodeSigning,
-        ExtendedKeyUsagePurpose::ClientAuth,
+        "1.3.6.1.5.5.7.3.3".to_string(),
+        "1.3.6.1.5.5.7.3.2".to_string(),
     ]);
     let (_, cert) = X509Certificate::from_der(&cert_der).unwrap();
 
@@ -102,7 +119,7 @@ fn test_validate_eku_failure_missing_extension() {
 
 #[test]
 fn test_validate_eku_failure_wrong_oid() {
-    let cert_der = generate_cert_with_eku(vec![ExtendedKeyUsagePurpose::ServerAuth]);
+    let cert_der = generate_cert_with_eku(vec!["1.3.6.1.5.5.7.3.1".to_string()]);
     let (_, cert) = X509Certificate::from_der(&cert_der).unwrap();
 
     let result = validate_eku(&cert, &["1.3.6.1.5.5.7.3.3".to_string().into()]); // Expect Code Signing
@@ -117,10 +134,7 @@ fn test_validate_eku_failure_wrong_oid() {
 
 #[test]
 fn test_validate_subject_success_single_attribute() {
-    let cert_der = generate_cert_with_subject(vec![(
-        DnType::CommonName,
-        "Test Subject".to_string().into(),
-    )]);
+    let cert_der = generate_cert_with_subject(vec![("CN", "Test Subject")]);
     let (_, cert) = X509Certificate::from_der(&cert_der).unwrap();
 
     let result = validate_subject(
@@ -132,10 +146,7 @@ fn test_validate_subject_success_single_attribute() {
 
 #[test]
 fn test_validate_subject_success_multiple_attributes() {
-    let cert_der = generate_cert_with_subject(vec![
-        (DnType::CommonName, "Test Subject".to_string().into()),
-        (DnType::OrganizationName, "Test Org".to_string().into()),
-    ]);
+    let cert_der = generate_cert_with_subject(vec![("CN", "Test Subject"), ("O", "Test Org")]);
     let (_, cert) = X509Certificate::from_der(&cert_der).unwrap();
 
     let result = validate_subject(
@@ -150,10 +161,7 @@ fn test_validate_subject_success_multiple_attributes() {
 
 #[test]
 fn test_validate_subject_failure_empty_attributes() {
-    let cert_der = generate_cert_with_subject(vec![(
-        DnType::CommonName,
-        "Test Subject".to_string().into(),
-    )]);
+    let cert_der = generate_cert_with_subject(vec![("CN", "Test Subject")]);
     let (_, cert) = X509Certificate::from_der(&cert_der).unwrap();
 
     let result = validate_subject(&cert, &[]);
@@ -168,10 +176,7 @@ fn test_validate_subject_failure_empty_attributes() {
 
 #[test]
 fn test_validate_subject_failure_attribute_not_found() {
-    let cert_der = generate_cert_with_subject(vec![(
-        DnType::CommonName,
-        "Test Subject".to_string().into(),
-    )]);
+    let cert_der = generate_cert_with_subject(vec![("CN", "Test Subject")]);
     let (_, cert) = X509Certificate::from_der(&cert_der).unwrap();
 
     let result = validate_subject(
@@ -189,10 +194,7 @@ fn test_validate_subject_failure_attribute_not_found() {
 
 #[test]
 fn test_validate_subject_failure_attribute_value_mismatch() {
-    let cert_der = generate_cert_with_subject(vec![(
-        DnType::CommonName,
-        "Test Subject".to_string().into(),
-    )]);
+    let cert_der = generate_cert_with_subject(vec![("CN", "Test Subject")]);
     let (_, cert) = X509Certificate::from_der(&cert_der).unwrap();
 
     let result = validate_subject(
@@ -211,10 +213,7 @@ fn test_validate_subject_failure_attribute_value_mismatch() {
 
 #[test]
 fn test_validate_subject_failure_unknown_attribute() {
-    let cert_der = generate_cert_with_subject(vec![(
-        DnType::CommonName,
-        "Test Subject".to_string().into(),
-    )]);
+    let cert_der = generate_cert_with_subject(vec![("CN", "Test Subject")]);
     let (_, cert) = X509Certificate::from_der(&cert_der).unwrap();
 
     let result = validate_subject(
@@ -232,9 +231,7 @@ fn test_validate_subject_failure_unknown_attribute() {
 
 #[test]
 fn test_validate_san_success_dns() {
-    let cert_der = generate_cert_with_san(vec![RcgenSanType::DnsName(
-        Ia5String::try_from("example.com").unwrap(),
-    )]);
+    let cert_der = generate_cert_with_san(vec!["example.com".to_string()]);
     let (_, cert) = X509Certificate::from_der(&cert_der).unwrap();
 
     let result = validate_san(&cert, &SanType::Dns, "example.com");
@@ -243,9 +240,7 @@ fn test_validate_san_success_dns() {
 
 #[test]
 fn test_validate_san_success_email() {
-    let cert_der = generate_cert_with_san(vec![RcgenSanType::Rfc822Name(
-        Ia5String::try_from("test@example.com").unwrap(),
-    )]);
+    let cert_der = generate_cert_with_san(vec!["email:test@example.com".to_string()]);
     let (_, cert) = X509Certificate::from_der(&cert_der).unwrap();
 
     let result = validate_san(&cert, &SanType::Email, "test@example.com");
@@ -254,9 +249,7 @@ fn test_validate_san_success_email() {
 
 #[test]
 fn test_validate_san_success_uri() {
-    let cert_der = generate_cert_with_san(vec![RcgenSanType::URI(
-        Ia5String::try_from("https://example.com").unwrap(),
-    )]);
+    let cert_der = generate_cert_with_san(vec!["URI:https://example.com".to_string()]);
     let (_, cert) = X509Certificate::from_der(&cert_der).unwrap();
 
     let result = validate_san(&cert, &SanType::Uri, "https://example.com");
@@ -280,9 +273,7 @@ fn test_validate_san_failure_no_extension() {
 
 #[test]
 fn test_validate_san_failure_wrong_value() {
-    let cert_der = generate_cert_with_san(vec![RcgenSanType::DnsName(
-        Ia5String::try_from("wrong.com").unwrap(),
-    )]);
+    let cert_der = generate_cert_with_san(vec!["wrong.com".to_string()]);
     let (_, cert) = X509Certificate::from_der(&cert_der).unwrap();
 
     let result = validate_san(&cert, &SanType::Dns, "example.com");
@@ -297,9 +288,7 @@ fn test_validate_san_failure_wrong_value() {
 
 #[test]
 fn test_validate_san_failure_wrong_type() {
-    let cert_der = generate_cert_with_san(vec![RcgenSanType::Rfc822Name(
-        Ia5String::try_from("test@example.com").unwrap(),
-    )]);
+    let cert_der = generate_cert_with_san(vec!["email:test@example.com".to_string()]);
     let (_, cert) = X509Certificate::from_der(&cert_der).unwrap();
 
     let result = validate_san(&cert, &SanType::Dns, "test@example.com");
@@ -316,8 +305,7 @@ fn test_validate_san_failure_wrong_type() {
 fn test_validate_fulcio_issuer_success() {
     // Generate a basic certificate - Fulcio issuer extension testing would
     // require more complex certificate generation with custom extensions
-    let cert_der =
-        generate_cert_with_subject(vec![(DnType::CommonName, "Fulcio Test".to_string().into())]);
+    let cert_der = generate_cert_with_subject(vec![("CN", "Fulcio Test")]);
     let (_, cert) = X509Certificate::from_der(&cert_der).unwrap();
 
     // This test will fail since the certificate doesn't have Fulcio extension
@@ -333,8 +321,7 @@ fn test_validate_fulcio_issuer_success() {
 
 #[test]
 fn test_validate_fulcio_issuer_failure_missing_extension() {
-    let cert_der =
-        generate_cert_with_subject(vec![(DnType::CommonName, "Test Cert".to_string().into())]);
+    let cert_der = generate_cert_with_subject(vec![("CN", "Test Cert")]);
     let (_, cert) = X509Certificate::from_der(&cert_der).unwrap();
 
     let result = validate_fulcio_issuer(&cert, "https://fulcio.example.com");
@@ -350,7 +337,7 @@ fn test_validate_fulcio_issuer_failure_missing_extension() {
 #[test]
 fn test_error_display_coverage() {
     // Test additional error paths to improve coverage
-    let cert_der = generate_cert_with_eku(vec![ExtendedKeyUsagePurpose::ServerAuth]);
+    let cert_der = generate_cert_with_eku(vec!["1.3.6.1.5.5.7.3.1".to_string()]);
     let (_, cert) = X509Certificate::from_der(&cert_der).unwrap();
 
     // Test with multiple missing EKU OIDs
@@ -376,11 +363,8 @@ fn test_error_display_coverage() {
 
 #[test]
 fn test_policy_validation_edge_cases() {
-    let cert_der = generate_cert_with_subject(vec![
-        (DnType::CommonName, "Edge Case Test".to_string().into()),
-        (DnType::OrganizationName, "Test Corp".to_string().into()),
-        (DnType::CountryName, "US".to_string().into()),
-    ]);
+    let cert_der =
+        generate_cert_with_subject(vec![("CN", "Edge Case Test"), ("O", "Test Corp"), ("C", "US")]);
     let (_, cert) = X509Certificate::from_der(&cert_der).unwrap();
 
     // Test with less common DN attributes

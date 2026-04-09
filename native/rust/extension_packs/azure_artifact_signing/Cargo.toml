@@ -31,7 +31,7 @@ x509-parser = { workspace = true }
 [dev-dependencies]
 cose_sign1_validation_primitives = { path = "../../validation/primitives" }
 azure_artifact_signing_client = { path = "client", features = ["test-utils"] }
-rcgen = "0.14"
+cose_sign1_certificates_local = { path = "../../extension_packs/certificates/local" }
 openssl = { workspace = true }
 bytes = "1"
 serde_json = { workspace = true }

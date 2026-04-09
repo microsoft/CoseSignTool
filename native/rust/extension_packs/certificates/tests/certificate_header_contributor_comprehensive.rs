@@ -10,13 +10,20 @@ use cose_sign1_signing::{
     HeaderContributor, HeaderContributorContext, HeaderMergeStrategy, SigningContext,
 };
 use crypto_primitives::{CryptoError, CryptoSigner};
-use rcgen::{CertificateParams, KeyPair, PKCS_ECDSA_P256_SHA256};
+use cose_sign1_certificates_local::{
+    CertificateFactory, CertificateOptions, EphemeralCertificateFactory, SoftwareKeyProvider,
+};
 
 fn generate_test_cert() -> Vec<u8> {
-    let params = CertificateParams::new(vec!["test.example.com".to_string()]).unwrap();
-    let key_pair = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256).unwrap();
-    let cert = params.self_signed(&key_pair).unwrap();
-    cert.der().to_vec()
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let cert = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=test.example.com")
+                .add_subject_alternative_name("test.example.com"),
+        )
+        .unwrap();
+    cert.cert_der.clone()
 }
 
 fn create_test_context() -> HeaderContributorContext<'static> {

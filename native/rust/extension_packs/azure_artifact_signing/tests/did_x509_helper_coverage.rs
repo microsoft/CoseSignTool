@@ -7,38 +7,53 @@
 //! particularly the chain processing logic that needs 25% coverage improvement.
 
 use cose_sign1_azure_artifact_signing::signing::did_x509_helper::build_did_x509_from_ats_chain;
-use rcgen::{CertificateParams, DistinguishedName, DnType, ExtendedKeyUsagePurpose, KeyPair};
+use cose_sign1_certificates_local::{
+    CertificateFactory, CertificateOptions, EphemeralCertificateFactory, SoftwareKeyProvider,
+};
+
+const EKU_CODE_SIGNING: &str = "1.3.6.1.5.5.7.3.3";
+const EKU_SERVER_AUTH: &str = "1.3.6.1.5.5.7.3.1";
+const EKU_CLIENT_AUTH: &str = "1.3.6.1.5.5.7.3.2";
+const EKU_EMAIL_PROTECTION: &str = "1.3.6.1.5.5.7.3.4";
+const EKU_TIME_STAMPING: &str = "1.3.6.1.5.5.7.3.8";
+const EKU_ANY: &str = "2.5.29.37.0";
 
 /// Helper to generate a certificate with specific EKU OIDs.
-fn generate_cert_with_eku(eku_purposes: Vec<ExtendedKeyUsagePurpose>) -> Vec<u8> {
-    let key_pair = KeyPair::generate().unwrap();
-    let mut params = CertificateParams::default();
-    params.extended_key_usages = eku_purposes;
-    let mut dn = DistinguishedName::new();
-    dn.push(DnType::CommonName, "Test AAS Cert");
-    params.distinguished_name = dn;
-    params.self_signed(&key_pair).unwrap().der().to_vec()
+fn generate_cert_with_eku(eku_oids: Vec<&str>) -> Vec<u8> {
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=Test AAS Cert")
+                .with_enhanced_key_usages(eku_oids.into_iter().map(String::from).collect()),
+        )
+        .unwrap()
+        .cert_der
 }
 
 /// Helper to generate a cert with no EKU extension
 fn generate_cert_without_eku() -> Vec<u8> {
-    let key_pair = KeyPair::generate().unwrap();
-    let mut params = CertificateParams::default();
-    params.extended_key_usages = vec![]; // No EKU
-    let mut dn = DistinguishedName::new();
-    dn.push(DnType::CommonName, "No EKU Cert");
-    params.distinguished_name = dn;
-    params.self_signed(&key_pair).unwrap().der().to_vec()
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=No EKU Cert")
+                .with_enhanced_key_usages(vec![]),
+        )
+        .unwrap()
+        .cert_der
 }
 
 /// Generate a minimal cert that will parse but might have limited EKU
 fn generate_minimal_cert() -> Vec<u8> {
-    let key_pair = KeyPair::generate().unwrap();
-    let mut params = CertificateParams::default();
-    let mut dn = DistinguishedName::new();
-    dn.push(DnType::CommonName, "Minimal");
-    params.distinguished_name = dn;
-    params.self_signed(&key_pair).unwrap().der().to_vec()
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=Minimal"),
+        )
+        .unwrap()
+        .cert_der
 }
 
 #[test]
@@ -53,7 +68,7 @@ fn test_empty_chain_returns_error() {
 
 #[test]
 fn test_single_certificate_chain() {
-    let cert_der = generate_cert_with_eku(vec![ExtendedKeyUsagePurpose::CodeSigning]);
+    let cert_der = generate_cert_with_eku(vec![EKU_CODE_SIGNING]);
     let chain = vec![cert_der.as_slice()];
 
     let result = build_did_x509_from_ats_chain(&chain);
@@ -75,11 +90,11 @@ fn test_single_certificate_chain() {
 fn test_multi_certificate_chain() {
     // Create a chain with leaf + intermediate + root
     let leaf_cert = generate_cert_with_eku(vec![
-        ExtendedKeyUsagePurpose::CodeSigning,
-        ExtendedKeyUsagePurpose::TimeStamping,
+        EKU_CODE_SIGNING,
+        EKU_TIME_STAMPING,
     ]);
-    let intermediate_cert = generate_cert_with_eku(vec![ExtendedKeyUsagePurpose::Any]);
-    let root_cert = generate_cert_with_eku(vec![ExtendedKeyUsagePurpose::Any]);
+    let intermediate_cert = generate_cert_with_eku(vec![EKU_ANY]);
+    let root_cert = generate_cert_with_eku(vec![EKU_ANY]);
 
     let chain = vec![
         leaf_cert.as_slice(),
@@ -123,11 +138,11 @@ fn test_certificate_with_no_eku() {
 #[test]
 fn test_certificate_with_multiple_standard_ekus() {
     let cert_der = generate_cert_with_eku(vec![
-        ExtendedKeyUsagePurpose::ServerAuth,
-        ExtendedKeyUsagePurpose::ClientAuth,
-        ExtendedKeyUsagePurpose::CodeSigning,
-        ExtendedKeyUsagePurpose::EmailProtection,
-        ExtendedKeyUsagePurpose::TimeStamping,
+        EKU_SERVER_AUTH,
+        EKU_CLIENT_AUTH,
+        EKU_CODE_SIGNING,
+        EKU_EMAIL_PROTECTION,
+        EKU_TIME_STAMPING,
     ]);
     let chain = vec![cert_der.as_slice()];
 
@@ -163,7 +178,7 @@ fn test_invalid_certificate_data() {
 #[test]
 fn test_partial_certificate_data() {
     // Create a valid cert then truncate it
-    let full_cert = generate_cert_with_eku(vec![ExtendedKeyUsagePurpose::CodeSigning]);
+    let full_cert = generate_cert_with_eku(vec![EKU_CODE_SIGNING]);
     let truncated_cert = &full_cert[..50]; // Truncate to make it invalid
     let chain = vec![truncated_cert];
 
@@ -178,7 +193,7 @@ fn test_partial_certificate_data() {
 #[test]
 fn test_chain_with_mixed_validity() {
     // Chain with valid leaf but invalid intermediate
-    let valid_leaf = generate_cert_with_eku(vec![ExtendedKeyUsagePurpose::CodeSigning]);
+    let valid_leaf = generate_cert_with_eku(vec![EKU_CODE_SIGNING]);
     let invalid_intermediate = b"invalid-intermediate-cert";
 
     let chain = vec![valid_leaf.as_slice(), invalid_intermediate.as_slice()];
@@ -219,8 +234,8 @@ fn test_very_small_certificate() {
 #[test]
 fn test_chain_ordering_leaf_first() {
     // Ensure leaf certificate is processed first
-    let leaf = generate_cert_with_eku(vec![ExtendedKeyUsagePurpose::CodeSigning]);
-    let ca = generate_cert_with_eku(vec![ExtendedKeyUsagePurpose::Any]);
+    let leaf = generate_cert_with_eku(vec![EKU_CODE_SIGNING]);
+    let ca = generate_cert_with_eku(vec![EKU_ANY]);
 
     // Correct order: leaf first
     let correct_chain = vec![leaf.as_slice(), ca.as_slice()];
@@ -237,7 +252,7 @@ fn test_chain_ordering_leaf_first() {
 
 #[test]
 fn test_duplicate_certificates_in_chain() {
-    let cert = generate_cert_with_eku(vec![ExtendedKeyUsagePurpose::CodeSigning]);
+    let cert = generate_cert_with_eku(vec![EKU_CODE_SIGNING]);
 
     // Chain with duplicate certificates
     let duplicate_chain = vec![cert.as_slice(), cert.as_slice(), cert.as_slice()];
@@ -262,11 +277,11 @@ fn test_large_certificate_chain() {
 
     for i in 0..5 {
         let cert = generate_cert_with_eku(vec![
-            ExtendedKeyUsagePurpose::CodeSigning,
+            EKU_CODE_SIGNING,
             if i % 2 == 0 {
-                ExtendedKeyUsagePurpose::TimeStamping
+                EKU_TIME_STAMPING
             } else {
-                ExtendedKeyUsagePurpose::EmailProtection
+                EKU_EMAIL_PROTECTION
             },
         ]);
         chain_ders.push(cert);
@@ -289,7 +304,7 @@ fn test_large_certificate_chain() {
 #[test]
 fn test_certificate_with_any_eku() {
     // Certificate with "Any" EKU purpose
-    let cert_der = generate_cert_with_eku(vec![ExtendedKeyUsagePurpose::Any]);
+    let cert_der = generate_cert_with_eku(vec![EKU_ANY]);
     let chain = vec![cert_der.as_slice()];
 
     let result = build_did_x509_from_ats_chain(&chain);
@@ -325,8 +340,8 @@ fn test_microsoft_eku_detection_fallback() {
     // This test covers the fallback path when no Microsoft EKU is found
     // Most standard certificates won't have Microsoft-specific EKUs
     let standard_cert = generate_cert_with_eku(vec![
-        ExtendedKeyUsagePurpose::ServerAuth,
-        ExtendedKeyUsagePurpose::ClientAuth,
+        EKU_SERVER_AUTH,
+        EKU_CLIENT_AUTH,
     ]);
 
     let chain = vec![standard_cert.as_slice()];
@@ -348,14 +363,14 @@ fn test_microsoft_eku_detection_fallback() {
 fn test_eku_extraction_edge_cases() {
     // Test various combinations to hit different code paths in EKU processing
     let cert_combinations = vec![
-        vec![ExtendedKeyUsagePurpose::CodeSigning],
-        vec![ExtendedKeyUsagePurpose::ServerAuth],
-        vec![ExtendedKeyUsagePurpose::EmailProtection],
-        vec![ExtendedKeyUsagePurpose::TimeStamping],
+        vec![EKU_CODE_SIGNING],
+        vec![EKU_SERVER_AUTH],
+        vec![EKU_EMAIL_PROTECTION],
+        vec![EKU_TIME_STAMPING],
         vec![
-            ExtendedKeyUsagePurpose::CodeSigning,
-            ExtendedKeyUsagePurpose::ServerAuth,
-            ExtendedKeyUsagePurpose::TimeStamping,
+            EKU_CODE_SIGNING,
+            EKU_SERVER_AUTH,
+            EKU_TIME_STAMPING,
         ],
         vec![], // No EKU
     ];
@@ -390,11 +405,11 @@ fn test_chain_processing_with_different_sizes() {
         let mut certs = Vec::new();
         for i in 0..chain_length {
             let cert = generate_cert_with_eku(vec![
-                ExtendedKeyUsagePurpose::CodeSigning,
+                EKU_CODE_SIGNING,
                 if i == 0 {
-                    ExtendedKeyUsagePurpose::EmailProtection
+                    EKU_EMAIL_PROTECTION
                 } else {
-                    ExtendedKeyUsagePurpose::Any
+                    EKU_ANY
                 },
             ]);
             certs.push(cert);

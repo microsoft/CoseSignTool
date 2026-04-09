@@ -14,7 +14,8 @@ use openssl::ec::{EcGroup, EcKey};
 use openssl::hash::MessageDigest;
 use openssl::nid::Nid;
 use openssl::pkey::PKey;
-use openssl::x509::extension::{BasicConstraints, KeyUsage};
+use openssl::rsa::Rsa;
+use openssl::x509::extension::{BasicConstraints, ExtendedKeyUsage, KeyUsage, SubjectAlternativeName};
 use openssl::x509::{X509Builder, X509NameBuilder, X509};
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -62,13 +63,50 @@ impl EphemeralCertificateFactory {
 
 type EcKeyResult = Result<(PKey<openssl::pkey::Private>, Vec<u8>, Vec<u8>), CertLocalError>;
 
-/// Helper: generate an ECDSA P-256 key pair, returning (PKey, private_key_der, public_key_der).
-fn generate_ec_p256_key() -> EcKeyResult {
-    let group = EcGroup::from_curve_name(Nid::X9_62_PRIME256V1)
+/// Helper: generate an ECDSA key pair for the given curve size.
+///
+/// Maps key_size to NIST curves:
+/// - 256 (default) → P-256 (prime256v1)
+/// - 384 → P-384 (secp384r1)
+/// - 521 → P-521 (secp521r1)
+///
+/// Returns (PKey, private_key_der, public_key_der).
+fn generate_ec_key(key_size: Option<u32>) -> EcKeyResult {
+    let nid = match key_size.unwrap_or(256) {
+        384 => Nid::SECP384R1,
+        521 => Nid::SECP521R1,
+        _ => Nid::X9_62_PRIME256V1,
+    };
+    let group = EcGroup::from_curve_name(nid)
         .map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
     let ec_key =
         EcKey::generate(&group).map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
     let pkey = PKey::from_ec_key(ec_key)
+        .map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
+    let private_key_der = pkey
+        .private_key_to_der()
+        .map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
+    let public_key_der = pkey
+        .public_key_to_der()
+        .map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
+    Ok((pkey, private_key_der, public_key_der))
+}
+
+/// Helper: generate an RSA key pair.
+///
+/// Maps key_size to RSA modulus bits:
+/// - 2048 (default) → RSA-2048
+/// - 3072 → RSA-3072
+/// - 4096 → RSA-4096
+///
+/// Returns (PKey, private_key_der, public_key_der).
+fn generate_rsa_key(
+    key_size: Option<u32>,
+) -> Result<(PKey<openssl::pkey::Private>, Vec<u8>, Vec<u8>), CertLocalError> {
+    let bits = key_size.unwrap_or(2048);
+    let rsa = Rsa::generate(bits)
+        .map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
+    let pkey = PKey::from_rsa(rsa)
         .map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
     let private_key_der = pkey
         .private_key_to_der()
@@ -158,12 +196,8 @@ impl CertificateFactory for EphemeralCertificateFactory {
     ) -> Result<Certificate, CertLocalError> {
         // Generate key pair based on algorithm
         let (pkey, private_key_der, public_key_der) = match options.key_algorithm {
-            KeyAlgorithm::Ecdsa => generate_ec_p256_key()?,
-            KeyAlgorithm::Rsa => {
-                return Err(CertLocalError::UnsupportedAlgorithm(
-                    "RSA key generation is not yet implemented".into(),
-                ));
-            }
+            KeyAlgorithm::Ecdsa => generate_ec_key(options.key_size)?,
+            KeyAlgorithm::Rsa => generate_rsa_key(options.key_size)?,
             #[cfg(feature = "pqc")]
             KeyAlgorithm::MlDsa => generate_mldsa_key(&options.key_size)?,
         };
@@ -224,8 +258,9 @@ impl CertificateFactory for EphemeralCertificateFactory {
             .set_pubkey(&pkey)
             .map_err(|e| CertLocalError::CertificateCreationFailed(e.to_string()))?;
 
-        // Basic constraints
+        // Basic constraints and key usage
         if options.is_ca {
+            // CA certificate: BasicConstraints CA:TRUE + keyCertSign + cRLSign
             let mut bc = BasicConstraints::new();
             bc.critical().ca();
             if options.path_length_constraint < u32::MAX {
@@ -246,6 +281,69 @@ impl CertificateFactory for EphemeralCertificateFactory {
                 .map_err(|e| CertLocalError::CertificateCreationFailed(e.to_string()))?;
             builder
                 .append_extension(ku)
+                .map_err(|e| CertLocalError::CertificateCreationFailed(e.to_string()))?;
+        } else {
+            // End-entity (leaf) certificate: BasicConstraints CA:FALSE + digitalSignature
+            let bc = BasicConstraints::new()
+                .critical()
+                .build()
+                .map_err(|e| CertLocalError::CertificateCreationFailed(e.to_string()))?;
+            builder
+                .append_extension(bc)
+                .map_err(|e| CertLocalError::CertificateCreationFailed(e.to_string()))?;
+
+            let ku = KeyUsage::new()
+                .critical()
+                .digital_signature()
+                .build()
+                .map_err(|e| CertLocalError::CertificateCreationFailed(e.to_string()))?;
+            builder
+                .append_extension(ku)
+                .map_err(|e| CertLocalError::CertificateCreationFailed(e.to_string()))?;
+        }
+
+        // Extended Key Usage (EKU)
+        if !options.enhanced_key_usages.is_empty() {
+            let mut eku = ExtendedKeyUsage::new();
+            for oid in &options.enhanced_key_usages {
+                match oid.as_str() {
+                    "1.3.6.1.5.5.7.3.1" => { eku.server_auth(); }
+                    "1.3.6.1.5.5.7.3.2" => { eku.client_auth(); }
+                    "1.3.6.1.5.5.7.3.3" => { eku.code_signing(); }
+                    "1.3.6.1.5.5.7.3.4" => { eku.email_protection(); }
+                    "1.3.6.1.5.5.7.3.8" => { eku.time_stamping(); }
+                    other => { eku.other(other); }
+                }
+            }
+            builder
+                .append_extension(
+                    eku.build()
+                        .map_err(|e| CertLocalError::CertificateCreationFailed(e.to_string()))?,
+                )
+                .map_err(|e| CertLocalError::CertificateCreationFailed(e.to_string()))?;
+        }
+
+        // Subject Alternative Names (SANs)
+        if !options.subject_alternative_names.is_empty() {
+            let mut san = SubjectAlternativeName::new();
+            for name in &options.subject_alternative_names {
+                // Detect SAN type by prefix or default to DNS
+                if let Some(email) = name.strip_prefix("email:") {
+                    san.email(email);
+                } else if let Some(uri) = name.strip_prefix("URI:") {
+                    san.uri(uri);
+                } else if let Some(ip) = name.strip_prefix("IP:") {
+                    san.ip(ip);
+                } else {
+                    // Default: treat as DNS name
+                    san.dns(name);
+                }
+            }
+            builder
+                .append_extension(
+                    san.build(&builder.x509v3_context(None, None))
+                        .map_err(|e| CertLocalError::CertificateCreationFailed(e.to_string()))?,
+                )
                 .map_err(|e| CertLocalError::CertificateCreationFailed(e.to_string()))?;
         }
 

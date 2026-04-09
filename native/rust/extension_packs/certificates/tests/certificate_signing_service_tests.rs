@@ -5,6 +5,7 @@
 
 use std::sync::Arc;
 
+use cose_sign1_certificates_local::CertificateFactory;
 use cose_sign1_headers::CwtClaims;
 use cose_sign1_signing::{
     HeaderContributor, HeaderContributorContext, SigningContext, SigningService,
@@ -324,16 +325,23 @@ fn test_get_cose_signer_certificate_source_failure() {
 #[test]
 fn test_verify_signature_returns_true() {
     // Generate a real EC P-256 key pair and self-signed certificate
-    let key_pair = rcgen::KeyPair::generate_for(&rcgen::PKCS_ECDSA_P256_SHA256).unwrap();
-    let cert_params = rcgen::CertificateParams::new(vec!["test.example.com".to_string()]).unwrap();
-    let cert = cert_params.self_signed(&key_pair).unwrap();
-    let cert_der = cert.der().to_vec();
+    let factory = cose_sign1_certificates_local::EphemeralCertificateFactory::new(
+        Box::new(cose_sign1_certificates_local::SoftwareKeyProvider::new()),
+    );
+    let test_cert = factory
+        .create_certificate(
+            cose_sign1_certificates_local::CertificateOptions::new()
+                .with_subject_name("CN=test.example.com")
+                .add_subject_alternative_name("test.example.com"),
+        )
+        .unwrap();
+    let cert_der = test_cert.cert_der.clone();
 
     // Build a COSE_Sign1 message signed by this key
     let payload = b"test payload for verification";
 
     // Create an OpenSSL signer from the private key DER
-    let private_key_der = key_pair.serialize_der();
+    let private_key_der = test_cert.private_key_der.clone().unwrap();
     let signer =
         cose_sign1_crypto_openssl::evp_signer::EvpSigner::from_der(&private_key_der, -7).unwrap();
 
@@ -357,14 +365,21 @@ fn test_verify_signature_returns_true() {
 #[test]
 fn test_verify_signature_rejects_tampered_message() {
     // Generate a real EC P-256 key pair and self-signed certificate
-    let key_pair = rcgen::KeyPair::generate_for(&rcgen::PKCS_ECDSA_P256_SHA256).unwrap();
-    let cert_params = rcgen::CertificateParams::new(vec!["test.example.com".to_string()]).unwrap();
-    let cert = cert_params.self_signed(&key_pair).unwrap();
-    let cert_der = cert.der().to_vec();
+    let factory = cose_sign1_certificates_local::EphemeralCertificateFactory::new(
+        Box::new(cose_sign1_certificates_local::SoftwareKeyProvider::new()),
+    );
+    let test_cert = factory
+        .create_certificate(
+            cose_sign1_certificates_local::CertificateOptions::new()
+                .with_subject_name("CN=test.example.com")
+                .add_subject_alternative_name("test.example.com"),
+        )
+        .unwrap();
+    let cert_der = test_cert.cert_der.clone();
 
     // Build a COSE_Sign1 message signed by this key
     let payload = b"original payload";
-    let private_key_der = key_pair.serialize_der();
+    let private_key_der = test_cert.private_key_der.clone().unwrap();
     let signer =
         cose_sign1_crypto_openssl::evp_signer::EvpSigner::from_der(&private_key_der, -7).unwrap();
 

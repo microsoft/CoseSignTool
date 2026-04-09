@@ -11,7 +11,9 @@ use did_x509_ffi::error::{
 use did_x509_ffi::types::DidX509ParsedHandle;
 use did_x509_ffi::*;
 
-use rcgen::{CertificateParams, DnType, ExtendedKeyUsagePurpose, KeyPair};
+use cose_sign1_certificates_local::{
+    CertificateFactory, CertificateOptions, EphemeralCertificateFactory, SoftwareKeyProvider,
+};
 use std::ffi::CString;
 use std::ptr;
 
@@ -49,14 +51,13 @@ fn get_test_cert_bytes() -> Vec<u8> {
 
 // Generate a valid certificate for tests requiring valid certs
 fn generate_valid_cert() -> Vec<u8> {
-    let mut params = CertificateParams::default();
-    params
-        .distinguished_name
-        .push(DnType::CommonName, "FFI Test Cert");
-    params.extended_key_usages = vec![ExtendedKeyUsagePurpose::CodeSigning];
-
-    let key = KeyPair::generate().unwrap();
-    params.self_signed(&key).unwrap().der().to_vec()
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let cert = factory.create_certificate(
+        CertificateOptions::new()
+            .with_subject_name("CN=FFI Test Cert")
+            .with_enhanced_key_usages(vec!["1.3.6.1.5.5.7.3.3".to_string()])
+    ).unwrap();
+    cert.cert_der
 }
 
 // ============================================================================

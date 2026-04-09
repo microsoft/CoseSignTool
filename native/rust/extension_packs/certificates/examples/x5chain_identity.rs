@@ -40,9 +40,18 @@ fn build_cose_sign1_with_x5chain(leaf_der: &[u8]) -> Vec<u8> {
 
 fn main() {
     // Generate a self-signed certificate for the example.
-    let rcgen::CertifiedKey { cert, .. } =
-        rcgen::generate_simple_self_signed(vec!["example-leaf".to_string()]).expect("rcgen failed");
-    let der = cert.der().to_vec();
+    use cose_sign1_certificates_local::{
+        CertificateFactory, CertificateOptions, EphemeralCertificateFactory, SoftwareKeyProvider,
+    };
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let cert = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=example-leaf")
+                .add_subject_alternative_name("example-leaf"),
+        )
+        .expect("cert creation failed");
+    let der = cert.cert_der.clone();
 
     let cose = build_cose_sign1_with_x5chain(&der);
 

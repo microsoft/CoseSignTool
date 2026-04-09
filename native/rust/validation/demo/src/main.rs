@@ -1,8 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-use anyhow::{anyhow, bail, Context as _};
-use base64::Engine as _;
+use anyhow::{anyhow, Context as _};
 use cose_sign1_validation::fluent::*;
 use cose_sign1_certificates::validation::facts::{
     X509ChainTrustedFact, X509SigningCertificateIdentityFact,
@@ -11,10 +10,15 @@ use cose_sign1_certificates::validation::fluent_ext::{
     X509ChainTrustedWhereExt, X509SigningCertificateIdentityWhereExt,
 };
 use cose_sign1_certificates::validation::pack::{CertificateTrustOptions, X509CertificateTrustPack};
+use cose_sign1_certificates_local::{
+    CertificateFactory, CertificateOptions, EphemeralCertificateFactory, SoftwareKeyProvider,
+};
 // CBOR implementation – EverParse (formally verified by MSR)
 use cbor_primitives_everparse::EverParseCborProvider;
-use ring::rand;
-use ring::signature;
+use openssl::ecdsa::EcdsaSig;
+use openssl::hash::MessageDigest;
+use openssl::pkey::PKey;
+use openssl::sign::Signer;
 use sha2::Digest as _;
 use std::fs::File;
 use std::io::Read;
@@ -22,7 +26,6 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use cbor_primitives::{CborEncoder, CborProvider};
-use x509_parser::parse_x509_certificate;
 
 /// Returns a static usage/help string for the CLI.
 fn usage() -> &'static str {
@@ -53,18 +56,6 @@ fn sha256_hex_upper(bytes: &[u8]) -> String {
     let mut hasher = sha2::Sha256::new();
     hasher.update(bytes);
     hex::encode_upper(hasher.finalize())
-}
-
-/// Convert a PKCS#8 private key (DER) into a PEM string.
-fn pkcs8_private_key_der_to_pem(pkcs8_der: &[u8]) -> String {
-    let b64 = base64::engine::general_purpose::STANDARD.encode(pkcs8_der);
-    let mut pem = String::from("-----BEGIN PRIVATE KEY-----\n");
-    for chunk in b64.as_bytes().chunks(64) {
-        pem.push_str(std::str::from_utf8(chunk).expect("base64 is utf8"));
-        pem.push('\n');
-    }
-    pem.push_str("-----END PRIVATE KEY-----\n");
-    pem
 }
 
 /// Encode a minimal protected header map containing `alg` and an `x5chain` leaf cert.
@@ -146,28 +137,6 @@ fn encode_sig_structure(protected_header_bytes: &[u8], payload: &[u8]) -> Vec<u8
     buf
 }
 
-/// Extract the uncompressed SEC1 public key bytes (0x04 || X || Y) from a DER-encoded certificate.
-fn extract_uncompressed_public_key_bytes(cert_der: &[u8]) -> anyhow::Result<Vec<u8>> {
-    let (_rem, cert) =
-        parse_x509_certificate(cert_der).map_err(|e| anyhow!(format!("x509_parse_failed: {e}")))?;
-
-    let bytes = cert
-        .tbs_certificate
-        .subject_pki
-        .subject_public_key
-        .data
-        .to_vec();
-
-    if bytes.len() != 65 {
-        bail!("unexpected_public_key_len: {}", bytes.len());
-    }
-    if bytes.first().copied() != Some(0x04) {
-        bail!("unexpected_public_key_format: expected uncompressed SEC1 (0x04)");
-    }
-
-    Ok(bytes)
-}
-
 /// Build a trust plan that requires a trusted chain and pins trust to a signing cert thumbprint.
 fn build_thumbprint_pinned_trust_plan(
     pack: Arc<X509CertificateTrustPack>,
@@ -189,39 +158,42 @@ fn build_thumbprint_pinned_trust_plan(
 
 /// Self-test command: generate an ephemeral key+cert, sign a COSE_Sign1, then validate it.
 fn run_selftest() -> anyhow::Result<()> {
-    // Generate an ephemeral ES256 keypair using ring, then build a self-signed cert from it.
-    // This keeps the cert public key guaranteed to match the signing key.
-    let rng = rand::SystemRandom::new();
-    let key_pair_pkcs8 =
-        signature::EcdsaKeyPair::generate_pkcs8(&signature::ECDSA_P256_SHA256_FIXED_SIGNING, &rng)
-            .map_err(|_| anyhow!("ring key generation failed"))?;
-
-    let signing_key = signature::EcdsaKeyPair::from_pkcs8(
-        &signature::ECDSA_P256_SHA256_FIXED_SIGNING,
-        key_pair_pkcs8.as_ref(),
-        &rng,
-    )
-    .map_err(|e| anyhow!(format!("ring key rejected: {e:?}")))?;
-
-    let rcgen_pem = pkcs8_private_key_der_to_pem(key_pair_pkcs8.as_ref());
-    let rcgen_key_pair =
-        rcgen::KeyPair::from_pem(rcgen_pem.as_str()).context("rcgen KeyPair::from_pem")?;
-
-    let params = rcgen::CertificateParams::new(vec!["demo-ephemeral".to_string()])
-        .context("rcgen params")?;
-    let cert = params
-        .self_signed(&rcgen_key_pair)
-        .context("rcgen self-signed")?;
-    let leaf_der = cert.der().to_vec();
+    // Generate an ephemeral ES256 key + self-signed cert using certificates_local (OpenSSL).
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let cert = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=demo-ephemeral")
+                .add_subject_alternative_name("demo-ephemeral"),
+        )
+        .map_err(|e| anyhow!("certificate creation failed: {}", e))?;
+    let leaf_der = cert.cert_der.clone();
+    let private_key_der = cert
+        .private_key_der
+        .clone()
+        .ok_or_else(|| anyhow!("no private key in generated certificate"))?;
 
     let payload = b"hello from cose_sign1_validation_demo".as_slice();
     let protected_map_bytes = encode_protected_header_with_alg_and_x5chain(-7, leaf_der.as_slice());
     let sig_structure = encode_sig_structure(protected_map_bytes.as_slice(), payload);
-    let signature = signing_key
-        .sign(&rng, sig_structure.as_slice())
-        .expect("ecdsa sign")
-        .as_ref()
-        .to_vec();
+
+    // Sign the Sig_structure using OpenSSL ECDSA P-256/SHA-256.
+    let pkey =
+        PKey::private_key_from_der(&private_key_der).context("failed to load private key")?;
+    let mut signer =
+        Signer::new(MessageDigest::sha256(), &pkey).context("failed to create signer")?;
+    signer
+        .update(sig_structure.as_slice())
+        .context("signer update failed")?;
+    let der_sig = signer.sign_to_vec().context("signing failed")?;
+
+    // Convert DER-encoded ECDSA signature to fixed-length raw (r||s) format for COSE ES256.
+    let ecdsa_sig = EcdsaSig::from_der(&der_sig).context("failed to parse ECDSA signature")?;
+    let r_bytes = ecdsa_sig.r().to_vec();
+    let s_bytes = ecdsa_sig.s().to_vec();
+    let mut signature = vec![0u8; 64];
+    signature[32 - r_bytes.len()..32].copy_from_slice(&r_bytes);
+    signature[64 - s_bytes.len()..64].copy_from_slice(&s_bytes);
 
     let cose_bytes = {
         // COSE_Sign1 = [protected: bstr, unprotected: map, payload: bstr, signature: bstr]
@@ -239,20 +211,8 @@ fn run_selftest() -> anyhow::Result<()> {
     let thumbprint = sha256_hex_upper(&leaf_der);
     println!("ephemeral signing cert thumbprint (SHA256/HEX): {thumbprint}");
 
-    // Sanity-check: verify the signature with ring directly.
-    {
-        let pk_bytes = extract_uncompressed_public_key_bytes(leaf_der.as_slice())?;
-        let pk = signature::UnparsedPublicKey::new(
-            &signature::ECDSA_P256_SHA256_FIXED,
-            pk_bytes.as_slice(),
-        );
-        pk.verify(sig_structure.as_slice(), signature.as_slice())
-            .map_err(|_| anyhow!("local ring verify failed"))?;
-        println!("local ring verify: ok");
-    }
-
     // Use the real certificates trust pack.
-    // For this demo we treat embedded x5chain as trusted (OS-agnostic), then pin trust by thumbprint.
+    // For this demo we treat embedded x5chain as trusted (deterministic, OS-agnostic).
     let pack = Arc::new(X509CertificateTrustPack::new(CertificateTrustOptions {
         trust_embedded_chain_as_trusted: true,
         ..CertificateTrustOptions::default()

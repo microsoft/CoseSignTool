@@ -11,8 +11,8 @@ use cose_sign1_certificates::validation::pack::X509CertificateTrustPack;
 use cose_sign1_primitives::CoseSign1Message;
 use cose_sign1_validation_primitives::facts::{TrustFactEngine, TrustFactSet};
 use cose_sign1_validation_primitives::subject::TrustSubject;
-use rcgen::{
-    generate_simple_self_signed, CertificateParams, DnType, KeyPair, PKCS_ECDSA_P256_SHA256,
+use cose_sign1_certificates_local::{
+    CertificateFactory, CertificateOptions, EphemeralCertificateFactory, SoftwareKeyProvider,
 };
 use std::sync::Arc;
 
@@ -149,8 +149,15 @@ fn protected_map_x5chain_array(certs: &[Vec<u8>]) -> Vec<u8> {
 
 #[test]
 fn chain_trust_reports_trust_evaluation_disabled_when_not_trusting_embedded_chain() {
-    let leaf = generate_simple_self_signed(vec!["leaf.example".to_string()]).unwrap();
-    let leaf_der = leaf.cert.der().as_ref().to_vec();
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let leaf_obj = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=leaf.example")
+                .add_subject_alternative_name("leaf.example"),
+        )
+        .unwrap();
+    let leaf_der = leaf_obj.cert_der.clone();
 
     let protected = protected_map_x5chain_array(&[leaf_der]);
     let cose = build_cose_sign1_with_protected_header_map(protected.as_slice());
@@ -182,25 +189,22 @@ fn chain_trust_reports_trust_evaluation_disabled_when_not_trusting_embedded_chai
 
 #[test]
 fn chain_trust_reports_not_well_formed_when_trusting_embedded_chain_but_chain_is_invalid() {
-    // NOTE: `generate_simple_self_signed` can yield identical subject/issuer DNs regardless of the
-    // SANs passed in, which can accidentally make the chain look well-formed. Use explicit DNs.
-    let key_pair_1 = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256).unwrap();
-    let mut params_1 = CertificateParams::new(Vec::<String>::new()).unwrap();
-    params_1
-        .distinguished_name
-        .push(DnType::CommonName, "c1.example");
-    let c1 = params_1.self_signed(&key_pair_1).unwrap();
-
-    let key_pair_2 = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256).unwrap();
-    let mut params_2 = CertificateParams::new(Vec::<String>::new()).unwrap();
-    params_2
-        .distinguished_name
-        .push(DnType::CommonName, "c2.example");
-    let c2 = params_2.self_signed(&key_pair_2).unwrap();
+    // Two unrelated self-signed certs with explicit DNs => issuer/subject chain won't match.
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let c1_cert = factory
+        .create_certificate(
+            CertificateOptions::new().with_subject_name("CN=c1.example"),
+        )
+        .unwrap();
+    let c2_cert = factory
+        .create_certificate(
+            CertificateOptions::new().with_subject_name("CN=c2.example"),
+        )
+        .unwrap();
 
     // Two unrelated self-signed certs => issuer/subject chain won't match.
     let protected =
-        protected_map_x5chain_array(&[c1.der().as_ref().to_vec(), c2.der().as_ref().to_vec()]);
+        protected_map_x5chain_array(&[c1_cert.cert_der.clone(), c2_cert.cert_der.clone()]);
     let cose = build_cose_sign1_with_protected_header_map(protected.as_slice());
 
     let producer = Arc::new(X509CertificateTrustPack::new(

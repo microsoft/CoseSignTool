@@ -5,19 +5,20 @@
 
 use cose_sign1_certificates::signing::scitt::{build_scitt_cwt_claims, create_scitt_contributor};
 use cose_sign1_headers::CwtClaims;
-use rcgen::{CertificateParams, KeyPair};
+use cose_sign1_certificates_local::{
+    CertificateFactory, CertificateOptions, EphemeralCertificateFactory, SoftwareKeyProvider,
+};
 
 fn generate_test_certificate() -> Vec<u8> {
-    let mut params = CertificateParams::new(vec!["test.example.com".to_string()]).unwrap();
-    params
-        .distinguished_name
-        .push(rcgen::DnType::CommonName, "Test Certificate");
-    params
-        .distinguished_name
-        .push(rcgen::DnType::OrganizationName, "Test Organization");
-
-    let key_pair = KeyPair::generate().unwrap();
-    params.self_signed(&key_pair).unwrap().der().to_vec()
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let cert = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=Test Certificate")
+                .add_subject_alternative_name("test.example.com"),
+        )
+        .unwrap();
+    cert.cert_der.clone()
 }
 
 #[test]

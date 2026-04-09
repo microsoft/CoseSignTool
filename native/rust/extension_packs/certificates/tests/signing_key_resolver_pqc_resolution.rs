@@ -4,9 +4,12 @@
 use cbor_primitives::{CborEncoder, CborProvider};
 use cbor_primitives_everparse::EverParseCborProvider;
 use cose_sign1_certificates::validation::signing_key_resolver::X509CertificateCoseKeyResolver;
+use cose_sign1_certificates_local::{
+    CertificateFactory, CertificateOptions, EphemeralCertificateFactory, KeyAlgorithm,
+    SoftwareKeyProvider,
+};
 use cose_sign1_validation::fluent::*;
 use cose_sign1_validation_primitives::CoseHeaderLocation;
-use rcgen::{CertificateParams, KeyPair, PKCS_ECDSA_P384_SHA384};
 
 fn cose_sign1_with_protected_x5chain_only(leaf_der: &[u8]) -> Vec<u8> {
     let p = EverParseCborProvider;
@@ -38,10 +41,17 @@ fn signing_key_resolver_can_resolve_non_p256_ec_keys_without_failing_resolution(
     // This uses P-384 as a stand-in for "non-P256" (including PQC/unknown key types).
     // The key point: resolution should succeed and not be reported as an X509 parse failure.
 
-    let key_pair = KeyPair::generate_for(&PKCS_ECDSA_P384_SHA384).unwrap();
-    let params = CertificateParams::new(vec!["resolver-pqc-smoke".to_string()]).unwrap();
-    let cert = params.self_signed(&key_pair).unwrap();
-    let leaf_der = cert.der().to_vec();
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let p384_cert = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=resolver-pqc-smoke")
+                .add_subject_alternative_name("resolver-pqc-smoke")
+                .with_key_algorithm(KeyAlgorithm::Ecdsa)
+                .with_key_size(384),
+        )
+        .unwrap();
+    let leaf_der = p384_cert.cert_der.clone();
 
     let cose_bytes = cose_sign1_with_protected_x5chain_only(leaf_der.as_slice());
     let msg = CoseSign1Message::parse(cose_bytes.as_slice()).unwrap();
@@ -66,10 +76,17 @@ fn signing_key_resolver_detects_p384_curve_and_assigns_es384() {
     // The OpenSSL provider detects the EC curve from the leaf certificate's public key
     // and assigns the correct COSE algorithm: P-384 → ES384 (-35).
 
-    let key_pair = KeyPair::generate_for(&PKCS_ECDSA_P384_SHA384).unwrap();
-    let params = CertificateParams::new(vec!["resolver-pqc-smoke".to_string()]).unwrap();
-    let cert = params.self_signed(&key_pair).unwrap();
-    let leaf_der = cert.der().to_vec();
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let p384_cert = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=resolver-pqc-smoke")
+                .add_subject_alternative_name("resolver-pqc-smoke")
+                .with_key_algorithm(KeyAlgorithm::Ecdsa)
+                .with_key_size(384),
+        )
+        .unwrap();
+    let leaf_der = p384_cert.cert_der.clone();
 
     let cose_bytes = cose_sign1_with_protected_x5chain_only(leaf_der.as_slice());
     let msg = CoseSign1Message::parse(cose_bytes.as_slice()).unwrap();

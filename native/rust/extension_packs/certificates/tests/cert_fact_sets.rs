@@ -11,9 +11,8 @@ use cose_sign1_certificates::validation::pack::X509CertificateTrustPack;
 use cose_sign1_primitives::CoseSign1Message;
 use cose_sign1_validation_primitives::facts::{TrustFactEngine, TrustFactSet};
 use cose_sign1_validation_primitives::subject::TrustSubject;
-use rcgen::{
-    CertificateParams, ExtendedKeyUsagePurpose, IsCa, KeyPair, KeyUsagePurpose,
-    PKCS_ECDSA_P256_SHA256,
+use cose_sign1_certificates_local::{
+    CertificateFactory, CertificateOptions, EphemeralCertificateFactory, SoftwareKeyProvider,
 };
 use std::sync::Arc;
 
@@ -59,14 +58,16 @@ fn build_protected_empty_map() -> Vec<u8> {
 }
 
 fn make_cert_with_extensions() -> Vec<u8> {
-    let mut params = CertificateParams::new(vec!["signing.example".to_string()]).unwrap();
-    params.is_ca = IsCa::NoCa;
-    params.key_usages = vec![KeyUsagePurpose::DigitalSignature];
-    params.extended_key_usages = vec![ExtendedKeyUsagePurpose::CodeSigning];
-
-    let key_pair = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256).unwrap();
-    let cert = params.self_signed(&key_pair).unwrap();
-    cert.der().as_ref().to_vec()
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let cert = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=signing.example")
+                .add_subject_alternative_name("signing.example")
+                .with_enhanced_key_usages(vec!["1.3.6.1.5.5.7.3.3".to_string()]),
+        )
+        .unwrap();
+    cert.cert_der.clone()
 }
 
 #[test]

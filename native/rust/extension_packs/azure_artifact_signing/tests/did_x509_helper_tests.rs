@@ -4,30 +4,42 @@
 //! Tests for the AAS-specific DID:x509 helper functions.
 
 use cose_sign1_azure_artifact_signing::signing::did_x509_helper::build_did_x509_from_ats_chain;
-use rcgen::{CertificateParams, DistinguishedName, DnType, ExtendedKeyUsagePurpose, KeyPair};
+use cose_sign1_certificates_local::{
+    CertificateFactory, CertificateOptions, EphemeralCertificateFactory, SoftwareKeyProvider,
+};
+
+const EKU_CODE_SIGNING: &str = "1.3.6.1.5.5.7.3.3";
+const EKU_SERVER_AUTH: &str = "1.3.6.1.5.5.7.3.1";
+const EKU_CLIENT_AUTH: &str = "1.3.6.1.5.5.7.3.2";
+const EKU_EMAIL_PROTECTION: &str = "1.3.6.1.5.5.7.3.4";
+const EKU_TIME_STAMPING: &str = "1.3.6.1.5.5.7.3.8";
+const EKU_OCSP_SIGNING: &str = "1.3.6.1.5.5.7.3.9";
+const EKU_ANY: &str = "2.5.29.37.0";
 
 /// Helper to generate a certificate with specific EKU OIDs.
-fn generate_cert_with_eku(eku_purposes: Vec<ExtendedKeyUsagePurpose>) -> Vec<u8> {
-    let key_pair = KeyPair::generate().unwrap();
-    let mut params = CertificateParams::default();
-    params.extended_key_usages = eku_purposes;
-    let mut dn = DistinguishedName::new();
-    dn.push(DnType::CommonName, "Test Cert");
-    params.distinguished_name = dn;
-    params.self_signed(&key_pair).unwrap().der().to_vec()
+fn generate_cert_with_eku(eku_oids: Vec<&str>) -> Vec<u8> {
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=Test Cert")
+                .with_enhanced_key_usages(eku_oids.into_iter().map(String::from).collect()),
+        )
+        .unwrap()
+        .cert_der
 }
 
 /// Generate a certificate with a custom EKU OID string.
 fn generate_cert_with_custom_eku(eku_oid: &str) -> Vec<u8> {
-    let key_pair = KeyPair::generate().unwrap();
-    let mut params = CertificateParams::default();
-    // rcgen allows custom OIDs via Other variant - we'll use a standard EKU
-    // and the tests will verify the behavior with the produced cert
-    params.extended_key_usages = vec![ExtendedKeyUsagePurpose::CodeSigning];
-    let mut dn = DistinguishedName::new();
-    dn.push(DnType::CommonName, format!("Test Cert for {}", eku_oid));
-    params.distinguished_name = dn;
-    params.self_signed(&key_pair).unwrap().der().to_vec()
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name(format!("CN=Test Cert for {}", eku_oid))
+                .with_enhanced_key_usages(vec![EKU_CODE_SIGNING.to_string()]),
+        )
+        .unwrap()
+        .cert_der
 }
 
 #[test]
@@ -44,7 +56,7 @@ fn test_build_did_x509_from_ats_chain_empty_chain() {
 #[test]
 fn test_build_did_x509_from_ats_chain_single_valid_cert() {
     // Generate a valid certificate with code signing EKU
-    let cert_der = generate_cert_with_eku(vec![ExtendedKeyUsagePurpose::CodeSigning]);
+    let cert_der = generate_cert_with_eku(vec![EKU_CODE_SIGNING]);
     let chain = vec![cert_der.as_slice()];
 
     let result = build_did_x509_from_ats_chain(&chain);
@@ -60,9 +72,9 @@ fn test_build_did_x509_from_ats_chain_single_valid_cert() {
 fn test_build_did_x509_from_ats_chain_multiple_ekus() {
     // Generate a certificate with multiple EKUs
     let cert_der = generate_cert_with_eku(vec![
-        ExtendedKeyUsagePurpose::CodeSigning,
-        ExtendedKeyUsagePurpose::ServerAuth,
-        ExtendedKeyUsagePurpose::ClientAuth,
+        EKU_CODE_SIGNING,
+        EKU_SERVER_AUTH,
+        EKU_CLIENT_AUTH,
     ]);
     let chain = vec![cert_der.as_slice()];
 
@@ -112,8 +124,8 @@ fn test_build_did_x509_from_ats_chain_invalid_der() {
 #[test]
 fn test_build_did_x509_from_ats_chain_multiple_certs() {
     // Test with multiple certificates in chain
-    let leaf_cert = generate_cert_with_eku(vec![ExtendedKeyUsagePurpose::CodeSigning]);
-    let ca_cert = generate_cert_with_eku(vec![ExtendedKeyUsagePurpose::Any]);
+    let leaf_cert = generate_cert_with_eku(vec![EKU_CODE_SIGNING]);
+    let ca_cert = generate_cert_with_eku(vec![EKU_ANY]);
     let chain = vec![leaf_cert.as_slice(), ca_cert.as_slice()];
 
     let result = build_did_x509_from_ats_chain(&chain);
@@ -127,7 +139,7 @@ fn test_build_did_x509_from_ats_chain_multiple_certs() {
 #[test]
 fn test_build_did_x509_from_ats_chain_with_time_stamping() {
     // Generate a certificate with time stamping EKU
-    let cert_der = generate_cert_with_eku(vec![ExtendedKeyUsagePurpose::TimeStamping]);
+    let cert_der = generate_cert_with_eku(vec![EKU_TIME_STAMPING]);
     let chain = vec![cert_der.as_slice()];
 
     let result = build_did_x509_from_ats_chain(&chain);
@@ -139,7 +151,7 @@ fn test_build_did_x509_from_ats_chain_with_time_stamping() {
 #[test]
 fn test_build_did_x509_from_ats_chain_consistency() {
     // Test that the same certificate produces the same DID
-    let cert_der = generate_cert_with_eku(vec![ExtendedKeyUsagePurpose::CodeSigning]);
+    let cert_der = generate_cert_with_eku(vec![EKU_CODE_SIGNING]);
     let chain = vec![cert_der.as_slice()];
 
     let result1 = build_did_x509_from_ats_chain(&chain);
@@ -153,8 +165,8 @@ fn test_build_did_x509_from_ats_chain_consistency() {
 #[test]
 fn test_build_did_x509_from_ats_chain_different_certs_different_dids() {
     // Test that different certificates produce different DIDs
-    let cert1 = generate_cert_with_eku(vec![ExtendedKeyUsagePurpose::CodeSigning]);
-    let cert2 = generate_cert_with_eku(vec![ExtendedKeyUsagePurpose::ServerAuth]);
+    let cert1 = generate_cert_with_eku(vec![EKU_CODE_SIGNING]);
+    let cert2 = generate_cert_with_eku(vec![EKU_SERVER_AUTH]);
 
     let result1 = build_did_x509_from_ats_chain(&[cert1.as_slice()]);
     let result2 = build_did_x509_from_ats_chain(&[cert2.as_slice()]);
@@ -173,12 +185,12 @@ fn test_build_did_x509_from_ats_chain_different_certs_different_dids() {
 fn test_build_did_x509_from_ats_chain_all_standard_ekus() {
     // Test each standard EKU type
     let eku_types = vec![
-        ExtendedKeyUsagePurpose::ServerAuth,
-        ExtendedKeyUsagePurpose::ClientAuth,
-        ExtendedKeyUsagePurpose::CodeSigning,
-        ExtendedKeyUsagePurpose::EmailProtection,
-        ExtendedKeyUsagePurpose::TimeStamping,
-        ExtendedKeyUsagePurpose::OcspSigning,
+        EKU_SERVER_AUTH,
+        EKU_CLIENT_AUTH,
+        EKU_CODE_SIGNING,
+        EKU_EMAIL_PROTECTION,
+        EKU_TIME_STAMPING,
+        EKU_OCSP_SIGNING,
     ];
 
     for eku in eku_types {
@@ -194,7 +206,7 @@ fn test_build_did_x509_from_ats_chain_all_standard_ekus() {
 
 #[test]
 fn test_did_x509_contains_eku_policy() {
-    let cert_der = generate_cert_with_eku(vec![ExtendedKeyUsagePurpose::CodeSigning]);
+    let cert_der = generate_cert_with_eku(vec![EKU_CODE_SIGNING]);
     let chain = vec![cert_der.as_slice()];
 
     let result = build_did_x509_from_ats_chain(&chain);
@@ -211,7 +223,7 @@ fn test_did_x509_contains_eku_policy() {
 
 #[test]
 fn test_did_x509_sha256_hash() {
-    let cert_der = generate_cert_with_eku(vec![ExtendedKeyUsagePurpose::CodeSigning]);
+    let cert_der = generate_cert_with_eku(vec![EKU_CODE_SIGNING]);
     let chain = vec![cert_der.as_slice()];
 
     let result = build_did_x509_from_ats_chain(&chain);
@@ -224,7 +236,7 @@ fn test_did_x509_sha256_hash() {
 
 #[test]
 fn test_did_x509_format_version_0() {
-    let cert_der = generate_cert_with_eku(vec![ExtendedKeyUsagePurpose::CodeSigning]);
+    let cert_der = generate_cert_with_eku(vec![EKU_CODE_SIGNING]);
     let chain = vec![cert_der.as_slice()];
 
     let result = build_did_x509_from_ats_chain(&chain);

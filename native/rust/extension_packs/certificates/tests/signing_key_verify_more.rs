@@ -4,11 +4,12 @@
 use cbor_primitives::{CborEncoder, CborProvider};
 use cbor_primitives_everparse::EverParseCborProvider;
 use cose_sign1_certificates::validation::signing_key_resolver::X509CertificateCoseKeyResolver;
+use cose_sign1_certificates_local::{
+    CertificateFactory, CertificateOptions, EphemeralCertificateFactory, KeyAlgorithm,
+    SoftwareKeyProvider,
+};
 use cose_sign1_validation::fluent::*;
 use cose_sign1_validation_primitives::CoseHeaderLocation;
-use rcgen::{
-    generate_simple_self_signed, CertificateParams, CertifiedKey, KeyPair, PKCS_ECDSA_P384_SHA384,
-};
 
 fn replace_once_in_place(haystack: &mut [u8], needle: &[u8], replacement: &[u8]) -> bool {
     assert_eq!(needle.len(), replacement.len());
@@ -69,9 +70,15 @@ fn signing_key_resolver_fails_when_protected_header_is_not_a_cbor_map() {
 #[test]
 fn signing_key_verify_es256_rejects_wrong_signature_len() {
     // Use a P-256 leaf so we reach the signature length check for ES256.
-    let CertifiedKey { cert, .. } =
-        generate_simple_self_signed(vec!["verify-wrong-sig-len".to_string()]).unwrap();
-    let leaf_der = cert.der().as_ref().to_vec();
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let cert = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=verify-wrong-sig-len")
+                .add_subject_alternative_name("verify-wrong-sig-len"),
+        )
+        .unwrap();
+    let leaf_der = cert.cert_der.clone();
 
     let protected = encode_protected_x5chain_single_bstr(leaf_der.as_slice());
     let cose_bytes = cose_sign1_with_protected_header_bytes(protected.as_slice());
@@ -106,9 +113,15 @@ fn signing_key_verify_es256_rejects_wrong_signature_len() {
 #[test]
 fn signing_key_verify_returns_false_for_invalid_signature_when_lengths_are_correct() {
     // Use a P-256 leaf so ES256 is structurally supported and we hit the Ok(false) branch.
-    let CertifiedKey { cert, .. } =
-        generate_simple_self_signed(vec!["verify-invalid-sig".to_string()]).unwrap();
-    let leaf_der = cert.der().as_ref().to_vec();
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let cert = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=verify-invalid-sig")
+                .add_subject_alternative_name("verify-invalid-sig"),
+        )
+        .unwrap();
+    let leaf_der = cert.cert_der.clone();
 
     let protected = encode_protected_x5chain_single_bstr(leaf_der.as_slice());
     let cose_bytes = cose_sign1_with_protected_header_bytes(protected.as_slice());
@@ -133,12 +146,18 @@ fn signing_key_verify_returns_false_for_invalid_signature_when_lengths_are_corre
 
 #[test]
 fn signing_key_verify_es256_reports_unsupported_alg_when_spki_is_not_ec_public_key() {
-    let CertifiedKey { cert, .. } =
-        generate_simple_self_signed(vec!["verify-es256-oid-mismatch".to_string()]).unwrap();
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let cert = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=verify-es256-oid-mismatch")
+                .add_subject_alternative_name("verify-es256-oid-mismatch"),
+        )
+        .unwrap();
 
     // Mutate the SPKI algorithm OID from id-ecPublicKey (1.2.840.10045.2.1)
     // to a different (still-valid) OID. With OpenSSL, this may cause different behavior.
-    let mut leaf_der = cert.der().as_ref().to_vec();
+    let mut leaf_der = cert.cert_der.clone();
     let ec_public_key_oid = [0x06, 0x07, 0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x02, 0x01];
     let non_ec_public_key_oid = [0x06, 0x07, 0x2A, 0x86, 0x48, 0xCE, 0x3D, 0x02, 0x02];
     assert!(replace_once_in_place(
@@ -177,12 +196,18 @@ fn signing_key_verify_es256_reports_unsupported_alg_when_spki_is_not_ec_public_k
 
 #[test]
 fn signing_key_verify_es256_reports_unexpected_ec_public_key_format_when_point_not_uncompressed() {
-    let CertifiedKey { cert, .. } =
-        generate_simple_self_signed(vec!["verify-es256-ec-point-format".to_string()]).unwrap();
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let cert = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=verify-es256-ec-point-format")
+                .add_subject_alternative_name("verify-es256-ec-point-format"),
+        )
+        .unwrap();
 
     // Mutate the SubjectPublicKey BIT STRING contents from 0x04||X||Y to 0x05||X||Y.
     // For P-256, the BIT STRING is typically: 03 42 00 04 <64 bytes>.
-    let mut leaf_der = cert.der().as_ref().to_vec();
+    let mut leaf_der = cert.cert_der.clone();
     let needle = [0x03, 0x42, 0x00, 0x04];
     let replacement = [0x03, 0x42, 0x00, 0x05];
     assert!(replace_once_in_place(
@@ -222,10 +247,16 @@ fn signing_key_verify_es256_reports_unexpected_ec_public_key_format_when_point_n
 
 #[test]
 fn signing_key_verify_es256_returns_true_for_valid_signature() {
-    let CertifiedKey { cert, signing_key } =
-        generate_simple_self_signed(vec!["verify-es256-valid".to_string()]).unwrap();
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let cert_and_key = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=verify-es256-valid")
+                .add_subject_alternative_name("verify-es256-valid"),
+        )
+        .unwrap();
 
-    let protected = encode_protected_x5chain_single_bstr(cert.der().as_ref());
+    let protected = encode_protected_x5chain_single_bstr(&cert_and_key.cert_der);
     let cose_bytes = cose_sign1_with_protected_header_bytes(protected.as_slice());
     let msg = CoseSign1Message::parse(cose_bytes.as_slice()).unwrap();
 
@@ -244,7 +275,7 @@ fn signing_key_verify_es256_returns_true_for_valid_signature() {
     // Sign using the same P-256 private key using OpenSSL
     use openssl::pkey::PKey;
 
-    let pkcs8_der = signing_key.serialize_der();
+    let pkcs8_der = cert_and_key.private_key_der.clone().unwrap();
     let pkey = PKey::private_key_from_der(&pkcs8_der).unwrap();
 
     // Create signer and sign the data
@@ -267,10 +298,17 @@ fn signing_key_verify_es256_returns_true_for_valid_signature() {
 #[test]
 fn signing_key_verify_p384_resolves_to_es384_and_rejects_garbage() {
     // Use a P-384 certificate. OpenSSL provider detects EC curve: P-384 → ES384 (-35).
-    let key_pair = KeyPair::generate_for(&PKCS_ECDSA_P384_SHA384).unwrap();
-    let params = CertificateParams::new(vec!["verify-unsupported-alg".to_string()]).unwrap();
-    let cert = params.self_signed(&key_pair).unwrap();
-    let leaf_der = cert.der().to_vec();
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let p384_cert = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=verify-unsupported-alg")
+                .add_subject_alternative_name("verify-unsupported-alg")
+                .with_key_algorithm(KeyAlgorithm::Ecdsa)
+                .with_key_size(384),
+        )
+        .unwrap();
+    let leaf_der = p384_cert.cert_der.clone();
 
     let protected = encode_protected_x5chain_single_bstr(leaf_der.as_slice());
     let cose_bytes = cose_sign1_with_protected_header_bytes(protected.as_slice());
@@ -301,10 +339,17 @@ fn signing_key_verify_p384_resolves_to_es384_and_rejects_garbage() {
 #[test]
 fn signing_key_verify_es384_rejects_non_matching_signature() {
     // Use a P-384 leaf. OpenSSL provider detects EC curve: P-384 → ES384 (-35).
-    let key_pair = KeyPair::generate_for(&PKCS_ECDSA_P384_SHA384).unwrap();
-    let params = CertificateParams::new(vec!["verify-es256-alg-mismatch".to_string()]).unwrap();
-    let cert = params.self_signed(&key_pair).unwrap();
-    let leaf_der = cert.der().to_vec();
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let p384_cert = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=verify-es256-alg-mismatch")
+                .add_subject_alternative_name("verify-es256-alg-mismatch")
+                .with_key_algorithm(KeyAlgorithm::Ecdsa)
+                .with_key_size(384),
+        )
+        .unwrap();
+    let leaf_der = p384_cert.cert_der.clone();
 
     let protected = encode_protected_x5chain_single_bstr(leaf_der.as_slice());
     let cose_bytes = cose_sign1_with_protected_header_bytes(protected.as_slice());

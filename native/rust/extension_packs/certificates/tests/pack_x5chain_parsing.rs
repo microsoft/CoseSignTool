@@ -20,7 +20,9 @@ use cose_sign1_validation::fluent::*;
 use cose_sign1_validation_primitives::facts::{TrustFactEngine, TrustFactSet};
 use cose_sign1_validation_primitives::subject::TrustSubject;
 use crypto_primitives::{CryptoError, CryptoVerifier};
-use rcgen::generate_simple_self_signed;
+use cose_sign1_certificates_local::{
+    CertificateFactory, CertificateOptions, EphemeralCertificateFactory, SoftwareKeyProvider,
+};
 use std::sync::Arc;
 
 // ---------------------------------------------------------------------------
@@ -282,8 +284,15 @@ fn run_counter_sig_identity(
 }
 
 fn generate_cert_der() -> Vec<u8> {
-    let certified = generate_simple_self_signed(vec!["test.example.com".to_string()]).unwrap();
-    certified.cert.der().as_ref().to_vec()
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let cert = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=test.example.com")
+                .add_subject_alternative_name("test.example.com"),
+        )
+        .unwrap();
+    cert.cert_der.clone()
 }
 
 // ---------------------------------------------------------------------------

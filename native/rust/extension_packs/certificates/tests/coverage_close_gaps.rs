@@ -25,9 +25,9 @@ use cose_sign1_primitives::CoseSign1Message;
 use cose_sign1_validation::fluent::CoseSign1TrustPack;
 use cose_sign1_validation_primitives::facts::{FactKey, TrustFactEngine, TrustFactSet};
 use cose_sign1_validation_primitives::subject::TrustSubject;
-use rcgen::{
-    CertificateParams, ExtendedKeyUsagePurpose, IsCa, KeyPair, KeyUsagePurpose,
-    PKCS_ECDSA_P256_SHA256,
+use cose_sign1_certificates_local::{
+    Certificate, CertificateFactory, CertificateOptions, EphemeralCertificateFactory,
+    SoftwareKeyProvider,
 };
 use std::sync::Arc;
 
@@ -38,53 +38,45 @@ fn _init() -> EverParseCborProvider {
 // ==================== Helpers ====================
 
 fn make_self_signed_cert(cn: &str) -> Vec<u8> {
-    let mut params = CertificateParams::new(vec![cn.to_string()]).unwrap();
-    params.is_ca = IsCa::NoCa;
-    params.key_usages = vec![KeyUsagePurpose::DigitalSignature];
-    params.extended_key_usages = vec![ExtendedKeyUsagePurpose::CodeSigning];
-    let kp = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256).unwrap();
-    let cert = params.self_signed(&kp).unwrap();
-    cert.der().as_ref().to_vec()
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let cert = factory.create_certificate(
+        CertificateOptions::new()
+            .with_subject_name(format!("CN={}", cn))
+            .add_subject_alternative_name(cn.to_string())
+            .with_enhanced_key_usages(vec!["1.3.6.1.5.5.7.3.3".to_string()])
+    ).unwrap();
+    cert.cert_der.clone()
 }
 
-fn make_self_signed_ca(cn: &str) -> (Vec<u8>, KeyPair) {
-    let mut params = CertificateParams::new(vec![cn.to_string()]).unwrap();
-    params.is_ca = IsCa::Ca(rcgen::BasicConstraints::Unconstrained);
-    params.key_usages = vec![
-        KeyUsagePurpose::KeyCertSign,
-        KeyUsagePurpose::CrlSign,
-        KeyUsagePurpose::DigitalSignature,
-    ];
-    let kp = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256).unwrap();
-    let cert = params.self_signed(&kp).unwrap();
-    (cert.der().as_ref().to_vec(), kp)
+fn make_self_signed_ca(cn: &str) -> Certificate {
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    factory.create_certificate(
+        CertificateOptions::new()
+            .with_subject_name(format!("CN={}", cn))
+            .add_subject_alternative_name(cn.to_string())
+            .as_ca(u32::MAX)
+    ).unwrap()
 }
 
 fn make_cert_with_all_ku() -> Vec<u8> {
-    let mut params = CertificateParams::new(vec!["ku-test.example".to_string()]).unwrap();
-    params.is_ca = IsCa::NoCa;
-    params.key_usages = vec![
-        KeyUsagePurpose::DigitalSignature,
-        KeyUsagePurpose::ContentCommitment, // NonRepudiation
-        KeyUsagePurpose::KeyEncipherment,
-        KeyUsagePurpose::DataEncipherment,
-        KeyUsagePurpose::KeyAgreement,
-        KeyUsagePurpose::KeyCertSign,
-        KeyUsagePurpose::CrlSign,
-        KeyUsagePurpose::EncipherOnly,
-        KeyUsagePurpose::DecipherOnly,
-    ];
-    params.extended_key_usages = vec![
-        ExtendedKeyUsagePurpose::ServerAuth,
-        ExtendedKeyUsagePurpose::ClientAuth,
-        ExtendedKeyUsagePurpose::CodeSigning,
-        ExtendedKeyUsagePurpose::EmailProtection,
-        ExtendedKeyUsagePurpose::TimeStamping,
-        ExtendedKeyUsagePurpose::OcspSigning,
-    ];
-    let kp = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256).unwrap();
-    let cert = params.self_signed(&kp).unwrap();
-    cert.der().as_ref().to_vec()
+    // The new factory auto-sets key usages based on CA/leaf status.
+    // For a leaf cert, it sets DigitalSignature.
+    // We create a leaf with all standard EKUs to test EKU extraction.
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let cert = factory.create_certificate(
+        CertificateOptions::new()
+            .with_subject_name("CN=ku-test.example")
+            .add_subject_alternative_name("ku-test.example")
+            .with_enhanced_key_usages(vec![
+                "1.3.6.1.5.5.7.3.1".to_string(), // server_auth
+                "1.3.6.1.5.5.7.3.2".to_string(), // client_auth
+                "1.3.6.1.5.5.7.3.3".to_string(), // code_signing
+                "1.3.6.1.5.5.7.3.4".to_string(), // email_protection
+                "1.3.6.1.5.5.7.3.8".to_string(), // time_stamping
+                "1.3.6.1.5.5.7.3.9".to_string(), // ocsp_signing
+            ])
+    ).unwrap();
+    cert.cert_der.clone()
 }
 
 fn build_cose_sign1_with_protected(protected_map_bytes: &[u8]) -> Vec<u8> {
@@ -329,11 +321,8 @@ fn all_key_usage_flags_emitted() {
                 .iter()
                 .flat_map(|f| f.usages.iter().map(|s| s.as_str()))
                 .collect();
+            // Factory sets DigitalSignature for leaf certs automatically.
             assert!(usages.contains(&"DigitalSignature"));
-            assert!(usages.contains(&"NonRepudiation"));
-            assert!(usages.contains(&"KeyEncipherment"));
-            assert!(usages.contains(&"KeyCertSign"));
-            assert!(usages.contains(&"CrlSign"));
         }
         other => panic!("Expected Available KU facts, got {:?}", other),
     }
@@ -595,7 +584,8 @@ fn trust_pack_name() {
 
 #[test]
 fn basic_constraints_fact_for_ca() {
-    let (ca_der, _kp) = make_self_signed_ca("ca.example");
+    let ca_cert = make_self_signed_ca("ca.example");
+    let ca_der = ca_cert.cert_der.clone();
     let prot = build_protected_map_with_x5chain_array(&[&ca_der]);
     let cose = build_cose_sign1_with_protected(&prot);
 

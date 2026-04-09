@@ -20,7 +20,9 @@ use cose_sign1_validation::fluent::CoseSign1TrustPack;
 use cose_sign1_validation_primitives::facts::{TrustFactEngine, TrustFactProducer};
 use cose_sign1_validation_primitives::subject::TrustSubject;
 
-use rcgen::{CertificateParams, DistinguishedName, DnType, ExtendedKeyUsagePurpose, KeyPair};
+use cose_sign1_certificates_local::{
+    CertificateFactory, CertificateOptions, EphemeralCertificateFactory, SoftwareKeyProvider,
+};
 
 // ============================================================================
 // Certificate generation helpers
@@ -28,39 +30,45 @@ use rcgen::{CertificateParams, DistinguishedName, DnType, ExtendedKeyUsagePurpos
 
 /// Generate a certificate with code signing EKU.
 fn gen_cert_code_signing() -> Vec<u8> {
-    let key_pair = KeyPair::generate().unwrap();
-    let mut params = CertificateParams::default();
-    params.extended_key_usages = vec![ExtendedKeyUsagePurpose::CodeSigning];
-    let mut dn = DistinguishedName::new();
-    dn.push(DnType::CommonName, "AAS Coverage Test Cert");
-    params.distinguished_name = dn;
-    params.self_signed(&key_pair).unwrap().der().to_vec()
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=AAS Coverage Test Cert")
+                .with_enhanced_key_usages(vec!["1.3.6.1.5.5.7.3.3".to_string()]),
+        )
+        .unwrap()
+        .cert_der
 }
 
 /// Generate a certificate with multiple EKUs including code signing.
 fn gen_cert_multi_eku() -> Vec<u8> {
-    let key_pair = KeyPair::generate().unwrap();
-    let mut params = CertificateParams::default();
-    params.extended_key_usages = vec![
-        ExtendedKeyUsagePurpose::CodeSigning,
-        ExtendedKeyUsagePurpose::ServerAuth,
-        ExtendedKeyUsagePurpose::ClientAuth,
-    ];
-    let mut dn = DistinguishedName::new();
-    dn.push(DnType::CommonName, "AAS Multi-EKU Test Cert");
-    params.distinguished_name = dn;
-    params.self_signed(&key_pair).unwrap().der().to_vec()
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=AAS Multi-EKU Test Cert")
+                .with_enhanced_key_usages(vec![
+                    "1.3.6.1.5.5.7.3.3".to_string(),
+                    "1.3.6.1.5.5.7.3.1".to_string(),
+                    "1.3.6.1.5.5.7.3.2".to_string(),
+                ]),
+        )
+        .unwrap()
+        .cert_der
 }
 
 /// Generate a certificate with no EKU.
 fn gen_cert_no_eku() -> Vec<u8> {
-    let key_pair = KeyPair::generate().unwrap();
-    let mut params = CertificateParams::default();
-    params.extended_key_usages = vec![];
-    let mut dn = DistinguishedName::new();
-    dn.push(DnType::CommonName, "AAS No-EKU Test Cert");
-    params.distinguished_name = dn;
-    params.self_signed(&key_pair).unwrap().der().to_vec()
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=AAS No-EKU Test Cert")
+                .with_enhanced_key_usages(vec![]),
+        )
+        .unwrap()
+        .cert_der
 }
 
 // ============================================================================

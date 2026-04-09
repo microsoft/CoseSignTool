@@ -257,7 +257,12 @@ fn test_chain_with_rsa_4096() {
         .with_key_size(4096)
         .with_intermediate_name(None::<String>); // 2-tier for faster test
 
-    // RSA is not supported with ring backend
+    // RSA is now supported via OpenSSL
     let result = chain_factory.create_chain_with_options(options);
-    assert!(result.is_err());
+    assert!(result.is_ok(), "RSA 4096 chain should succeed: {:?}", result.err());
+
+    let chain = result.unwrap();
+    assert!(chain.len() >= 2, "Expected at least root + leaf");
+    assert!(!chain.last().unwrap().cert_der.is_empty());
+    assert!(chain.last().unwrap().private_key_der.is_some());
 }

@@ -5,11 +5,12 @@
 //!
 //! These tests target uncovered paths in impl_*_inner functions to achieve full coverage.
 
+use cose_sign1_certificates_local::{
+    CertificateFactory, CertificateOptions, EphemeralCertificateFactory, SoftwareKeyProvider,
+};
 use did_x509::builder::DidX509Builder;
 use did_x509::models::policy::DidX509Policy;
 use did_x509_ffi::*;
-use rcgen::string::Ia5String;
-use rcgen::{CertificateParams, DnType, ExtendedKeyUsagePurpose, KeyPair, SanType as RcgenSanType};
 use serde_json::Value;
 use std::borrow::Cow;
 use std::ffi::{CStr, CString};
@@ -29,24 +30,16 @@ fn error_message(err: *const DidX509ErrorHandle) -> Option<String> {
     Some(s)
 }
 
-/// Generate a self-signed X.509 certificate with code signing EKU using rcgen.
+/// Generate a self-signed X.509 certificate with code signing EKU.
 fn generate_code_signing_cert() -> Vec<u8> {
-    let mut params = CertificateParams::default();
-    params
-        .distinguished_name
-        .push(DnType::CommonName, "Test Certificate");
-
-    // Add Extended Key Usage for Code Signing
-    params.extended_key_usages = vec![ExtendedKeyUsagePurpose::CodeSigning];
-
-    // Add Subject Alternative Name
-    params.subject_alt_names = vec![RcgenSanType::Rfc822Name(
-        Ia5String::try_from("test@example.com").unwrap(),
-    )];
-
-    let key = KeyPair::generate().unwrap();
-    let cert = params.self_signed(&key).unwrap();
-    cert.der().to_vec()
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let cert = factory.create_certificate(
+        CertificateOptions::new()
+            .with_subject_name("CN=Test Certificate")
+            .with_enhanced_key_usages(vec!["1.3.6.1.5.5.7.3.3".to_string()])
+            .add_subject_alternative_name("email:test@example.com")
+    ).unwrap();
+    cert.cert_der
 }
 
 /// Generate invalid certificate data (garbage bytes).

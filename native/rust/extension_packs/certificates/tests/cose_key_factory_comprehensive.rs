@@ -5,16 +5,26 @@
 
 use cose_sign1_certificates::cose_key_factory::{HashAlgorithm, X509CertificateCoseKeyFactory};
 use cose_sign1_certificates::error::CertificateError;
-use rcgen::{CertificateParams, KeyPair, PKCS_ECDSA_P256_SHA256, PKCS_ECDSA_P384_SHA384};
+use cose_sign1_certificates_local::{
+    CertificateFactory, CertificateOptions, EphemeralCertificateFactory, KeyAlgorithm,
+    SoftwareKeyProvider,
+};
 
 #[test]
 fn test_create_from_public_key_with_p256_cert() {
-    let mut params = CertificateParams::new(vec!["test.example.com".to_string()]).unwrap();
-    let key_pair = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256).unwrap();
-    let cert = params.self_signed(&key_pair).unwrap();
-    let cert_der = cert.der();
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let cert = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=test.example.com")
+                .add_subject_alternative_name("test.example.com")
+                .with_key_algorithm(KeyAlgorithm::Ecdsa)
+                .with_key_size(256),
+        )
+        .unwrap();
+    let cert_der = cert.cert_der.clone();
 
-    let result = X509CertificateCoseKeyFactory::create_from_public_key(cert_der.as_ref());
+    let result = X509CertificateCoseKeyFactory::create_from_public_key(&cert_der);
     assert!(
         result.is_ok(),
         "Should create verifier from P-256 certificate"
@@ -23,12 +33,19 @@ fn test_create_from_public_key_with_p256_cert() {
 
 #[test]
 fn test_create_from_public_key_with_p384_cert() {
-    let mut params = CertificateParams::new(vec!["test384.example.com".to_string()]).unwrap();
-    let key_pair = KeyPair::generate_for(&PKCS_ECDSA_P384_SHA384).unwrap();
-    let cert = params.self_signed(&key_pair).unwrap();
-    let cert_der = cert.der();
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let cert = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=test384.example.com")
+                .add_subject_alternative_name("test384.example.com")
+                .with_key_algorithm(KeyAlgorithm::Ecdsa)
+                .with_key_size(384),
+        )
+        .unwrap();
+    let cert_der = cert.cert_der.clone();
 
-    let result = X509CertificateCoseKeyFactory::create_from_public_key(cert_der.as_ref());
+    let result = X509CertificateCoseKeyFactory::create_from_public_key(&cert_der);
     assert!(
         result.is_ok(),
         "Should create verifier from P-384 certificate"
@@ -72,12 +89,19 @@ fn test_create_from_public_key_with_empty_input() {
 
 #[test]
 fn test_create_from_public_key_extracts_correct_public_key() {
-    let mut params = CertificateParams::new(vec!["extract-test.example.com".to_string()]).unwrap();
-    let key_pair = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256).unwrap();
-    let cert = params.self_signed(&key_pair).unwrap();
-    let cert_der = cert.der();
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let cert = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=extract-test.example.com")
+                .add_subject_alternative_name("extract-test.example.com")
+                .with_key_algorithm(KeyAlgorithm::Ecdsa)
+                .with_key_size(256),
+        )
+        .unwrap();
+    let cert_der = cert.cert_der.clone();
 
-    let result = X509CertificateCoseKeyFactory::create_from_public_key(cert_der.as_ref());
+    let result = X509CertificateCoseKeyFactory::create_from_public_key(&cert_der);
     assert!(result.is_ok(), "Should successfully extract public key");
 
     let verifier = result.unwrap();

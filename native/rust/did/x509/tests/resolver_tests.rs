@@ -1,8 +1,11 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+use cose_sign1_certificates_local::{
+    Certificate, CertificateFactory, CertificateOptions, EphemeralCertificateFactory,
+    KeyAlgorithm, SoftwareKeyProvider,
+};
 use did_x509::*;
-use rcgen::{BasicConstraints, CertificateParams, CertifiedKey, DnType, IsCa, Issuer, KeyPair};
 use sha2::{Digest, Sha256};
 
 // Inline base64url utilities for tests
@@ -45,57 +48,48 @@ fn base64url_encode(input: &[u8]) -> String {
 }
 
 /// Generate a simple CA certificate (default key type, typically EC)
-fn generate_ca_cert() -> (Vec<u8>, CertifiedKey<KeyPair>) {
-    let mut ca_params = CertificateParams::default();
-    ca_params
-        .distinguished_name
-        .push(DnType::CommonName, "Test CA");
-    ca_params
-        .distinguished_name
-        .push(DnType::OrganizationName, "Test Org");
-    ca_params.is_ca = IsCa::Ca(BasicConstraints::Unconstrained);
-
-    let ca_key = KeyPair::generate().unwrap();
-    let ca_cert = ca_params.self_signed(&ca_key).unwrap();
-    let ca_der = ca_cert.der().to_vec();
-
-    (
-        ca_der,
-        CertifiedKey {
-            cert: ca_cert,
-            signing_key: ca_key,
-        },
-    )
+fn generate_ca_cert() -> (Vec<u8>, Certificate) {
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let ca = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=Test CA")
+                .as_ca(u32::MAX)
+                .with_enhanced_key_usages(vec![]),
+        )
+        .unwrap();
+    let der = ca.cert_der.clone();
+    (der, ca)
 }
 
 /// Generate a leaf certificate signed by CA
-fn generate_leaf_cert(ca: &CertifiedKey<KeyPair>, cn: &str) -> Vec<u8> {
-    let mut leaf_params = CertificateParams::default();
-    leaf_params.distinguished_name.push(DnType::CommonName, cn);
-    leaf_params
-        .distinguished_name
-        .push(DnType::OrganizationName, "Test Org");
-
-    let leaf_key = KeyPair::generate().unwrap();
-    let issuer = Issuer::from_ca_cert_der(ca.cert.der(), &ca.signing_key).unwrap();
-    let leaf_cert = leaf_params.signed_by(&leaf_key, &issuer).unwrap();
-
-    leaf_cert.der().to_vec()
+fn generate_leaf_cert(ca: &Certificate, cn: &str) -> Vec<u8> {
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let leaf = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name(&format!("CN={}", cn))
+                .with_enhanced_key_usages(vec![])
+                .signed_by(ca.clone()),
+        )
+        .unwrap();
+    leaf.cert_der
 }
 
 /// Generate a leaf certificate with explicit P-256 EC key
-fn generate_leaf_cert_ec_p256(ca: &CertifiedKey<KeyPair>, cn: &str) -> Vec<u8> {
-    let mut leaf_params = CertificateParams::default();
-    leaf_params.distinguished_name.push(DnType::CommonName, cn);
-    leaf_params
-        .distinguished_name
-        .push(DnType::OrganizationName, "Test Org");
-
-    let leaf_key = KeyPair::generate_for(&rcgen::PKCS_ECDSA_P256_SHA256).unwrap();
-    let issuer = Issuer::from_ca_cert_der(ca.cert.der(), &ca.signing_key).unwrap();
-    let leaf_cert = leaf_params.signed_by(&leaf_key, &issuer).unwrap();
-
-    leaf_cert.der().to_vec()
+fn generate_leaf_cert_ec_p256(ca: &Certificate, cn: &str) -> Vec<u8> {
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let leaf = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name(&format!("CN={}", cn))
+                .with_key_algorithm(KeyAlgorithm::Ecdsa)
+                .with_key_size(256)
+                .with_enhanced_key_usages(vec![])
+                .signed_by(ca.clone()),
+        )
+        .unwrap();
+    leaf.cert_der
 }
 
 /// Build a DID:x509 for the given CA certificate

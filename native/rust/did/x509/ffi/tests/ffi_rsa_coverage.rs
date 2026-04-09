@@ -12,7 +12,9 @@ use openssl::hash::MessageDigest;
 use openssl::pkey::PKey;
 use openssl::rsa::Rsa;
 use openssl::x509::{X509Builder, X509NameBuilder};
-use rcgen::{CertificateParams, DnType, ExtendedKeyUsagePurpose, KeyPair};
+use cose_sign1_certificates_local::{
+    CertificateFactory, CertificateOptions, EphemeralCertificateFactory, SoftwareKeyProvider,
+};
 use std::borrow::Cow;
 use std::ffi::{CStr, CString};
 use std::ptr;
@@ -68,16 +70,15 @@ fn generate_rsa_cert() -> Vec<u8> {
     builder.build().to_der().unwrap()
 }
 
-/// Generate an EC certificate using rcgen.
+/// Generate an EC certificate using cose_sign1_certificates_local.
 fn generate_ec_cert() -> Vec<u8> {
-    let mut params = CertificateParams::default();
-    params
-        .distinguished_name
-        .push(DnType::CommonName, "EC Test Certificate");
-    params.extended_key_usages = vec![ExtendedKeyUsagePurpose::CodeSigning];
-
-    let key = KeyPair::generate().unwrap();
-    params.self_signed(&key).unwrap().der().to_vec()
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let cert = factory.create_certificate(
+        CertificateOptions::new()
+            .with_subject_name("CN=EC Test Certificate")
+            .with_enhanced_key_usages(vec!["1.3.6.1.5.5.7.3.3".to_string()])
+    ).unwrap();
+    cert.cert_der
 }
 
 #[test]

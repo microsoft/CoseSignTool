@@ -22,7 +22,6 @@ tracing = "Structured logging for the validation/signing pipeline and FFI diagno
 # DEV — allowed in any crate's [dev-dependencies]
 # ---------------------------------------------------------------------------
 [dev]
-rcgen = "Generate self-signed X.509 certificates for unit tests"
 anyhow = "Ergonomic error context in test assertions"
 ring = "Key generation in tests"
 sha1 = "Hash verification in tests"
@@ -79,7 +78,6 @@ x509-parser = "DER/PEM X.509 certificate parsing"
 openssl = "Safe Rust bindings to OpenSSL for public key verification (EC/RSA/EdDSA/ML-DSA)"
 
 [crate.cose_sign1_certificates_local]
-rcgen = "Generate X.509 certificates for ephemeral signing scenarios"
 time = "Date/time handling for certificate validity periods (notBefore/notAfter)"
 openssl = "Safe Rust bindings to OpenSSL for PKCS#12 (PFX) parsing"
 
@@ -193,7 +191,6 @@ openssl = "Safe Rust bindings to OpenSSL for public key verification (EC/RSA/EdD
 
 [crate.local]
 x509-parser = "X.509 certificate parsing"
-rcgen = "Generate X.509 certificates for ephemeral signing scenarios"
 time = "Date/time handling for certificate validity periods (notBefore/notAfter)"
 openssl = "Safe Rust bindings to OpenSSL for PKCS#12 (PFX) parsing"
 
@@ -223,7 +220,6 @@ anyhow = "Error handling in demo"
 ring = "Key operations in demo"
 hex = "Hex output in demo"
 base64 = "Encoding in demo"
-rcgen = "Certificate generation in demo"
 x509-parser = "Certificate parsing in demo"
 
 [crate.primitives]
@@ -255,6 +251,5 @@ anyhow = "Ergonomic error handling at FFI boundary"
 anyhow = "Error handling in demo"
 base64 = "Encoding in demo"
 hex = "Hex output in demo"
-rcgen = "Certificate generation in demo"
 ring = "Key operations in demo"
 x509-parser = "Certificate parsing in demo"

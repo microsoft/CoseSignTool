@@ -10,7 +10,9 @@ use cose_sign1_validation_primitives::facts::TrustFactEngine;
 use cose_sign1_validation_primitives::policy::TrustPolicyBuilder;
 use cose_sign1_validation_primitives::subject::TrustSubject;
 use cose_sign1_validation_primitives::{TrustDecision, TrustEvaluationOptions};
-use rcgen::{generate_simple_self_signed, CertifiedKey};
+use cose_sign1_certificates_local::{
+    CertificateFactory, CertificateOptions, EphemeralCertificateFactory, SoftwareKeyProvider,
+};
 use std::sync::Arc;
 
 fn build_cose_sign1_with_x5chain(cert_der: &[u8]) -> Vec<u8> {
@@ -44,9 +46,15 @@ fn build_cose_sign1_with_x5chain(cert_der: &[u8]) -> Vec<u8> {
 
 #[test]
 fn x5chain_identity_fact_is_produced() {
-    let CertifiedKey { cert, .. } =
-        generate_simple_self_signed(vec!["test-leaf.example".to_string()]).unwrap();
-    let cert_der = cert.der().as_ref().to_vec();
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let cert_obj = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=test-leaf.example")
+                .add_subject_alternative_name("test-leaf.example"),
+        )
+        .unwrap();
+    let cert_der = cert_obj.cert_der.clone();
 
     let cose = build_cose_sign1_with_x5chain(&cert_der);
 

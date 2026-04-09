@@ -6,9 +6,11 @@ use cbor_primitives_everparse::EverParseCborProvider;
 use cbor_primitives_everparse::EverParseEncoder;
 use cose_sign1_certificates::validation::pack::X509CertificateTrustPack;
 use cose_sign1_certificates::validation::signing_key_resolver::X509CertificateCoseKeyResolver;
+use cose_sign1_certificates_local::{
+    CertificateFactory, CertificateOptions, EphemeralCertificateFactory, SoftwareKeyProvider,
+};
 use cose_sign1_validation::fluent::*;
 use cose_sign1_validation_primitives::CoseHeaderLocation;
-use rcgen::generate_simple_self_signed;
 
 fn cose_sign1_with_headers(
     protected_map_bytes: &[u8],
@@ -82,8 +84,15 @@ fn certificates_trust_pack_name_is_stable() {
 
 #[test]
 fn signing_key_resolver_any_reads_x5chain_from_unprotected_header_when_missing_in_protected() {
-    let cert = generate_simple_self_signed(vec!["unprotected-x5chain".to_string()]).unwrap();
-    let leaf_der = cert.cert.der().as_ref().to_vec();
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let cert = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=unprotected-x5chain")
+                .add_subject_alternative_name("unprotected-x5chain"),
+        )
+        .unwrap();
+    let leaf_der = cert.cert_der.clone();
 
     let protected = protected_map_empty();
 
@@ -107,8 +116,15 @@ fn signing_key_resolver_any_reads_x5chain_from_unprotected_header_when_missing_i
 
 #[test]
 fn signing_key_resolver_protected_errors_when_x5chain_only_in_unprotected() {
-    let cert = generate_simple_self_signed(vec!["protected-only".to_string()]).unwrap();
-    let leaf_der = cert.cert.der().as_ref().to_vec();
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let cert = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=protected-only")
+                .add_subject_alternative_name("protected-only"),
+        )
+        .unwrap();
+    let leaf_der = cert.cert_der.clone();
 
     let protected = protected_map_empty();
 
@@ -265,7 +281,7 @@ fn signing_key_resolver_errors_when_leaf_certificate_der_is_invalid() {
 
 // Note: This test cannot work with the current design because:
 // 1. The key's algorithm is inferred from the certificate's SPKI OID
-// 2. rcgen generates P-256 (ES256) certificates, not ML-DSA
+// 2. The certificate library generates P-256 (ES256) certificates, not ML-DSA
 // 3. verify_sig_structure uses the key's inferred algorithm, not an explicit one
 // To test ML-DSA disabled behavior, we'd need actual ML-DSA certificates.
 #[cfg(not(feature = "pqc-mldsa"))]

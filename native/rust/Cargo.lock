@@ -390,6 +390,7 @@ dependencies = [
  "cbor_primitives",
  "cbor_primitives_everparse",
  "cose_sign1_certificates",
+ "cose_sign1_certificates_local",
  "cose_sign1_headers",
  "cose_sign1_primitives",
  "cose_sign1_signing",
@@ -398,7 +399,6 @@ dependencies = [
  "crypto_primitives",
  "did_x509",
  "openssl",
- "rcgen",
  "serde_json",
  "sha2",
  "tokio",
@@ -474,7 +474,6 @@ dependencies = [
  "crypto_primitives",
  "did_x509",
  "openssl",
- "rcgen",
  "sha2",
  "tracing",
  "x509-parser",
@@ -546,13 +545,13 @@ version = "0.1.0"
 dependencies = [
  "cbor_primitives",
  "cbor_primitives_everparse",
+ "cose_sign1_certificates_local",
  "cose_sign1_crypto_openssl",
  "cose_sign1_primitives",
  "cose_sign1_signing",
  "cose_sign1_validation",
  "cose_sign1_validation_primitives",
  "openssl",
- "rcgen",
  "ring",
  "sha2",
  "tracing",
@@ -825,9 +824,9 @@ dependencies = [
 name = "did_x509"
 version = "0.1.0"
 dependencies = [
+ "cose_sign1_certificates_local",
  "hex",
  "openssl",
- "rcgen",
  "serde",
  "serde_json",
  "sha2",
@@ -838,11 +837,11 @@ dependencies = [
 name = "did_x509_ffi"
 version = "0.1.0"
 dependencies = [
+ "cose_sign1_certificates_local",
  "did_x509",
  "hex",
  "libc",
  "openssl",
- "rcgen",
  "serde_json",
  "sha2",
 ]
@@ -1562,16 +1561,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f38d5652c16fde515bb1ecef450ab0f6a219d619a7274976324d5e377f7dceba"
 
 [[package]]
-name = "pem"
-version = "3.0.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d30c53c26bc5b31a98cd02d20f25a7c8567146caf63ed593a9d87b2775291be"
-dependencies = [
- "base64",
- "serde_core",
-]
-
-[[package]]
 name = "percent-encoding"
 version = "2.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1674,20 +1663,6 @@ name = "rand_core"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c8d0fd677905edcbeedbf2edb6494d676f0e98d54d5cf9bda0b061cb8fb8aba"
-
-[[package]]
-name = "rcgen"
-version = "0.14.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "10b99e0098aa4082912d4c649628623db6aba77335e4f4569ff5083a6448b32e"
-dependencies = [
- "pem",
- "ring",
- "rustls-pki-types",
- "time",
- "x509-parser",
- "yasna",
-]
 
 [[package]]
 name = "regex"
@@ -2657,18 +2632,8 @@ dependencies = [
  "lazy_static",
  "nom",
  "oid-registry",
- "ring",
  "rusticata-macros",
  "thiserror",
- "time",
-]
-
-[[package]]
-name = "yasna"
-version = "0.5.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e17bb3549cc1321ae1296b9cdc2698e2b6cb1992adfa19a8c72e5b7a738f44cd"
-dependencies = [
  "time",
 ]
 

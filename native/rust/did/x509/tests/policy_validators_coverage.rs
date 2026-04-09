@@ -5,80 +5,107 @@
 //!
 //! These tests target specific edge cases and error paths not covered by existing tests.
 
+use cose_sign1_certificates_local::{
+    CertificateFactory, CertificateOptions, EphemeralCertificateFactory, SoftwareKeyProvider,
+};
 use did_x509::error::DidX509Error;
 use did_x509::models::SanType;
 use did_x509::policy_validators::{
     validate_eku, validate_fulcio_issuer, validate_san, validate_subject,
 };
-use rcgen::string::Ia5String;
-use rcgen::ExtendedKeyUsagePurpose;
-use rcgen::{CertificateParams, DnType, KeyPair, SanType as RcgenSanType};
+use openssl::asn1::Asn1Time;
+use openssl::bn::BigNum;
+use openssl::ec::{EcGroup, EcKey};
+use openssl::hash::MessageDigest;
+use openssl::nid::Nid;
+use openssl::pkey::PKey;
+use openssl::x509::{X509Builder, X509NameBuilder};
 use x509_parser::prelude::*;
 
 /// Helper to generate a certificate with no EKU extension.
 fn generate_cert_without_eku() -> Vec<u8> {
-    let mut params = CertificateParams::default();
-    params
-        .distinguished_name
-        .push(DnType::CommonName, "Test No EKU Certificate");
-    // Explicitly don't add extended_key_usages
-
-    let key = KeyPair::generate().unwrap();
-    let cert = params.self_signed(&key).unwrap();
-    cert.der().to_vec()
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let cert = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=Test No EKU Certificate")
+                .with_enhanced_key_usages(vec![]),
+        )
+        .unwrap();
+    cert.cert_der
 }
 
 /// Helper to generate a certificate with specific subject attributes, including parsing edge cases.
+/// Uses OpenSSL directly to support multi-attribute DN (CN, O, OU, C).
 fn generate_cert_with_subject_edge_cases() -> Vec<u8> {
-    let mut params = CertificateParams::default();
-    // Add multiple types of subject attributes to test parsing
-    params
-        .distinguished_name
-        .push(DnType::CommonName, "Test Subject");
-    params
-        .distinguished_name
-        .push(DnType::OrganizationName, "Test Org");
-    params
-        .distinguished_name
-        .push(DnType::OrganizationalUnitName, "Test Unit");
-    params.distinguished_name.push(DnType::CountryName, "US");
+    let group = EcGroup::from_curve_name(Nid::X9_62_PRIME256V1).unwrap();
+    let ec_key = EcKey::generate(&group).unwrap();
+    let pkey = PKey::from_ec_key(ec_key).unwrap();
 
-    let key = KeyPair::generate().unwrap();
-    let cert = params.self_signed(&key).unwrap();
-    cert.der().to_vec()
+    let mut name_builder = X509NameBuilder::new().unwrap();
+    name_builder.append_entry_by_text("CN", "Test Subject").unwrap();
+    name_builder.append_entry_by_text("O", "Test Org").unwrap();
+    name_builder.append_entry_by_text("OU", "Test Unit").unwrap();
+    name_builder.append_entry_by_text("C", "US").unwrap();
+    let subject_name = name_builder.build();
+
+    let mut builder = X509Builder::new().unwrap();
+    builder.set_version(2).unwrap();
+    let serial = BigNum::from_u32(1).unwrap().to_asn1_integer().unwrap();
+    builder.set_serial_number(&serial).unwrap();
+    builder.set_subject_name(&subject_name).unwrap();
+    builder.set_issuer_name(&subject_name).unwrap();
+    builder.set_pubkey(&pkey).unwrap();
+    let not_before = Asn1Time::days_from_now(0).unwrap();
+    let not_after = Asn1Time::days_from_now(365).unwrap();
+    builder.set_not_before(&not_before).unwrap();
+    builder.set_not_after(&not_after).unwrap();
+    builder.sign(&pkey, MessageDigest::sha256()).unwrap();
+
+    builder.build().to_der().unwrap()
 }
 
 /// Helper to generate a certificate with no SAN extension.
 fn generate_cert_without_san() -> Vec<u8> {
-    let mut params = CertificateParams::default();
-    params
-        .distinguished_name
-        .push(DnType::CommonName, "Test No SAN Certificate");
-    // Explicitly don't add subject_alt_names
-
-    let key = KeyPair::generate().unwrap();
-    let cert = params.self_signed(&key).unwrap();
-    cert.der().to_vec()
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let cert = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=Test No SAN Certificate")
+                .with_enhanced_key_usages(vec![]),
+        )
+        .unwrap();
+    cert.cert_der
 }
 
 /// Helper to generate a certificate with specific SAN entries for edge case testing.
 fn generate_cert_with_multiple_sans() -> Vec<u8> {
-    let mut params = CertificateParams::default();
-    params
-        .distinguished_name
-        .push(DnType::CommonName, "Test Multi SAN Certificate");
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let cert = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=Test Multi SAN Certificate")
+                .with_enhanced_key_usages(vec![])
+                .add_subject_alternative_name("test1.example.com")
+                .add_subject_alternative_name("test2.example.com")
+                .add_subject_alternative_name("email:test@example.com")
+                .add_subject_alternative_name("IP:192.168.1.1"),
+        )
+        .unwrap();
+    cert.cert_der
+}
 
-    // Add multiple types of SANs
-    params.subject_alt_names = vec![
-        RcgenSanType::DnsName(Ia5String::try_from("test1.example.com").unwrap()),
-        RcgenSanType::DnsName(Ia5String::try_from("test2.example.com").unwrap()),
-        RcgenSanType::Rfc822Name(Ia5String::try_from("test@example.com").unwrap()),
-        RcgenSanType::IpAddress("192.168.1.1".parse().unwrap()),
-    ];
-
-    let key = KeyPair::generate().unwrap();
-    let cert = params.self_signed(&key).unwrap();
-    cert.der().to_vec()
+/// Helper to generate a certificate with specific EKU OIDs.
+fn generate_cert_with_eku(eku_oids: Vec<String>) -> Vec<u8> {
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let cert = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=Test EKU Certificate")
+                .with_enhanced_key_usages(eku_oids),
+        )
+        .unwrap();
+    cert.cert_der
 }
 
 #[test]
@@ -101,7 +128,7 @@ fn test_validate_eku_no_extension() {
 #[test]
 fn test_validate_eku_missing_required_oid() {
     // Generate cert with only code signing, but require both code signing and client auth
-    let cert_der = generate_cert_with_eku(vec![ExtendedKeyUsagePurpose::CodeSigning]);
+    let cert_der = generate_cert_with_eku(vec!["1.3.6.1.5.5.7.3.3".to_string()]);
     let (_, cert) = X509Certificate::from_der(&cert_der).unwrap();
 
     let result = validate_eku(
@@ -124,22 +151,6 @@ fn test_validate_eku_missing_required_oid() {
         }
         _ => panic!("Expected PolicyValidationFailed"),
     }
-}
-
-/// Helper to generate a certificate with specific EKU OIDs.
-fn generate_cert_with_eku(eku_purposes: Vec<ExtendedKeyUsagePurpose>) -> Vec<u8> {
-    let mut params = CertificateParams::default();
-    params
-        .distinguished_name
-        .push(DnType::CommonName, "Test EKU Certificate");
-
-    if !eku_purposes.is_empty() {
-        params.extended_key_usages = eku_purposes;
-    }
-
-    let key = KeyPair::generate().unwrap();
-    let cert = params.self_signed(&key).unwrap();
-    cert.der().to_vec()
 }
 
 #[test]
@@ -356,7 +367,7 @@ fn test_validate_fulcio_issuer_no_extension() {
 #[test]
 fn test_validate_fulcio_issuer_url_normalization() {
     // This test would ideally check the URL normalization logic in validate_fulcio_issuer,
-    // but since we can't easily create certificates with Fulcio extensions using rcgen,
+    // but since we can't easily create certificates with Fulcio extensions,
     // we've focused on the error path testing above.
 
     // The URL normalization logic (adding https:// prefix) is covered when the extension

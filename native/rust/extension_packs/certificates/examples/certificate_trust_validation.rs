@@ -22,9 +22,18 @@ fn main() {
     // ── 1. Generate an ephemeral self-signed certificate ─────────────
     println!("=== Step 1: Generate ephemeral certificate ===\n");
 
-    let rcgen::CertifiedKey { cert, .. } =
-        rcgen::generate_simple_self_signed(vec!["example-leaf".to_string()]).expect("rcgen failed");
-    let leaf_der = cert.der().to_vec();
+    use cose_sign1_certificates_local::{
+        CertificateFactory, CertificateOptions, EphemeralCertificateFactory, SoftwareKeyProvider,
+    };
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let cert = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=example-leaf")
+                .add_subject_alternative_name("example-leaf"),
+        )
+        .expect("cert creation failed");
+    let leaf_der = cert.cert_der.clone();
     println!("  Leaf cert DER size: {} bytes", leaf_der.len());
 
     // ── 2. Build a minimal COSE_Sign1 with x5chain header ───────────

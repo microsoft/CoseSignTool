@@ -5,42 +5,40 @@
 
 use cose_sign1_certificates::error::CertificateError;
 use cose_sign1_certificates::signing::scitt::{build_scitt_cwt_claims, create_scitt_contributor};
+use cose_sign1_certificates_local::{
+    CertificateOptions, EphemeralCertificateFactory, SoftwareKeyProvider,
+    CertificateFactory,
+};
 use cose_sign1_headers::CwtClaims;
 use cose_sign1_signing::{HeaderContributor, HeaderMergeStrategy};
-use rcgen::{
-    CertificateParams, ExtendedKeyUsagePurpose, IsCa, Issuer, KeyPair, KeyUsagePurpose,
-    PKCS_ECDSA_P256_SHA256,
-};
 
 fn make_cert_with_eku() -> Vec<u8> {
-    let mut params = CertificateParams::new(vec!["test.example.com".to_string()]).unwrap();
-    params.is_ca = IsCa::NoCa;
-    params.key_usages = vec![KeyUsagePurpose::DigitalSignature];
-    params.extended_key_usages = vec![ExtendedKeyUsagePurpose::CodeSigning];
-
-    let key_pair = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256).unwrap();
-    let cert = params.self_signed(&key_pair).unwrap();
-    cert.der().as_ref().to_vec()
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let cert = factory.create_certificate(
+        CertificateOptions::new()
+            .with_subject_name("CN=test.example.com")
+            .add_subject_alternative_name("test.example.com")
+            .with_enhanced_key_usages(vec!["1.3.6.1.5.5.7.3.3".to_string()])
+    ).unwrap();
+    cert.cert_der.clone()
 }
 
 fn make_two_cert_chain() -> Vec<Vec<u8>> {
-    let mut root_params = CertificateParams::new(vec!["root.example.com".to_string()]).unwrap();
-    root_params.is_ca = IsCa::Ca(rcgen::BasicConstraints::Unconstrained);
-    root_params.key_usages = vec![KeyUsagePurpose::KeyCertSign];
-
-    let root_key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256).unwrap();
-    let root_cert = root_params.self_signed(&root_key).unwrap();
-
-    let mut leaf_params = CertificateParams::new(vec!["leaf.example.com".to_string()]).unwrap();
-    leaf_params.is_ca = IsCa::NoCa;
-    leaf_params.key_usages = vec![KeyUsagePurpose::DigitalSignature];
-    leaf_params.extended_key_usages = vec![ExtendedKeyUsagePurpose::CodeSigning];
-
-    let leaf_key = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256).unwrap();
-    let issuer = Issuer::from_ca_cert_der(root_cert.der(), &root_key).unwrap();
-    let leaf_cert = leaf_params.signed_by(&leaf_key, &issuer).unwrap();
-
-    vec![leaf_cert.der().to_vec(), root_cert.der().to_vec()]
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let root = factory.create_certificate(
+        CertificateOptions::new()
+            .with_subject_name("CN=root.example.com")
+            .add_subject_alternative_name("root.example.com")
+            .as_ca(u32::MAX)
+    ).unwrap();
+    let leaf = factory.create_certificate(
+        CertificateOptions::new()
+            .with_subject_name("CN=leaf.example.com")
+            .add_subject_alternative_name("leaf.example.com")
+            .with_enhanced_key_usages(vec!["1.3.6.1.5.5.7.3.3".to_string()])
+            .signed_by(root.clone())
+    ).unwrap();
+    vec![leaf.cert_der.clone(), root.cert_der.clone()]
 }
 
 #[test]

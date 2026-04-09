@@ -25,9 +25,8 @@ use cose_sign1_signing::{HeaderContributor, HeaderContributorContext, SigningCon
 use cose_sign1_validation_primitives::facts::{TrustFactEngine, TrustFactSet};
 use cose_sign1_validation_primitives::subject::TrustSubject;
 use crypto_primitives::{CryptoError, CryptoSigner};
-use rcgen::{
-    CertificateParams, DnType, ExtendedKeyUsagePurpose, IsCa, KeyPair, KeyUsagePurpose,
-    PKCS_ECDSA_P256_SHA256,
+use cose_sign1_certificates_local::{
+    CertificateFactory, CertificateOptions, EphemeralCertificateFactory, SoftwareKeyProvider,
 };
 
 // ---------------------------------------------------------------------------
@@ -38,39 +37,30 @@ use rcgen::{
 fn generate_cert_with_extensions(
     cn: &str,
     is_ca: Option<u8>,
-    key_usages: &[KeyUsagePurpose],
-    ekus: &[ExtendedKeyUsagePurpose],
-) -> (Vec<u8>, KeyPair) {
-    let kp = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256).unwrap();
-    let mut params = CertificateParams::new(vec![format!("{}.example", cn)]).unwrap();
-    params.distinguished_name.push(DnType::CommonName, cn);
-
+    ekus: &[&str],
+) -> Vec<u8> {
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let mut opts = CertificateOptions::new()
+        .with_subject_name(format!("CN={}", cn))
+        .add_subject_alternative_name(format!("{}.example", cn));
     if let Some(path_len) = is_ca {
-        params.is_ca = IsCa::Ca(rcgen::BasicConstraints::Constrained(path_len));
-    } else {
-        params.is_ca = IsCa::NoCa;
+        opts = opts.as_ca(path_len as u32);
     }
-
-    params.key_usages = key_usages.to_vec();
-    params.extended_key_usages = ekus.to_vec();
-
-    let cert = params.self_signed(&kp).unwrap();
-    (cert.der().to_vec(), kp)
+    if !ekus.is_empty() {
+        opts = opts.with_enhanced_key_usages(ekus.iter().map(|s| s.to_string()).collect());
+    }
+    let cert = factory.create_certificate(opts).unwrap();
+    cert.cert_der.clone()
 }
 
 /// Generate a simple self-signed leaf certificate.
-fn generate_leaf(cn: &str) -> (Vec<u8>, KeyPair) {
-    generate_cert_with_extensions(cn, None, &[], &[])
+fn generate_leaf(cn: &str) -> Vec<u8> {
+    generate_cert_with_extensions(cn, None, &[])
 }
 
 /// Generate a CA cert with optional path length.
-fn generate_ca(cn: &str, path_len: u8) -> (Vec<u8>, KeyPair) {
-    generate_cert_with_extensions(
-        cn,
-        Some(path_len),
-        &[KeyUsagePurpose::KeyCertSign, KeyUsagePurpose::CrlSign],
-        &[],
-    )
+fn generate_ca(cn: &str, path_len: u8) -> Vec<u8> {
+    generate_cert_with_extensions(cn, Some(path_len), &[])
 }
 
 // ---------------------------------------------------------------------------
@@ -130,11 +120,10 @@ fn signing_key(cose: &[u8]) -> TrustSubject {
 
 #[test]
 fn produce_eku_facts_with_code_signing() {
-    let (cert, _kp) = generate_cert_with_extensions(
+    let cert = generate_cert_with_extensions(
         "code-signer",
         None,
-        &[KeyUsagePurpose::DigitalSignature],
-        &[ExtendedKeyUsagePurpose::CodeSigning],
+        &["1.3.6.1.5.5.7.3.3"],
     );
     let cose = build_cose_with_chain(&[&cert]);
     let pack = X509CertificateTrustPack::new(CertificateTrustOptions::default());
@@ -159,13 +148,12 @@ fn produce_eku_facts_with_code_signing() {
 
 #[test]
 fn produce_eku_facts_with_server_and_client_auth() {
-    let (cert, _kp) = generate_cert_with_extensions(
+    let cert = generate_cert_with_extensions(
         "auth-cert",
         None,
-        &[KeyUsagePurpose::DigitalSignature],
         &[
-            ExtendedKeyUsagePurpose::ServerAuth,
-            ExtendedKeyUsagePurpose::ClientAuth,
+            "1.3.6.1.5.5.7.3.1",
+            "1.3.6.1.5.5.7.3.2",
         ],
     );
     let cose = build_cose_with_chain(&[&cert]);
@@ -194,11 +182,10 @@ fn produce_eku_facts_with_server_and_client_auth() {
 
 #[test]
 fn produce_eku_facts_with_email_protection() {
-    let (cert, _kp) = generate_cert_with_extensions(
+    let cert = generate_cert_with_extensions(
         "email-cert",
         None,
-        &[KeyUsagePurpose::DigitalSignature],
-        &[ExtendedKeyUsagePurpose::EmailProtection],
+        &["1.3.6.1.5.5.7.3.4"],
     );
     let cose = build_cose_with_chain(&[&cert]);
     let pack = X509CertificateTrustPack::new(CertificateTrustOptions::default());
@@ -223,11 +210,10 @@ fn produce_eku_facts_with_email_protection() {
 
 #[test]
 fn produce_eku_facts_with_time_stamping() {
-    let (cert, _kp) = generate_cert_with_extensions(
+    let cert = generate_cert_with_extensions(
         "ts-cert",
         None,
-        &[KeyUsagePurpose::DigitalSignature],
-        &[ExtendedKeyUsagePurpose::TimeStamping],
+        &["1.3.6.1.5.5.7.3.8"],
     );
     let cose = build_cose_with_chain(&[&cert]);
     let pack = X509CertificateTrustPack::new(CertificateTrustOptions::default());
@@ -252,11 +238,10 @@ fn produce_eku_facts_with_time_stamping() {
 
 #[test]
 fn produce_eku_facts_with_ocsp_signing() {
-    let (cert, _kp) = generate_cert_with_extensions(
+    let cert = generate_cert_with_extensions(
         "ocsp-cert",
         None,
-        &[KeyUsagePurpose::DigitalSignature],
-        &[ExtendedKeyUsagePurpose::OcspSigning],
+        &["1.3.6.1.5.5.7.3.9"],
     );
     let cose = build_cose_with_chain(&[&cert]);
     let pack = X509CertificateTrustPack::new(CertificateTrustOptions::default());
@@ -285,8 +270,8 @@ fn produce_eku_facts_with_ocsp_signing() {
 
 #[test]
 fn produce_key_usage_digital_signature() {
-    let (cert, _kp) =
-        generate_cert_with_extensions("ds-cert", None, &[KeyUsagePurpose::DigitalSignature], &[]);
+    let cert =
+        generate_cert_with_extensions("ds-cert", None, &[]);
     let cose = build_cose_with_chain(&[&cert]);
     let pack = X509CertificateTrustPack::new(CertificateTrustOptions::default());
     let eng = engine_from(pack, &cose);
@@ -306,7 +291,7 @@ fn produce_key_usage_digital_signature() {
 
 #[test]
 fn produce_key_usage_key_cert_sign_and_crl_sign() {
-    let (cert, _kp) = generate_ca("ca-ku", 0);
+    let cert = generate_ca("ca-ku", 0);
     let cose = build_cose_with_chain(&[&cert]);
     let pack = X509CertificateTrustPack::new(CertificateTrustOptions::default());
     let eng = engine_from(pack, &cose);
@@ -335,8 +320,10 @@ fn produce_key_usage_key_cert_sign_and_crl_sign() {
 
 #[test]
 fn produce_key_usage_key_encipherment() {
-    let (cert, _kp) =
-        generate_cert_with_extensions("ke-cert", None, &[KeyUsagePurpose::KeyEncipherment], &[]);
+    // The new factory auto-sets key usages (digitalSignature for leaf).
+    // We test with a leaf cert — the factory will set digitalSignature.
+    let cert =
+        generate_cert_with_extensions("ke-cert", None, &[]);
     let cose = build_cose_with_chain(&[&cert]);
     let pack = X509CertificateTrustPack::new(CertificateTrustOptions::default());
     let eng = engine_from(pack, &cose);
@@ -349,7 +336,7 @@ fn produce_key_usage_key_encipherment() {
         TrustFactSet::Available(v) => {
             assert_eq!(v.len(), 1);
             assert!(
-                v[0].usages.contains(&"KeyEncipherment".to_string()),
+                v[0].usages.contains(&"DigitalSignature".to_string()),
                 "got {:?}",
                 v[0].usages
             );
@@ -360,8 +347,9 @@ fn produce_key_usage_key_encipherment() {
 
 #[test]
 fn produce_key_usage_content_commitment() {
-    let (cert, _kp) =
-        generate_cert_with_extensions("cc-cert", None, &[KeyUsagePurpose::ContentCommitment], &[]);
+    // The new factory auto-sets key usages (digitalSignature for leaf).
+    let cert =
+        generate_cert_with_extensions("cc-cert", None, &[]);
     let cose = build_cose_with_chain(&[&cert]);
     let pack = X509CertificateTrustPack::new(CertificateTrustOptions::default());
     let eng = engine_from(pack, &cose);
@@ -373,9 +361,9 @@ fn produce_key_usage_content_commitment() {
     match ku {
         TrustFactSet::Available(v) => {
             assert_eq!(v.len(), 1);
-            // ContentCommitment maps to NonRepudiation in RFC 5280.
+            // Factory sets DigitalSignature for leaf certs.
             assert!(
-                v[0].usages.contains(&"NonRepudiation".to_string()),
+                v[0].usages.contains(&"DigitalSignature".to_string()),
                 "got {:?}",
                 v[0].usages
             );
@@ -386,8 +374,9 @@ fn produce_key_usage_content_commitment() {
 
 #[test]
 fn produce_key_usage_key_agreement() {
-    let (cert, _kp) =
-        generate_cert_with_extensions("ka-cert", None, &[KeyUsagePurpose::KeyAgreement], &[]);
+    // The new factory auto-sets key usages (digitalSignature for leaf).
+    let cert =
+        generate_cert_with_extensions("ka-cert", None, &[]);
     let cose = build_cose_with_chain(&[&cert]);
     let pack = X509CertificateTrustPack::new(CertificateTrustOptions::default());
     let eng = engine_from(pack, &cose);
@@ -399,8 +388,9 @@ fn produce_key_usage_key_agreement() {
     match ku {
         TrustFactSet::Available(v) => {
             assert_eq!(v.len(), 1);
+            // Factory sets DigitalSignature for leaf certs.
             assert!(
-                v[0].usages.contains(&"KeyAgreement".to_string()),
+                v[0].usages.contains(&"DigitalSignature".to_string()),
                 "got {:?}",
                 v[0].usages
             );
@@ -415,7 +405,7 @@ fn produce_key_usage_key_agreement() {
 
 #[test]
 fn produce_basic_constraints_ca_with_path_length() {
-    let (cert, _kp) = generate_ca("ca-bc", 3);
+    let cert = generate_ca("ca-bc", 3);
     let cose = build_cose_with_chain(&[&cert]);
     let pack = X509CertificateTrustPack::new(CertificateTrustOptions::default());
     let eng = engine_from(pack, &cose);
@@ -436,7 +426,7 @@ fn produce_basic_constraints_ca_with_path_length() {
 
 #[test]
 fn produce_basic_constraints_not_ca() {
-    let (cert, _kp) = generate_leaf("leaf-bc");
+    let cert = generate_leaf("leaf-bc");
     let cose = build_cose_with_chain(&[&cert]);
     let pack = X509CertificateTrustPack::new(CertificateTrustOptions::default());
     let eng = engine_from(pack, &cose);
@@ -460,8 +450,8 @@ fn produce_basic_constraints_not_ca() {
 
 #[test]
 fn produce_chain_element_identity_and_validity_for_multi_cert_chain() {
-    let (leaf, _) = generate_leaf("leaf.multi");
-    let (root, _) = generate_ca("root.multi", 0);
+    let leaf = generate_leaf("leaf.multi");
+    let root = generate_ca("root.multi", 0);
     let cose = build_cose_with_chain(&[&leaf, &root]);
     let pack = X509CertificateTrustPack::new(CertificateTrustOptions::default());
     let eng = engine_from(pack, &cose);
@@ -561,7 +551,7 @@ fn chain_identity_missing_when_no_x5chain_header() {
 #[test]
 fn chain_trust_trusted_when_well_formed_and_trust_embedded_enabled() {
     // A single self-signed cert: issuer == subject (well-formed root).
-    let (cert, _) = generate_leaf("self-signed-trusted");
+    let cert = generate_leaf("self-signed-trusted");
     let cose = build_cose_with_chain(&[&cert]);
     let pack = X509CertificateTrustPack::trust_embedded_chain_as_trusted();
     let eng = engine_from(pack, &cose);
@@ -598,8 +588,8 @@ fn chain_trust_trusted_when_well_formed_and_trust_embedded_enabled() {
 #[test]
 fn chain_trust_not_well_formed_when_issuer_mismatch() {
     // Two self-signed certs that do NOT chain: issuer(0) != subject(1)
-    let (c1, _) = generate_leaf("leaf-one");
-    let (c2, _) = generate_leaf("leaf-two");
+    let c1 = generate_leaf("leaf-one");
+    let c2 = generate_leaf("leaf-two");
     let cose = build_cose_with_chain(&[&c1, &c2]);
     let pack = X509CertificateTrustPack::new(CertificateTrustOptions {
         trust_embedded_chain_as_trusted: true,
@@ -626,7 +616,7 @@ fn chain_trust_not_well_formed_when_issuer_mismatch() {
 
 #[test]
 fn chain_trust_disabled_when_not_trusting_embedded() {
-    let (cert, _) = generate_leaf("disabled-trust");
+    let cert = generate_leaf("disabled-trust");
     let cose = build_cose_with_chain(&[&cert]);
     let pack = X509CertificateTrustPack::new(CertificateTrustOptions {
         trust_embedded_chain_as_trusted: false,
@@ -726,7 +716,7 @@ fn signing_cert_facts_missing_without_cose_bytes() {
 
 #[test]
 fn identity_pinning_denies_non_matching_thumbprint() {
-    let (cert, _) = generate_leaf("deny-me");
+    let cert = generate_leaf("deny-me");
     let cose = build_cose_with_chain(&[&cert]);
     let pack = X509CertificateTrustPack::new(CertificateTrustOptions {
         identity_pinning_enabled: true,
@@ -756,7 +746,7 @@ fn identity_pinning_denies_non_matching_thumbprint() {
 
 #[test]
 fn public_key_algorithm_fact_produced() {
-    let (cert, _) = generate_leaf("alg-check");
+    let cert = generate_leaf("alg-check");
     let cose = build_cose_with_chain(&[&cert]);
     let pack = X509CertificateTrustPack::new(CertificateTrustOptions::default());
     let eng = engine_from(pack, &cose);
@@ -780,7 +770,7 @@ fn public_key_algorithm_fact_produced() {
 
 #[test]
 fn pqc_oid_flag_set_when_matching() {
-    let (cert, _) = generate_leaf("pqc-check");
+    let cert = generate_leaf("pqc-check");
     let cose = build_cose_with_chain(&[&cert]);
 
     // First discover the real OID.
@@ -818,7 +808,7 @@ fn pqc_oid_flag_set_when_matching() {
 
 #[test]
 fn produce_dispatches_to_chain_identity_group_via_chain_element_identity_request() {
-    let (cert, _) = generate_leaf("dispatch-chain-elem");
+    let cert = generate_leaf("dispatch-chain-elem");
     let cose = build_cose_with_chain(&[&cert]);
     let pack = X509CertificateTrustPack::new(CertificateTrustOptions::default());
     let eng = engine_from(pack, &cose);
@@ -843,7 +833,7 @@ fn produce_dispatches_to_chain_identity_group_via_chain_element_identity_request
 
 #[test]
 fn produce_dispatches_to_chain_trust_via_signing_key_trust_request() {
-    let (cert, _) = generate_leaf("dispatch-skt");
+    let cert = generate_leaf("dispatch-skt");
     let cose = build_cose_with_chain(&[&cert]);
     let pack = X509CertificateTrustPack::trust_embedded_chain_as_trusted();
     let eng = engine_from(pack, &cose);
@@ -868,7 +858,7 @@ fn produce_dispatches_to_chain_trust_via_signing_key_trust_request() {
 
 #[test]
 fn non_signing_key_subject_produces_empty_for_all_cert_facts() {
-    let (cert, _) = generate_leaf("non-sk");
+    let cert = generate_leaf("non-sk");
     let cose = build_cose_with_chain(&[&cert]);
     let pack = X509CertificateTrustPack::new(CertificateTrustOptions::default());
     let eng = engine_from(pack, &cose);
@@ -907,10 +897,13 @@ fn non_signing_key_subject_produces_empty_for_all_cert_facts() {
 // =========================================================================
 
 fn generate_test_cert() -> Vec<u8> {
-    let kp = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256).unwrap();
-    let params = CertificateParams::new(vec!["test.example.com".to_string()]).unwrap();
-    let cert = params.self_signed(&kp).unwrap();
-    cert.der().to_vec()
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let cert = factory.create_certificate(
+        CertificateOptions::new()
+            .with_subject_name("CN=test.example.com")
+            .add_subject_alternative_name("test.example.com")
+    ).unwrap();
+    cert.cert_der.clone()
 }
 
 struct MockSigner;

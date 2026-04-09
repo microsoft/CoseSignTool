@@ -37,9 +37,9 @@ impl PrivateKeyProvider for SoftwareKeyProvider {
         "SoftwareKeyProvider"
     }
 
-    fn supports_algorithm(&self, algorithm: KeyAlgorithm) -> bool {
-        match algorithm {
-            KeyAlgorithm::Rsa => false, // Not yet implemented
+    fn supports_algorithm(&self, _algorithm: KeyAlgorithm) -> bool {
+        match _algorithm {
+            KeyAlgorithm::Rsa => true,
             KeyAlgorithm::Ecdsa => true,
             #[cfg(feature = "pqc")]
             KeyAlgorithm::MlDsa => true,
@@ -51,21 +51,35 @@ impl PrivateKeyProvider for SoftwareKeyProvider {
         algorithm: KeyAlgorithm,
         key_size: Option<u32>,
     ) -> Result<GeneratedKey, CertLocalError> {
-        if !self.supports_algorithm(algorithm) {
-            return Err(CertLocalError::UnsupportedAlgorithm(format!(
-                "{:?} is not supported by SoftwareKeyProvider",
-                algorithm
-            )));
-        }
-
         let size = key_size.unwrap_or_else(|| algorithm.default_key_size());
 
         match algorithm {
-            KeyAlgorithm::Rsa => Err(CertLocalError::UnsupportedAlgorithm(
-                "RSA key generation is not yet implemented".to_string(),
-            )),
+            KeyAlgorithm::Rsa => {
+                let rsa = openssl::rsa::Rsa::generate(size)
+                    .map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
+                let pkey = PKey::from_rsa(rsa)
+                    .map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
+                let private_key_der = pkey
+                    .private_key_to_der()
+                    .map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
+                let public_key_der = pkey
+                    .public_key_to_der()
+                    .map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
+
+                Ok(GeneratedKey {
+                    private_key_der,
+                    public_key_der,
+                    algorithm,
+                    key_size: size,
+                })
+            }
             KeyAlgorithm::Ecdsa => {
-                let group = EcGroup::from_curve_name(Nid::X9_62_PRIME256V1)
+                let nid = match size {
+                    384 => Nid::SECP384R1,
+                    521 => Nid::SECP521R1,
+                    _ => Nid::X9_62_PRIME256V1,
+                };
+                let group = EcGroup::from_curve_name(nid)
                     .map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
                 let ec_key = EcKey::generate(&group)
                     .map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;

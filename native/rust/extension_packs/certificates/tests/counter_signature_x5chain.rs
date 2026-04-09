@@ -10,7 +10,9 @@ use cose_sign1_validation::fluent::*;
 use cose_sign1_validation_primitives::facts::{TrustFactEngine, TrustFactSet};
 use cose_sign1_validation_primitives::subject::TrustSubject;
 use crypto_primitives::{CryptoError, CryptoVerifier};
-use rcgen::{generate_simple_self_signed, CertifiedKey};
+use cose_sign1_certificates_local::{
+    CertificateFactory, CertificateOptions, EphemeralCertificateFactory, SoftwareKeyProvider,
+};
 use std::sync::Arc;
 
 fn wrap_as_cbor_bstr(inner: &[u8]) -> Vec<u8> {
@@ -143,9 +145,15 @@ impl CounterSignatureResolver for OneCounterSignatureResolver {
 
 #[test]
 fn counter_signature_signing_key_can_produce_x5chain_identity() {
-    let CertifiedKey { cert, .. } =
-        generate_simple_self_signed(vec!["counter-leaf.example".to_string()]).unwrap();
-    let cert_der = cert.der().as_ref().to_vec();
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let cert_obj = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=counter-leaf.example")
+                .add_subject_alternative_name("counter-leaf.example"),
+        )
+        .unwrap();
+    let cert_der = cert_obj.cert_der.clone();
 
     let cose = build_cose_sign1_minimal();
     let counter_sig = build_cose_signature_with_x5chain(&cert_der);
@@ -190,9 +198,15 @@ fn counter_signature_signing_key_can_produce_x5chain_identity() {
 
 #[test]
 fn counter_signature_signing_key_parses_bstr_wrapped_cose_signature() {
-    let CertifiedKey { cert, .. } =
-        generate_simple_self_signed(vec!["counter-wrapped.example".to_string()]).unwrap();
-    let cert_der = cert.der().as_ref().to_vec();
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let cert_obj = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=counter-wrapped.example")
+                .add_subject_alternative_name("counter-wrapped.example"),
+        )
+        .unwrap();
+    let cert_der = cert_obj.cert_der.clone();
 
     let cose = build_cose_sign1_minimal();
     let counter_sig = build_cose_signature_with_x5chain(&cert_der);
@@ -229,9 +243,15 @@ fn counter_signature_signing_key_parses_bstr_wrapped_cose_signature() {
 
 #[test]
 fn counter_signature_signing_key_can_read_x5chain_from_unprotected_when_header_location_any() {
-    let CertifiedKey { cert, .. } =
-        generate_simple_self_signed(vec!["counter-unprotected.example".to_string()]).unwrap();
-    let cert_der = cert.der().as_ref().to_vec();
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let cert_obj = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=counter-unprotected.example")
+                .add_subject_alternative_name("counter-unprotected.example"),
+        )
+        .unwrap();
+    let cert_der = cert_obj.cert_der.clone();
 
     let cose = build_cose_sign1_minimal();
     let counter_sig = build_cose_signature_with_unprotected_x5chain(&cert_der);

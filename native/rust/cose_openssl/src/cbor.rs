@@ -12,6 +12,7 @@ impl<T> SimpleArena<T> {
         self.alloc_extend(std::iter::once(val)).first_mut().unwrap()
     }
 
+    #[allow(clippy::mut_from_ref)] // Arena pattern: interior mutability via RefCell
     fn alloc_extend(&self, vals: impl IntoIterator<Item = T>) -> &mut [T] {
         let boxed: Box<[T]> = vals.into_iter().collect();
         let mut store = self.0.borrow_mut();
@@ -181,6 +182,12 @@ impl CborValue {
         }
     }
 
+    /// Returns true if this is an empty array or map.
+    /// Returns an error for other types.
+    pub fn is_empty(&self) -> Result<bool, String> {
+        self.len().map(|n| n == 0)
+    }
+
     fn type_name(&self) -> &'static str {
         match self {
             CborValue::Int(_) => "Int",
@@ -211,7 +218,7 @@ impl CborValue {
                 // Compute as u64 first then reinterpret, to avoid overflow.
                 let neg_val = (!value) as i64; // bitwise NOT gives -(value+1) in two's complement
                 if value > (i64::MAX as u64) {
-                    return Err(format!("CBOR nint exceeds i64 range"));
+                    return Err("CBOR nint exceeds i64 range".to_string());
                 }
                 Ok(neg_val)
             }
@@ -278,7 +285,7 @@ pub enum CborSlice<'a> {
 
 /// Serialize a CBOR array of borrowed items without intermediate copies.
 pub fn serialize_array(items: &[CborSlice<'_>]) -> Result<Vec<u8>, String> {
-    let mut raw: Vec<CborDet<'_>> = items
+    let raw: Vec<CborDet<'_>> = items
         .iter()
         .map(|item| match item {
             CborSlice::TextStr(s) => {
@@ -289,7 +296,7 @@ pub fn serialize_array(items: &[CborSlice<'_>]) -> Result<Vec<u8>, String> {
             }
         })
         .collect::<Result<_, _>>()?;
-    let array = cbor_det_mk_array(&mut raw).ok_or("Failed to build CBOR array".to_string())?;
+    let array = cbor_det_mk_array(&raw).ok_or("Failed to build CBOR array".to_string())?;
     serialize_det(array)
 }
 

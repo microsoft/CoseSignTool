@@ -1,7 +1,7 @@
-use crate::cbor::{serialize_array, CborSlice, CborValue};
+use crate::cbor::{CborSlice, CborValue, serialize_array};
 use crate::ossl_wrappers::{
-    ecdsa_der_to_fixed, ecdsa_fixed_to_der, rsa_pss_md_for_cose_alg, EvpKey, KeyType, WhichEC,
-    WhichRSA,
+    EvpKey, KeyType, WhichEC, WhichRSA, ecdsa_der_to_fixed, ecdsa_fixed_to_der,
+    rsa_pss_md_for_cose_alg,
 };
 
 #[cfg(feature = "pqc")]
@@ -203,7 +203,10 @@ mod tests {
         let alg = phdr_with_alg.map_at_int(COSE_HEADER_ALG).unwrap();
         assert_eq!(alg, &CborValue::Int(cose_alg(&key).unwrap()));
 
-        assert!(insert_alg_value(&key, phdr_with_alg).is_err());
+        assert_eq!(
+            insert_alg_value(&key, phdr_with_alg).unwrap_err(),
+            "Algorithm already set in protected header"
+        );
     }
 
     #[test]
@@ -258,7 +261,10 @@ mod tests {
     #[test]
     fn cose_verify1_wrong_alg() {
         let key = EvpKey::new(KeyType::EC(WhichEC::P256)).unwrap();
-        assert!(cose_verify1(&key, -35, b"", b"", b"").is_err());
+        assert_eq!(
+            cose_verify1(&key, -35, b"", b"", b"").unwrap_err(),
+            "Algorithm mismatch between supplied alg and key"
+        );
     }
 
     #[test]
@@ -445,6 +451,131 @@ mod tests {
             payload.to_vec(),
             "payload double-encoded as bstr(bstr(...))"
         );
+    }
+
+    // ---------------------------------------------------------------
+    // Negative tests: error propagation through cose_sign1/cose_verify1
+    // ---------------------------------------------------------------
+
+    #[test]
+    fn cose_sign1_rejects_non_map_phdr() {
+        let key = EvpKey::new(KeyType::EC(WhichEC::P256)).unwrap();
+        assert_eq!(
+            cose_sign1(
+                &key,
+                CborValue::Int(0),
+                CborValue::Map(vec![]),
+                b"msg",
+                false
+            )
+            .unwrap_err(),
+            "Protected header is not a CBOR map"
+        );
+    }
+
+    #[test]
+    fn cose_sign1_rejects_duplicate_alg() {
+        let key = EvpKey::new(KeyType::EC(WhichEC::P256)).unwrap();
+        let phdr = CborValue::Map(vec![(CborValue::Int(COSE_HEADER_ALG), CborValue::Int(-7))]);
+        assert_eq!(
+            cose_sign1(&key, phdr, CborValue::Map(vec![]), b"msg", false).unwrap_err(),
+            "Algorithm already set in protected header"
+        );
+    }
+
+    #[test]
+    fn cose_sign1_propagates_ossl_sign_error() {
+        // Null key triggers EVP_DigestSignInit failure.
+        let null_key = EvpKey {
+            key: std::ptr::null_mut(),
+            typ: KeyType::EC(WhichEC::P256),
+        };
+        let err = cose_sign1(
+            &null_key,
+            CborValue::Map(vec![]),
+            CborValue::Map(vec![]),
+            b"msg",
+            false,
+        )
+        .unwrap_err();
+        assert!(
+            err.starts_with("EVP_DigestSignInit returned 0: error:"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn cose_verify1_wrong_rsa_alg() {
+        let key = EvpKey::new(KeyType::RSA(WhichRSA::PS256)).unwrap();
+        assert_eq!(
+            cose_verify1(&key, -7, b"", b"", b"").unwrap_err(),
+            "-7 is not a COSE RSA-PSS algorithm"
+        );
+    }
+
+    #[test]
+    fn cose_verify1_ec_sig_wrong_length() {
+        let key = EvpKey::new(KeyType::EC(WhichEC::P256)).unwrap();
+        let pub_der = key.to_der_public().unwrap();
+        let pub_key = EvpKey::from_der_public(&pub_der).unwrap();
+        // P-256 expects 64 byte fixed sig, pass 3 bytes.
+        assert_eq!(
+            cose_verify1(&pub_key, -7, b"", b"", &[0u8; 3]).unwrap_err(),
+            "Expected 64 byte ECDSA signature, got 3"
+        );
+    }
+
+    #[test]
+    fn cose_verify1_propagates_ossl_verify_error() {
+        // Null key triggers EVP_DigestVerifyInit failure.
+        let null_key = EvpKey {
+            key: std::ptr::null_mut(),
+            typ: KeyType::RSA(WhichRSA::PS256),
+        };
+        let err = cose_verify1(&null_key, -37, b"", b"", &[0u8; 256]).unwrap_err();
+        assert!(
+            err.starts_with("EVP_DigestVerifyInit returned 0: error:"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn cose_sign_verify_with_pem_imported_key() {
+        let original = EvpKey::new(KeyType::EC(WhichEC::P256)).unwrap();
+
+        let priv_pem = original.to_pem_private().unwrap();
+        let signing_key = EvpKey::from_pem_private(&priv_pem).unwrap();
+
+        let pub_pem = original.to_pem_public().unwrap();
+        let verification_key = EvpKey::from_pem_public(&pub_pem).unwrap();
+
+        let phdr_bytes = hex_decode(TEST_PHDR);
+        let phdr = CborValue::from_bytes(&phdr_bytes).unwrap();
+        let uhdr = CborValue::Map(vec![]);
+        let payload = b"signed with PEM-imported key";
+
+        let envelope = cose_sign1(&signing_key, phdr, uhdr, payload, false).unwrap();
+
+        let parsed = CborValue::from_bytes(&envelope).unwrap();
+        let inner = match parsed {
+            CborValue::Tagged { payload, .. } => *payload,
+            _ => panic!("not tagged"),
+        };
+        let items = match inner {
+            CborValue::Array(v) => v,
+            _ => panic!("not array"),
+        };
+        let phdr_raw = match &items[0] {
+            CborValue::ByteString(b) => b.clone(),
+            _ => panic!("phdr not bstr"),
+        };
+        let sig_raw = match &items[3] {
+            CborValue::ByteString(b) => b.clone(),
+            _ => panic!("sig not bstr"),
+        };
+
+        let alg = cose_alg(&verification_key).unwrap();
+        assert!(cose_verify1(&verification_key, alg, &phdr_raw, payload, &sig_raw).unwrap());
     }
 
     #[cfg(feature = "pqc")]

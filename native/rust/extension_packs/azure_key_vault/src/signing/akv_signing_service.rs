@@ -60,16 +60,49 @@ impl AzureKeyVaultSigningService {
 
     /// Initializes the signing service.
     ///
-    /// Loads key metadata and prepares contributors.
-    /// Must be called before using the service.
+    /// Verifies key metadata is accessible and prepares the service for use.
+    /// Must be called before using the service for signing operations.
     pub fn initialize(&mut self) -> Result<(), AkvError> {
         if self.initialized {
             return Ok(());
         }
 
-        // In V2, this loads key metadata asynchronously.
-        // In Rust, we simplify and assume the crypto_client is already initialized.
-        // The signing_key was already created in new(), so we just mark as initialized.
+        // Verify the crypto client is functional by requesting key metadata.
+        // This validates that the key exists, is accessible, and we can determine
+        // its type and algorithm before any signing operations.
+        let key_type = self.signing_key.crypto_client().key_type();
+        let curve = self.signing_key.crypto_client().curve_name();
+
+        // Verify the algorithm can be determined from the key metadata
+        let _algorithm = match key_type {
+            "EC" => {
+                let curve_name = curve.ok_or_else(|| {
+                    AkvError::InvalidKeyType("EC key missing curve name during initialization".into())
+                })?;
+                match curve_name {
+                    "P-256" | "P-384" | "P-521" => {}
+                    other => {
+                        return Err(AkvError::InvalidKeyType(format!(
+                            "Unsupported EC curve during initialization: {}", other
+                        )));
+                    }
+                }
+            }
+            "RSA" => {}
+            other => {
+                return Err(AkvError::InvalidKeyType(format!(
+                    "Unsupported key type during initialization: {}", other
+                )));
+            }
+        };
+
+        // Verify public key bytes are accessible (validates key material readability)
+        self.signing_key.crypto_client().public_key_bytes().map_err(|e| {
+            AkvError::General(format!(
+                "Failed to read public key during initialization: {}", e
+            ))
+        })?;
+
         self.initialized = true;
         Ok(())
     }

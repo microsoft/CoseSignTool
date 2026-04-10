@@ -79,7 +79,9 @@ openssl = "Safe Rust bindings to OpenSSL for public key verification (EC/RSA/EdD
 
 [crate.cose_sign1_certificates_local]
 time = "Date/time handling for certificate validity periods (notBefore/notAfter)"
-openssl = "Safe Rust bindings to OpenSSL for PKCS#12 (PFX) parsing"
+openssl = "Safe Rust bindings to OpenSSL for certificate creation, EdDSA, RSA-PSS"
+openssl-sys = "Low-level OpenSSL FFI for X509_sign (null digest), X509_sign_ctx (PSS), composite keygen"
+foreign-types = "ForeignTypeRef trait for safe access to OpenSSL opaque pointer types (X509, EVP_PKEY)"
 
 [crate.cose_sign1_validation]
 once_cell = "Lazy regex compilation"
@@ -192,7 +194,9 @@ openssl = "Safe Rust bindings to OpenSSL for public key verification (EC/RSA/EdD
 [crate.local]
 x509-parser = "X.509 certificate parsing"
 time = "Date/time handling for certificate validity periods (notBefore/notAfter)"
-openssl = "Safe Rust bindings to OpenSSL for PKCS#12 (PFX) parsing"
+openssl = "Safe Rust bindings to OpenSSL for certificate creation, EdDSA, RSA-PSS"
+openssl-sys = "Low-level OpenSSL FFI for X509_sign (null digest), X509_sign_ctx (PSS), composite keygen"
+foreign-types = "ForeignTypeRef trait for safe access to OpenSSL opaque pointer types (X509, EVP_PKEY)"
 
 [crate.mst]
 ring = "Receipt signature verification (pending OpenSSL migration)"
@@ -217,7 +221,7 @@ regex = "Content-type pattern matching"
 
 [crate.demo]
 anyhow = "Error handling in demo"
-ring = "Key operations in demo"
+openssl = "Certificate chain validation via OpenSSL X509_STORE"
 hex = "Hex output in demo"
 base64 = "Encoding in demo"
 x509-parser = "Certificate parsing in demo"

@@ -104,8 +104,12 @@ public readonly struct TrustSubjectId : IEquatable<TrustSubjectId>
 
     private static byte[] ComputeSha256(ReadOnlySpan<byte> data)
     {
+#if NET5_0_OR_GREATER
+        return SHA256.HashData(data);
+#else
         using var sha = SHA256.Create();
         return sha.ComputeHash(data.ToArray());
+#endif
     }
 
     private static bool FixedTimeEquals(byte[] left, byte[] right)
@@ -129,6 +133,9 @@ public readonly struct TrustSubjectId : IEquatable<TrustSubjectId>
 
     private static string ToLowerHex(ReadOnlySpan<byte> bytes)
     {
+#if NET8_0_OR_GREATER
+        return Convert.ToHexStringLower(bytes);
+#else
         char[] chars = new char[bytes.Length * 2];
         int idx = 0;
         foreach (byte b in bytes)
@@ -138,6 +145,7 @@ public readonly struct TrustSubjectId : IEquatable<TrustSubjectId>
         }
 
         return new string(chars);
+#endif
     }
 
     /// <summary>

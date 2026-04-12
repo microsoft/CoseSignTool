@@ -64,6 +64,14 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
     private static readonly ContentTypeHeaderContributor ContentTypeContributor = new();
     private static readonly IReadOnlyList<ICoseSign1HeaderContributor> SingleContentTypeContributor =
         new ICoseSign1HeaderContributor[] { ContentTypeContributor };
+
+    // Thread-static cache to avoid double-decoding: post-sign verification decodes the message,
+    // and CreateCoseSign1Message can reuse it instead of decoding the same bytes again.
+    [ThreadStatic]
+    private static CoseSign1Message? t_lastVerifiedMessage;
+    [ThreadStatic]
+    private static byte[]? t_lastVerifiedBytes;
+
     private readonly ISigningService<SigningOptions> SigningService;
     private readonly IReadOnlyList<ITransparencyProvider>? TransparencyProvidersField;
     private readonly ILogger<DirectSignatureFactory> Logger;
@@ -204,11 +212,12 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
                 ? CoseSign1Message.SignEmbedded(payload, signer, additionalDataSpan)
                 : CoseSign1Message.SignDetached(payload, signer, additionalDataSpan);
 
-            // Post-sign verification
+            // Post-sign verification — cache decoded message to avoid double-decode
             Logger.LogDebug(
                 LogEvents.PostSignVerificationStartedEvent,
                 ClassStrings.LogPostSignVerificationStarted);
-            if (!SigningService.VerifySignature(CoseMessage.DecodeSign1(result), context))
+            CoseSign1Message decodedForVerify = CoseMessage.DecodeSign1(result);
+            if (!SigningService.VerifySignature(decodedForVerify, context))
             {
                 Logger.LogError(
                     LogEvents.PostSignVerificationFailedEvent,
@@ -216,6 +225,11 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
                 throw new SignatureVerificationException(
                     ClassStrings.LogPostSignVerificationFailed, operationId);
             }
+
+            // Cache for reuse by CreateCoseSign1Message to avoid re-decoding
+            t_lastVerifiedMessage = decodedForVerify;
+            t_lastVerifiedBytes = result;
+
             Logger.LogDebug(
                 LogEvents.PostSignVerificationSucceededEvent,
                 ClassStrings.LogPostSignVerificationSucceeded);
@@ -422,11 +436,12 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
                 }
             }, cancellationToken).ConfigureAwait(false);
 
-            // Post-sign verification
+            // Post-sign verification — cache decoded message to avoid double-decode
             Logger.LogDebug(
                 LogEvents.PostSignVerificationStartedEvent,
                 ClassStrings.LogPostSignVerificationStarted);
-            if (!SigningService.VerifySignature(CoseMessage.DecodeSign1(result), context))
+            CoseSign1Message decodedForVerify = CoseMessage.DecodeSign1(result);
+            if (!SigningService.VerifySignature(decodedForVerify, context))
             {
                 Logger.LogError(
                     LogEvents.PostSignVerificationFailedEvent,
@@ -434,6 +449,11 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
                 throw new SignatureVerificationException(
                     ClassStrings.LogPostSignVerificationFailed, operationId);
             }
+
+            // Cache for reuse by CreateCoseSign1MessageAsync to avoid re-decoding
+            t_lastVerifiedMessage = decodedForVerify;
+            t_lastVerifiedBytes = result;
+
             Logger.LogDebug(
                 LogEvents.PostSignVerificationSucceededEvent,
                 ClassStrings.LogPostSignVerificationSucceeded);
@@ -518,8 +538,8 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
         string contentType,
         DirectSignatureOptions? options = null)
     {
-        var messageBytes = CreateCoseSign1MessageBytes(payload, contentType, options);
-        return CoseMessage.DecodeSign1(messageBytes);
+        byte[] messageBytes = CreateCoseSign1MessageBytes(payload, contentType, options);
+        return TakeVerifiedOrDecode(messageBytes);
     }
 
     /// <summary>
@@ -534,8 +554,8 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
         string contentType,
         DirectSignatureOptions? options = null)
     {
-        var messageBytes = CreateCoseSign1MessageBytes(payload, contentType, options);
-        return CoseMessage.DecodeSign1(messageBytes);
+        byte[] messageBytes = CreateCoseSign1MessageBytes(payload, contentType, options);
+        return TakeVerifiedOrDecode(messageBytes);
     }
 
     /// <summary>
@@ -552,8 +572,8 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
         DirectSignatureOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        var messageBytes = await CreateCoseSign1MessageBytesAsync(payload, contentType, options, cancellationToken).ConfigureAwait(false);
-        var message = CoseMessage.DecodeSign1(messageBytes);
+        byte[] messageBytes = await CreateCoseSign1MessageBytesAsync(payload, contentType, options, cancellationToken).ConfigureAwait(false);
+        CoseSign1Message message = TakeVerifiedOrDecode(messageBytes);
         return await ApplyTransparencyProofsAsync(message, options, cancellationToken).ConfigureAwait(false);
     }
 
@@ -571,8 +591,8 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
         DirectSignatureOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        var messageBytes = await CreateCoseSign1MessageBytesAsync(payload, contentType, options, cancellationToken).ConfigureAwait(false);
-        var message = CoseMessage.DecodeSign1(messageBytes);
+        byte[] messageBytes = await CreateCoseSign1MessageBytesAsync(payload, contentType, options, cancellationToken).ConfigureAwait(false);
+        CoseSign1Message message = TakeVerifiedOrDecode(messageBytes);
         return await ApplyTransparencyProofsAsync(message, options, cancellationToken).ConfigureAwait(false);
     }
 
@@ -590,9 +610,27 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
         DirectSignatureOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        var messageBytes = await CreateCoseSign1MessageBytesAsync(payloadStream, contentType, options, cancellationToken).ConfigureAwait(false);
-        var message = CoseMessage.DecodeSign1(messageBytes);
+        byte[] messageBytes = await CreateCoseSign1MessageBytesAsync(payloadStream, contentType, options, cancellationToken).ConfigureAwait(false);
+        CoseSign1Message message = TakeVerifiedOrDecode(messageBytes);
         return await ApplyTransparencyProofsAsync(message, options, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Returns the cached post-sign-verified message if available, otherwise decodes the bytes.
+    /// This avoids double-decoding when <c>CreateCoseSign1MessageBytes</c> already decoded
+    /// during post-sign verification.
+    /// </summary>
+    private static CoseSign1Message TakeVerifiedOrDecode(byte[] messageBytes)
+    {
+        if (t_lastVerifiedBytes != null && ReferenceEquals(t_lastVerifiedBytes, messageBytes))
+        {
+            CoseSign1Message cached = t_lastVerifiedMessage!;
+            t_lastVerifiedMessage = null;
+            t_lastVerifiedBytes = null;
+            return cached;
+        }
+
+        return CoseMessage.DecodeSign1(messageBytes);
     }
 
     /// <summary>

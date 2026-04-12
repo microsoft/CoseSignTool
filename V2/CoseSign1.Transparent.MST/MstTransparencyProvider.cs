@@ -217,7 +217,7 @@ public class MstTransparencyProvider : TransparencyProviderBase
 
         // Encode the CoseSign1Message to a byte array
         BinaryData content = BinaryData.FromBytes(message.Encode());
-        LogVerbose?.Invoke(string.Format(ClassStrings.LogEncodedMessageSizeFormat, ProviderName, content.ToArray().Length));
+        LogVerbose?.Invoke(string.Format(ClassStrings.LogEncodedMessageSizeFormat, ProviderName, content.ToMemory().Length));
 
         // Submit to MST service using WaitUntil.Started so we can control polling
         LogVerbose?.Invoke(string.Format(ClassStrings.LogSubmittingToServiceFormat, ProviderName));
@@ -286,11 +286,12 @@ public class MstTransparencyProvider : TransparencyProviderBase
             entryId,
             cancellationToken).ConfigureAwait(false);
 
-        LogVerbose?.Invoke(string.Format(ClassStrings.LogStatementSizeFormat, ProviderName, transparentStatement.Value.ToArray().Length));
+        LogVerbose?.Invoke(string.Format(ClassStrings.LogStatementSizeFormat, ProviderName, transparentStatement.Value.ToMemory().Length));
 
         // MST returns the full CoseSign1Message with receipts embedded
         LogVerbose?.Invoke(string.Format(ClassStrings.LogDecodingTransparentStatementFormat, ProviderName));
-        return CoseMessage.DecodeSign1(transparentStatement.Value.ToArray());
+        byte[] statementBytes = transparentStatement.Value.ToArray();
+        return CoseMessage.DecodeSign1(statementBytes);
     }
 
     /// <summary>

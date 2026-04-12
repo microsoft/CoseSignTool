@@ -3,6 +3,7 @@
 
 namespace CoseSign1.Certificates.Trust.Facts.Producers;
 
+using System.Text;
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography.Cose;
 using System.Security.Cryptography.X509Certificates;
@@ -379,6 +380,10 @@ public sealed partial class X509CertificateTrustPack : ITrustPack
             }
 
             var thumbprint = signingCertificate.GetCertHashString();
+            var thumbprintCache = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                [signingCertificate.SerialNumber] = thumbprint
+            };
             var subject = signingCertificate.Subject;
             var issuer = signingCertificate.Issuer;
 
@@ -446,10 +451,25 @@ public sealed partial class X509CertificateTrustPack : ITrustPack
 
                 if (!chainTrusted)
                 {
-                    summary = string.Join(ClassStrings.ChainStatusSeparator, x509Chain.ChainStatus
-                        .Where(s => s.Status != X509ChainStatusFlags.NoError)
-                        .Select(s => s.StatusInformation.Trim())
-                        .Where(s => !string.IsNullOrWhiteSpace(s)));
+                    var sb = new StringBuilder();
+                    foreach (var status in x509Chain.ChainStatus)
+                    {
+                        if (status.Status != X509ChainStatusFlags.NoError)
+                        {
+                            var info = status.StatusInformation.Trim();
+                            if (!string.IsNullOrWhiteSpace(info))
+                            {
+                                if (sb.Length > 0)
+                                {
+                                    sb.Append(ClassStrings.ChainStatusSeparator);
+                                }
+
+                                sb.Append(info);
+                            }
+                        }
+                    }
+
+                    summary = sb.Length > 0 ? sb.ToString() : null;
 
                     if (string.IsNullOrWhiteSpace(summary))
                     {
@@ -463,10 +483,16 @@ public sealed partial class X509CertificateTrustPack : ITrustPack
                     for (int i = 0; i < chainLength; i++)
                     {
                         var cert = x509Chain.ChainElements[i].Certificate;
+                        if (!thumbprintCache.TryGetValue(cert.SerialNumber, out var certThumbprint))
+                        {
+                            certThumbprint = cert.GetCertHashString();
+                            thumbprintCache[cert.SerialNumber] = certThumbprint;
+                        }
+
                         elementFacts.Add(new X509ChainElementIdentityFact(
                             depth: i,
                             chainLength: chainLength,
-                            certificateThumbprint: cert.GetCertHashString(),
+                            certificateThumbprint: certThumbprint,
                             subject: cert.Subject,
                             issuer: cert.Issuer,
                             serialNumber: cert.SerialNumber,
@@ -484,10 +510,16 @@ public sealed partial class X509CertificateTrustPack : ITrustPack
                     for (int i = 0; i < chainLength; i++)
                     {
                         var cert = headerChain[i];
+                        if (!thumbprintCache.TryGetValue(cert.SerialNumber, out var certThumbprint))
+                        {
+                            certThumbprint = cert.GetCertHashString();
+                            thumbprintCache[cert.SerialNumber] = certThumbprint;
+                        }
+
                         elementFacts.Add(new X509ChainElementIdentityFact(
                             depth: i,
                             chainLength: chainLength,
-                            certificateThumbprint: cert.GetCertHashString(),
+                            certificateThumbprint: certThumbprint,
                             subject: cert.Subject,
                             issuer: cert.Issuer,
                             serialNumber: cert.SerialNumber,

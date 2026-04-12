@@ -305,7 +305,8 @@ public sealed partial class CoreMessageFactsProducer : ITrustPack
             }
 
             var facts = new List<UnknownCounterSignatureBytesFact>();
-            var seen = new HashSet<TrustSubjectId>();
+            TrustSubjectId firstCounterSignatureId = default;
+            HashSet<TrustSubjectId>? seen = null;
 
             foreach (var resolver in resolvers)
             {
@@ -320,7 +321,14 @@ public sealed partial class CoreMessageFactsProducer : ITrustPack
 
                     var rawCounterSignatureBytes = result.CounterSignature.RawCounterSignatureBytes;
                     var counterSignatureId = TrustIds.CreateCounterSignatureId(rawCounterSignatureBytes);
-                    if (seen.Add(counterSignatureId))
+
+                    // Lazy dedup: skip HashSet allocation for the common 0/1 item case
+                    if (facts.Count == 0)
+                    {
+                        firstCounterSignatureId = counterSignatureId;
+                        facts.Add(new UnknownCounterSignatureBytesFact(counterSignatureId, rawCounterSignatureBytes));
+                    }
+                    else if ((seen ??= new HashSet<TrustSubjectId> { firstCounterSignatureId }).Add(counterSignatureId))
                     {
                         facts.Add(new UnknownCounterSignatureBytesFact(counterSignatureId, rawCounterSignatureBytes));
                     }

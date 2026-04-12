@@ -500,7 +500,7 @@ public class CertificateSigningService : ISigningService<CertificateSigningOptio
             stream.Position = 0;
         }
 
-        using var ms = new MemoryStream();
+        using var ms = MemoryStreamPool.GetStream();
         stream.CopyTo(ms);
         return ms.ToArray();
     }

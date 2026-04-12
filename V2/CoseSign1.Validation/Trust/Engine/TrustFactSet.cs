@@ -47,6 +47,29 @@ public sealed class TrustFactSet<TFact> : ITrustFactSet<TFact>
     public bool IsMissing => MissingReason != null;
 
     /// <summary>
+    /// Creates an empty available fact set.
+    /// </summary>
+    /// <returns>An available fact set with no values.</returns>
+    public static TrustFactSet<TFact> Available()
+        => new TrustFactSet<TFact>(Array.Empty<TFact>(), missing: null);
+
+    /// <summary>
+    /// Creates a single-value available fact set without params array allocation.
+    /// </summary>
+    /// <param name="value">The single fact value.</param>
+    /// <returns>An available fact set containing one value.</returns>
+    public static TrustFactSet<TFact> Available(TFact value)
+        => new TrustFactSet<TFact>(new[] { value }, missing: null);
+
+    /// <summary>
+    /// Creates an available fact set from an existing list (avoids ToArray copy).
+    /// </summary>
+    /// <param name="values">The available fact values.</param>
+    /// <returns>An available fact set.</returns>
+    public static TrustFactSet<TFact> Available(IReadOnlyList<TFact> values)
+        => new TrustFactSet<TFact>(values, missing: null);
+
+    /// <summary>
     /// Creates an available fact set.
     /// </summary>
     /// <param name="values">The available fact values.</param>

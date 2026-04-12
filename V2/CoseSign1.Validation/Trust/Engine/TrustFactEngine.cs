@@ -236,7 +236,9 @@ public sealed class TrustFactEngine
 
         var context = new TrustFactContext(MessageIdValue, subject, Options, MemoryCache, Message, Services);
 
-        var allValues = new List<TFact>();
+        List<TFact>? allValues = null;
+        ITrustFactSet<TFact>? singleTypedResult = null;
+        int availableProducerCount = 0;
         var anyAvailable = false;
         TrustFactMissing? firstMissing = null;
 
@@ -266,7 +268,22 @@ public sealed class TrustFactEngine
                     if (result is ITrustFactSet<TFact> typed)
                     {
                         anyAvailable = true;
-                        allValues.AddRange(typed.Values);
+                        availableProducerCount++;
+                        if (availableProducerCount == 1)
+                        {
+                            singleTypedResult = typed;
+                        }
+                        else
+                        {
+                            if (allValues == null)
+                            {
+                                allValues = new List<TFact>(singleTypedResult!.Values.Count + typed.Values.Count);
+                                allValues.AddRange(singleTypedResult!.Values);
+                                singleTypedResult = null;
+                            }
+
+                            allValues.AddRange(typed.Values);
+                        }
                     }
                     else
                     {
@@ -313,7 +330,19 @@ public sealed class TrustFactEngine
             return TrustFactSet<TFact>.Missing(TrustFactMissingCodes.AllProducersMissing, ClassStrings.MissingAllProducersMissingMessage);
         }
 
-        return TrustFactSet<TFact>.Available(allValues.ToArray());
+        // Fast path: single producer — return its values directly (avoids List + ToArray)
+        if (singleTypedResult != null)
+        {
+            if (singleTypedResult.Values is TFact[] arr)
+            {
+                return TrustFactSet<TFact>.Available(arr);
+            }
+
+            return TrustFactSet<TFact>.Available(singleTypedResult.Values);
+        }
+
+        // Multi-producer: return merged list (avoids ToArray)
+        return TrustFactSet<TFact>.Available(allValues!);
     }
 
     private CancellationTokenSource? CreateBudgetCts(TimeSpan? timeout, CancellationToken? linkedToken = null)

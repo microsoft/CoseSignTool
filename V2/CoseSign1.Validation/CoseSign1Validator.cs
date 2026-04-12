@@ -647,6 +647,9 @@ public sealed partial class CoseSign1Validator : ICoseSign1Validator
                     // Small seekable stream in sync mode - read to bytes for sync verification
                     using var memoryStream = MemoryStreamPool.GetStream(ClassStrings.PoolTagDetachedPayload);
                     Options.DetachedPayload.CopyTo(memoryStream);
+                    // ToArray() is required here — CoseSign1Message.VerifyDetached accepts byte[],
+                    // not ReadOnlySpan<byte>. RecyclableMemoryStream.GetBuffer() returns an oversized
+                    // buffer that cannot be used directly.
                     var payloadBytes = memoryStream.ToArray();
 
                     if (payloadBytes.Length == 0)

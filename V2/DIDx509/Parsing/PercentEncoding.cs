@@ -41,12 +41,21 @@ public static class PercentEncoding
             }
             else
             {
-                // Encode as UTF-8 bytes
-                byte[] bytes = Encoding.UTF8.GetBytes(new[] { c });
-                foreach (byte b in bytes)
+                // ASCII fast path: encode directly without allocation
+                if (c < 128)
                 {
                     encoded.Append(DidX509Constants.PercentChar);
-                    encoded.Append(b.ToString(ClassStrings.ByteToUpperHex2Format));
+                    encoded.Append(((byte)c).ToString(ClassStrings.ByteToUpperHex2Format));
+                }
+                else
+                {
+                    // Non-ASCII: UTF-8 encode
+                    byte[] bytes = Encoding.UTF8.GetBytes(new[] { c });
+                    foreach (byte b in bytes)
+                    {
+                        encoded.Append(DidX509Constants.PercentChar);
+                        encoded.Append(b.ToString(ClassStrings.ByteToUpperHex2Format));
+                    }
                 }
             }
         }
@@ -66,7 +75,7 @@ public static class PercentEncoding
             return string.Empty;
         }
 
-        if (!value.Contains(DidX509Constants.PercentChar.ToString()))
+        if (value.IndexOf(DidX509Constants.PercentChar) < 0)
         {
             return value;
         }

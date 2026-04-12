@@ -125,13 +125,22 @@ public sealed class LogFileOptions
     /// </summary>
     private static OutputFormat ParseOutputFormat(string value)
     {
-        return value.ToLowerInvariant() switch
+        if (string.Equals(value, ClassStrings.FormatJson, StringComparison.OrdinalIgnoreCase))
         {
-            ClassStrings.FormatJson => OutputFormat.Json,
-            ClassStrings.FormatXml => OutputFormat.Xml,
-            ClassStrings.FormatQuiet => OutputFormat.Quiet,
-            _ => OutputFormat.Text
-        };
+            return OutputFormat.Json;
+        }
+        else if (string.Equals(value, ClassStrings.FormatXml, StringComparison.OrdinalIgnoreCase))
+        {
+            return OutputFormat.Xml;
+        }
+        else if (string.Equals(value, ClassStrings.FormatQuiet, StringComparison.OrdinalIgnoreCase))
+        {
+            return OutputFormat.Quiet;
+        }
+        else
+        {
+            return OutputFormat.Text;
+        }
     }
 
     /// <summary>

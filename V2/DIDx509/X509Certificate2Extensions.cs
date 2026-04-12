@@ -355,7 +355,7 @@ public static class X509Certificate2Extensions
         return preference switch
         {
             EkuPreference.First => ekus[0],
-            EkuPreference.MostSpecific => ekus.OrderByDescending(oid => oid.Split('.').Length).First(),
+            EkuPreference.MostSpecific => FindMostSpecificOid(ekus),
             EkuPreference.Largest => ekus.OrderByDescending(oid => oid,
                 Comparer<string>.Create((a, b) =>
                 {
@@ -378,19 +378,64 @@ public static class X509Certificate2Extensions
 
                     return 0;
                 })).First(),
-            EkuPreference.MostSpecificAndLargest => ekus
-                .OrderByDescending(oid => oid.Split('.').Length)
-                .ThenByDescending(oid =>
-                {
-                    var parts = oid.Split('.');
-                    return long.TryParse(parts[parts.Length - 1], out long lastSegment) ? lastSegment : 0;
-                })
-                .First(),
+            EkuPreference.MostSpecificAndLargest => FindMostSpecificAndLargestOid(ekus),
             _ => ekus[0]
         };
     }
 
     // ==================== Verification Extension Methods ====================
+
+    private static int CountOidSegments(string oid)
+    {
+        int segments = 1;
+        foreach (char c in oid)
+        {
+            if (c == '.')
+            {
+                segments++;
+            }
+        }
+        return segments;
+    }
+
+    private static string FindMostSpecificOid(List<string> ekus)
+    {
+        string? mostSpecific = null;
+        int maxSegments = 0;
+        foreach (string oid in ekus)
+        {
+            int segments = CountOidSegments(oid);
+            if (segments > maxSegments || mostSpecific is null)
+            {
+                mostSpecific = oid;
+                maxSegments = segments;
+            }
+        }
+        return mostSpecific!;
+    }
+
+    private static string FindMostSpecificAndLargestOid(List<string> ekus)
+    {
+        string? best = null;
+        int maxSegments = 0;
+        long maxLastSegment = 0;
+        foreach (string oid in ekus)
+        {
+            int segments = CountOidSegments(oid);
+            int lastDot = oid.LastIndexOf('.');
+            long lastSegment = lastDot >= 0 && long.TryParse(oid.Substring(lastDot + 1), out long val) ? val : 0;
+
+            if (best is null ||
+                segments > maxSegments ||
+                (segments == maxSegments && lastSegment > maxLastSegment))
+            {
+                best = oid;
+                maxSegments = segments;
+                maxLastSegment = lastSegment;
+            }
+        }
+        return best!;
+    }
 
     /// <summary>
     /// Verifies that this certificate (leaf) matches the specified DID:X509 identifier.

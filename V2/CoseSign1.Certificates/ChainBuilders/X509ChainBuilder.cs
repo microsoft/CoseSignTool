@@ -33,6 +33,7 @@ public sealed class X509ChainBuilder : ICertificateChainBuilder, IDisposable
     private readonly X509Chain Chain;
     private readonly ILogger<X509ChainBuilder> LoggerField;
     private bool Disposed;
+    private IReadOnlyCollection<X509Certificate2>? _cachedElements;
 
     /// <summary>
     /// Gets the default chain policy used by this class when no policy is provided.
@@ -123,12 +124,16 @@ public sealed class X509ChainBuilder : ICertificateChainBuilder, IDisposable
         get
         {
             Guard.ThrowIfDisposed(Disposed, this);
-            var elements = new List<X509Certificate2>(Chain.ChainElements.Count);
-            foreach (var element in Chain.ChainElements)
+            if (_cachedElements is null)
             {
-                elements.Add(element.Certificate);
+                var elements = new List<X509Certificate2>(Chain.ChainElements.Count);
+                foreach (var element in Chain.ChainElements)
+                {
+                    elements.Add(element.Certificate);
+                }
+                _cachedElements = elements;
             }
-            return elements;
+            return _cachedElements;
         }
     }
 
@@ -175,6 +180,7 @@ public sealed class X509ChainBuilder : ICertificateChainBuilder, IDisposable
             certificate.Subject,
             certificate.Thumbprint);
 
+        _cachedElements = null;
         bool result = Chain.Build(certificate);
 
         if (result)

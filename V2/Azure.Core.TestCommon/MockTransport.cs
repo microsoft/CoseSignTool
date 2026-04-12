@@ -80,6 +80,7 @@ public class MockTransport : HttpPipelineTransport
     public override Request CreateRequest() => new MockRequest();
 
     /// <inheritdoc/>
+    /// <exception cref="InvalidOperationException">Thrown when sync pipeline invocation was not expected.</exception>
     public override void Process(HttpMessage message)
     {
         if (ExpectSyncPipeline == false)
@@ -91,6 +92,7 @@ public class MockTransport : HttpPipelineTransport
     }
 
     /// <inheritdoc/>
+    /// <exception cref="InvalidOperationException">Thrown when async pipeline invocation was not expected.</exception>
     public override async ValueTask ProcessAsync(HttpMessage message)
     {
         if (ExpectSyncPipeline == true)

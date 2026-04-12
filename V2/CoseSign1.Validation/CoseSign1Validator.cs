@@ -74,6 +74,8 @@ public sealed partial class CoseSign1Validator : ICoseSign1Validator
 
         public const string ErrorNoComponents = "No validation components were provided";
 
+        public const string PoolTagDetachedPayload = "DetachedPayload";
+
     }
 
     // High-performance logging via source generation
@@ -268,16 +270,22 @@ public sealed partial class CoseSign1Validator : ICoseSign1Validator
 
             if (attestation.HasValue && attestation.Value.IsAttested)
             {
-                var attestationMetadata = new Dictionary<string, object>();
-                MergeStageMetadata(attestationMetadata, ClassStrings.MetadataPrefixTrust, trustResult);
+                Dictionary<string, object>? attestationMetadata = null;
+                if (trustResult.Metadata.Count > 0)
+                {
+                    attestationMetadata = new Dictionary<string, object>();
+                    MergeStageMetadata(attestationMetadata, ClassStrings.MetadataPrefixTrust, trustResult);
+                }
                 var attestationProvider = attestation.Value.Provider;
                 if (attestationProvider is not null && !string.IsNullOrWhiteSpace(attestationProvider))
                 {
+                    attestationMetadata ??= new Dictionary<string, object>();
                     attestationMetadata[ClassStrings.MetadataKeyToBeSignedAttestationProvider] = attestationProvider;
                 }
                 var attestationDetails = attestation.Value.Details;
                 if (attestationDetails is not null && !string.IsNullOrWhiteSpace(attestationDetails))
                 {
+                    attestationMetadata ??= new Dictionary<string, object>();
                     attestationMetadata[ClassStrings.MetadataKeyToBeSignedAttestationDetails] = attestationDetails;
                 }
 
@@ -343,12 +351,28 @@ public sealed partial class CoseSign1Validator : ICoseSign1Validator
                 overall: postSignatureResult);
         }
 
-        // Combine metadata from all successful stage results
-        var combinedMetadata = new Dictionary<string, object>();
-        MergeStageMetadata(combinedMetadata, ClassStrings.MetadataPrefixResolution, resolutionResult);
-        MergeStageMetadata(combinedMetadata, ClassStrings.MetadataPrefixTrust, trustResult);
-        MergeStageMetadata(combinedMetadata, ClassStrings.MetadataPrefixSignature, signatureResult);
-        MergeStageMetadata(combinedMetadata, ClassStrings.MetadataPrefixPost, postSignatureResult);
+        // Combine metadata from all successful stage results (lazy: only allocate if any stage has metadata)
+        Dictionary<string, object>? combinedMetadata = null;
+        if (resolutionResult.Metadata.Count > 0)
+        {
+            combinedMetadata = new Dictionary<string, object>();
+            MergeStageMetadata(combinedMetadata, ClassStrings.MetadataPrefixResolution, resolutionResult);
+        }
+        if (trustResult.Metadata.Count > 0)
+        {
+            combinedMetadata ??= new Dictionary<string, object>();
+            MergeStageMetadata(combinedMetadata, ClassStrings.MetadataPrefixTrust, trustResult);
+        }
+        if (signatureResult.Metadata.Count > 0)
+        {
+            combinedMetadata ??= new Dictionary<string, object>();
+            MergeStageMetadata(combinedMetadata, ClassStrings.MetadataPrefixSignature, signatureResult);
+        }
+        if (postSignatureResult.Metadata.Count > 0)
+        {
+            combinedMetadata ??= new Dictionary<string, object>();
+            MergeStageMetadata(combinedMetadata, ClassStrings.MetadataPrefixPost, postSignatureResult);
+        }
 
         var overall = ValidationResult.Success(ClassStrings.ValidatorNameOverall, combinedMetadata);
 
@@ -621,7 +645,7 @@ public sealed partial class CoseSign1Validator : ICoseSign1Validator
                 else
                 {
                     // Small seekable stream in sync mode - read to bytes for sync verification
-                    using var memoryStream = new MemoryStream();
+                    using var memoryStream = MemoryStreamPool.GetStream(ClassStrings.PoolTagDetachedPayload);
                     Options.DetachedPayload.CopyTo(memoryStream);
                     var payloadBytes = memoryStream.ToArray();
 

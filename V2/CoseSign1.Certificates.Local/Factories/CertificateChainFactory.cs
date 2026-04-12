@@ -228,7 +228,8 @@ public partial class CertificateChainFactory
 
     private static X509Certificate2 CreatePublicOnlyCertificate(X509Certificate2 certificate)
     {
-        return X509CertificateLoader.LoadCertificate(certificate.Export(X509ContentType.Cert));
+        // RawData gives the DER encoding directly; avoids the intermediate Export allocation
+        return X509CertificateLoader.LoadCertificate(certificate.RawData);
     }
 
     private static int GetDefaultKeySize(KeyAlgorithm algorithm)

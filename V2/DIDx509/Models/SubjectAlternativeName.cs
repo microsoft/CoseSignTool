@@ -42,24 +42,25 @@ public sealed class SubjectAlternativeName
         Value = value ?? throw new ArgumentNullException(nameof(value));
 
         // Validate type and value combination
-        switch (type.ToLowerInvariant())
+        if (string.Equals(type, DidX509Constants.SanTypeEmail, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(type, DidX509Constants.SanTypeDns, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(type, DidX509Constants.SanTypeUri, StringComparison.OrdinalIgnoreCase))
         {
-            case DidX509Constants.SanTypeEmail:
-            case DidX509Constants.SanTypeDns:
-            case DidX509Constants.SanTypeUri:
-                if (!(value is string))
-                {
-                    throw new ArgumentException(string.Format(ClassStrings.ErrorSanTypeRequiresStringValue, type), nameof(value));
-                }
-                break;
-            case DidX509Constants.SanTypeDn:
-                if (!(value is X509Name))
-                {
-                    throw new ArgumentException(string.Format(ClassStrings.ErrorSanTypeRequiresX509NameValue, type), nameof(value));
-                }
-                break;
-            default:
-                throw new ArgumentException(string.Format(ClassStrings.ErrorUnknownSanType, type), nameof(type));
+            if (!(value is string))
+            {
+                throw new ArgumentException(string.Format(ClassStrings.ErrorSanTypeRequiresStringValue, type), nameof(value));
+            }
+        }
+        else if (string.Equals(type, DidX509Constants.SanTypeDn, StringComparison.OrdinalIgnoreCase))
+        {
+            if (!(value is X509Name))
+            {
+                throw new ArgumentException(string.Format(ClassStrings.ErrorSanTypeRequiresX509NameValue, type), nameof(value));
+            }
+        }
+        else
+        {
+            throw new ArgumentException(string.Format(ClassStrings.ErrorUnknownSanType, type), nameof(type));
         }
     }
 

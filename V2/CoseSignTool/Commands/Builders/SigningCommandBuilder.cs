@@ -450,17 +450,17 @@ public class SigningCommandBuilder
             // For "detached" type, payload is never embedded
             // For "embedded" type, payload is always embedded
             // For "indirect" type, hash envelope is embedded, but original payload is not
-            var normalizedSignatureType = signatureType.ToLowerInvariant();
+            var normalizedSignatureType = signatureType;
             bool willEmbedPayload;
-            if (normalizedSignatureType == ClassStrings.SignatureTypeDetached)
+            if (string.Equals(normalizedSignatureType, ClassStrings.SignatureTypeDetached, StringComparison.OrdinalIgnoreCase))
             {
                 willEmbedPayload = false;
             }
-            else if (normalizedSignatureType == ClassStrings.SignatureTypeEmbedded)
+            else if (string.Equals(normalizedSignatureType, ClassStrings.SignatureTypeEmbedded, StringComparison.OrdinalIgnoreCase))
             {
                 willEmbedPayload = true;
             }
-            else if (normalizedSignatureType == ClassStrings.SignatureTypeIndirect)
+            else if (string.Equals(normalizedSignatureType, ClassStrings.SignatureTypeIndirect, StringComparison.OrdinalIgnoreCase))
             {
                 willEmbedPayload = true; // Hash envelope is embedded
             }
@@ -535,17 +535,17 @@ public class SigningCommandBuilder
 
                 // Create signature based on signature type
                 // Use the combined cancellation token that includes timeout
-                if (normalizedSignatureType == ClassStrings.SignatureTypeIndirect)
+                if (string.Equals(normalizedSignatureType, ClassStrings.SignatureTypeIndirect, StringComparison.OrdinalIgnoreCase))
                 {
                     signatureBytes = await CreateIndirectSignatureAsync(
                         signingService, payloadStream, contentType, cwtContributor, disableAutoScitt, payloadLocation, cancellationToken);
                 }
-                else if (normalizedSignatureType == ClassStrings.SignatureTypeEmbedded)
+                else if (string.Equals(normalizedSignatureType, ClassStrings.SignatureTypeEmbedded, StringComparison.OrdinalIgnoreCase))
                 {
                     signatureBytes = await CreateDirectSignatureAsync(
                         signingService, payloadStream, contentType, embedPayload: true, cwtContributor, disableAutoScitt, cancellationToken);
                 }
-                else if (normalizedSignatureType == ClassStrings.SignatureTypeDetached)
+                else if (string.Equals(normalizedSignatureType, ClassStrings.SignatureTypeDetached, StringComparison.OrdinalIgnoreCase))
                 {
                     signatureBytes = await CreateDirectSignatureAsync(
                         signingService, payloadStream, contentType, embedPayload: false, cwtContributor, disableAutoScitt, cancellationToken);

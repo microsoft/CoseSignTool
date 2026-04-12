@@ -5,6 +5,7 @@ namespace CoseSign1.Factories.Direct;
 
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.InteropServices;
 using CommunityToolkit.HighPerformance.Buffers;
 using Cose.Abstractions;
 using CoseSign1.Abstractions;
@@ -61,6 +62,8 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
     }
 
     private static readonly ContentTypeHeaderContributor ContentTypeContributor = new();
+    private static readonly IReadOnlyList<ICoseSign1HeaderContributor> SingleContentTypeContributor =
+        new ICoseSign1HeaderContributor[] { ContentTypeContributor };
     private readonly ISigningService<SigningOptions> SigningService;
     private readonly IReadOnlyList<ITransparencyProvider>? TransparencyProvidersField;
     private readonly ILogger<DirectSignatureFactory> Logger;
@@ -498,8 +501,9 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
     {
         ThrowIfDisposed();
 
-        // Delegate to byte[] overload
-        return CreateCoseSign1MessageBytesAsync(payload.ToArray(), contentType, options, cancellationToken);
+        // Avoid copying when the ReadOnlyMemory is backed by an array
+        byte[] payloadArray = GetArrayWithoutCopy(payload);
+        return CreateCoseSign1MessageBytesAsync(payloadArray, contentType, options, cancellationToken);
     }
 
     /// <summary>
@@ -617,11 +621,11 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
     /// <summary>
     /// Creates a list of header contributors with ContentTypeHeaderContributor first.
     /// </summary>
-    private static List<ICoseSign1HeaderContributor> CreateHeaderContributorsList(IReadOnlyList<ICoseSign1HeaderContributor>? additionalContributors)
+    private static IReadOnlyList<ICoseSign1HeaderContributor> CreateHeaderContributorsList(IReadOnlyList<ICoseSign1HeaderContributor>? additionalContributors)
     {
         if (additionalContributors == null || additionalContributors.Count == 0)
         {
-            return new List<ICoseSign1HeaderContributor> { ContentTypeContributor };
+            return SingleContentTypeContributor;
         }
 
         var combined = new List<ICoseSign1HeaderContributor>(additionalContributors.Count + 1)
@@ -767,5 +771,23 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
         {
             throw new ObjectDisposedException(GetType().Name);
         }
+    }
+
+    /// <summary>
+    /// Gets the underlying array from ReadOnlyMemory without copying, if possible.
+    /// Falls back to ToArray() only when the memory is not array-backed.
+    /// </summary>
+    /// <param name="memory">The read-only memory to extract the array from.</param>
+    /// <returns>The underlying byte array, or a copy if the memory is not array-backed.</returns>
+    internal static byte[] GetArrayWithoutCopy(ReadOnlyMemory<byte> memory)
+    {
+        if (MemoryMarshal.TryGetArray(memory, out ArraySegment<byte> segment)
+            && segment.Offset == 0
+            && segment.Count == segment.Array!.Length)
+        {
+            return segment.Array;
+        }
+
+        return memory.ToArray();
     }
 }

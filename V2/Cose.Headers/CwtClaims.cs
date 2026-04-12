@@ -6,6 +6,7 @@ namespace Cose.Headers;
 using System;
 using System.Collections.Generic;
 using System.Formats.Cbor;
+using System.Text;
 using Cose.Abstractions;
 
 /// <summary>
@@ -18,48 +19,90 @@ public sealed class CwtClaims
     /// </summary>
     public const string DefaultSubject = ClassStrings.DefaultSubject;
 
+    private string? _issuer;
+    private string? _subject;
+    private string? _audience;
+    private DateTimeOffset? _expirationTime;
+    private DateTimeOffset? _notBefore;
+    private DateTimeOffset? _issuedAt;
+    private byte[]? _cwtId;
+    private Dictionary<int, object> _customClaims = new Dictionary<int, object>();
+    private byte[]? _cachedCborBytes;
+
     /// <summary>
     /// Gets or sets the issuer claim (iss, label 1).
     /// </summary>
-    public string? Issuer { get; set; }
+    public string? Issuer
+    {
+        get => _issuer;
+        set { _issuer = value; _cachedCborBytes = null; }
+    }
 
     /// <summary>
     /// Gets or sets the subject claim (sub, label 2).
     /// Default value is "unknown.intent" when not explicitly set.
     /// </summary>
-    public string? Subject { get; set; }
+    public string? Subject
+    {
+        get => _subject;
+        set { _subject = value; _cachedCborBytes = null; }
+    }
 
     /// <summary>
     /// Gets or sets the audience claim (aud, label 3).
     /// </summary>
-    public string? Audience { get; set; }
+    public string? Audience
+    {
+        get => _audience;
+        set { _audience = value; _cachedCborBytes = null; }
+    }
 
     /// <summary>
     /// Gets or sets the expiration time claim (exp, label 4) as a DateTimeOffset.
     /// </summary>
-    public DateTimeOffset? ExpirationTime { get; set; }
+    public DateTimeOffset? ExpirationTime
+    {
+        get => _expirationTime;
+        set { _expirationTime = value; _cachedCborBytes = null; }
+    }
 
     /// <summary>
     /// Gets or sets the not-before time claim (nbf, label 5) as a DateTimeOffset.
     /// </summary>
-    public DateTimeOffset? NotBefore { get; set; }
+    public DateTimeOffset? NotBefore
+    {
+        get => _notBefore;
+        set { _notBefore = value; _cachedCborBytes = null; }
+    }
 
     /// <summary>
     /// Gets or sets the issued-at time claim (iat, label 6) as a DateTimeOffset.
     /// </summary>
-    public DateTimeOffset? IssuedAt { get; set; }
+    public DateTimeOffset? IssuedAt
+    {
+        get => _issuedAt;
+        set { _issuedAt = value; _cachedCborBytes = null; }
+    }
 
     /// <summary>
     /// Gets or sets the CWT ID claim (cti, label 7).
     /// </summary>
-    public byte[]? CwtId { get; set; }
+    public byte[]? CwtId
+    {
+        get => _cwtId;
+        set { _cwtId = value; _cachedCborBytes = null; }
+    }
 
     /// <summary>
     /// Gets or sets custom claims with integer labels not in the standard set.
     /// The key is the claim label, and the value is the claim value.
     /// Supported types: string, long, int, byte[], bool, double.
     /// </summary>
-    public Dictionary<int, object> CustomClaims { get; set; } = new Dictionary<int, object>();
+    public Dictionary<int, object> CustomClaims
+    {
+        get => _customClaims;
+        set { _customClaims = value; _cachedCborBytes = null; }
+    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CwtClaims"/> class.
@@ -85,6 +128,7 @@ public sealed class CwtClaims
         IssuedAt = other.IssuedAt;
         CwtId = other.CwtId != null ? (byte[])other.CwtId.Clone() : null;
         CustomClaims = new Dictionary<int, object>(other.CustomClaims);
+        _cachedCborBytes = null;
     }
 
     /// <summary>
@@ -210,6 +254,11 @@ public sealed class CwtClaims
     /// <exception cref="InvalidOperationException">Thrown when a custom claim value has an unsupported type.</exception>
     public byte[] ToCborBytes()
     {
+        if (_cachedCborBytes is not null)
+        {
+            return _cachedCborBytes;
+        }
+
         var writer = new CborWriter();
 
         // Count all non-null claims
@@ -329,7 +378,8 @@ public sealed class CwtClaims
         }
 
         writer.WriteEndMap();
-        return writer.Encode();
+        _cachedCborBytes = writer.Encode();
+        return _cachedCborBytes;
     }
 
     /// <summary>
@@ -414,57 +464,86 @@ public sealed class CwtClaims
     /// <returns>A string representation of the CWT claims.</returns>
     public override string ToString()
     {
-        var parts = new List<string>();
+        StringBuilder sb = new StringBuilder();
 
         if (Issuer != null)
         {
-            parts.Add(string.Format(ClassStrings.ToStringIssuerFormat, Issuer));
+            sb.AppendFormat(ClassStrings.ToStringIssuerFormat, Issuer);
         }
 
         if (Subject != null)
         {
-            parts.Add(string.Format(ClassStrings.ToStringSubjectFormat, Subject));
+            if (sb.Length > 0)
+            {
+                sb.Append(Environment.NewLine);
+            }
+            sb.AppendFormat(ClassStrings.ToStringSubjectFormat, Subject);
         }
 
         if (Audience != null)
         {
-            parts.Add(string.Format(ClassStrings.ToStringAudienceFormat, Audience));
+            if (sb.Length > 0)
+            {
+                sb.Append(Environment.NewLine);
+            }
+            sb.AppendFormat(ClassStrings.ToStringAudienceFormat, Audience);
         }
 
         if (ExpirationTime.HasValue)
         {
-            parts.Add(string.Format(ClassStrings.ToStringExpiresFormat, ExpirationTime.Value));
+            if (sb.Length > 0)
+            {
+                sb.Append(Environment.NewLine);
+            }
+            sb.AppendFormat(ClassStrings.ToStringExpiresFormat, ExpirationTime.Value);
         }
 
         if (NotBefore.HasValue)
         {
-            parts.Add(string.Format(ClassStrings.ToStringNotBeforeFormat, NotBefore.Value));
+            if (sb.Length > 0)
+            {
+                sb.Append(Environment.NewLine);
+            }
+            sb.AppendFormat(ClassStrings.ToStringNotBeforeFormat, NotBefore.Value);
         }
 
         if (IssuedAt.HasValue)
         {
-            parts.Add(string.Format(ClassStrings.ToStringIssuedAtFormat, IssuedAt.Value));
+            if (sb.Length > 0)
+            {
+                sb.Append(Environment.NewLine);
+            }
+            sb.AppendFormat(ClassStrings.ToStringIssuedAtFormat, IssuedAt.Value);
         }
 
         if (CwtId != null)
         {
-            parts.Add(string.Format(ClassStrings.ToStringCwtIdFormat, BitConverter.ToString(CwtId)));
+            if (sb.Length > 0)
+            {
+                sb.Append(Environment.NewLine);
+            }
+            sb.AppendFormat(ClassStrings.ToStringCwtIdFormat, BitConverter.ToString(CwtId));
         }
 
         if (CustomClaims.Count > 0)
         {
-            parts.Add(string.Format(ClassStrings.ToStringCustomClaimsCountFormat, CustomClaims.Count));
-            foreach (var kvp in CustomClaims)
+            if (sb.Length > 0)
+            {
+                sb.Append(Environment.NewLine);
+            }
+            sb.AppendFormat(ClassStrings.ToStringCustomClaimsCountFormat, CustomClaims.Count);
+            foreach (KeyValuePair<int, object> kvp in CustomClaims)
             {
                 string valueStr = kvp.Value switch
                 {
                     byte[] bytes => string.Format(ClassStrings.ToStringByteArraySummaryFormat, bytes.Length),
                     _ => kvp.Value.ToString() ?? ClassStrings.ToStringNullPlaceholder
                 };
-                parts.Add(string.Format(ClassStrings.ToStringCustomClaimEntryFormat, kvp.Key, valueStr));
+                sb.Append(Environment.NewLine);
+                sb.AppendFormat(ClassStrings.ToStringCustomClaimEntryFormat, kvp.Key, valueStr);
             }
         }
 
-        return string.Join(Environment.NewLine, parts);
+        return sb.ToString();
     }
 }

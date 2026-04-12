@@ -32,8 +32,14 @@ public static class CoseSign1MessageExtensions
     /// <returns>A list of receipt COSE_Sign1 messages, or an empty list if no receipts are present.</returns>
     public static IReadOnlyList<CoseSign1Message> GetMstReceipts(this CoseSign1Message message)
     {
-        var receipts = new List<CoseSign1Message>();
         var receiptBytes = message.GetMstReceiptBytes();
+
+        if (receiptBytes.Count == 0)
+        {
+            return Array.Empty<CoseSign1Message>();
+        }
+
+        var receipts = new List<CoseSign1Message>();
 
         foreach (var bytes in receiptBytes)
         {
@@ -61,34 +67,34 @@ public static class CoseSign1MessageExtensions
     /// <returns>A list of receipt byte arrays, or an empty list if no receipts are present.</returns>
     public static IReadOnlyList<byte[]> GetMstReceiptBytes(this CoseSign1Message message)
     {
-        var receiptBytes = new List<byte[]>();
-
-        if (message?.UnprotectedHeaders?.TryGetValue(ReceiptLabel, out var value) == true)
+        if (message?.UnprotectedHeaders?.TryGetValue(ReceiptLabel, out var value) != true)
         {
-            try
-            {
-                // The receipts are stored as a CBOR array of byte strings
-                var reader = new CborReader(value.EncodedValue);
-
-                if (reader.PeekState() != CborReaderState.StartArray)
-                {
-                    return receiptBytes;
-                }
-
-                reader.ReadStartArray();
-                while (reader.PeekState() != CborReaderState.EndArray)
-                {
-                    receiptBytes.Add(reader.ReadByteString());
-                }
-                reader.ReadEndArray();
-            }
-            catch (CborContentException)
-            {
-                // If parsing fails, return empty list
-                return receiptBytes;
-            }
+            return Array.Empty<byte[]>();
         }
 
-        return receiptBytes;
+        try
+        {
+            // The receipts are stored as a CBOR array of byte strings
+            var reader = new CborReader(value.EncodedValue);
+
+            if (reader.PeekState() != CborReaderState.StartArray)
+            {
+                return Array.Empty<byte[]>();
+            }
+
+            var receiptBytes = new List<byte[]>();
+            reader.ReadStartArray();
+            while (reader.PeekState() != CborReaderState.EndArray)
+            {
+                receiptBytes.Add(reader.ReadByteString());
+            }
+            reader.ReadEndArray();
+            return receiptBytes;
+        }
+        catch (CborContentException)
+        {
+            // If parsing fails, return empty array
+            return Array.Empty<byte[]>();
+        }
     }
 }

@@ -110,15 +110,23 @@ public sealed class DidX509Builder
             throw new ArgumentException(ClassStrings.ErrorHashAlgorithmCannotBeNullOrEmpty, nameof(algorithm));
         }
 
-        algorithm = algorithm.ToLowerInvariant();
-        if (algorithm != DidX509Constants.HashAlgorithmSha256 &&
-            algorithm != DidX509Constants.HashAlgorithmSha384 &&
-            algorithm != DidX509Constants.HashAlgorithmSha512)
+        if (string.Equals(algorithm, DidX509Constants.HashAlgorithmSha256, StringComparison.OrdinalIgnoreCase))
+        {
+            HashAlgorithm = DidX509Constants.HashAlgorithmSha256;
+        }
+        else if (string.Equals(algorithm, DidX509Constants.HashAlgorithmSha384, StringComparison.OrdinalIgnoreCase))
+        {
+            HashAlgorithm = DidX509Constants.HashAlgorithmSha384;
+        }
+        else if (string.Equals(algorithm, DidX509Constants.HashAlgorithmSha512, StringComparison.OrdinalIgnoreCase))
+        {
+            HashAlgorithm = DidX509Constants.HashAlgorithmSha512;
+        }
+        else
         {
             throw new ArgumentException(string.Format(ClassStrings.ErrorFormatUnsupportedHashAlgorithm, algorithm), nameof(algorithm));
         }
 
-        HashAlgorithm = algorithm;
         return this;
     }
 
@@ -189,16 +197,26 @@ public sealed class DidX509Builder
             throw new ArgumentException(ClassStrings.ErrorSanValueCannotBeNullOrEmpty, nameof(value));
         }
 
-        type = type.ToLowerInvariant();
-        if (type != DidX509Constants.SanTypeEmail &&
-            type != DidX509Constants.SanTypeDns &&
-            type != DidX509Constants.SanTypeUri)
+        string normalizedType;
+        if (string.Equals(type, DidX509Constants.SanTypeEmail, StringComparison.OrdinalIgnoreCase))
+        {
+            normalizedType = DidX509Constants.SanTypeEmail;
+        }
+        else if (string.Equals(type, DidX509Constants.SanTypeDns, StringComparison.OrdinalIgnoreCase))
+        {
+            normalizedType = DidX509Constants.SanTypeDns;
+        }
+        else if (string.Equals(type, DidX509Constants.SanTypeUri, StringComparison.OrdinalIgnoreCase))
+        {
+            normalizedType = DidX509Constants.SanTypeUri;
+        }
+        else
         {
             throw new ArgumentException(string.Format(ClassStrings.ErrorFormatInvalidSanType, type), nameof(type));
         }
 
         string encodedValue = PercentEncoding.Encode(value);
-        string policyValue = string.Concat(type, DidX509Constants.ValueSeparator, encodedValue);
+        string policyValue = string.Concat(normalizedType, DidX509Constants.ValueSeparator, encodedValue);
         Policies.Add((DidX509Constants.PolicySan, policyValue));
 
         return this;

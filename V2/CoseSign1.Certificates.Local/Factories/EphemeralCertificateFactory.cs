@@ -395,20 +395,22 @@ public class EphemeralCertificateFactory : ICertificateFactory
         {
             foreach (var (type, value) in options.SubjectAlternativeNames)
             {
-                switch (type.ToLowerInvariant())
+                if (string.Equals(type, ClassStrings.SubjectAltNameTypeDns, StringComparison.OrdinalIgnoreCase))
                 {
-                    case ClassStrings.SubjectAltNameTypeDns:
-                        sanBuilder.AddDnsName(value);
-                        break;
-                    case ClassStrings.SubjectAltNameTypeEmail:
-                        sanBuilder.AddEmailAddress(value);
-                        break;
-                    case ClassStrings.SubjectAltNameTypeUri:
-                        sanBuilder.AddUri(new Uri(value));
-                        break;
-                    default:
-                        throw new ArgumentException(
-                            string.Format(ClassStrings.ErrorUnsupportedSanTypeFormat, type));
+                    sanBuilder.AddDnsName(value);
+                }
+                else if (string.Equals(type, ClassStrings.SubjectAltNameTypeEmail, StringComparison.OrdinalIgnoreCase))
+                {
+                    sanBuilder.AddEmailAddress(value);
+                }
+                else if (string.Equals(type, ClassStrings.SubjectAltNameTypeUri, StringComparison.OrdinalIgnoreCase))
+                {
+                    sanBuilder.AddUri(new Uri(value));
+                }
+                else
+                {
+                    throw new ArgumentException(
+                        string.Format(ClassStrings.ErrorUnsupportedSanTypeFormat, type));
                 }
             }
         }

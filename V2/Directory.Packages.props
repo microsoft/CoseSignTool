@@ -23,6 +23,7 @@
     <PackageVersion Include="System.Text.Json" Version="10.0.0" />
     <!-- High Performance packages -->
     <PackageVersion Include="CommunityToolkit.HighPerformance" Version="8.4.0" />
+    <PackageVersion Include="Microsoft.IO.RecyclableMemoryStream" Version="3.0.1" />
     <!-- Azure packages -->
     <PackageVersion Include="Azure.Core" Version="1.50.0" />
     <PackageVersion Include="Azure.Identity" Version="1.17.0" />

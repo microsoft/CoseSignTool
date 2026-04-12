@@ -98,7 +98,7 @@ public static class DidX509Parser
         }
 
         string version = prefixComponents[2];
-        string hashAlgorithm = prefixComponents[3].ToLowerInvariant();
+        string rawAlgorithm = prefixComponents[3];
         string caFingerprint = prefixComponents[4];
 
         // Validate version
@@ -112,16 +112,27 @@ public static class DidX509Parser
                     DidX509Constants.Version));
         }
 
-        // Validate hash algorithm
-        if (hashAlgorithm != DidX509Constants.HashAlgorithmSha256 &&
-            hashAlgorithm != DidX509Constants.HashAlgorithmSha384 &&
-            hashAlgorithm != DidX509Constants.HashAlgorithmSha512)
+        // Validate hash algorithm and normalize to canonical constant
+        string hashAlgorithm;
+        if (string.Equals(rawAlgorithm, DidX509Constants.HashAlgorithmSha256, StringComparison.OrdinalIgnoreCase))
+        {
+            hashAlgorithm = DidX509Constants.HashAlgorithmSha256;
+        }
+        else if (string.Equals(rawAlgorithm, DidX509Constants.HashAlgorithmSha384, StringComparison.OrdinalIgnoreCase))
+        {
+            hashAlgorithm = DidX509Constants.HashAlgorithmSha384;
+        }
+        else if (string.Equals(rawAlgorithm, DidX509Constants.HashAlgorithmSha512, StringComparison.OrdinalIgnoreCase))
+        {
+            hashAlgorithm = DidX509Constants.HashAlgorithmSha512;
+        }
+        else
         {
             throw new FormatException(
                 string.Format(
                     ClassStrings.ErrorInvalidDidUnsupportedHashAlgorithmTemplate,
                     DidX509Constants.ErrorInvalidDid,
-                    hashAlgorithm));
+                    rawAlgorithm));
         }
 
         // Validate CA fingerprint (base64url format)
@@ -235,14 +246,26 @@ public static class DidX509Parser
 
     private static object? ParsePolicyValue(string policyName, string policyValue)
     {
-        return policyName.ToLowerInvariant() switch
+        if (string.Equals(policyName, DidX509Constants.PolicySubject, StringComparison.OrdinalIgnoreCase))
         {
-            DidX509Constants.PolicySubject => ParseSubjectPolicy(policyValue),
-            DidX509Constants.PolicySan => ParseSanPolicy(policyValue),
-            DidX509Constants.PolicyEku => ParseEkuPolicy(policyValue),
-            DidX509Constants.PolicyFulcioIssuer => ParseFulcioIssuerPolicy(policyValue),
-            _ => null // Unknown policy, keep raw value only
-        };
+            return ParseSubjectPolicy(policyValue);
+        }
+        else if (string.Equals(policyName, DidX509Constants.PolicySan, StringComparison.OrdinalIgnoreCase))
+        {
+            return ParseSanPolicy(policyValue);
+        }
+        else if (string.Equals(policyName, DidX509Constants.PolicyEku, StringComparison.OrdinalIgnoreCase))
+        {
+            return ParseEkuPolicy(policyValue);
+        }
+        else if (string.Equals(policyName, DidX509Constants.PolicyFulcioIssuer, StringComparison.OrdinalIgnoreCase))
+        {
+            return ParseFulcioIssuerPolicy(policyValue);
+        }
+        else
+        {
+            return null; // Unknown policy, keep raw value only
+        }
     }
 
     private static Dictionary<string, string> ParseSubjectPolicy(string value)
@@ -302,13 +325,24 @@ public static class DidX509Parser
                     ClassStrings.SanExpectedFormat));
         }
 
-        string sanType = value.Substring(0, colonIndex).ToLowerInvariant();
+        string rawSanType = value.Substring(0, colonIndex);
         string encodedValue = value.Substring(colonIndex + 1);
 
-        // Validate SAN type
-        if (sanType != DidX509Constants.SanTypeEmail &&
-            sanType != DidX509Constants.SanTypeDns &&
-            sanType != DidX509Constants.SanTypeUri)
+        // Validate and normalize SAN type to canonical constant
+        string sanType;
+        if (string.Equals(rawSanType, DidX509Constants.SanTypeEmail, StringComparison.OrdinalIgnoreCase))
+        {
+            sanType = DidX509Constants.SanTypeEmail;
+        }
+        else if (string.Equals(rawSanType, DidX509Constants.SanTypeDns, StringComparison.OrdinalIgnoreCase))
+        {
+            sanType = DidX509Constants.SanTypeDns;
+        }
+        else if (string.Equals(rawSanType, DidX509Constants.SanTypeUri, StringComparison.OrdinalIgnoreCase))
+        {
+            sanType = DidX509Constants.SanTypeUri;
+        }
+        else
         {
             throw new FormatException(
                 string.Format(
@@ -317,7 +351,7 @@ public static class DidX509Parser
                     DidX509Constants.SanTypeEmail,
                     DidX509Constants.SanTypeDns,
                     DidX509Constants.SanTypeUri,
-                    sanType));
+                    rawSanType));
         }
 
         // Decode percent-encoded value

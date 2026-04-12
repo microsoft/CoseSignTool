@@ -174,14 +174,29 @@ public class CborProblemDetails
             else if (keyState == CborReaderState.TextString)
             {
                 string key = reader.ReadTextString();
-                switch (key.ToLowerInvariant())
+                if (string.Equals(key, ClassStrings.KeyType, StringComparison.OrdinalIgnoreCase))
                 {
-                    case ClassStrings.KeyType: details.Type = ReadStringValue(reader); break;
-                    case ClassStrings.KeyTitle: details.Title = ReadStringValue(reader); break;
-                    case ClassStrings.KeyStatus: details.Status = ReadIntValue(reader); break;
-                    case ClassStrings.KeyDetail: details.Detail = ReadStringValue(reader); break;
-                    case ClassStrings.KeyInstance: details.Instance = ReadStringValue(reader); break;
-                    default: extensions[key] = ReadAnyValue(reader); break;
+                    details.Type = ReadStringValue(reader);
+                }
+                else if (string.Equals(key, ClassStrings.KeyTitle, StringComparison.OrdinalIgnoreCase))
+                {
+                    details.Title = ReadStringValue(reader);
+                }
+                else if (string.Equals(key, ClassStrings.KeyStatus, StringComparison.OrdinalIgnoreCase))
+                {
+                    details.Status = ReadIntValue(reader);
+                }
+                else if (string.Equals(key, ClassStrings.KeyDetail, StringComparison.OrdinalIgnoreCase))
+                {
+                    details.Detail = ReadStringValue(reader);
+                }
+                else if (string.Equals(key, ClassStrings.KeyInstance, StringComparison.OrdinalIgnoreCase))
+                {
+                    details.Instance = ReadStringValue(reader);
+                }
+                else
+                {
+                    extensions[key] = ReadAnyValue(reader);
                 }
             }
             else

@@ -28,7 +28,16 @@ public sealed class ExplicitCertificateChainBuilder : ICertificateChainBuilder, 
     private readonly X509ChainBuilder ChainBuilder;
     private readonly IReadOnlyList<X509Certificate2> ProvidedCertificates;
     private readonly ILogger<ExplicitCertificateChainBuilder> LoggerField;
+    private HashSet<string>? ProvidedThumbprintsField;
     private bool Disposed;
+
+    /// <summary>
+    /// Gets the thumbprints of provided certificates as a HashSet for O(1) lookup.
+    /// Lazily initialized on first use.
+    /// </summary>
+    private HashSet<string> ProvidedThumbprints =>
+        ProvidedThumbprintsField ??= new HashSet<string>(
+            ProvidedCertificates.Select(c => c.Thumbprint), StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Gets the default chain policy used by this class unless overridden.
@@ -154,8 +163,7 @@ public sealed class ExplicitCertificateChainBuilder : ICertificateChainBuilder, 
         {
             foreach (var chainElement in ChainBuilder.ChainElements)
             {
-                var isFromProvidedCerts = ProvidedCertificates.Any(c =>
-                    c.Thumbprint.Equals(chainElement.Thumbprint, StringComparison.OrdinalIgnoreCase));
+                var isFromProvidedCerts = ProvidedThumbprints.Contains(chainElement.Thumbprint);
 
                 if (!isFromProvidedCerts)
                 {

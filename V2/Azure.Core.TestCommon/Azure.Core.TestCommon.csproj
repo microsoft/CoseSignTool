@@ -21,7 +21,7 @@
     <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
     <EnableNETAnalyzers>false</EnableNETAnalyzers>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
-    <NoWarn>$(NoWarn);IDE0073;CS1591</NoWarn>
+    <NoWarn>$(NoWarn);IDE0073;CS1591;CSTDOC001</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

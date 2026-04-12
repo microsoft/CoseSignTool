@@ -121,24 +121,27 @@ public static class DidX509Validator
     {
         errors = new List<string>();
 
-        switch (policy.Name.ToLowerInvariant())
+        if (string.Equals(policy.Name, DidX509Constants.PolicySubject, StringComparison.OrdinalIgnoreCase))
         {
-            case DidX509Constants.PolicySubject:
-                return SubjectPolicyValidator.Validate(policy, chain, out errors);
-
-            case DidX509Constants.PolicySan:
-                return SanPolicyValidator.Validate(policy, chain, out errors);
-
-            case DidX509Constants.PolicyEku:
-                return EkuPolicyValidator.Validate(policy, chain, out errors);
-
-            case DidX509Constants.PolicyFulcioIssuer:
-                return FulcioIssuerPolicyValidator.Validate(policy, chain, out errors);
-
-            default:
-                // Unknown policy type - fail validation
-                errors.Add(string.Format(ClassStrings.ErrorUnknownPolicyType, policy.Name));
-                return false;
+            return SubjectPolicyValidator.Validate(policy, chain, out errors);
+        }
+        else if (string.Equals(policy.Name, DidX509Constants.PolicySan, StringComparison.OrdinalIgnoreCase))
+        {
+            return SanPolicyValidator.Validate(policy, chain, out errors);
+        }
+        else if (string.Equals(policy.Name, DidX509Constants.PolicyEku, StringComparison.OrdinalIgnoreCase))
+        {
+            return EkuPolicyValidator.Validate(policy, chain, out errors);
+        }
+        else if (string.Equals(policy.Name, DidX509Constants.PolicyFulcioIssuer, StringComparison.OrdinalIgnoreCase))
+        {
+            return FulcioIssuerPolicyValidator.Validate(policy, chain, out errors);
+        }
+        else
+        {
+            // Unknown policy type - fail validation
+            errors.Add(string.Format(ClassStrings.ErrorUnknownPolicyType, policy.Name));
+            return false;
         }
     }
 

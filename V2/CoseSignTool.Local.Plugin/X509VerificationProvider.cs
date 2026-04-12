@@ -411,13 +411,22 @@ public partial class X509VerificationProvider : IVerificationProvider, IVerifica
         var modeOption = FindOption<string>(parseResult, ClassStrings.OptionNameRevocationMode);
         var mode = modeOption != null ? parseResult.GetValueForOption(modeOption) : null;
         mode ??= ClassStrings.RevocationModeOnline;
-        return mode.ToLowerInvariant() switch
+        if (string.Equals(mode, ClassStrings.RevocationModeOnline, StringComparison.OrdinalIgnoreCase))
         {
-            ClassStrings.RevocationModeOnline => X509RevocationMode.Online,
-            ClassStrings.RevocationModeOffline => X509RevocationMode.Offline,
-            ClassStrings.RevocationModeNone => X509RevocationMode.NoCheck,
-            _ => X509RevocationMode.Online
-        };
+            return X509RevocationMode.Online;
+        }
+        else if (string.Equals(mode, ClassStrings.RevocationModeOffline, StringComparison.OrdinalIgnoreCase))
+        {
+            return X509RevocationMode.Offline;
+        }
+        else if (string.Equals(mode, ClassStrings.RevocationModeNone, StringComparison.OrdinalIgnoreCase))
+        {
+            return X509RevocationMode.NoCheck;
+        }
+        else
+        {
+            return X509RevocationMode.Online;
+        }
     }
 
     internal X509Certificate2Collection LoadCustomRoots(ParseResult parseResult, ILogger? logger = null)

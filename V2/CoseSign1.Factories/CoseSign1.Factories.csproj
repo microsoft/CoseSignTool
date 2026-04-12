@@ -14,6 +14,7 @@
     <!--Package references-->
     <ItemGroup>
         <PackageReference Include="CommunityToolkit.HighPerformance" />
+        <PackageReference Include="Microsoft.IO.RecyclableMemoryStream" />
     </ItemGroup>
 
     <!--Project references-->

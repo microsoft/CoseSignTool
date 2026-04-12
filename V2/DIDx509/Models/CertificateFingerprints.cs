@@ -46,13 +46,22 @@ public sealed class CertificateFingerprints
     /// <returns>The fingerprint for the specified algorithm, or <see langword="null"/> if it is not available.</returns>
     public string? GetFingerprint(string algorithm)
     {
-        return algorithm?.ToLowerInvariant() switch
+        if (string.Equals(algorithm, DidX509Constants.HashAlgorithmSha256, StringComparison.OrdinalIgnoreCase))
         {
-            DidX509Constants.HashAlgorithmSha256 => Sha256,
-            DidX509Constants.HashAlgorithmSha384 => Sha384,
-            DidX509Constants.HashAlgorithmSha512 => Sha512,
-            _ => null
-        };
+            return Sha256;
+        }
+        else if (string.Equals(algorithm, DidX509Constants.HashAlgorithmSha384, StringComparison.OrdinalIgnoreCase))
+        {
+            return Sha384;
+        }
+        else if (string.Equals(algorithm, DidX509Constants.HashAlgorithmSha512, StringComparison.OrdinalIgnoreCase))
+        {
+            return Sha512;
+        }
+        else
+        {
+            return null;
+        }
     }
 
     /// <summary>

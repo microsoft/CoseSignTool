@@ -269,12 +269,10 @@ public class SecurePasswordProvider
         }
         finally
         {
-            // Clear the plain string from memory
+            // Clear the plain string reference from memory
             if (plain != null)
             {
-                // Use GC to help clear the string from memory
                 plain = null;
-                GC.Collect(0, GCCollectionMode.Forced);
             }
         }
     }

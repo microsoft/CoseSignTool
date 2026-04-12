@@ -212,6 +212,34 @@ public class ContentTypeHeaderContributorTests
         Assert.That(headers[CoseHeaderLabel.ContentType].GetValueAsString(), Is.EqualTo(contentType));
     }
 
+    [Test]
+    public void ContributeProtectedHeaders_NoContext_ShouldNotAddHeaders()
+    {
+        // Arrange — the context-free overload is a no-op
+        var contributor = new ContentTypeHeaderContributor();
+        var headers = new CoseHeaderMap();
+
+        // Act
+        contributor.ContributeProtectedHeaders(headers);
+
+        // Assert
+        Assert.That(headers.Count, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void ContributeUnprotectedHeaders_NoContext_ShouldNotAddHeaders()
+    {
+        // Arrange — the context-free overload is a no-op
+        var contributor = new ContentTypeHeaderContributor();
+        var headers = new CoseHeaderMap();
+
+        // Act
+        contributor.ContributeUnprotectedHeaders(headers);
+
+        // Assert
+        Assert.That(headers.Count, Is.EqualTo(0));
+    }
+
     private static HeaderContributorContext CreateHeaderContributorContext(string contentType)
     {
         var mockSigningKey = new Mock<ISigningKey>();

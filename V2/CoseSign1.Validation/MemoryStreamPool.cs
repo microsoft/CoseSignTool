@@ -8,6 +8,7 @@ using Microsoft.IO;
 /// <summary>
 /// Provides pooled MemoryStream instances to avoid Large Object Heap allocations.
 /// </summary>
+[System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
 internal static class MemoryStreamPool
 {
     private static readonly RecyclableMemoryStreamManager Manager = new();

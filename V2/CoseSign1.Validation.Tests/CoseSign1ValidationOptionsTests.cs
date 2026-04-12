@@ -164,6 +164,50 @@ public class CoseSign1ValidationOptionsTests
         Assert.Throws<ArgumentNullException>(() => options!.WithDetachedPayload(new ReadOnlyMemory<byte>([1])));
     }
 
+    [Test]
+    public void WithDetachedPayload_ReadOnlyMemory_ArrayBacked_UsesDirectArray()
+    {
+        // Arrange — a full array-backed ReadOnlyMemory hits the fast MemoryMarshal.TryGetArray path
+        var options = new CoseSign1ValidationOptions();
+        var payload = new byte[] { 10, 20, 30 };
+        var memory = new ReadOnlyMemory<byte>(payload);
+
+        // Act
+        var result = options.WithDetachedPayload(memory);
+
+        // Assert
+        Assert.That(result, Is.SameAs(options));
+        Assert.That(options.DetachedPayload, Is.Not.Null);
+
+        // Verify the content matches
+        options.DetachedPayload!.Position = 0;
+        var buffer = new byte[3];
+        _ = options.DetachedPayload.ReadAtLeast(buffer, 3);
+        Assert.That(buffer, Is.EqualTo(payload));
+    }
+
+    [Test]
+    public void WithDetachedPayload_ReadOnlyMemory_SlicedArray_FallsBackToToArray()
+    {
+        // Arrange — a sliced ReadOnlyMemory with non-zero offset forces the .ToArray() fallback path
+        var options = new CoseSign1ValidationOptions();
+        var fullArray = new byte[] { 0, 10, 20, 30, 0 };
+        var slicedMemory = new ReadOnlyMemory<byte>(fullArray, 1, 3);
+
+        // Act
+        var result = options.WithDetachedPayload(slicedMemory);
+
+        // Assert
+        Assert.That(result, Is.SameAs(options));
+        Assert.That(options.DetachedPayload, Is.Not.Null);
+
+        // Verify the content matches the slice
+        options.DetachedPayload!.Position = 0;
+        var buffer = new byte[3];
+        _ = options.DetachedPayload.ReadAtLeast(buffer, 3);
+        Assert.That(buffer, Is.EqualTo(new byte[] { 10, 20, 30 }));
+    }
+
     #endregion
 
     #region Extension Methods - WithAssociatedData

@@ -414,3 +414,91 @@ public class TransparencyReceiptExtensionsTests
             message.AddReceipts(null!));
     }
 }
+
+[TestFixture]
+[System.Runtime.Versioning.RequiresPreviewFeatures("Uses preview cryptography APIs.")]
+public class TransparencyReceiptVerificationExtensionsTests
+{
+    private sealed class TestableTransparencyProvider : TransparencyProviderBase
+    {
+        private readonly TransparencyValidationResult? VerifyResult;
+
+        public override string ProviderName => "TestableProvider";
+
+        public TestableTransparencyProvider(TransparencyValidationResult? verifyResult = null)
+        {
+            VerifyResult = verifyResult;
+        }
+
+        protected override Task<CoseSign1Message> AddTransparencyProofCoreAsync(
+            CoseSign1Message message,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(message);
+
+        protected override Task<TransparencyValidationResult> VerifyTransparencyProofCoreAsync(
+            CoseSign1Message message,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(VerifyResult ?? TransparencyValidationResult.Success(ProviderName));
+    }
+
+    private static CoseSign1Message CreateTestMessage()
+    {
+        using X509Certificate2 cert = TestCertificateUtils.CreateCertificate("ReceiptVerifyExtTest", useEcc: true);
+        using ECDsa key = cert.GetECDsaPrivateKey()!;
+        CoseSigner signer = new(key, HashAlgorithmName.SHA256);
+        byte[] signedBytes = CoseSign1Message.SignEmbedded(new byte[] { 1, 2, 3 }, signer);
+        return CoseMessage.DecodeSign1(signedBytes);
+    }
+
+    [Test]
+    public async Task VerifyTransparencyAsync_WithReceipt_CallsProviderAndReturnsResult()
+    {
+        // Arrange
+        CoseSign1Message message = CreateTestMessage();
+        TransparencyValidationResult expectedResult = TransparencyValidationResult.Success("TestableProvider");
+        TestableTransparencyProvider provider = new(expectedResult);
+        byte[] receipt = new byte[] { 0x01, 0x02, 0x03 };
+
+        // Act
+        TransparencyValidationResult result = await message.VerifyTransparencyAsync(provider, receipt);
+
+        // Assert
+        Assert.That(result.IsValid, Is.True);
+        Assert.That(result.ProviderName, Is.EqualTo("TestableProvider"));
+    }
+
+    [Test]
+    public void VerifyTransparencyAsync_WithReceipt_NullMessage_ThrowsArgumentNullException()
+    {
+        // Arrange
+        TestableTransparencyProvider provider = new();
+        CoseSign1Message? nullMessage = null;
+
+        // Act & Assert
+        Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await nullMessage!.VerifyTransparencyAsync(provider, new byte[] { 0x01 }));
+    }
+
+    [Test]
+    public void VerifyTransparencyAsync_WithReceipt_NullProvider_ThrowsArgumentNullException()
+    {
+        // Arrange
+        CoseSign1Message message = CreateTestMessage();
+
+        // Act & Assert
+        Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await message.VerifyTransparencyAsync((TransparencyProviderBase)null!, new byte[] { 0x01 }));
+    }
+
+    [Test]
+    public void VerifyTransparencyAsync_WithReceipt_NullReceipt_ThrowsArgumentNullException()
+    {
+        // Arrange
+        CoseSign1Message message = CreateTestMessage();
+        TestableTransparencyProvider provider = new();
+
+        // Act & Assert
+        Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await message.VerifyTransparencyAsync(provider, null!));
+    }
+}

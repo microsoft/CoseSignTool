@@ -312,6 +312,107 @@ public class TransparencyProviderBaseTests
         Assert.That(hasReceipts, Is.False);
     }
 
+    [Test]
+    public void TryGetReceipts_WithInvalidCborInHeader_ReturnsFalse()
+    {
+        // Arrange — header 394 contains a text string instead of a CBOR array, causing InvalidOperationException in parse
+        using X509Certificate2 cert = CreateTestCert();
+        CborWriter textWriter = new();
+        textWriter.WriteTextString("not an array");
+        CoseSign1Message message = CreateMessageWithHeaderValue(cert, 394, textWriter.Encode());
+
+        // Act
+        bool result = TransparencyProviderBase.TryGetReceipts(message, out List<byte[]>? receipts);
+
+        // Assert — should gracefully return false
+        Assert.That(result, Is.False);
+        Assert.That(receipts, Is.Null);
+    }
+
+    [Test]
+    public void MergeReceipts_SkipsNullAndEmptyReceipts()
+    {
+        // Arrange
+        using X509Certificate2 cert = CreateTestCert();
+        CoseSign1Message message = CreateTestMessage(cert, "test payload");
+        List<byte[]> receiptsWithNullsAndEmpty = new()
+        {
+            null!,
+            Array.Empty<byte>(),
+            new byte[] { 0x01, 0x02 },
+            null!
+        };
+
+        // Act
+        TransparencyProviderBase.MergeReceipts(message, receiptsWithNullsAndEmpty);
+
+        // Assert — only the valid receipt should be added
+        bool hasReceipts = TransparencyProviderBase.TryGetReceipts(message, out List<byte[]>? extracted);
+        Assert.That(hasReceipts, Is.True);
+        Assert.That(extracted, Has.Count.EqualTo(1));
+        Assert.That(extracted![0], Is.EqualTo(new byte[] { 0x01, 0x02 }));
+    }
+
+    [Test]
+    public void MergeReceipts_ExistingReceipts_SkipsNullAndEmpty()
+    {
+        // Arrange — message with one existing receipt, merge in list containing nulls
+        using X509Certificate2 cert = CreateTestCert();
+        CoseSign1Message message = CreateMessageWithReceipts(cert, new byte[][] { new byte[] { 0xAA } });
+
+        // Act — merge list with null and empty entries
+        TransparencyProviderBase.MergeReceipts(message, new List<byte[]> { null!, Array.Empty<byte>(), new byte[] { 0xBB } });
+
+        // Assert
+        bool hasReceipts = TransparencyProviderBase.TryGetReceipts(message, out List<byte[]>? extracted);
+        Assert.That(hasReceipts, Is.True);
+        Assert.That(extracted, Has.Count.EqualTo(2));
+    }
+
+    [Test]
+    public void TryGetReceipts_WithNonByteStringInArray_SkipsNonByteStringEntries()
+    {
+        // Arrange — header 394 contains a CBOR array with a text string (not a byte string)
+        // This exercises the SkipValue() branch in ParseCoseHeaderToArray
+        using X509Certificate2 cert = CreateTestCert();
+        CborWriter arrayWriter = new();
+        arrayWriter.WriteStartArray(2);
+        arrayWriter.WriteTextString("not-a-byte-string");
+        arrayWriter.WriteByteString(new byte[] { 0x01, 0x02 });
+        arrayWriter.WriteEndArray();
+        CoseSign1Message message = CreateMessageWithHeaderValue(cert, 394, arrayWriter.Encode());
+
+        // Act
+        bool result = TransparencyProviderBase.TryGetReceipts(message, out List<byte[]>? receipts);
+
+        // Assert — should succeed and return only the valid byte string receipt
+        Assert.That(result, Is.True);
+        Assert.That(receipts, Has.Count.EqualTo(1));
+        Assert.That(receipts![0], Is.EqualTo(new byte[] { 0x01, 0x02 }));
+    }
+
+    [Test]
+    public void MergeReceipts_WithExistingEmptyReceiptsInCbor_SkipsThem()
+    {
+        // Arrange — create a message where the CBOR array includes an empty byte string
+        // This exercises the null/empty skip path in the existing receipts loop of MergeReceipts
+        using X509Certificate2 cert = CreateTestCert();
+        CborWriter arrayWriter = new();
+        arrayWriter.WriteStartArray(2);
+        arrayWriter.WriteByteString(Array.Empty<byte>());
+        arrayWriter.WriteByteString(new byte[] { 0xAA });
+        arrayWriter.WriteEndArray();
+        CoseSign1Message message = CreateMessageWithHeaderValue(cert, 394, arrayWriter.Encode());
+
+        // Act — merge in another receipt
+        TransparencyProviderBase.MergeReceipts(message, new List<byte[]> { new byte[] { 0xBB } });
+
+        // Assert — the empty existing receipt should be skipped, resulting in 2 receipts (0xAA + 0xBB)
+        bool hasReceipts = TransparencyProviderBase.TryGetReceipts(message, out List<byte[]>? extracted);
+        Assert.That(hasReceipts, Is.True);
+        Assert.That(extracted, Has.Count.EqualTo(2));
+    }
+
     #endregion
 
     #region VerifyTransparencyProofAsync with Receipt Tests
@@ -383,6 +484,95 @@ public class TransparencyProviderBaseTests
 
     #endregion
 
+    #region AddTransparencyProofAsync - PreEncoded Bytes Tests
+
+    [Test]
+    public async Task AddTransparencyProofAsync_WithPreEncodedBytes_PassesBytesToCore()
+    {
+        // Arrange
+        using X509Certificate2 cert = CreateTestCert();
+        CoseSign1Message message = CreateTestMessage(cert, "test payload");
+        byte[] preEncoded = new byte[] { 0xAA, 0xBB, 0xCC };
+
+        ReadOnlyMemory<byte> capturedBytes = ReadOnlyMemory<byte>.Empty;
+        PreEncodedBytesTestProvider provider = new(
+            (msg, bytes) =>
+            {
+                capturedBytes = bytes;
+                return Task.FromResult(msg);
+            });
+
+        // Act
+        await provider.AddTransparencyProofAsync(message, new ReadOnlyMemory<byte>(preEncoded));
+
+        // Assert — the pre-encoded bytes should have been forwarded to the core override
+        Assert.That(capturedBytes.IsEmpty, Is.False, "Pre-encoded bytes should be forwarded to the core implementation");
+        Assert.That(capturedBytes.ToArray(), Is.EqualTo(preEncoded));
+    }
+
+    [Test]
+    public async Task AddTransparencyProofAsync_WithEmptyPreEncodedBytes_DelegatesToAbstractOverload()
+    {
+        // Arrange — the default virtual override delegates to the abstract method when preEncodedBytes is empty
+        using X509Certificate2 cert = CreateTestCert();
+        CoseSign1Message message = CreateTestMessage(cert, "test payload");
+        bool abstractCoreCalled = false;
+
+        TestTransparencyProvider provider = new(msg =>
+        {
+            abstractCoreCalled = true;
+            return Task.FromResult(msg);
+        });
+
+        // Act — call the overload that passes Empty bytes (via the single-arg public method)
+        await provider.AddTransparencyProofAsync(message);
+
+        // Assert — the abstract single-arg core should have been called
+        Assert.That(abstractCoreCalled, Is.True);
+    }
+
+    [Test]
+    public async Task AddTransparencyProofAsync_WithPreEncodedBytes_PreservesExistingReceipts()
+    {
+        // Arrange
+        using X509Certificate2 cert = CreateTestCert();
+        CoseSign1Message originalMessage = CreateMessageWithReceipts(cert, new byte[][] { new byte[] { 0x01, 0x02 } });
+
+        byte[] newReceipt = new byte[] { 0x04, 0x05 };
+        CoseSign1Message newMessageFromService = CreateMessageWithReceipts(cert, new byte[][] { newReceipt });
+
+        PreEncodedBytesTestProvider provider = new(
+            (_, __) => Task.FromResult(newMessageFromService));
+
+        // Act
+        CoseSign1Message result = await provider.AddTransparencyProofAsync(
+            originalMessage, new ReadOnlyMemory<byte>(new byte[] { 0xFF }));
+
+        // Assert — both original and new receipts should be present
+        bool hasReceipts = TransparencyProviderBase.TryGetReceipts(result, out List<byte[]>? receipts);
+        Assert.That(hasReceipts, Is.True);
+        Assert.That(receipts, Has.Count.EqualTo(2));
+    }
+
+    #endregion
+
+    #region VerifyTransparencyProofCoreAsync - Default Throws Tests
+
+    [Test]
+    public void VerifyTransparencyProofCoreAsync_DefaultImplementation_ThrowsNotImplementedException()
+    {
+        // Arrange
+        using X509Certificate2 cert = CreateTestCert();
+        CoseSign1Message message = CreateTestMessage(cert, "test payload");
+        NoVerifyProvider provider = new(_ => Task.FromResult(message));
+
+        // Act & Assert — the default VerifyTransparencyProofCoreAsync throws NotImplementedException
+        Assert.ThrowsAsync<NotImplementedException>(async () =>
+            await provider.VerifyTransparencyProofAsync(message));
+    }
+
+    #endregion
+
     #region Test Helpers
 
     /// <summary>
@@ -415,6 +605,53 @@ public class TransparencyProviderBaseTests
             CoseSign1Message message,
             CancellationToken cancellationToken = default)
             => Task.FromResult(VerifyResult ?? TransparencyValidationResult.Success(ProviderName));
+    }
+
+    /// <summary>
+    /// A test provider that overrides the pre-encoded bytes core method to capture the bytes.
+    /// </summary>
+    private sealed class PreEncodedBytesTestProvider : TransparencyProviderBase
+    {
+        private readonly Func<CoseSign1Message, ReadOnlyMemory<byte>, Task<CoseSign1Message>> CoreFunc;
+
+        public override string ProviderName => "PreEncodedTestProvider";
+
+        public PreEncodedBytesTestProvider(
+            Func<CoseSign1Message, ReadOnlyMemory<byte>, Task<CoseSign1Message>> coreFunc)
+        {
+            CoreFunc = coreFunc;
+        }
+
+        protected override Task<CoseSign1Message> AddTransparencyProofCoreAsync(
+            CoseSign1Message message,
+            CancellationToken cancellationToken = default)
+            => throw new NotImplementedException("Should not be called when pre-encoded bytes override is provided");
+
+        protected override Task<CoseSign1Message> AddTransparencyProofCoreAsync(
+            CoseSign1Message message,
+            ReadOnlyMemory<byte> preEncodedBytes,
+            CancellationToken cancellationToken = default)
+            => CoreFunc(message, preEncodedBytes);
+    }
+
+    /// <summary>
+    /// A provider that does NOT override VerifyTransparencyProofCoreAsync, exercising the default throw.
+    /// </summary>
+    private sealed class NoVerifyProvider : TransparencyProviderBase
+    {
+        private readonly Func<CoseSign1Message, Task<CoseSign1Message>> CoreFunc;
+
+        public override string ProviderName => "NoVerifyProvider";
+
+        public NoVerifyProvider(Func<CoseSign1Message, Task<CoseSign1Message>> coreFunc)
+        {
+            CoreFunc = coreFunc;
+        }
+
+        protected override Task<CoseSign1Message> AddTransparencyProofCoreAsync(
+            CoseSign1Message message,
+            CancellationToken cancellationToken = default)
+            => CoreFunc(message);
     }
 
     private static CoseSign1Message CreateTestMessage(X509Certificate2 cert, string payload)

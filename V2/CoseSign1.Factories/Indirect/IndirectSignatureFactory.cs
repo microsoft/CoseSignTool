@@ -468,6 +468,7 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
                 throw new InvalidOperationException(ClassStrings.ErrorFailedToComputeHash);
             }
 
+            // ToArray() required: CreateCoseSign1MessageAsync accepts byte[], not Span.
             hashBytes = hashSpan.Slice(0, bytesWritten).ToArray();
         }
 

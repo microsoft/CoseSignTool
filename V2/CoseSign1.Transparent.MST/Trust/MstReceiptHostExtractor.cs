@@ -13,6 +13,10 @@ internal static partial class MstReceiptHostExtractor
         public const string HostnameRegexPattern = "(?i)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}";
     }
 
+    private static readonly Regex HostnameRegex = new(
+        ClassStrings.HostnameRegexPattern,
+        RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
     internal static IReadOnlyList<string> ExtractHostCandidates(ReadOnlySpan<byte> bytes)
     {
         if (bytes.Length == 0)
@@ -31,7 +35,7 @@ internal static partial class MstReceiptHostExtractor
                 return;
             }
 
-            foreach (Match match in Regex.Matches(chunk, ClassStrings.HostnameRegexPattern))
+            foreach (Match match in HostnameRegex.Matches(chunk))
             {
                 var host = match.Value;
                 if (!string.IsNullOrWhiteSpace(host))

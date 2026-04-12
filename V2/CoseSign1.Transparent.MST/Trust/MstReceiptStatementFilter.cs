@@ -38,7 +38,7 @@ internal static class MstReceiptStatementFilter
         var protectedHeaders = reader.ReadByteString();
 
         var mapLength = reader.ReadStartMap();
-        var preserved = new List<(object Key, byte[] EncodedValue)>();
+        var preserved = new List<(object Key, ReadOnlyMemory<byte> EncodedValue)>();
 
         // Preserve all unprotected headers except the MST receipt label; we will overwrite it.
         while (reader.PeekState() != CborReaderState.EndMap)
@@ -50,7 +50,7 @@ internal static class MstReceiptStatementFilter
                 _ => throw new CborContentException(ClassStrings.UnsupportedCoseHeaderKeyType),
             };
 
-            var encodedValue = reader.ReadEncodedValue().ToArray();
+            ReadOnlyMemory<byte> encodedValue = reader.ReadEncodedValue();
 
             if (key is int i && i == MstReceiptHeaderLabel)
             {
@@ -64,8 +64,8 @@ internal static class MstReceiptStatementFilter
         reader.ReadEndMap();
 
         // Payload and signature can be copied verbatim.
-        var payloadEncoded = reader.ReadEncodedValue().ToArray();
-        var signatureEncoded = reader.ReadEncodedValue().ToArray();
+        ReadOnlyMemory<byte> payloadEncoded = reader.ReadEncodedValue();
+        ReadOnlyMemory<byte> signatureEncoded = reader.ReadEncodedValue();
 
         reader.ReadEndArray();
 
@@ -98,15 +98,15 @@ internal static class MstReceiptStatementFilter
                 writer.WriteTextString((string)key);
             }
 
-            writer.WriteEncodedValue(encodedValue);
+            writer.WriteEncodedValue(encodedValue.Span);
         }
 
         writer.WriteInt32(MstReceiptHeaderLabel);
         writer.WriteEncodedValue(receiptArrayEncoded);
 
         writer.WriteEndMap();
-        writer.WriteEncodedValue(payloadEncoded);
-        writer.WriteEncodedValue(signatureEncoded);
+        writer.WriteEncodedValue(payloadEncoded.Span);
+        writer.WriteEncodedValue(signatureEncoded.Span);
         writer.WriteEndArray();
 
         return writer.Encode();

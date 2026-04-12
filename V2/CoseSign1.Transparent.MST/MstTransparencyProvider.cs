@@ -215,9 +215,10 @@ public class MstTransparencyProvider : TransparencyProviderBase
     {
         LogVerbose?.Invoke(string.Format(ClassStrings.LogStartingProofAdditionFormat, ProviderName));
 
-        // Encode the CoseSign1Message to a byte array
-        BinaryData content = BinaryData.FromBytes(message.Encode());
-        LogVerbose?.Invoke(string.Format(ClassStrings.LogEncodedMessageSizeFormat, ProviderName, content.ToMemory().Length));
+        // Encode the CoseSign1Message once and reuse the bytes.
+        byte[] encodedBytes = message.Encode();
+        BinaryData content = BinaryData.FromBytes(encodedBytes);
+        LogVerbose?.Invoke(string.Format(ClassStrings.LogEncodedMessageSizeFormat, ProviderName, encodedBytes.Length));
 
         // Submit to MST service using WaitUntil.Started so we can control polling
         LogVerbose?.Invoke(string.Format(ClassStrings.LogSubmittingToServiceFormat, ProviderName));

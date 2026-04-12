@@ -63,9 +63,9 @@ public static class TrustIds
     public static TrustSubjectId CreatePrimarySigningKeyId(TrustSubjectId messageId)
     {
         // Domain separation to avoid cross-kind collisions.
-        byte[] data = new byte[PrimarySigningKeyDomain.Length + messageId.Bytes.Length];
-        PrimarySigningKeyDomain.CopyTo(data, 0);
-        messageId.Bytes.CopyTo(data.AsSpan(PrimarySigningKeyDomain.Length));
+        Span<byte> data = stackalloc byte[PrimarySigningKeyDomain.Length + messageId.Bytes.Length];
+        PrimarySigningKeyDomain.CopyTo(data);
+        messageId.Bytes.CopyTo(data.Slice(PrimarySigningKeyDomain.Length));
         return TrustSubjectId.FromSha256OfBytes(data);
     }
 
@@ -77,9 +77,9 @@ public static class TrustIds
     public static TrustSubjectId CreateCounterSignatureSigningKeyId(TrustSubjectId counterSignatureId)
     {
         // Domain separation to avoid cross-kind collisions.
-        byte[] data = new byte[CounterSignatureSigningKeyDomain.Length + counterSignatureId.Bytes.Length];
-        CounterSignatureSigningKeyDomain.CopyTo(data, 0);
-        counterSignatureId.Bytes.CopyTo(data.AsSpan(CounterSignatureSigningKeyDomain.Length));
+        Span<byte> data = stackalloc byte[CounterSignatureSigningKeyDomain.Length + counterSignatureId.Bytes.Length];
+        CounterSignatureSigningKeyDomain.CopyTo(data);
+        counterSignatureId.Bytes.CopyTo(data.Slice(CounterSignatureSigningKeyDomain.Length));
         return TrustSubjectId.FromSha256OfBytes(data);
     }
 }

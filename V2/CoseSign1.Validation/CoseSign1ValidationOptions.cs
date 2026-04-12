@@ -3,6 +3,7 @@
 
 namespace CoseSign1.Validation;
 
+using System.Runtime.InteropServices;
 using System.Security.Cryptography.Cose;
 
 /// <summary>
@@ -152,7 +153,16 @@ public static class CoseSign1ValidationOptionsExtensions
     {
         Guard.ThrowIfNull(options);
 
-        options.DetachedPayload = new MemoryStream(payload.ToArray(), writable: false);
+        if (MemoryMarshal.TryGetArray(payload, out ArraySegment<byte> segment)
+            && segment.Offset == 0 && segment.Count == segment.Array!.Length)
+        {
+            options.DetachedPayload = new MemoryStream(segment.Array, writable: false);
+        }
+        else
+        {
+            options.DetachedPayload = new MemoryStream(payload.ToArray(), writable: false);
+        }
+
         return options;
     }
 

@@ -14,6 +14,7 @@ using Azure.Security.KeyVault.Secrets;
 using Cose.Abstractions;
 using CoseSign1.Abstractions;
 using CoseSign1.AzureKeyVault.Common;
+using CoseSign1.Factories.Direct;
 
 /// <summary>
 /// An <see cref="ISigningService{TSigningOptions}"/> implementation for Azure Key Vault keys (non-certificate).
@@ -367,9 +368,26 @@ public sealed class AzureKeyVaultSigningService : ISigningService<SigningOptions
 
         bool isEmbedded = message.Content != null;
 
-        return isEmbedded
-            ? message.VerifyEmbedded(coseKey)
-            : message.VerifyDetached(coseKey, context.PayloadBytes.ToArray());
+        if (isEmbedded)
+        {
+            return message.VerifyEmbedded(coseKey);
+        }
+
+        if (context.HasStream)
+        {
+            Stream stream = context.PayloadStream;
+            if (stream.CanSeek)
+            {
+                stream.Position = 0;
+            }
+
+            return message.VerifyDetachedAsync(coseKey, stream)
+                .GetAwaiter().GetResult();
+        }
+
+        // Avoid ToArray() when memory is already array-backed
+        byte[] payload = DirectSignatureFactory.GetArrayWithoutCopy(context.PayloadBytes);
+        return message.VerifyDetached(coseKey, payload);
     }
 
     /// <inheritdoc/>

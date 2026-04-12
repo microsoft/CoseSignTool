@@ -817,7 +817,7 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
     /// </summary>
     /// <param name="memory">The read-only memory to extract the array from.</param>
     /// <returns>The underlying byte array, or a copy if the memory is not array-backed.</returns>
-    internal static byte[] GetArrayWithoutCopy(ReadOnlyMemory<byte> memory)
+    public static byte[] GetArrayWithoutCopy(ReadOnlyMemory<byte> memory)
     {
         if (MemoryMarshal.TryGetArray(memory, out ArraySegment<byte> segment)
             && segment.Offset == 0

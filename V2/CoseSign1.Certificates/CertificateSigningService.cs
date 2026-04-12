@@ -4,11 +4,13 @@
 namespace CoseSign1.Certificates;
 
 using System.Diagnostics.CodeAnalysis;
+using System.Security.Cryptography.Cose;
 using Cose.Abstractions;
 using CoseSign1.Abstractions;
 using CoseSign1.Certificates.Extensions;
 using CoseSign1.Certificates.Local;
 using CoseSign1.Certificates.Remote;
+using CoseSign1.Factories.Direct;
 using CoseSign1.Headers;
 using DIDx509;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -469,8 +471,24 @@ public class CertificateSigningService : ISigningService<CertificateSigningOptio
             }
             else
             {
-                byte[] payloadBytes = GetPayloadBytesForVerification(context);
-                result = message.VerifyDetached(coseKey, payloadBytes);
+                if (context.HasStream)
+                {
+                    Stream stream = context.PayloadStream;
+                    if (stream.CanSeek)
+                    {
+                        stream.Position = 0;
+                    }
+
+                    // Use stream-based async verification to avoid byte[] materialization
+                    result = message.VerifyDetachedAsync(coseKey, stream)
+                        .GetAwaiter().GetResult();
+                }
+                else
+                {
+                    // Byte-based context — use bytes directly without copying if possible
+                    byte[] payloadBytes = DirectSignatureFactory.GetArrayWithoutCopy(context.PayloadBytes);
+                    result = message.VerifyDetached(coseKey, payloadBytes);
+                }
             }
         }
 

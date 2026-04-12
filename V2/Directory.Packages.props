@@ -15,9 +15,9 @@
     <PackageVersion Include="NUnit.Analyzers" Version="4.11.2" />
     <PackageVersion Include="NUnit3TestAdapter" Version="5.2.0" />
     <!-- Core System.Security.Cryptography packages -->
-    <PackageVersion Include="System.Security.Cryptography.Cose" Version="10.0.0" />
-    <PackageVersion Include="System.Security.Cryptography.X509Certificates" Version="10.0.0" />
-    <PackageVersion Include="System.Formats.Cbor" Version="10.0.0" />
+    <PackageVersion Include="System.Security.Cryptography.Cose" Version="10.0.5" />
+    <PackageVersion Include="System.Security.Cryptography.X509Certificates" Version="10.0.5" />
+    <PackageVersion Include="System.Formats.Cbor" Version="10.0.5" />
     <!-- Runtime packages -->
     <PackageVersion Include="System.Runtime.Caching" Version="10.0.0" />
     <PackageVersion Include="System.Text.Json" Version="10.0.0" />

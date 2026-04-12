@@ -588,12 +588,6 @@ public sealed partial class CoseSign1Validator : ICoseSign1Validator
         return (ValidationResult.Success(ClassStrings.StageNameKeyMaterialTrust), trustDecision);
     }
 
-    /// <summary>
-    /// Threshold in bytes above which we use async stream-based verification to avoid large memory allocations.
-    /// Default is 85,000 bytes (just under the Large Object Heap threshold of 85KB).
-    /// </summary>
-    private const long LargeStreamThreshold = 85_000;
-
     private async ValueTask<ValidationResult> RunSignatureStageCoreAsync(
         CoseSign1Message message,
         ISigningKey signingKey,
@@ -605,7 +599,7 @@ public sealed partial class CoseSign1Validator : ICoseSign1Validator
 
         try
         {
-            var coseKey = signingKey.GetCoseKey();
+            CoseKey coseKey = signingKey.GetCoseKey();
             bool isEmbedded = message.Content != null;
             bool isValid;
 
@@ -626,33 +620,11 @@ public sealed partial class CoseSign1Validator : ICoseSign1Validator
                         ClassStrings.ErrorCodeSignatureMissingPayload);
                 }
 
-                // Reset stream position if seekable
                 if (Options.DetachedPayload.CanSeek)
                 {
                     Options.DetachedPayload.Position = 0;
-                }
 
-                bool isLargeStream = Options.DetachedPayload.CanSeek && Options.DetachedPayload.Length > LargeStreamThreshold;
-                bool isUnknownSizeStream = !Options.DetachedPayload.CanSeek;
-
-                if (async || isLargeStream || isUnknownSizeStream)
-                {
-                    // Use async API for large streams or when running async
-                    isValid = Options.AssociatedData != null
-                        ? await message.VerifyDetachedAsync(coseKey, Options.DetachedPayload, (ReadOnlyMemory<byte>)Options.AssociatedData, cancellationToken).ConfigureAwait(false)
-                        : await message.VerifyDetachedAsync(coseKey, Options.DetachedPayload, cancellationToken: cancellationToken).ConfigureAwait(false);
-                }
-                else
-                {
-                    // Small seekable stream in sync mode - read to bytes for sync verification
-                    using var memoryStream = MemoryStreamPool.GetStream(ClassStrings.PoolTagDetachedPayload);
-                    Options.DetachedPayload.CopyTo(memoryStream);
-                    // ToArray() is required here — CoseSign1Message.VerifyDetached accepts byte[],
-                    // not ReadOnlySpan<byte>. RecyclableMemoryStream.GetBuffer() returns an oversized
-                    // buffer that cannot be used directly.
-                    var payloadBytes = memoryStream.ToArray();
-
-                    if (payloadBytes.Length == 0)
+                    if (Options.DetachedPayload.Length == 0)
                     {
                         stopwatch.Stop();
                         LogSignatureVerificationFailed(ClassStrings.ErrorCodeSignatureMissingPayload);
@@ -661,9 +633,12 @@ public sealed partial class CoseSign1Validator : ICoseSign1Validator
                             ClassStrings.ErrorMessageSignatureMissingPayload,
                             ClassStrings.ErrorCodeSignatureMissingPayload);
                     }
-
-                    isValid = message.VerifyDetached(coseKey, payloadBytes, Options.AssociatedData?.ToArray());
                 }
+
+                // Always use stream-based async verification — avoids byte[] materialization entirely
+                isValid = Options.AssociatedData != null
+                    ? await message.VerifyDetachedAsync(coseKey, Options.DetachedPayload, (ReadOnlyMemory<byte>)Options.AssociatedData, cancellationToken).ConfigureAwait(false)
+                    : await message.VerifyDetachedAsync(coseKey, Options.DetachedPayload, cancellationToken: cancellationToken).ConfigureAwait(false);
             }
 
             if (!isValid)

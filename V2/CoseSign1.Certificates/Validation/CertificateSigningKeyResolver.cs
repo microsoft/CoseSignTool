@@ -5,6 +5,7 @@ namespace CoseSign1.Certificates.Validation;
 
 using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography.Cose;
+using CoseSign1.Certificates.Caching;
 using CoseSign1.Certificates.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -51,6 +52,7 @@ public sealed partial class CertificateSigningKeyResolver : ISigningKeyResolver
     }
 
     private readonly CoseHeaderLocation CertificateHeaderLocation;
+    private readonly CertificateCache? CertificateCache;
     private readonly ILogger<CertificateSigningKeyResolver> Logger;
 
     /// <summary>
@@ -64,8 +66,29 @@ public sealed partial class CertificateSigningKeyResolver : ISigningKeyResolver
     public CertificateSigningKeyResolver(
         CoseHeaderLocation certificateHeaderLocation = CoseHeaderLocation.Protected,
         ILogger<CertificateSigningKeyResolver>? logger = null)
+        : this(certificateHeaderLocation, certificateCache: null, logger)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CertificateSigningKeyResolver"/> class
+    /// with an optional <see cref="Caching.CertificateCache"/> for DER certificate parse avoidance.
+    /// </summary>
+    /// <param name="certificateHeaderLocation">
+    /// Specifies where key material may be resolved from.
+    /// </param>
+    /// <param name="certificateCache">
+    /// Optional cache that avoids re-parsing identical DER certificates. When null, certificates
+    /// are parsed fresh on every call.
+    /// </param>
+    /// <param name="logger">Optional logger for diagnostic output.</param>
+    public CertificateSigningKeyResolver(
+        CoseHeaderLocation certificateHeaderLocation,
+        CertificateCache? certificateCache,
+        ILogger<CertificateSigningKeyResolver>? logger = null)
     {
         CertificateHeaderLocation = certificateHeaderLocation;
+        CertificateCache = certificateCache;
         Logger = logger ?? NullLogger<CertificateSigningKeyResolver>.Instance;
     }
 
@@ -102,7 +125,7 @@ public sealed partial class CertificateSigningKeyResolver : ISigningKeyResolver
                 ClassStrings.ErrorCodeNullInput);
         }
 
-        if (!message.TryGetCertificateChain(out var chain, headerLocation) || chain == null || chain.Count == 0)
+        if (!message.TryGetCertificateChain(out var chain, headerLocation, CertificateCache) || chain == null || chain.Count == 0)
         {
             LogMissingChain();
             return SigningKeyResolutionResult.Failure(
@@ -120,7 +143,7 @@ public sealed partial class CertificateSigningKeyResolver : ISigningKeyResolver
                 ClassStrings.ErrorCodeMissingOrInvalidThumbprint);
         }
 
-        if (!message.TryGetSigningCertificate(out var signingCertificate, headerLocation) || signingCertificate == null)
+        if (!message.TryGetSigningCertificate(out var signingCertificate, headerLocation, CertificateCache) || signingCertificate == null)
         {
             LogSigningCertNotFound();
             return SigningKeyResolutionResult.Failure(

@@ -8,6 +8,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography.Cose;
 using System.Security.Cryptography.X509Certificates;
 using Cose.Abstractions;
+using CoseSign1.Certificates.Caching;
 using CoseSign1.Certificates.Trust;
 using CoseSign1.Certificates.Extensions;
 using CoseSign1.Validation.Interfaces;
@@ -59,6 +60,7 @@ public sealed partial class X509CertificateTrustPack : ITrustPack
     }
 
     private readonly CertificateTrustBuilder.CertificateTrustOptions Options;
+    private readonly CertificateCache? CertificateCache;
 
     /// <inheritdoc />
     public ISigningKeyResolver? SigningKeyResolver => null;
@@ -80,6 +82,25 @@ public sealed partial class X509CertificateTrustPack : ITrustPack
     {
         Guard.ThrowIfNull(options);
         Options = options;
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="X509CertificateTrustPack"/> class
+    /// with an optional <see cref="Caching.CertificateCache"/> for DER certificate parse avoidance.
+    /// </summary>
+    /// <param name="options">Certificate trust options.</param>
+    /// <param name="certificateCache">
+    /// Optional cache that avoids re-parsing identical DER certificates. When null, certificates
+    /// are parsed fresh on every call.
+    /// </param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="options"/> is null.</exception>
+    public X509CertificateTrustPack(
+        CertificateTrustBuilder.CertificateTrustOptions options,
+        CertificateCache? certificateCache)
+    {
+        Guard.ThrowIfNull(options);
+        Options = options;
+        CertificateCache = certificateCache;
     }
 
     #region LoggerMessage methods
@@ -361,7 +382,7 @@ public sealed partial class X509CertificateTrustPack : ITrustPack
         {
             var message = context.Message!;
 
-            if (!message.TryGetSigningCertificate(out var signingCertificate, CoseHeaderLocation.Any) || signingCertificate == null)
+            if (!message.TryGetSigningCertificate(out var signingCertificate, CoseHeaderLocation.Any, CertificateCache) || signingCertificate == null)
             {
                 var missing = new ChainEvaluationResult(
                     SigningCertificateFound: false,
@@ -410,12 +431,12 @@ public sealed partial class X509CertificateTrustPack : ITrustPack
                     }
                 };
 
-                if (message.TryGetCertificateChain(out var headerChain, CoseHeaderLocation.Any) && headerChain != null && headerChain.Count > 0)
+                if (message.TryGetCertificateChain(out var headerChain, CoseHeaderLocation.Any, CertificateCache) && headerChain != null && headerChain.Count > 0)
                 {
                     x509Chain.ChainPolicy.ExtraStore.AddRange(headerChain);
                 }
 
-                if (message.TryGetExtraCertificates(out var extraCerts, CoseHeaderLocation.Any) && extraCerts != null && extraCerts.Count > 0)
+                if (message.TryGetExtraCertificates(out var extraCerts, CoseHeaderLocation.Any, CertificateCache) && extraCerts != null && extraCerts.Count > 0)
                 {
                     x509Chain.ChainPolicy.ExtraStore.AddRange(extraCerts);
                 }
@@ -504,7 +525,7 @@ public sealed partial class X509CertificateTrustPack : ITrustPack
 
             if (elementFacts.Count == 0)
             {
-                if (message.TryGetCertificateChain(out var headerChain, CoseHeaderLocation.Any) && headerChain != null && headerChain.Count > 0)
+                if (message.TryGetCertificateChain(out var headerChain, CoseHeaderLocation.Any, CertificateCache) && headerChain != null && headerChain.Count > 0)
                 {
                     var chainLength = headerChain.Count;
                     for (int i = 0; i < chainLength; i++)
@@ -966,7 +987,7 @@ public sealed partial class X509CertificateTrustPack : ITrustPack
         }
     }
 
-    private static ValueTask<ITrustFactSet> ProduceX5ChainIdentities(TrustFactContext context, ILogger logger)
+    private ValueTask<ITrustFactSet> ProduceX5ChainIdentities(TrustFactContext context, ILogger logger)
     {
         TrustFactCacheKey cacheKey = context.CreateCacheKey(typeof(X509X5ChainCertificateIdentityFact));
         if (context.MemoryCache != null &&
@@ -979,7 +1000,7 @@ public sealed partial class X509CertificateTrustPack : ITrustPack
 
         try
         {
-            if (!context.Message!.TryGetCertificateChain(out X509Certificate2Collection? chain, CoseHeaderLocation.Any) || chain == null || chain.Count == 0)
+            if (!context.Message!.TryGetCertificateChain(out X509Certificate2Collection? chain, CoseHeaderLocation.Any, CertificateCache) || chain == null || chain.Count == 0)
             {
                 LogX5ChainNotFound(logger);
                 return new ValueTask<ITrustFactSet>(

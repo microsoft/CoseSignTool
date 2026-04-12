@@ -5,6 +5,7 @@ namespace CoseSign1.Certificates.Extensions;
 
 using System.Formats.Cbor;
 using System.Security.Cryptography.Cose;
+using CoseSign1.Certificates.Caching;
 
 /// <summary>
 /// Extension methods for extracting certificates from CoseSign1Message.
@@ -26,6 +27,24 @@ public static class CoseSign1MessageCertificateExtensions
         out X509Certificate2? certificate,
         CoseHeaderLocation headerLocation = CoseHeaderLocation.Protected)
     {
+        return TryGetSigningCertificate(message, out certificate, headerLocation, certificateCache: null);
+    }
+
+    /// <summary>
+    /// Extracts the signing certificate from x5t header + x5chain, using an optional
+    /// <see cref="CertificateCache"/> to avoid re-parsing previously-seen DER certificates.
+    /// </summary>
+    /// <param name="message">The COSE Sign1 message.</param>
+    /// <param name="certificate">The extracted signing certificate.</param>
+    /// <param name="headerLocation">Specifies which headers to search for certificate data.</param>
+    /// <param name="certificateCache">Optional certificate cache for DER parse avoidance.</param>
+    /// <returns>True when the signing certificate was found; otherwise false.</returns>
+    public static bool TryGetSigningCertificate(
+        this CoseSign1Message message,
+        out X509Certificate2? certificate,
+        CoseHeaderLocation headerLocation,
+        CertificateCache? certificateCache)
+    {
         certificate = null;
 
         if (message == null)
@@ -34,7 +53,7 @@ public static class CoseSign1MessageCertificateExtensions
         }
 
         // Get the certificate chain
-        if (!message.TryGetCertificateChain(out X509Certificate2Collection? chain, headerLocation))
+        if (!message.TryGetCertificateChain(out X509Certificate2Collection? chain, headerLocation, certificateCache))
         {
             return false;
         }
@@ -46,7 +65,7 @@ public static class CoseSign1MessageCertificateExtensions
         }
 
         // Find the certificate in the chain that matches the thumbprint
-        foreach (var cert in chain)
+        foreach (X509Certificate2 cert in chain)
         {
             if (thumbprint.Match(cert))
             {
@@ -70,6 +89,24 @@ public static class CoseSign1MessageCertificateExtensions
         out X509Certificate2Collection? chain,
         CoseHeaderLocation headerLocation = CoseHeaderLocation.Protected)
     {
+        return TryGetCertificateChain(message, out chain, headerLocation, certificateCache: null);
+    }
+
+    /// <summary>
+    /// Extracts certificate chain from x5chain header (33), using an optional
+    /// <see cref="CertificateCache"/> to avoid re-parsing previously-seen DER certificates.
+    /// </summary>
+    /// <param name="message">The COSE Sign1 message.</param>
+    /// <param name="chain">The extracted certificate chain.</param>
+    /// <param name="headerLocation">Specifies which headers to search for certificate data.</param>
+    /// <param name="certificateCache">Optional certificate cache for DER parse avoidance.</param>
+    /// <returns>True when a certificate chain was found; otherwise false.</returns>
+    public static bool TryGetCertificateChain(
+        this CoseSign1Message message,
+        out X509Certificate2Collection? chain,
+        CoseHeaderLocation headerLocation,
+        CertificateCache? certificateCache)
+    {
         chain = null;
 
         if (message == null)
@@ -77,29 +114,25 @@ public static class CoseSign1MessageCertificateExtensions
             return false;
         }
 
-        var label = CertificateHeaderContributor.HeaderLabels.X5Chain;
-        var headers = headerLocation.HasFlag(CoseHeaderLocation.Unprotected)
+        CoseHeaderLabel label = CertificateHeaderContributor.HeaderLabels.X5Chain;
+        IEnumerable<KeyValuePair<CoseHeaderLabel, CoseHeaderValue>> headers = headerLocation.HasFlag(CoseHeaderLocation.Unprotected)
             ? message.ProtectedHeaders.Concat(message.UnprotectedHeaders)
             : message.ProtectedHeaders;
 
-        foreach (var kvp in headers)
+        foreach (KeyValuePair<CoseHeaderLabel, CoseHeaderValue> kvp in headers)
         {
             if (kvp.Key.Equals(label))
             {
                 try
                 {
-                    var reader = new CborReader(kvp.Value.EncodedValue);
-                    var certificates = new List<X509Certificate2>();
+                    CborReader reader = new CborReader(kvp.Value.EncodedValue);
+                    List<X509Certificate2> certificates = new List<X509Certificate2>();
 
                     if (reader.PeekState() == CborReaderState.ByteString)
                     {
                         // Single certificate
-                        var certBytes = reader.ReadByteString();
-#if NET10_0_OR_GREATER
-                        certificates.Add(X509CertificateLoader.LoadCertificate(certBytes));
-#else
-                        certificates.Add(new X509Certificate2(certBytes));
-#endif
+                        byte[] certBytes = reader.ReadByteString();
+                        certificates.Add(ParseOrCacheCertificate(certBytes, certificateCache));
                     }
                     else if (reader.PeekState() == CborReaderState.StartArray)
                     {
@@ -112,12 +145,8 @@ public static class CoseSign1MessageCertificateExtensions
                                 break;
                             }
 
-                            var certBytes = reader.ReadByteString();
-#if NET10_0_OR_GREATER
-                            certificates.Add(X509CertificateLoader.LoadCertificate(certBytes));
-#else
-                            certificates.Add(new X509Certificate2(certBytes));
-#endif
+                            byte[] certBytes = reader.ReadByteString();
+                            certificates.Add(ParseOrCacheCertificate(certBytes, certificateCache));
                         }
                         reader.ReadEndArray();
                     }
@@ -151,6 +180,24 @@ public static class CoseSign1MessageCertificateExtensions
         out X509Certificate2Collection? certificates,
         CoseHeaderLocation headerLocation = CoseHeaderLocation.Protected)
     {
+        return TryGetExtraCertificates(message, out certificates, headerLocation, certificateCache: null);
+    }
+
+    /// <summary>
+    /// Extracts extra certificates from x5bag header (32), using an optional
+    /// <see cref="CertificateCache"/> to avoid re-parsing previously-seen DER certificates.
+    /// </summary>
+    /// <param name="message">The COSE Sign1 message.</param>
+    /// <param name="certificates">The extracted certificates.</param>
+    /// <param name="headerLocation">Specifies which headers to search for certificate data.</param>
+    /// <param name="certificateCache">Optional certificate cache for DER parse avoidance.</param>
+    /// <returns>True when certificates were found; otherwise false.</returns>
+    public static bool TryGetExtraCertificates(
+        this CoseSign1Message message,
+        out X509Certificate2Collection? certificates,
+        CoseHeaderLocation headerLocation,
+        CertificateCache? certificateCache)
+    {
         certificates = null;
 
         if (message == null)
@@ -158,29 +205,25 @@ public static class CoseSign1MessageCertificateExtensions
             return false;
         }
 
-        var label = CertificateHeaderContributor.HeaderLabels.X5Bag;
-        var headers = headerLocation.HasFlag(CoseHeaderLocation.Unprotected)
+        CoseHeaderLabel label = CertificateHeaderContributor.HeaderLabels.X5Bag;
+        IEnumerable<KeyValuePair<CoseHeaderLabel, CoseHeaderValue>> headers = headerLocation.HasFlag(CoseHeaderLocation.Unprotected)
             ? message.ProtectedHeaders.Concat(message.UnprotectedHeaders)
             : message.ProtectedHeaders;
 
-        foreach (var kvp in headers)
+        foreach (KeyValuePair<CoseHeaderLabel, CoseHeaderValue> kvp in headers)
         {
             if (kvp.Key.Equals(label))
             {
                 try
                 {
-                    var reader = new CborReader(kvp.Value.EncodedValue);
-                    var certList = new List<X509Certificate2>();
+                    CborReader reader = new CborReader(kvp.Value.EncodedValue);
+                    List<X509Certificate2> certList = new List<X509Certificate2>();
 
                     if (reader.PeekState() == CborReaderState.ByteString)
                     {
                         // Single certificate
-                        var certBytes = reader.ReadByteString();
-#if NET10_0_OR_GREATER
-                        certList.Add(X509CertificateLoader.LoadCertificate(certBytes));
-#else
-                        certList.Add(new X509Certificate2(certBytes));
-#endif
+                        byte[] certBytes = reader.ReadByteString();
+                        certList.Add(ParseOrCacheCertificate(certBytes, certificateCache));
                     }
                     else if (reader.PeekState() == CborReaderState.StartArray)
                     {
@@ -193,12 +236,8 @@ public static class CoseSign1MessageCertificateExtensions
                                 break;
                             }
 
-                            var certBytes = reader.ReadByteString();
-#if NET10_0_OR_GREATER
-                            certList.Add(X509CertificateLoader.LoadCertificate(certBytes));
-#else
-                            certList.Add(new X509Certificate2(certBytes));
-#endif
+                            byte[] certBytes = reader.ReadByteString();
+                            certList.Add(ParseOrCacheCertificate(certBytes, certificateCache));
                         }
                         reader.ReadEndArray();
                     }
@@ -335,5 +374,21 @@ public static class CoseSign1MessageCertificateExtensions
         }
     }
 
+    /// <summary>
+    /// Parses a certificate from DER bytes, using the cache when available.
+    /// Falls back to direct parsing when <paramref name="certificateCache"/> is null.
+    /// </summary>
+    private static X509Certificate2 ParseOrCacheCertificate(byte[] derBytes, CertificateCache? certificateCache)
+    {
+        if (certificateCache is not null)
+        {
+            return certificateCache.GetOrCreate(derBytes);
+        }
 
+#if NET10_0_OR_GREATER
+        return X509CertificateLoader.LoadCertificate(derBytes);
+#else
+        return new X509Certificate2(derBytes);
+#endif
+    }
 }

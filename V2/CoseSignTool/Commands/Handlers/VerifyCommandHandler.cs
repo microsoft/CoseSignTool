@@ -164,7 +164,7 @@ public class VerifyCommandHandler
                 Formatter.WriteKeyValue(ClassStrings.KeySignature, AssemblyStrings.IO.StdinDisplayName);
 
                 // IConsole.StandardInput already has timeout protection via SystemConsole
-                using var ms = new MemoryStream();
+                using var ms = MemoryStreamPool.GetStream();
                 Console.StandardInput.CopyTo(ms);
                 signatureBytes = ms.ToArray();
 

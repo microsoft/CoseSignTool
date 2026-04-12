@@ -574,7 +574,7 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
     {
         byte[] messageBytes = await CreateCoseSign1MessageBytesAsync(payload, contentType, options, cancellationToken).ConfigureAwait(false);
         CoseSign1Message message = TakeVerifiedOrDecode(messageBytes);
-        return await ApplyTransparencyProofsAsync(message, options, cancellationToken).ConfigureAwait(false);
+        return await ApplyTransparencyProofsAsync(message, messageBytes, options, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -593,7 +593,7 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
     {
         byte[] messageBytes = await CreateCoseSign1MessageBytesAsync(payload, contentType, options, cancellationToken).ConfigureAwait(false);
         CoseSign1Message message = TakeVerifiedOrDecode(messageBytes);
-        return await ApplyTransparencyProofsAsync(message, options, cancellationToken).ConfigureAwait(false);
+        return await ApplyTransparencyProofsAsync(message, messageBytes, options, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -612,7 +612,7 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
     {
         byte[] messageBytes = await CreateCoseSign1MessageBytesAsync(payloadStream, contentType, options, cancellationToken).ConfigureAwait(false);
         CoseSign1Message message = TakeVerifiedOrDecode(messageBytes);
-        return await ApplyTransparencyProofsAsync(message, options, cancellationToken).ConfigureAwait(false);
+        return await ApplyTransparencyProofsAsync(message, messageBytes, options, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -680,11 +680,13 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
     /// Chains through multiple providers in sequence, each augmenting the message headers.
     /// </summary>
     /// <param name="message">The signed COSE message to augment with transparency proofs.</param>
+    /// <param name="preEncodedBytes">Pre-encoded COSE message bytes to avoid redundant encoding in providers.</param>
     /// <param name="options">The signing options that may disable transparency for this operation.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The message with transparency proofs applied (may be the same instance or a new one).</returns>
     protected virtual async Task<CoseSign1Message> ApplyTransparencyProofsAsync(
         CoseSign1Message message,
+        ReadOnlyMemory<byte> preEncodedBytes,
         SigningOptions? options,
         CancellationToken cancellationToken)
     {
@@ -714,6 +716,7 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
             options?.FailOnTransparencyError ?? false);
 
         var currentMessage = message;
+        ReadOnlyMemory<byte> currentEncodedBytes = preEncodedBytes;
         var errors = new List<string>();
         var successCount = 0;
 
@@ -727,7 +730,18 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
 
             try
             {
-                currentMessage = await provider.AddTransparencyProofAsync(currentMessage, cancellationToken).ConfigureAwait(false);
+                // Pass pre-encoded bytes to providers that support it (avoids redundant Encode())
+                if (!currentEncodedBytes.IsEmpty && provider is TransparencyProviderBase providerBase)
+                {
+                    currentMessage = await providerBase.AddTransparencyProofAsync(currentMessage, currentEncodedBytes, cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    currentMessage = await provider.AddTransparencyProofAsync(currentMessage, cancellationToken).ConfigureAwait(false);
+                }
+
+                // After a provider returns a new message, pre-encoded bytes are stale
+                currentEncodedBytes = ReadOnlyMemory<byte>.Empty;
                 successCount++;
 
                 Logger.LogTrace(

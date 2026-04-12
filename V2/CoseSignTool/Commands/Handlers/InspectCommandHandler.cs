@@ -79,7 +79,7 @@ public class InspectCommandHandler
             if (useStdin)
             {
                 // IConsole.StandardInput already has timeout protection via SystemConsole
-                using var ms = new MemoryStream();
+                using var ms = MemoryStreamPool.GetStream();
                 await Console.StandardInput.CopyToAsync(ms);
                 var signatureBytes = ms.ToArray();
 

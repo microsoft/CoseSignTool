@@ -405,7 +405,7 @@ public static class LoggingConfiguration
 
         private void WriteJsonEntry(LogLevel logLevel, string message, Exception? exception)
         {
-            using var stream = new MemoryStream();
+            using var stream = MemoryStreamPool.GetStream();
             using var jsonWriter = new Utf8JsonWriter(stream);
 
             jsonWriter.WriteStartObject();
@@ -427,7 +427,7 @@ public static class LoggingConfiguration
 
         private void WriteXmlEntry(LogLevel logLevel, string message, Exception? exception)
         {
-            using var stream = new MemoryStream();
+            using var stream = MemoryStreamPool.GetStream();
             using var xmlWriter = XmlWriter.Create(stream, new XmlWriterSettings { OmitXmlDeclaration = true, Indent = false });
 
             xmlWriter.WriteStartElement(ClassStrings.XmlLogEntry);

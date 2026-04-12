@@ -5,6 +5,7 @@ namespace CoseSign1.Transparent.MST;
 
 using System.Diagnostics.CodeAnalysis;
 using System.Formats.Cbor;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
 using Azure;
@@ -213,10 +214,42 @@ public class MstTransparencyProvider : TransparencyProviderBase
         CoseSign1Message message,
         CancellationToken cancellationToken = default)
     {
+        return await AddTransparencyProofCoreAsync(message, ReadOnlyMemory<byte>.Empty, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Adds MST transparency proof using pre-encoded message bytes when available,
+    /// avoiding a redundant <c>message.Encode()</c> call.
+    /// </summary>
+    /// <param name="message">The signed COSE Sign1 message.</param>
+    /// <param name="preEncodedBytes">Pre-encoded COSE message bytes. Empty to encode from message.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A new message with MST receipt embedded in unprotected headers.</returns>
+    protected override async Task<CoseSign1Message> AddTransparencyProofCoreAsync(
+        CoseSign1Message message,
+        ReadOnlyMemory<byte> preEncodedBytes,
+        CancellationToken cancellationToken = default)
+    {
         LogVerbose?.Invoke(string.Format(ClassStrings.LogStartingProofAdditionFormat, ProviderName));
 
-        // Encode the CoseSign1Message once and reuse the bytes.
-        byte[] encodedBytes = message.Encode();
+        // Use pre-encoded bytes when available to avoid redundant message.Encode()
+        byte[] encodedBytes;
+        if (preEncodedBytes.IsEmpty)
+        {
+            encodedBytes = message.Encode();
+        }
+        else if (MemoryMarshal.TryGetArray(preEncodedBytes, out ArraySegment<byte> segment)
+                 && segment.Offset == 0
+                 && segment.Count == segment.Array!.Length)
+        {
+            // Zero-copy: the ReadOnlyMemory is backed by a complete array
+            encodedBytes = segment.Array;
+        }
+        else
+        {
+            encodedBytes = preEncodedBytes.ToArray();
+        }
+
         BinaryData content = BinaryData.FromBytes(encodedBytes);
         LogVerbose?.Invoke(string.Format(ClassStrings.LogEncodedMessageSizeFormat, ProviderName, encodedBytes.Length));
 

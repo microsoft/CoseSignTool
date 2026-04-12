@@ -19,7 +19,7 @@ using System.Threading.Tasks;
 /// providers that were previously applied. This base class captures existing receipts before delegating
 /// to the derived implementation, then merges them back into the result.
 ///
-/// Derived classes should override <see cref="AddTransparencyProofCoreAsync"/> and
+/// Derived classes should override <see cref="AddTransparencyProofCoreAsync(CoseSign1Message, CancellationToken)"/> and
 /// <see cref="VerifyTransparencyProofCoreAsync"/> instead of the public methods.
 /// </remarks>
 public abstract class TransparencyProviderBase : ITransparencyProvider
@@ -96,6 +96,28 @@ public abstract class TransparencyProviderBase : ITransparencyProvider
         CoseSign1Message message,
         CancellationToken cancellationToken = default)
     {
+        return await AddTransparencyProofAsync(message, ReadOnlyMemory<byte>.Empty, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Adds transparency proof to the signed COSE message, preserving any existing receipts
+    /// from other transparency providers. Uses pre-encoded message bytes when available
+    /// to avoid redundant encoding.
+    /// </summary>
+    /// <param name="message">The signed COSE Sign1 message.</param>
+    /// <param name="preEncodedBytes">
+    /// Pre-encoded COSE message bytes. When non-empty, derived implementations can use these
+    /// instead of calling <c>message.Encode()</c>, avoiding a redundant serialization.
+    /// </param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A new message with transparency proof and all prior receipts preserved.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="message"/> is null.</exception>
+    /// <exception cref="InvalidOperationException">Thrown when the derived implementation returns null.</exception>
+    public async Task<CoseSign1Message> AddTransparencyProofAsync(
+        CoseSign1Message message,
+        ReadOnlyMemory<byte> preEncodedBytes,
+        CancellationToken cancellationToken = default)
+    {
         Guard.ThrowIfNull(message);
 
         Stopwatch stopwatch = Stopwatch.StartNew();
@@ -109,7 +131,7 @@ public abstract class TransparencyProviderBase : ITransparencyProvider
         CoseSign1Message result;
         try
         {
-            result = await AddTransparencyProofCoreAsync(message, cancellationToken).ConfigureAwait(false);
+            result = await AddTransparencyProofCoreAsync(message, preEncodedBytes, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -155,6 +177,26 @@ public abstract class TransparencyProviderBase : ITransparencyProvider
     protected abstract Task<CoseSign1Message> AddTransparencyProofCoreAsync(
         CoseSign1Message message,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Implemented by derived providers to perform transparency proof addition
+    /// with optional pre-encoded message bytes. Override this to avoid calling
+    /// <c>message.Encode()</c> when pre-encoded bytes are available.
+    /// </summary>
+    /// <param name="message">The signed COSE Sign1 message.</param>
+    /// <param name="preEncodedBytes">
+    /// Pre-encoded COSE message bytes. Empty when not available.
+    /// </param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A new or modified message with transparency proof added.</returns>
+    protected virtual Task<CoseSign1Message> AddTransparencyProofCoreAsync(
+        CoseSign1Message message,
+        ReadOnlyMemory<byte> preEncodedBytes,
+        CancellationToken cancellationToken = default)
+    {
+        // Default: ignore pre-encoded bytes, delegate to the existing abstract method
+        return AddTransparencyProofCoreAsync(message, cancellationToken);
+    }
 
     /// <inheritdoc/>
     public virtual Task<TransparencyValidationResult> VerifyTransparencyProofAsync(

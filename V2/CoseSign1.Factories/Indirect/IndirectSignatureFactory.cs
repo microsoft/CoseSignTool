@@ -453,24 +453,20 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
 
         options ??= new IndirectSignatureOptions();
 
-        // Compute hash of payload using the hash algorithm specified in options
-        byte[] hashBytes;
+        // Compute hash of payload using the hash algorithm specified in options.
+        // MemoryOwner stays alive through await; ReadOnlyMemory<byte> avoids .ToArray().
+        using var hashOwner = MemoryOwner<byte>.Allocate(GetHashSize(options.HashAlgorithm));
+
+        if (!TryComputeHash(payload, options.HashAlgorithm, hashOwner.Span, out int bytesWritten))
         {
-            using var owner = SpanOwner<byte>.Allocate(GetHashSize(options.HashAlgorithm));
-            var hashSpan = owner.Span;
-
-            if (!TryComputeHash(payload, options.HashAlgorithm, hashSpan, out int bytesWritten))
-            {
-                Logger.LogError(
-                    LogEvents.SigningFailedEvent,
-                    ClassStrings.LogHashComputeFailed,
-                    options.HashAlgorithm);
-                throw new InvalidOperationException(ClassStrings.ErrorFailedToComputeHash);
-            }
-
-            // ToArray() required: CreateCoseSign1MessageAsync accepts byte[], not Span.
-            hashBytes = hashSpan.Slice(0, bytesWritten).ToArray();
+            Logger.LogError(
+                LogEvents.SigningFailedEvent,
+                ClassStrings.LogHashComputeFailed,
+                options.HashAlgorithm);
+            throw new InvalidOperationException(ClassStrings.ErrorFailedToComputeHash);
         }
+
+        ReadOnlyMemory<byte> hashSlice = hashOwner.Memory.Slice(0, bytesWritten);
 
         // Create CoseHashEnvelope header contributor with protected headers
         var hashEnvelopeContributor = new CoseHashEnvelopeHeaderContributor(
@@ -492,8 +488,8 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
             EmbedPayload = true  // Embed the hash
         };
 
-        // Sign the hash directly and apply any configured transparency proofs
-        return await DirectFactory.CreateCoseSign1MessageAsync(hashBytes, contentType, directOptions, cancellationToken).ConfigureAwait(false);
+        // Pass ReadOnlyMemory<byte> directly — no .ToArray() needed
+        return await DirectFactory.CreateCoseSign1MessageAsync(hashSlice, contentType, directOptions, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>

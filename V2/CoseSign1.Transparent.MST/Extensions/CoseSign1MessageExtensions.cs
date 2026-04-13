@@ -11,6 +11,11 @@ using System.Security.Cryptography.Cose;
 /// </summary>
 public static class CoseSign1MessageExtensions
 {
+    internal static class ClassStrings
+    {
+        public const string ReceiptArrayExceedsMaxEntryCountPrefix = "Receipt array exceeds maximum entry count of ";
+    }
+
     // MST uses the same CBOR Web Token (CWT) header as defined in RFC 8392
     // Header label 394 is used for receipts
     private static readonly CoseHeaderLabel ReceiptLabel = new(394);
@@ -65,6 +70,7 @@ public static class CoseSign1MessageExtensions
     /// </summary>
     /// <param name="message">The COSE Sign1 message.</param>
     /// <returns>A list of receipt byte arrays, or an empty list if no receipts are present.</returns>
+    /// <exception cref="CborContentException">Thrown when the receipt array exceeds the maximum entry count.</exception>
     public static IReadOnlyList<byte[]> GetMstReceiptBytes(this CoseSign1Message message)
     {
         if (message?.UnprotectedHeaders?.TryGetValue(ReceiptLabel, out var value) != true)
@@ -84,8 +90,15 @@ public static class CoseSign1MessageExtensions
 
             var receiptBytes = new List<byte[]>();
             reader.ReadStartArray();
+            const int MaxReceiptEntries = 1000;
+            int entryCount = 0;
             while (reader.PeekState() != CborReaderState.EndArray)
             {
+                if (++entryCount > MaxReceiptEntries)
+                {
+                    throw new CborContentException(string.Concat(ClassStrings.ReceiptArrayExceedsMaxEntryCountPrefix, MaxReceiptEntries.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+                }
+
                 receiptBytes.Add(reader.ReadByteString());
             }
             reader.ReadEndArray();

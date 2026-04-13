@@ -154,8 +154,15 @@ public sealed class CwtClaims
         byte[]? cwtId = null;
         var customClaims = new Dictionary<int, object>();
 
+        const int MaxCwtClaims = 256;
+        int claimCount = 0;
         while (reader.PeekState() != CborReaderState.EndMap)
         {
+            if (++claimCount > MaxCwtClaims)
+            {
+                throw new CborContentException(string.Concat(ClassStrings.CwtClaimsMapExceedsMaxEntryCountPrefix, MaxCwtClaims.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+            }
+
             int label = reader.ReadInt32();
 
             switch (label)

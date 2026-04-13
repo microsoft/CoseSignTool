@@ -46,4 +46,6 @@ internal static class ClassStrings
 
     internal const string TraceAutoPopulatedIssuedAtFormat = "CwtClaimsHeaderContributor: Auto-populated IssuedAt to {0}.";
     internal const string TraceAutoPopulatedNotBeforeFormat = "CwtClaimsHeaderContributor: Auto-populated NotBefore to {0}.";
+
+    internal const string CwtClaimsMapExceedsMaxEntryCountPrefix = "CWT claims map exceeds maximum entry count of ";
 }

@@ -96,6 +96,7 @@ public class CoseInspectionService
         public static readonly string ErrorInspecting = "Error inspecting COSE message: {0}";
         public static readonly string ErrorReadingFile = "Error reading file: {0}";
         public static readonly string ErrorExtractingPayload = "Failed to extract payload: {0}";
+        public static readonly string CertChainExceedsMaxLengthPrefix = "Certificate chain exceeds maximum of ";
 
         // Warning messages
         public static readonly string WarningCannotExtract = "Cannot extract payload: signature has no embedded payload (detached)";
@@ -760,8 +761,15 @@ public class CoseInspectionService
             }
 
             reader.ReadStartArray();
+            const int MaxCertificatesInChain = 100;
+            int certIndex = 0;
             while (reader.PeekState() != CborReaderState.EndArray)
             {
+                if (++certIndex > MaxCertificatesInChain)
+                {
+                    throw new CborContentException(string.Concat(ClassStrings.CertChainExceedsMaxLengthPrefix, MaxCertificatesInChain.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+                }
+
                 if (reader.PeekState() == CborReaderState.ByteString)
                 {
                     results.Add(reader.ReadByteString());

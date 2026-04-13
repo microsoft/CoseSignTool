@@ -46,6 +46,7 @@ public abstract class TransparencyProviderBase : ITransparencyProvider
         public const string ErrorNullResultFormat = "[{0}] AddTransparencyProofCoreAsync returned null.";
         public const string ErrorNotImplemented = "Derived classes must override VerifyTransparencyProofCoreAsync or override VerifyTransparencyProofAsync.";
         public const string ErrorInvalidCborFormat = "Invalid CBOR format for receipts, they must be an array.";
+        public const string ReceiptArrayExceedsMaxEntryCountPrefix = "Receipt array exceeds maximum entry count of ";
     }
 
     /// <summary>
@@ -373,8 +374,15 @@ public abstract class TransparencyProviderBase : ITransparencyProvider
 
         cborReader.ReadStartArray();
 
+        const int MaxReceiptEntries = 1000;
+        int entryCount = 0;
         while (cborReader.PeekState() != CborReaderState.EndArray)
         {
+            if (++entryCount > MaxReceiptEntries)
+            {
+                throw new InvalidOperationException(string.Concat(ClassStrings.ReceiptArrayExceedsMaxEntryCountPrefix, MaxReceiptEntries.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+            }
+
             if (cborReader.PeekState() == CborReaderState.ByteString)
             {
                 values.Add(cborReader.ReadByteString());

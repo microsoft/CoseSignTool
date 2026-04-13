@@ -45,6 +45,7 @@ public class CborProblemDetails
         public const string KeyDetail = "detail";
         public const string KeyInstance = "instance";
         public const string KeyEntryId = "EntryId";
+        public const string CborMapExceedsMaxEntryCountPrefix = "CBOR problem details map exceeds maximum entry count of ";
     }
 
     /// <summary>
@@ -154,8 +155,15 @@ public class CborProblemDetails
 
         reader.ReadStartMap();
 
+        const int MaxMapEntries = 256;
+        int mapEntryCount = 0;
         while (reader.PeekState() != CborReaderState.EndMap)
         {
+            if (++mapEntryCount > MaxMapEntries)
+            {
+                throw new CborContentException(string.Concat(ClassStrings.CborMapExceedsMaxEntryCountPrefix, MaxMapEntries.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+            }
+
             CborReaderState keyState = reader.PeekState();
 
             if (keyState == CborReaderState.NegativeInteger || keyState == CborReaderState.UnsignedInteger)

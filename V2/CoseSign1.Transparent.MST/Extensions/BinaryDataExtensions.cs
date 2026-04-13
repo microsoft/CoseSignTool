@@ -16,6 +16,7 @@ public static class BinaryDataExtensions
     internal static class ClassStrings
     {
         public const string EntryIdKey = "EntryId";
+        public const string CborMapExceedsMaxEntryCountPrefix = "CBOR map exceeds maximum entry count of ";
     }
 
     /// <summary>
@@ -24,6 +25,7 @@ public static class BinaryDataExtensions
     /// <param name="binaryData">The CBOR-encoded binary data from MST.</param>
     /// <param name="entryId">The extracted entry ID, or null if extraction failed.</param>
     /// <returns>True if the entry ID was successfully extracted; otherwise, false.</returns>
+    /// <exception cref="CborContentException">Thrown when the CBOR map exceeds the maximum entry count.</exception>
     public static bool TryGetMstEntryId(this BinaryData binaryData, out string? entryId)
     {
         entryId = null;
@@ -37,8 +39,15 @@ public static class BinaryDataExtensions
         {
             CborReader cborReader = new(binaryData);
             cborReader.ReadStartMap();
+            const int MaxMapEntries = 256;
+            int mapEntryCount = 0;
             while (cborReader.PeekState() != CborReaderState.EndMap)
             {
+                if (++mapEntryCount > MaxMapEntries)
+                {
+                    throw new CborContentException(string.Concat(ClassStrings.CborMapExceedsMaxEntryCountPrefix, MaxMapEntries.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+                }
+
                 string key = cborReader.ReadTextString();
                 if (key == ClassStrings.EntryIdKey)
                 {

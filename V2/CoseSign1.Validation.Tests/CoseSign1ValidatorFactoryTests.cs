@@ -76,14 +76,24 @@ public sealed class CoseSign1ValidatorFactoryTests
 
         var factory = sp.GetRequiredService<ICoseSign1ValidatorFactory>();
 
-        var validator = factory.Create(
-            options: new CoseSign1ValidationOptions { SkipPostSignatureValidation = true },
-            trustEvaluationOptions: new TrustEvaluationOptions { BypassTrust = true });
+        Environment.SetEnvironmentVariable("COSESIGNTOOL_ALLOW_BYPASS_TRUST", "true");
+        try
+        {
+            #pragma warning disable CS0618 // BypassTrust is obsolete by design
+            var validator = factory.Create(
+                options: new CoseSign1ValidationOptions { SkipPostSignatureValidation = true },
+                trustEvaluationOptions: new TrustEvaluationOptions { BypassTrust = true });
+            #pragma warning restore CS0618
 
-        var message = CreateSignedEmbeddedMessage(ecdsa);
-        var result = validator.Validate(message);
+            var message = CreateSignedEmbeddedMessage(ecdsa);
+            var result = validator.Validate(message);
 
-        Assert.That(result.Overall.IsValid, Is.True);
+            Assert.That(result.Overall.IsValid, Is.True);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("COSESIGNTOOL_ALLOW_BYPASS_TRUST", null);
+        }
     }
 
     [Test]
@@ -100,12 +110,14 @@ public sealed class CoseSign1ValidatorFactoryTests
 
         var factory = sp.GetRequiredService<ICoseSign1ValidatorFactory>();
 
+        #pragma warning disable CS0618 // BypassTrust is obsolete by design
         Assert.That(
             () => _ = factory.Create(
                 options: new CoseSign1ValidationOptions { SkipPostSignatureValidation = true },
                 trustEvaluationOptions: new TrustEvaluationOptions { BypassTrust = true },
                 trustPlanKey: "missing"),
             Throws.InvalidOperationException);
+        #pragma warning restore CS0618
     }
 
     [Test]
@@ -127,10 +139,12 @@ public sealed class CoseSign1ValidatorFactoryTests
         using var sp = services.BuildServiceProvider();
 
         var factory = sp.GetRequiredService<ICoseSign1ValidatorFactory>();
+        #pragma warning disable CS0618 // BypassTrust is obsolete by design
         var validator = factory.Create(
             options: new CoseSign1ValidationOptions { SkipPostSignatureValidation = true },
             trustEvaluationOptions: new TrustEvaluationOptions { BypassTrust = false },
             trustPlanKey: "deny");
+        #pragma warning restore CS0618
 
         var message = CreateSignedEmbeddedMessage(ecdsa);
         var result = validator.Validate(message);
@@ -159,9 +173,11 @@ public sealed class CoseSign1ValidatorFactoryTests
         using var sp = services.BuildServiceProvider();
 
         var factory = sp.GetRequiredService<ICoseSign1ValidatorFactory>();
+        #pragma warning disable CS0618 // BypassTrust is obsolete by design
         var validator = factory.Create(
             options: new CoseSign1ValidationOptions { SkipPostSignatureValidation = true },
             trustEvaluationOptions: new TrustEvaluationOptions { BypassTrust = false });
+        #pragma warning restore CS0618
 
         var message = CreateSignedEmbeddedMessage(ecdsa);
         var result = validator.Validate(message);

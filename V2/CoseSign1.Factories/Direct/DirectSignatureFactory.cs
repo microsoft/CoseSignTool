@@ -5,7 +5,9 @@ namespace CoseSign1.Factories.Direct;
 
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Formats.Cbor;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using CommunityToolkit.HighPerformance.Buffers;
 using Cose.Abstractions;
 using CoseSign1.Abstractions;
@@ -59,6 +61,10 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
         public static readonly string LogPostSignVerificationStarted = "Verifying created signature";
         public static readonly string LogPostSignVerificationSucceeded = "Post-sign verification succeeded";
         public static readonly string LogPostSignVerificationFailed = "Post-sign verification failed";
+        public static readonly string LogSigningKeyId = "Signing key ID (kid): {KeyId}";
+        public static readonly string LogDetachedPayloadHash = "Detached payload SHA-256: {PayloadHash}";
+        public static readonly string HexSeparator = "-";
+        public static readonly string EmptyReplacement = "";
     }
 
     private static readonly ContentTypeHeaderContributor ContentTypeContributor = new();
@@ -233,6 +239,15 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
             Logger.LogDebug(
                 LogEvents.PostSignVerificationSucceededEvent,
                 ClassStrings.LogPostSignVerificationSucceeded);
+
+            // Log key ID (kid) from protected headers if available
+            LogKidFromMessage(decodedForVerify);
+
+            // Log payload hash for detached signature traceability
+            if (!options.EmbedPayload)
+            {
+                LogDetachedPayloadHash(payload);
+            }
 
             stopwatch.Stop();
             Logger.LogDebug(
@@ -458,6 +473,9 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
                 LogEvents.PostSignVerificationSucceededEvent,
                 ClassStrings.LogPostSignVerificationSucceeded);
 
+            // Log key ID (kid) from protected headers if available
+            LogKidFromMessage(decodedForVerify);
+
             stopwatch.Stop();
             Logger.LogDebug(
                 LogEvents.SigningCompletedEvent,
@@ -631,6 +649,62 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
         }
 
         return CoseMessage.DecodeSign1(messageBytes);
+    }
+
+    private static readonly CoseHeaderLabel KidHeaderLabel = new(4);
+
+    /// <summary>
+    /// Logs the key ID (kid) from the message's protected headers if available.
+    /// </summary>
+    private void LogKidFromMessage(CoseSign1Message message)
+    {
+        try
+        {
+            if (message.ProtectedHeaders.TryGetValue(KidHeaderLabel, out CoseHeaderValue kidValue))
+            {
+                CborReader reader = new(kidValue.EncodedValue);
+                CborReaderState peekState = reader.PeekState();
+                string kidString = peekState switch
+                {
+                    CborReaderState.TextString => reader.ReadTextString() ?? string.Empty,
+#if NET5_0_OR_GREATER
+                    CborReaderState.ByteString => Convert.ToHexString(reader.ReadByteString()),
+                    _ => Convert.ToHexString(kidValue.EncodedValue.Span)
+#else
+                    CborReaderState.ByteString => BitConverter.ToString(reader.ReadByteString()).Replace(ClassStrings.HexSeparator, ClassStrings.EmptyReplacement),
+                    _ => BitConverter.ToString(kidValue.EncodedValue.ToArray()).Replace(ClassStrings.HexSeparator, ClassStrings.EmptyReplacement)
+#endif
+                };
+                Logger.LogDebug(ClassStrings.LogSigningKeyId, kidString);
+            }
+        }
+        catch
+        {
+            // Kid header decoding is best-effort for audit logging
+        }
+    }
+
+    /// <summary>
+    /// Logs the SHA-256 hash of the payload for detached signature traceability.
+    /// </summary>
+    private void LogDetachedPayloadHash(ReadOnlySpan<byte> payload)
+    {
+        try
+        {
+#if NET5_0_OR_GREATER
+            Span<byte> hash = stackalloc byte[32];
+            SHA256.HashData(payload, hash);
+            Logger.LogDebug(ClassStrings.LogDetachedPayloadHash, Convert.ToHexString(hash));
+#else
+            using SHA256 sha = SHA256.Create();
+            byte[] hash = sha.ComputeHash(payload.ToArray());
+            Logger.LogDebug(ClassStrings.LogDetachedPayloadHash, BitConverter.ToString(hash).Replace(ClassStrings.HexSeparator, ClassStrings.EmptyReplacement));
+#endif
+        }
+        catch
+        {
+            // Payload hash logging is best-effort for audit logging
+        }
     }
 
     /// <summary>

@@ -13,6 +13,11 @@ using CoseSign1.Certificates.Caching;
 /// </summary>
 public static class CoseSign1MessageCertificateExtensions
 {
+    internal static class ClassStrings
+    {
+        public const string CertChainExceedsMaxLengthPrefix = "Certificate chain exceeds maximum length of ";
+    }
+
     /// <summary>
     /// Extracts the signing certificate from x5t header + x5chain.
     /// The signing certificate is identified by matching the x5t (certificate thumbprint)
@@ -101,6 +106,7 @@ public static class CoseSign1MessageCertificateExtensions
     /// <param name="headerLocation">Specifies which headers to search for certificate data.</param>
     /// <param name="certificateCache">Optional certificate cache for DER parse avoidance.</param>
     /// <returns>True when a certificate chain was found; otherwise false.</returns>
+    /// <exception cref="CborContentException">Thrown when the certificate chain exceeds the maximum allowed length.</exception>
     public static bool TryGetCertificateChain(
         this CoseSign1Message message,
         out X509Certificate2Collection? chain,
@@ -137,9 +143,15 @@ public static class CoseSign1MessageCertificateExtensions
                     else if (reader.PeekState() == CborReaderState.StartArray)
                     {
                         // Array of certificates
+                        const int MaxCertificatesInChain = 100;
                         int? certCount = reader.ReadStartArray();
                         for (int i = 0; certCount == null || i < certCount; i++)
                         {
+                            if (i >= MaxCertificatesInChain)
+                            {
+                                throw new CborContentException(string.Concat(ClassStrings.CertChainExceedsMaxLengthPrefix, MaxCertificatesInChain.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+                            }
+
                             if (reader.PeekState() == CborReaderState.EndArray)
                             {
                                 break;
@@ -158,8 +170,24 @@ public static class CoseSign1MessageCertificateExtensions
                     chain = new X509Certificate2Collection(certificates.ToArray());
                     return true;
                 }
-                catch
+                catch (CborContentException)
                 {
+                    // Malformed CBOR in x5chain header — certificate extraction failed
+                    return false;
+                }
+                catch (CryptographicException)
+                {
+                    // Invalid certificate DER encoding
+                    return false;
+                }
+                catch (OverflowException)
+                {
+                    // CBOR integer value too large for expected type
+                    return false;
+                }
+                catch (InvalidOperationException)
+                {
+                    // CBOR reader in unexpected state
                     return false;
                 }
             }
@@ -192,6 +220,7 @@ public static class CoseSign1MessageCertificateExtensions
     /// <param name="headerLocation">Specifies which headers to search for certificate data.</param>
     /// <param name="certificateCache">Optional certificate cache for DER parse avoidance.</param>
     /// <returns>True when certificates were found; otherwise false.</returns>
+    /// <exception cref="CborContentException">Thrown when the certificate chain exceeds the maximum allowed length.</exception>
     public static bool TryGetExtraCertificates(
         this CoseSign1Message message,
         out X509Certificate2Collection? certificates,
@@ -228,9 +257,15 @@ public static class CoseSign1MessageCertificateExtensions
                     else if (reader.PeekState() == CborReaderState.StartArray)
                     {
                         // Array of certificates
+                        const int MaxCertificatesInChain = 100;
                         int? certCount = reader.ReadStartArray();
                         for (int i = 0; certCount == null || i < certCount; i++)
                         {
+                            if (i >= MaxCertificatesInChain)
+                            {
+                                throw new CborContentException(string.Concat(ClassStrings.CertChainExceedsMaxLengthPrefix, MaxCertificatesInChain.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+                            }
+
                             if (reader.PeekState() == CborReaderState.EndArray)
                             {
                                 break;
@@ -249,8 +284,24 @@ public static class CoseSign1MessageCertificateExtensions
                     certificates = new X509Certificate2Collection(certList.ToArray());
                     return true;
                 }
-                catch
+                catch (CborContentException)
                 {
+                    // Malformed CBOR in x5bag header — certificate extraction failed
+                    return false;
+                }
+                catch (CryptographicException)
+                {
+                    // Invalid certificate DER encoding
+                    return false;
+                }
+                catch (OverflowException)
+                {
+                    // CBOR integer value too large for expected type
+                    return false;
+                }
+                catch (InvalidOperationException)
+                {
+                    // CBOR reader in unexpected state
                     return false;
                 }
             }
@@ -293,8 +344,29 @@ public static class CoseSign1MessageCertificateExtensions
                     thumbprint = CoseX509Thumbprint.Deserialize(reader);
                     return true;
                 }
-                catch
+                catch (CborContentException)
                 {
+                    // Malformed CBOR in x5t header — thumbprint extraction failed
+                    return false;
+                }
+                catch (CryptographicException)
+                {
+                    // Invalid thumbprint data
+                    return false;
+                }
+                catch (CoseX509FormatException)
+                {
+                    // Invalid x5t format (e.g. not an array)
+                    return false;
+                }
+                catch (OverflowException)
+                {
+                    // CBOR integer value too large for expected type
+                    return false;
+                }
+                catch (InvalidOperationException)
+                {
+                    // CBOR reader in unexpected state
                     return false;
                 }
             }

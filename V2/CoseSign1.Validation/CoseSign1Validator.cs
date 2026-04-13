@@ -5,6 +5,7 @@ namespace CoseSign1.Validation;
 
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Formats.Cbor;
 using System.Security.Cryptography.Cose;
 using CoseSign1.Abstractions;
 using CoseSign1.Validation.Interfaces;
@@ -76,6 +77,12 @@ public sealed partial class CoseSign1Validator : ICoseSign1Validator
 
         public const string PoolTagDetachedPayload = "DetachedPayload";
 
+        public const string BypassTrustEnvVar = "COSESIGNTOOL_ALLOW_BYPASS_TRUST";
+        public const string BypassTrustEnvVarExpectedValue = "true";
+
+        public const string HexSeparator = "-";
+        public const string EmptyReplacement = "";
+
     }
 
     // High-performance logging via source generation
@@ -115,11 +122,20 @@ public sealed partial class CoseSign1Validator : ICoseSign1Validator
     [LoggerMessage(Level = LogLevel.Debug, Message = "Signing key resolved: {KeyType}")]
     private partial void LogSigningKeyResolved(string keyType);
 
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Resolved signing key ID (kid): {KeyId}")]
+    private partial void LogResolvedKeyId(string keyId);
+
     [LoggerMessage(Level = LogLevel.Debug, Message = "Signature verification succeeded")]
     private partial void LogSignatureVerificationSucceeded();
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Signature verification failed: {Reason}")]
     private partial void LogSignatureVerificationFailed(string reason);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "BypassTrust was set but COSESIGNTOOL_ALLOW_BYPASS_TRUST environment variable is not set. Trust evaluation will proceed normally.")]
+    private partial void LogBypassTrustDenied();
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "BypassTrust is enabled via COSESIGNTOOL_ALLOW_BYPASS_TRUST. Trust evaluation is SKIPPED. This must not be used in production.")]
+    private partial void LogBypassTrustAllowed();
 
     private readonly CoseSign1ValidationOptions Options;
     private readonly TrustEvaluationOptions TrustEvaluationOptions;
@@ -468,6 +484,9 @@ public sealed partial class CoseSign1Validator : ICoseSign1Validator
             }
         }
 
+        // Log the key ID (kid) from message headers for audit traceability
+        LogKidFromMessageHeaders(message);
+
         stopwatch.Stop();
 
         if (resolvedKey == null)
@@ -494,22 +513,35 @@ public sealed partial class CoseSign1Validator : ICoseSign1Validator
 
         LogTrustPlanStarted();
 
+        #pragma warning disable CS0618 // BypassTrust is obsolete by design
         if (TrustEvaluationOptions.BypassTrust)
         {
-            stopwatch.Stop();
-            LogTrustSatisfied();
-            LogStageCompleted(ClassStrings.StageNameKeyMaterialTrust, true, stopwatch.ElapsedMilliseconds);
-
-            var bypassDecision = TrustDecision.Trusted(nameof(TrustEvaluationOptions.BypassTrust));
-
-            var bypassMetadata = new Dictionary<string, object>
+            string? allowBypass = Environment.GetEnvironmentVariable(ClassStrings.BypassTrustEnvVar);
+            if (!string.Equals(allowBypass, ClassStrings.BypassTrustEnvVarExpectedValue, StringComparison.OrdinalIgnoreCase))
             {
-                [nameof(TrustEvaluationOptions.BypassTrust)] = true,
-                [nameof(TrustDecision)] = bypassDecision
-            };
+                LogBypassTrustDenied();
+                // Fall through to normal trust evaluation
+            }
+            else
+            {
+                LogBypassTrustAllowed();
 
-            return (ValidationResult.Success(ClassStrings.StageNameKeyMaterialTrust, bypassMetadata), bypassDecision);
+                stopwatch.Stop();
+                LogTrustSatisfied();
+                LogStageCompleted(ClassStrings.StageNameKeyMaterialTrust, true, stopwatch.ElapsedMilliseconds);
+
+                var bypassDecision = TrustDecision.Trusted(nameof(TrustEvaluationOptions.BypassTrust));
+
+                var bypassMetadata = new Dictionary<string, object>
+                {
+                    [nameof(TrustEvaluationOptions.BypassTrust)] = true,
+                    [nameof(TrustDecision)] = bypassDecision
+                };
+
+                return (ValidationResult.Success(ClassStrings.StageNameKeyMaterialTrust, bypassMetadata), bypassDecision);
+            }
         }
+        #pragma warning restore CS0618
 
         TrustDecision trustDecision;
         TrustDecisionAudit? audit = null;
@@ -742,6 +774,39 @@ public sealed partial class CoseSign1Validator : ICoseSign1Validator
         foreach (var kvp in stage.Metadata)
         {
             combined[string.Concat(prefix, ClassStrings.MetadataKeySeparator, kvp.Key)] = kvp.Value;
+        }
+    }
+
+    private static readonly CoseHeaderLabel KidHeaderLabel = new(4);
+
+    /// <summary>
+    /// Logs the key ID (kid) from the COSE message protected headers if available.
+    /// </summary>
+    private void LogKidFromMessageHeaders(CoseSign1Message message)
+    {
+        try
+        {
+            if (message.ProtectedHeaders.TryGetValue(KidHeaderLabel, out CoseHeaderValue kidValue))
+            {
+                CborReader reader = new(kidValue.EncodedValue);
+                CborReaderState peekState = reader.PeekState();
+                string kidString = peekState switch
+                {
+                    CborReaderState.TextString => reader.ReadTextString() ?? string.Empty,
+#if NET5_0_OR_GREATER
+                    CborReaderState.ByteString => Convert.ToHexString(reader.ReadByteString()),
+                    _ => Convert.ToHexString(kidValue.EncodedValue.Span)
+#else
+                    CborReaderState.ByteString => BitConverter.ToString(reader.ReadByteString()).Replace(ClassStrings.HexSeparator, ClassStrings.EmptyReplacement),
+                    _ => BitConverter.ToString(kidValue.EncodedValue.ToArray()).Replace(ClassStrings.HexSeparator, ClassStrings.EmptyReplacement)
+#endif
+                };
+                LogResolvedKeyId(kidString);
+            }
+        }
+        catch
+        {
+            // Kid header decoding is best-effort for audit logging
         }
     }
 }

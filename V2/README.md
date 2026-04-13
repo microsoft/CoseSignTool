@@ -100,6 +100,34 @@ cosesigntool inspect document.cose
 cosesigntool inspect document.cose --extract-payload extracted.txt
 ```
 
+### Quick Start — Sign and Verify (C#)
+
+```csharp
+using CoseSign1.Certificates;
+using CoseSign1.Certificates.Local;
+using CoseSign1.Factories;
+using CoseSign1.Validation;
+using System.Security.Cryptography.Cose;
+using System.Security.Cryptography.X509Certificates;
+
+// Sign
+var certSource = new PfxCertificateSource("signing-cert.pfx", "password");
+X509Certificate2 cert = certSource.GetSigningCertificate();
+ICertificateChainBuilder chainBuilder = certSource.GetChainBuilder();
+using var signingService = CertificateSigningService.Create(cert, chainBuilder);
+using var factory = new CoseSign1MessageFactory(signingService);
+
+byte[] signed = await factory.CreateDirectCoseSign1MessageBytesAsync(
+    "Hello, COSE!"u8.ToArray(), "text/plain");
+
+// Verify
+CoseSign1Message message = CoseMessage.DecodeSign1(signed);
+CoseSign1ValidationResult result = message.Validate(builder => builder
+    .ValidateCertificate(c => c.ValidateChain()));
+
+Console.WriteLine(result.Overall.IsValid ? "✓ Valid" : "✗ Invalid");
+```
+
 ---
 
 ## Library Usage
@@ -280,6 +308,7 @@ See [CLI Documentation](docs/cli/README.md) for detailed command reference.
 - [Trust Policy Guide](docs/guides/trust-policy.md)
 - [Plugin Development](docs/plugins/README.md)
 - [Logging and Diagnostics](docs/guides/logging-diagnostics.md)
+- [Error Code Reference](docs/error-codes.md)
 - [CLI Reference](docs/cli/README.md)
 - [API Reference](docs/api/README.md)
 

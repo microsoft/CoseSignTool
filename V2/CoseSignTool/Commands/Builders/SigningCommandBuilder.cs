@@ -82,6 +82,8 @@ public class SigningCommandBuilder
         public static readonly string ErrorSigningFailed = "Signing failed: {0}";
         public static readonly string ErrorUnknownSignatureType = "Unknown signature type: {0}";
         public static readonly string ErrorFileNotFound = "File not found: {0}";
+        public static readonly string HintTimeout = "Tip: Check HSM/Key Vault connectivity. Use '-vv' for details.";
+        public static readonly string HintSigningFailed = "Tip: Use '-vv --log-file debug.log' for detailed diagnostics.";
 
         // Standard options set
         public static readonly string StandardOptionOutput = "output";
@@ -625,6 +627,7 @@ public class SigningCommandBuilder
             if (!context.ParseResult.GetValueForOption(quietOption))
             {
                 formatter.WriteError(ClassStrings.ErrorTimeout);
+                formatter.WriteInfo(ClassStrings.HintTimeout);
             }
             formatter.Flush();
             return 11; // Timeout
@@ -643,6 +646,7 @@ public class SigningCommandBuilder
             if (!context.ParseResult.GetValueForOption(quietOption))
             {
                 formatter.WriteError(string.Format(ClassStrings.ErrorSigningFailed, ex.Message));
+                formatter.WriteInfo(ClassStrings.HintSigningFailed);
             }
             formatter.Flush();
             return 10; // SigningFailed

@@ -339,19 +339,29 @@ public sealed class CoseSign1ValidatorBranchTests
 
         var trustPlan = new CompiledTrustPlan(TrustRules.DenyAll("would-fail"), Array.Empty<IMultiTrustFactProducer>());
 
-        var validator = new CoseSign1Validator(
-            signingKeyResolvers: new[] { resolver },
-            postSignatureValidators: null,
-            toBeSignedAttestors: null,
-            trustPlan: trustPlan,
-            options: null,
-            trustEvaluationOptions: new TrustEvaluationOptions { BypassTrust = true });
+        Environment.SetEnvironmentVariable("COSESIGNTOOL_ALLOW_BYPASS_TRUST", "true");
+        try
+        {
+            #pragma warning disable CS0618 // BypassTrust is obsolete by design
+            var validator = new CoseSign1Validator(
+                signingKeyResolvers: new[] { resolver },
+                postSignatureValidators: null,
+                toBeSignedAttestors: null,
+                trustPlan: trustPlan,
+                options: null,
+                trustEvaluationOptions: new TrustEvaluationOptions { BypassTrust = true });
 
-        var result = validator.Validate(message);
+            var result = validator.Validate(message);
 
-        Assert.That(result.Overall.IsValid, Is.True);
-        Assert.That(result.Trust.Metadata.ContainsKey(nameof(TrustEvaluationOptions.BypassTrust)), Is.True);
-        Assert.That(result.Trust.Metadata[nameof(TrustEvaluationOptions.BypassTrust)], Is.EqualTo(true));
+            Assert.That(result.Overall.IsValid, Is.True);
+            Assert.That(result.Trust.Metadata.ContainsKey(nameof(TrustEvaluationOptions.BypassTrust)), Is.True);
+            Assert.That(result.Trust.Metadata[nameof(TrustEvaluationOptions.BypassTrust)], Is.EqualTo(true));
+            #pragma warning restore CS0618
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("COSESIGNTOOL_ALLOW_BYPASS_TRUST", null);
+        }
     }
 
     [Test]

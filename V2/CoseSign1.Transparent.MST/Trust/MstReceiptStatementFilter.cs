@@ -12,6 +12,7 @@ internal static class MstReceiptStatementFilter
     {
         public const string CoseSign1ExpectedArrayLengthPrefix = "Expected COSE_Sign1 array length 4 but got ";
         public const string UnsupportedCoseHeaderKeyType = "Unsupported COSE header key type";
+        public const string CborMapExceedsMaxEntryCountPrefix = "CBOR map exceeds maximum entry count of ";
     }
 
     internal const int MstReceiptHeaderLabel = 394;
@@ -41,8 +42,15 @@ internal static class MstReceiptStatementFilter
         var preserved = new List<(object Key, ReadOnlyMemory<byte> EncodedValue)>();
 
         // Preserve all unprotected headers except the MST receipt label; we will overwrite it.
+        const int MaxMapEntries = 1000;
+        int mapEntryCount = 0;
         while (reader.PeekState() != CborReaderState.EndMap)
         {
+            if (++mapEntryCount > MaxMapEntries)
+            {
+                throw new CborContentException(string.Concat(ClassStrings.CborMapExceedsMaxEntryCountPrefix, MaxMapEntries.ToString(CultureInfo.InvariantCulture)));
+            }
+
             object key = reader.PeekState() switch
             {
                 CborReaderState.UnsignedInteger or CborReaderState.NegativeInteger => reader.ReadInt32(),

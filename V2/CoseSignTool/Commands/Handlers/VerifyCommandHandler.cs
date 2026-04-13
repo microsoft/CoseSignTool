@@ -63,6 +63,7 @@ public class VerifyCommandHandler
         public static readonly string TrustPolicyReasonNoTrustPolicyProvided =
             "No trust policy was provided by any active verification provider";
         public static readonly string NullValue = "null";
+        public static readonly string HintUseDiagnostics = "Tip: Use '-vv --log-file debug.log' for detailed diagnostics.";
         public static readonly string ValueYes = "Yes";
         public static readonly string ValueNo = "No";
         public static readonly string ValueEmbedded = "Embedded";
@@ -371,7 +372,9 @@ public class VerifyCommandHandler
             if (signatureOnly)
             {
                 // Signature-only mode validates cryptographic correctness only.
+                #pragma warning disable CS0618 // BypassTrust is obsolete by design — CLI signature-only mode requires it
                 trustEvaluationOptions.BypassTrust = true;
+                #pragma warning restore CS0618
             }
 
             CompiledTrustPlan trustPlan;
@@ -436,6 +439,7 @@ public class VerifyCommandHandler
                     {
                         Formatter.WriteError(string.Format(ClassStrings.ErrorFailureDetail, failure.ErrorCode, failure.Message));
                     }
+                    Formatter.WriteInfo(ClassStrings.HintUseDiagnostics);
                     Formatter.EndSection();
                     Formatter.Flush();
                     return Task.FromResult((int)ExitCode.UntrustedCertificate);
@@ -448,6 +452,7 @@ public class VerifyCommandHandler
                     {
                         Formatter.WriteError(string.Format(ClassStrings.ErrorFailureDetail, failure.ErrorCode, failure.Message));
                     }
+                    Formatter.WriteInfo(ClassStrings.HintUseDiagnostics);
                     Formatter.EndSection();
                     Formatter.Flush();
                     return Task.FromResult((int)ExitCode.VerificationFailed);
@@ -460,6 +465,7 @@ public class VerifyCommandHandler
                     {
                         Formatter.WriteError(string.Format(ClassStrings.ErrorFailureDetail, failure.ErrorCode, failure.Message));
                     }
+                    Formatter.WriteInfo(ClassStrings.HintUseDiagnostics);
                     Formatter.EndSection();
                     Formatter.Flush();
                     return Task.FromResult((int)ExitCode.InvalidSignature);
@@ -472,6 +478,7 @@ public class VerifyCommandHandler
                     {
                         Formatter.WriteError(string.Format(ClassStrings.ErrorFailureDetail, failure.ErrorCode, failure.Message));
                     }
+                    Formatter.WriteInfo(ClassStrings.HintUseDiagnostics);
                     Formatter.EndSection();
                     Formatter.Flush();
                     return Task.FromResult((int)ExitCode.VerificationFailed);
@@ -483,6 +490,7 @@ public class VerifyCommandHandler
                 {
                     Formatter.WriteError(string.Format(ClassStrings.ErrorFailureDetail, failure.ErrorCode, failure.Message));
                 }
+                Formatter.WriteInfo(ClassStrings.HintUseDiagnostics);
                 Formatter.EndSection();
                 Formatter.Flush();
                 return Task.FromResult((int)ExitCode.VerificationFailed);

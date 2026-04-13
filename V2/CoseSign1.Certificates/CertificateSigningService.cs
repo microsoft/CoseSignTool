@@ -59,7 +59,7 @@ public class CertificateSigningService : ISigningService<CertificateSigningOptio
 
         public const string ErrorNoSigningKeyAvailableFormat = "No signing key available. Derived class {0} must override GetSigningKey() or provide an ICertificateSigningKey to the constructor.";
 
-        public static readonly string LogCreatingLocalSigningService = "Creating local signing service for certificate. Subject: {Subject}, Thumbprint: {Thumbprint}";
+        public static readonly string LogCreatingLocalSigningService = "Creating local signing service for certificate. Subject: {Subject}, Thumbprint: {Thumbprint}, Serial: {Serial}";
         public static readonly string LogCreatingLocalSigningServiceWithExplicitChain = "Creating local signing service with explicit chain. Subject: {Subject}, ChainLength: {ChainLength}";
 
         public static readonly string LogCreatingRemoteSigningService = "Creating remote signing service for certificate source";
@@ -122,7 +122,8 @@ public class CertificateSigningService : ISigningService<CertificateSigningOptio
             LogEvents.CertificateLoadedEvent,
             ClassStrings.LogCreatingLocalSigningService,
             certificate.Subject,
-            certificate.Thumbprint);
+            certificate.Thumbprint,
+            certificate.SerialNumber);
 
         return service;
     }

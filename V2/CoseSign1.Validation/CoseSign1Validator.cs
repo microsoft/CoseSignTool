@@ -10,6 +10,7 @@ using System.Security.Cryptography.Cose;
 using CoseSign1.Abstractions;
 using CoseSign1.Validation.Interfaces;
 using CoseSign1.Validation.Results;
+using CoseSign1.Validation.Telemetry;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -83,6 +84,12 @@ public sealed partial class CoseSign1Validator : ICoseSign1Validator
         public const string HexSeparator = "-";
         public const string EmptyReplacement = "";
 
+        public const string ActivitySourceName = "CoseSign1.Validation";
+        public const string ActivityValidate = "ValidateCoseSign1Message";
+        public const string ActivityValidateAsync = "ValidateCoseSign1MessageAsync";
+        public const string ActivityTagMessageId = "cosesign1.message_id";
+        public const string GuidFormatN = "N";
+
     }
 
     // High-performance logging via source generation
@@ -136,6 +143,8 @@ public sealed partial class CoseSign1Validator : ICoseSign1Validator
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "BypassTrust is enabled via COSESIGNTOOL_ALLOW_BYPASS_TRUST. Trust evaluation is SKIPPED. This must not be used in production.")]
     private partial void LogBypassTrustAllowed();
+
+    private static readonly ActivitySource ValidationActivity = new(ClassStrings.ActivitySourceName);
 
     private readonly CoseSign1ValidationOptions Options;
     private readonly TrustEvaluationOptions TrustEvaluationOptions;
@@ -192,18 +201,28 @@ public sealed partial class CoseSign1Validator : ICoseSign1Validator
     public CoseSign1ValidationResult Validate(CoseSign1Message message)
     {
         var totalStopwatch = Stopwatch.StartNew();
+        var messageId = Guid.NewGuid().ToString(ClassStrings.GuidFormatN).Substring(0, 8);
+
+        using var activity = ValidationActivity.StartActivity(ClassStrings.ActivityValidate, ActivityKind.Internal);
+        activity?.SetTag(ClassStrings.ActivityTagMessageId, messageId);
+
+        CoseSign1ValidationEventSource.Log.ValidationStarted(messageId);
 
         var result = ValidateInternal(message);
 
         totalStopwatch.Stop();
 
+        CoseSign1ValidationEventSource.Log.ValidationCompleted(result.Overall.IsValid, totalStopwatch.ElapsedMilliseconds);
+
         if (result.Overall.IsValid)
         {
             LogValidationCompleted(true, totalStopwatch.ElapsedMilliseconds);
+            activity?.SetStatus(ActivityStatusCode.Ok);
         }
         else
         {
             LogValidationFailed(result.Overall.ValidatorName, totalStopwatch.ElapsedMilliseconds);
+            activity?.SetStatus(ActivityStatusCode.Error);
         }
 
         return result;
@@ -215,18 +234,28 @@ public sealed partial class CoseSign1Validator : ICoseSign1Validator
         CancellationToken cancellationToken = default)
     {
         var totalStopwatch = Stopwatch.StartNew();
+        var messageId = Guid.NewGuid().ToString(ClassStrings.GuidFormatN).Substring(0, 8);
+
+        using var activity = ValidationActivity.StartActivity(ClassStrings.ActivityValidateAsync, ActivityKind.Internal);
+        activity?.SetTag(ClassStrings.ActivityTagMessageId, messageId);
+
+        CoseSign1ValidationEventSource.Log.ValidationStarted(messageId);
 
         var result = await ValidateInternalAsync(message, cancellationToken).ConfigureAwait(false);
 
         totalStopwatch.Stop();
 
+        CoseSign1ValidationEventSource.Log.ValidationCompleted(result.Overall.IsValid, totalStopwatch.ElapsedMilliseconds);
+
         if (result.Overall.IsValid)
         {
             LogValidationCompleted(true, totalStopwatch.ElapsedMilliseconds);
+            activity?.SetStatus(ActivityStatusCode.Ok);
         }
         else
         {
             LogValidationFailed(result.Overall.ValidatorName, totalStopwatch.ElapsedMilliseconds);
+            activity?.SetStatus(ActivityStatusCode.Error);
         }
 
         return result;
@@ -263,6 +292,9 @@ public sealed partial class CoseSign1Validator : ICoseSign1Validator
         // Stage 1: Trust evaluation (policy) is performed first.
         // This allows receipt/counter-signature-based trust models to succeed even when no primary signing key is resolvable.
         var (trustResult, trustDecision) = await RunTrustStageCoreAsync(message, async, cancellationToken).ConfigureAwait(false);
+
+        CoseSign1ValidationEventSource.Log.ValidationStageCompleted(
+            ClassStrings.StageNameKeyMaterialTrust, 0, trustResult.IsValid);
 
         if (!trustResult.IsValid)
         {
@@ -319,8 +351,15 @@ public sealed partial class CoseSign1Validator : ICoseSign1Validator
         // Stage 2: Key Material Resolution
         var (resolutionResult, signingKey) = await RunResolutionStageCoreAsync(message, SigningKeyResolvers, async, cancellationToken).ConfigureAwait(false);
 
+        CoseSign1ValidationEventSource.Log.ValidationStageCompleted(
+            ClassStrings.StageNameKeyMaterialResolution, 0, resolutionResult.IsValid);
+
         if (!resolutionResult.IsValid)
         {
+            CoseSign1ValidationEventSource.Log.ValidationStageFailed(
+                ClassStrings.StageNameKeyMaterialResolution,
+                ClassStrings.ErrorCodeNoSigningKeyResolved,
+                ClassStrings.ErrorMessageNoSigningKeyResolved);
             LogStageSkipped(ClassStrings.StageNameSignature, ClassStrings.NotApplicableReasonPriorStageFailed);
             LogStageSkipped(ClassStrings.StageNamePostSignature, ClassStrings.NotApplicableReasonPriorStageFailed);
 
@@ -335,8 +374,15 @@ public sealed partial class CoseSign1Validator : ICoseSign1Validator
         // Stage 3: Signature Verification
         var signatureResult = await RunSignatureStageCoreAsync(message, signingKey!, async, cancellationToken).ConfigureAwait(false);
 
+        CoseSign1ValidationEventSource.Log.ValidationStageCompleted(
+            ClassStrings.StageNameSignature, 0, signatureResult.IsValid);
+
         if (!signatureResult.IsValid)
         {
+            CoseSign1ValidationEventSource.Log.ValidationStageFailed(
+                ClassStrings.StageNameSignature,
+                ClassStrings.ErrorCodeSignatureVerificationFailed,
+                ClassStrings.ErrorMessageSignatureVerificationFailed);
             LogStageSkipped(ClassStrings.StageNamePostSignature, ClassStrings.NotApplicableReasonSignatureValidationFailed);
 
             return new CoseSign1ValidationResult(
@@ -804,9 +850,10 @@ public sealed partial class CoseSign1Validator : ICoseSign1Validator
                 LogResolvedKeyId(kidString);
             }
         }
-        catch
+        catch (Exception ex)
         {
             // Kid header decoding is best-effort for audit logging
+            CoseSign1ValidationEventSource.Log.KidHeaderDecodeFailed(ex.GetType().Name, ex.Message);
         }
     }
 }

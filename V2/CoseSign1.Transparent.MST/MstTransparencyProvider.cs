@@ -13,6 +13,7 @@ using Azure.Security.CodeTransparency;
 using Cose.Abstractions;
 using CoseSign1.Abstractions.Transparency;
 using CoseSign1.Transparent.MST.Extensions;
+using CoseSign1.Transparent.MST.Telemetry;
 
 /// <summary>
 /// Transparency provider for Microsoft's Signing Transparency (MST) service.
@@ -250,6 +251,8 @@ public class MstTransparencyProvider : TransparencyProviderBase
             encodedBytes = preEncodedBytes.ToArray();
         }
 
+        CoseSign1MstEventSource.Log.TransparencySubmissionStarted(ProviderName, encodedBytes.Length);
+
         BinaryData content = BinaryData.FromBytes(encodedBytes);
         LogVerbose?.Invoke(string.Format(ClassStrings.LogEncodedMessageSizeFormat, ProviderName, encodedBytes.Length));
 
@@ -285,6 +288,7 @@ public class MstTransparencyProvider : TransparencyProviderBase
         {
             // Parse CBOR problem details from the MST error response (RFC 9290)
             MstServiceException mstEx = MstServiceException.FromRequestFailedException(rfEx);
+            CoseSign1MstEventSource.Log.TransparencySubmissionFailed(ProviderName, rfEx.GetType().Name, mstEx.Message);
             LogError?.Invoke(string.Format(ClassStrings.LogPrefixedMessageFormat, ProviderName, mstEx.Message));
             if (mstEx.ProblemDetails != null)
             {
@@ -313,6 +317,8 @@ public class MstTransparencyProvider : TransparencyProviderBase
         }
 
         LogVerbose?.Invoke(string.Format(ClassStrings.LogEntryIdFormat, ProviderName, entryId));
+
+        CoseSign1MstEventSource.Log.TransparencySubmissionCompleted(ProviderName, entryId);
 
         // Retrieve the transparent statement with embedded receipts
         LogVerbose?.Invoke(string.Format(ClassStrings.LogRetrievingTransparentStatementFormat, ProviderName));
@@ -414,11 +420,13 @@ public class MstTransparencyProvider : TransparencyProviderBase
         }
         catch (InvalidOperationException ex)
         {
+            CoseSign1MstEventSource.Log.ReceiptVerificationFailed(ex.Message);
             LogError?.Invoke(string.Format(ClassStrings.LogVerificationFailedFormat, ProviderName, ex.Message));
             return Task.FromResult(TransparencyValidationResult.Failure(ProviderName, ex.Message));
         }
         catch (CryptographicException ex)
         {
+            CoseSign1MstEventSource.Log.ReceiptVerificationFailed(string.Format(ClassStrings.ErrorCryptographicFormat, ex.Message));
             LogError?.Invoke(string.Format(ClassStrings.LogPrefixedMessageFormat, ProviderName, string.Format(ClassStrings.ErrorCryptographicFormat, ex.Message)));
             return Task.FromResult(TransparencyValidationResult.Failure(
                 ProviderName,
@@ -426,6 +434,7 @@ public class MstTransparencyProvider : TransparencyProviderBase
         }
         catch (CborContentException ex)
         {
+            CoseSign1MstEventSource.Log.ReceiptVerificationFailed(string.Format(ClassStrings.ErrorCborContentFormat, ex.Message));
             LogError?.Invoke(string.Format(ClassStrings.LogPrefixedMessageFormat, ProviderName, string.Format(ClassStrings.ErrorCborContentFormat, ex.Message)));
             return Task.FromResult(TransparencyValidationResult.Failure(
                 ProviderName,
@@ -433,6 +442,7 @@ public class MstTransparencyProvider : TransparencyProviderBase
         }
         catch (ArgumentException ex)
         {
+            CoseSign1MstEventSource.Log.ReceiptVerificationFailed(string.Format(ClassStrings.ErrorInvalidArgumentFormat, ex.Message));
             LogError?.Invoke(string.Format(ClassStrings.LogPrefixedMessageFormat, ProviderName, string.Format(ClassStrings.ErrorInvalidArgumentFormat, ex.Message)));
             return Task.FromResult(TransparencyValidationResult.Failure(
                 ProviderName,
@@ -440,6 +450,7 @@ public class MstTransparencyProvider : TransparencyProviderBase
         }
         catch (AggregateException ex)
         {
+            CoseSign1MstEventSource.Log.ReceiptVerificationFailed(ex.Message);
             LogError?.Invoke(string.Format(ClassStrings.LogMultipleFailuresFormat, ProviderName));
             var errors = new List<string>();
             foreach (var innerEx in ex.InnerExceptions)

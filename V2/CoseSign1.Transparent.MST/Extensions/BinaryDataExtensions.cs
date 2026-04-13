@@ -5,6 +5,7 @@ namespace CoseSign1.Transparent.MST.Extensions;
 
 using System.Diagnostics.CodeAnalysis;
 using System.Formats.Cbor;
+using CoseSign1.Transparent.MST.Telemetry;
 
 /// <summary>
 /// Extension methods for <see cref="BinaryData"/> to work with MST responses.
@@ -17,6 +18,7 @@ public static class BinaryDataExtensions
     {
         public const string EntryIdKey = "EntryId";
         public const string CborMapExceedsMaxEntryCountPrefix = "CBOR map exceeds maximum entry count of ";
+        public const string CborParseContextTryGetMstEntryId = "TryGetMstEntryId";
     }
 
     /// <summary>
@@ -60,16 +62,19 @@ public static class BinaryDataExtensions
                 }
             }
         }
-        catch (InvalidOperationException)
+        catch (InvalidOperationException ex)
         {
+            CoseSign1MstEventSource.Log.CborParseFailed(ClassStrings.CborParseContextTryGetMstEntryId, ex.GetType().Name, ex.Message);
             return false;
         }
-        catch (FormatException)
+        catch (FormatException ex)
         {
+            CoseSign1MstEventSource.Log.CborParseFailed(ClassStrings.CborParseContextTryGetMstEntryId, ex.GetType().Name, ex.Message);
             return false;
         }
-        catch (CborContentException)
+        catch (CborContentException ex)
         {
+            CoseSign1MstEventSource.Log.CborParseFailed(ClassStrings.CborParseContextTryGetMstEntryId, ex.GetType().Name, ex.Message);
             return false;
         }
 

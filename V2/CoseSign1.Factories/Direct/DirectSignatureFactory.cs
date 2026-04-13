@@ -13,6 +13,7 @@ using Cose.Abstractions;
 using CoseSign1.Abstractions;
 using CoseSign1.Abstractions.Transparency;
 using CoseSign1.Factories.Exceptions;
+using CoseSign1.Factories.Telemetry;
 using Microsoft.Extensions.Logging.Abstractions;
 
 /// <summary>
@@ -65,8 +66,17 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
         public static readonly string LogDetachedPayloadHash = "Detached payload SHA-256: {PayloadHash}";
         public static readonly string HexSeparator = "-";
         public static readonly string EmptyReplacement = "";
+
+        // Activity tracing
+        public static readonly string ActivitySourceName = "CoseSign1.Factories.Signing";
+        public static readonly string ActivityCreateMessage = "CreateCoseSign1Message";
+        public static readonly string ActivityCreateMessageAsync = "CreateCoseSign1MessageAsync";
+        public static readonly string ActivityTagOperationId = "cosesign1.operation_id";
+        public static readonly string ActivityTagSignatureType = "cosesign1.signature_type";
+        public static readonly string ActivityTagSignatureTypeDirect = "direct";
     }
 
+    private static readonly ActivitySource SigningActivity = new(ClassStrings.ActivitySourceName);
     private static readonly ContentTypeHeaderContributor ContentTypeContributor = new();
     private static readonly IReadOnlyList<ICoseSign1HeaderContributor> SingleContentTypeContributor =
         new ICoseSign1HeaderContributor[] { ContentTypeContributor };
@@ -163,6 +173,12 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
             [ClassStrings.KeySignatureType] = ClassStrings.SignatureTypeDirect
         });
 
+        using var activity = SigningActivity.StartActivity(ClassStrings.ActivityCreateMessage, ActivityKind.Internal);
+        activity?.SetTag(ClassStrings.ActivityTagOperationId, operationId);
+        activity?.SetTag(ClassStrings.ActivityTagSignatureType, ClassStrings.ActivityTagSignatureTypeDirect);
+
+        CoseSign1FactoriesEventSource.Log.SignatureCreationStarted(operationId, ClassStrings.SignatureTypeDirect);
+
         var stopwatch = Stopwatch.StartNew();
 
         Logger.LogDebug(
@@ -225,6 +241,7 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
             CoseSign1Message decodedForVerify = CoseMessage.DecodeSign1(result);
             if (!SigningService.VerifySignature(decodedForVerify, context))
             {
+                CoseSign1FactoriesEventSource.Log.PostSignVerificationFailed(operationId);
                 Logger.LogError(
                     LogEvents.PostSignVerificationFailedEvent,
                     ClassStrings.LogPostSignVerificationFailed);
@@ -256,11 +273,16 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
                 result.Length,
                 stopwatch.ElapsedMilliseconds);
 
+            CoseSign1FactoriesEventSource.Log.SignatureCreationCompleted(operationId, stopwatch.ElapsedMilliseconds);
+            activity?.SetStatus(ActivityStatusCode.Ok);
+
             return result;
         }
         catch (Exception ex)
         {
             stopwatch.Stop();
+            CoseSign1FactoriesEventSource.Log.SignatureCreationFailed(operationId, ex.GetType().Name, ex.Message);
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
             Logger.LogError(
                 LogEvents.SigningFailedEvent,
                 ex,
@@ -362,6 +384,12 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
             [ClassStrings.KeyAsync] = true
         });
 
+        using var activity = SigningActivity.StartActivity(ClassStrings.ActivityCreateMessageAsync, ActivityKind.Internal);
+        activity?.SetTag(ClassStrings.ActivityTagOperationId, operationId);
+        activity?.SetTag(ClassStrings.ActivityTagSignatureType, ClassStrings.ActivityTagSignatureTypeDirect);
+
+        CoseSign1FactoriesEventSource.Log.SignatureCreationStarted(operationId, ClassStrings.SignatureTypeDirect);
+
         var stopwatch = Stopwatch.StartNew();
         var streamLength = payloadStream.CanSeek ? payloadStream.Length : -1;
 
@@ -458,6 +486,7 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
             CoseSign1Message decodedForVerify = CoseMessage.DecodeSign1(result);
             if (!SigningService.VerifySignature(decodedForVerify, context))
             {
+                CoseSign1FactoriesEventSource.Log.PostSignVerificationFailed(operationId);
                 Logger.LogError(
                     LogEvents.PostSignVerificationFailedEvent,
                     ClassStrings.LogPostSignVerificationFailed);
@@ -483,11 +512,16 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
                 result.Length,
                 stopwatch.ElapsedMilliseconds);
 
+            CoseSign1FactoriesEventSource.Log.SignatureCreationCompleted(operationId, stopwatch.ElapsedMilliseconds);
+            activity?.SetStatus(ActivityStatusCode.Ok);
+
             return result;
         }
         catch (Exception ex)
         {
             stopwatch.Stop();
+            CoseSign1FactoriesEventSource.Log.SignatureCreationFailed(operationId, ex.GetType().Name, ex.Message);
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
             Logger.LogError(
                 LogEvents.SigningFailedEvent,
                 ex,
@@ -827,6 +861,8 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
             {
                 var error = string.Format(ClassStrings.ErrorTransparencyProviderFailed, provider.ProviderName, ex.Message);
                 errors.Add(error);
+
+                CoseSign1FactoriesEventSource.Log.TransparencyProviderFailed(string.Empty, provider.ProviderName, ex.Message);
 
                 Logger.LogWarning(
                     LogEvents.SigningFailedEvent,

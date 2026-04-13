@@ -12,6 +12,7 @@ using Cose.Abstractions;
 using CoseSign1.Abstractions;
 using CoseSign1.Abstractions.Transparency;
 using CoseSign1.Factories.Direct;
+using CoseSign1.Factories.Telemetry;
 using Microsoft.Extensions.Logging.Abstractions;
 
 /// <summary>
@@ -161,6 +162,8 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
             [ClassStrings.KeySignatureType] = ClassStrings.SignatureTypeIndirect
         });
 
+        CoseSign1FactoriesEventSource.Log.SignatureCreationStarted(operationId, ClassStrings.SignatureTypeIndirect);
+
         var stopwatch = Stopwatch.StartNew();
 
         options ??= new IndirectSignatureOptions();
@@ -225,11 +228,14 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
                 result.Length,
                 stopwatch.ElapsedMilliseconds);
 
+            CoseSign1FactoriesEventSource.Log.SignatureCreationCompleted(operationId, stopwatch.ElapsedMilliseconds);
+
             return result;
         }
         catch (Exception ex)
         {
             stopwatch.Stop();
+            CoseSign1FactoriesEventSource.Log.SignatureCreationFailed(operationId, ex.GetType().Name, ex.Message);
             Logger.LogError(
                 LogEvents.SigningFailedEvent,
                 ex,
@@ -331,6 +337,8 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
             [ClassStrings.KeyAsync] = true
         });
 
+        CoseSign1FactoriesEventSource.Log.SignatureCreationStarted(operationId, ClassStrings.SignatureTypeIndirect);
+
         var stopwatch = Stopwatch.StartNew();
 
         options ??= new IndirectSignatureOptions();
@@ -383,11 +391,14 @@ public class IndirectSignatureFactory : ICoseSign1MessageFactory<IndirectSignatu
                 result.Length,
                 stopwatch.ElapsedMilliseconds);
 
+            CoseSign1FactoriesEventSource.Log.SignatureCreationCompleted(operationId, stopwatch.ElapsedMilliseconds);
+
             return result;
         }
         catch (Exception ex)
         {
             stopwatch.Stop();
+            CoseSign1FactoriesEventSource.Log.SignatureCreationFailed(operationId, ex.GetType().Name, ex.Message);
             Logger.LogError(
                 LogEvents.SigningFailedEvent,
                 ex,

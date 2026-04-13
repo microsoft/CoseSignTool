@@ -5,6 +5,7 @@ namespace CoseSign1.Transparent.MST.Extensions;
 
 using System.Formats.Cbor;
 using System.Security.Cryptography.Cose;
+using CoseSign1.Transparent.MST.Telemetry;
 
 /// <summary>
 /// Extension methods for <see cref="CoseSign1Message"/> to work with MST receipts.
@@ -14,6 +15,8 @@ public static class CoseSign1MessageExtensions
     internal static class ClassStrings
     {
         public const string ReceiptArrayExceedsMaxEntryCountPrefix = "Receipt array exceeds maximum entry count of ";
+        public const string CborParseContextGetMstReceipts = "GetMstReceipts";
+        public const string CborParseContextGetMstReceiptBytes = "GetMstReceiptBytes";
     }
 
     // MST uses the same CBOR Web Token (CWT) header as defined in RFC 8392
@@ -52,13 +55,15 @@ public static class CoseSign1MessageExtensions
             {
                 receipts.Add(CoseMessage.DecodeSign1(bytes));
             }
-            catch (System.Security.Cryptography.CryptographicException)
+            catch (System.Security.Cryptography.CryptographicException ex)
             {
                 // Skip receipts that fail to decode
+                CoseSign1MstEventSource.Log.CborParseFailed(ClassStrings.CborParseContextGetMstReceipts, ex.GetType().Name, ex.Message);
             }
-            catch (CborContentException)
+            catch (CborContentException ex)
             {
                 // Skip receipts with invalid CBOR structure
+                CoseSign1MstEventSource.Log.CborParseFailed(ClassStrings.CborParseContextGetMstReceipts, ex.GetType().Name, ex.Message);
             }
         }
 
@@ -104,9 +109,10 @@ public static class CoseSign1MessageExtensions
             reader.ReadEndArray();
             return receiptBytes;
         }
-        catch (CborContentException)
+        catch (CborContentException ex)
         {
             // If parsing fails, return empty array
+            CoseSign1MstEventSource.Log.CborParseFailed(ClassStrings.CborParseContextGetMstReceiptBytes, ex.GetType().Name, ex.Message);
             return Array.Empty<byte[]>();
         }
     }

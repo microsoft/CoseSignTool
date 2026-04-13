@@ -5,6 +5,7 @@ namespace CoseSign1.Transparent.MST;
 
 using System.Diagnostics.CodeAnalysis;
 using System.Formats.Cbor;
+using CoseSign1.Transparent.MST.Telemetry;
 
 /// <summary>
 /// Represents parsed CBOR problem details from RFC 9290 (Concise Problem Details).
@@ -46,6 +47,7 @@ public class CborProblemDetails
         public const string KeyInstance = "instance";
         public const string KeyEntryId = "EntryId";
         public const string CborMapExceedsMaxEntryCountPrefix = "CBOR problem details map exceeds maximum entry count of ";
+        public const string CborParseContextTryParse = "TryParse";
     }
 
     /// <summary>
@@ -95,12 +97,14 @@ public class CborProblemDetails
             CborReader reader = new(cborBytes);
             return ParseFromReader(reader);
         }
-        catch (CborContentException)
+        catch (CborContentException ex)
         {
+            CoseSign1MstEventSource.Log.CborParseFailed(ClassStrings.CborParseContextTryParse, ex.GetType().Name, ex.Message);
             return null;
         }
-        catch (InvalidOperationException)
+        catch (InvalidOperationException ex)
         {
+            CoseSign1MstEventSource.Log.CborParseFailed(ClassStrings.CborParseContextTryParse, ex.GetType().Name, ex.Message);
             return null;
         }
     }

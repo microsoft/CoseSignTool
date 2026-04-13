@@ -3,24 +3,15 @@
 
 namespace CoseSignTool;
 
-using Microsoft.IO;
+using CoseSign1.Abstractions.Pooling;
 
 /// <summary>
-/// Provides pooled MemoryStream instances to avoid Large Object Heap allocations.
+/// Provides pooled MemoryStream instances via the shared <see cref="CoseMemoryStreamPool"/>.
 /// </summary>
 [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
 internal static class MemoryStreamPool
 {
-    private static readonly RecyclableMemoryStreamManager Manager = new(new RecyclableMemoryStreamManager.Options
-    {
-        BlockSize = 128 * 1024,                // 128KB blocks
-        LargeBufferMultiple = 1024 * 1024,     // 1MB large buffer increments
-        MaximumBufferSize = 16 * 1024 * 1024,  // 16MB max single buffer
-        MaximumSmallPoolFreeBytes = 8 * 1024 * 1024,   // 8MB max small pool
-        MaximumLargePoolFreeBytes = 16 * 1024 * 1024,  // 16MB max large pool
-    });
-
-    public static MemoryStream GetStream() => Manager.GetStream();
-    public static MemoryStream GetStream(string tag) => Manager.GetStream(tag);
-    public static MemoryStream GetStream(byte[] buffer) => Manager.GetStream(buffer);
+    public static MemoryStream GetStream() => CoseMemoryStreamPool.GetStream();
+    public static MemoryStream GetStream(string tag) => CoseMemoryStreamPool.GetStream(tag);
+    public static MemoryStream GetStream(byte[] buffer) => CoseMemoryStreamPool.GetStream(buffer);
 }

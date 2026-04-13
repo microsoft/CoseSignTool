@@ -15,7 +15,6 @@
     <PackageReference Include="Microsoft.Extensions.Caching.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
-    <PackageReference Include="Microsoft.IO.RecyclableMemoryStream" />
     <PackageReference Include="System.Runtime.Caching" />
     <PackageReference Include="System.Security.Cryptography.Cose" />
     <PackageReference Include="System.Formats.Cbor" />

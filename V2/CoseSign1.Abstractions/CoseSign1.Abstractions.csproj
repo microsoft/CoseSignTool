@@ -14,6 +14,7 @@
     <!--Package references-->
     <ItemGroup>
         <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+        <PackageReference Include="Microsoft.IO.RecyclableMemoryStream" />
         <PackageReference Include="System.Security.Cryptography.Cose" />
     </ItemGroup>
 

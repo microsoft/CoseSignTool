@@ -6,6 +6,7 @@ namespace CoseSign1.Certificates.Extensions;
 using System.Formats.Cbor;
 using System.Security.Cryptography.Cose;
 using CoseSign1.Certificates.Caching;
+using CoseSign1.Certificates.Telemetry;
 
 /// <summary>
 /// Extension methods for extracting certificates from CoseSign1Message.
@@ -16,6 +17,10 @@ public static class CoseSign1MessageCertificateExtensions
     internal static class ClassStrings
     {
         public const string CertChainExceedsMaxLengthPrefix = "Certificate chain exceeds maximum length of ";
+        public const string HeaderX5Chain = "x5chain";
+        public const string HeaderX5Bag = "x5bag";
+        public const string HeaderX5T = "x5t";
+        public const string MethodVerifySignature = "VerifySignature";
     }
 
     /// <summary>
@@ -168,26 +173,27 @@ public static class CoseSign1MessageCertificateExtensions
                     }
 
                     chain = new X509Certificate2Collection(certificates.ToArray());
+                    CoseSign1CertificateEventSource.Log.CertificateChainExtracted(ClassStrings.HeaderX5Chain, certificates.Count);
                     return true;
                 }
-                catch (CborContentException)
+                catch (CborContentException ex)
                 {
-                    // Malformed CBOR in x5chain header — certificate extraction failed
+                    CoseSign1CertificateEventSource.Log.CertificateHeaderParseFailed(ClassStrings.HeaderX5Chain, nameof(CborContentException), ex.Message);
                     return false;
                 }
-                catch (CryptographicException)
+                catch (CryptographicException ex)
                 {
-                    // Invalid certificate DER encoding
+                    CoseSign1CertificateEventSource.Log.CertificateDerDecodeFailed(ClassStrings.HeaderX5Chain, nameof(CryptographicException), ex.Message);
                     return false;
                 }
-                catch (OverflowException)
+                catch (OverflowException ex)
                 {
-                    // CBOR integer value too large for expected type
+                    CoseSign1CertificateEventSource.Log.CertificateHeaderParseFailed(ClassStrings.HeaderX5Chain, nameof(OverflowException), ex.Message);
                     return false;
                 }
-                catch (InvalidOperationException)
+                catch (InvalidOperationException ex)
                 {
-                    // CBOR reader in unexpected state
+                    CoseSign1CertificateEventSource.Log.CertificateHeaderParseFailed(ClassStrings.HeaderX5Chain, nameof(InvalidOperationException), ex.Message);
                     return false;
                 }
             }
@@ -282,26 +288,27 @@ public static class CoseSign1MessageCertificateExtensions
                     }
 
                     certificates = new X509Certificate2Collection(certList.ToArray());
+                    CoseSign1CertificateEventSource.Log.CertificateChainExtracted(ClassStrings.HeaderX5Bag, certList.Count);
                     return true;
                 }
-                catch (CborContentException)
+                catch (CborContentException ex)
                 {
-                    // Malformed CBOR in x5bag header — certificate extraction failed
+                    CoseSign1CertificateEventSource.Log.CertificateHeaderParseFailed(ClassStrings.HeaderX5Bag, nameof(CborContentException), ex.Message);
                     return false;
                 }
-                catch (CryptographicException)
+                catch (CryptographicException ex)
                 {
-                    // Invalid certificate DER encoding
+                    CoseSign1CertificateEventSource.Log.CertificateDerDecodeFailed(ClassStrings.HeaderX5Bag, nameof(CryptographicException), ex.Message);
                     return false;
                 }
-                catch (OverflowException)
+                catch (OverflowException ex)
                 {
-                    // CBOR integer value too large for expected type
+                    CoseSign1CertificateEventSource.Log.CertificateHeaderParseFailed(ClassStrings.HeaderX5Bag, nameof(OverflowException), ex.Message);
                     return false;
                 }
-                catch (InvalidOperationException)
+                catch (InvalidOperationException ex)
                 {
-                    // CBOR reader in unexpected state
+                    CoseSign1CertificateEventSource.Log.CertificateHeaderParseFailed(ClassStrings.HeaderX5Bag, nameof(InvalidOperationException), ex.Message);
                     return false;
                 }
             }
@@ -344,29 +351,29 @@ public static class CoseSign1MessageCertificateExtensions
                     thumbprint = CoseX509Thumbprint.Deserialize(reader);
                     return true;
                 }
-                catch (CborContentException)
+                catch (CborContentException ex)
                 {
-                    // Malformed CBOR in x5t header — thumbprint extraction failed
+                    CoseSign1CertificateEventSource.Log.CertificateHeaderParseFailed(ClassStrings.HeaderX5T, nameof(CborContentException), ex.Message);
                     return false;
                 }
-                catch (CryptographicException)
+                catch (CryptographicException ex)
                 {
-                    // Invalid thumbprint data
+                    CoseSign1CertificateEventSource.Log.ThumbprintMatchFailed(0, nameof(CryptographicException), ex.Message);
                     return false;
                 }
-                catch (CoseX509FormatException)
+                catch (CoseX509FormatException ex)
                 {
-                    // Invalid x5t format (e.g. not an array)
+                    CoseSign1CertificateEventSource.Log.CertificateHeaderParseFailed(ClassStrings.HeaderX5T, nameof(CoseX509FormatException), ex.Message);
                     return false;
                 }
-                catch (OverflowException)
+                catch (OverflowException ex)
                 {
-                    // CBOR integer value too large for expected type
+                    CoseSign1CertificateEventSource.Log.CertificateHeaderParseFailed(ClassStrings.HeaderX5T, nameof(OverflowException), ex.Message);
                     return false;
                 }
-                catch (InvalidOperationException)
+                catch (InvalidOperationException ex)
                 {
-                    // CBOR reader in unexpected state
+                    CoseSign1CertificateEventSource.Log.CertificateHeaderParseFailed(ClassStrings.HeaderX5T, nameof(InvalidOperationException), ex.Message);
                     return false;
                 }
             }
@@ -440,8 +447,9 @@ public static class CoseSign1MessageCertificateExtensions
 
             return false;
         }
-        catch (CryptographicException)
+        catch (CryptographicException ex)
         {
+            CoseSign1CertificateEventSource.Log.CertificateDerDecodeFailed(ClassStrings.MethodVerifySignature, nameof(CryptographicException), ex.Message);
             return false;
         }
     }

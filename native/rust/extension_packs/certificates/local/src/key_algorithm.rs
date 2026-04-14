@@ -26,11 +26,12 @@ pub enum KeyAlgorithm {
     /// Pure ML-DSA (`KeyAlgorithm::MlDsa`) is the recommended PQC path today.
     ///
     /// The key_size selects the ML-DSA parameter set and paired classical algorithm:
-    /// - 44 → ECDSA-P256 + ML-DSA-44
-    /// - 65 → ECDSA-P384 + ML-DSA-65 [default]
-    /// - 87 → ECDSA-P384 + ML-DSA-87
+    /// - 44 → p256_mldsa44 (ECDSA-P256 + ML-DSA-44)
+    /// - 65 → p384_mldsa65 (ECDSA-P384 + ML-DSA-65) [default]
+    /// - 87 → p384_mldsa87 (ECDSA-P384 + ML-DSA-87)
     ///
     /// Requires OpenSSL 3.5+ with the OQS provider installed.
+    /// See `native/scripts/setup-oqs-provider.ps1` for setup instructions.
     #[cfg(feature = "composite")]
     #[deprecated(note = "Experimental: IETF composite spec is in flux. Use MlDsa for stable PQC.")]
     Composite,

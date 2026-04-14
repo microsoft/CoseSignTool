@@ -164,13 +164,15 @@ fn generate_mldsa_key(
     Ok((pkey, private_der, public_der))
 }
 
-/// Helper: generate an IETF composite key pair (ML-DSA + ECDSA).
+/// Helper: generate a hybrid key pair (ML-DSA + ECDSA) via OQS provider.
 ///
-/// Uses OpenSSL 3.5+ composite key provider. The algorithm name encodes
-/// both components:
-/// - 44 → MLDSA44-ECDSA-P256-SHA256
-/// - 65 → MLDSA65-ECDSA-P384-SHA384
-/// - 87 → MLDSA87-ECDSA-P384-SHA384
+/// Uses OpenSSL 3.5+ with oqs-provider for hybrid key generation.
+/// The OQS provider naming convention is:
+/// - 44 → p256_mldsa44 (ECDSA-P256 + ML-DSA-44)
+/// - 65 → p384_mldsa65 (ECDSA-P384 + ML-DSA-65)
+/// - 87 → p384_mldsa87 (ECDSA-P384 + ML-DSA-87)
+///
+/// See `native/scripts/setup-oqs-provider.ps1` for provider setup.
 ///
 /// Returns (PKey, private_key_der, public_key_der).
 #[cfg(feature = "composite")]
@@ -179,11 +181,13 @@ fn generate_composite_key(
 ) -> Result<(PKey<openssl::pkey::Private>, Vec<u8>, Vec<u8>), CertLocalError> {
     use foreign_types::ForeignType;
 
-    // Null-terminated C strings for OpenSSL API
+    // OQS provider hybrid naming convention (null-terminated C strings).
+    // Requires oqs-provider loaded in OpenSSL.
+    // See native/scripts/setup-oqs-provider.ps1
     let alg_name: &[u8] = match key_size.unwrap_or(65) {
-        44 => b"MLDSA44-ECDSA-P256-SHA256\0",
-        87 => b"MLDSA87-ECDSA-P384-SHA384\0",
-        _ => b"MLDSA65-ECDSA-P384-SHA384\0",
+        44 => b"p256_mldsa44\0",
+        87 => b"p384_mldsa87\0",
+        _ => b"p384_mldsa65\0",
     };
 
     let pkey = unsafe {
@@ -194,7 +198,7 @@ fn generate_composite_key(
         );
         if ctx.is_null() {
             return Err(CertLocalError::KeyGenerationFailed(format!(
-                "EVP_PKEY_CTX_new_from_name({}) failed — OpenSSL 3.5+ with composite provider required",
+                "EVP_PKEY_CTX_new_from_name({}) failed — OpenSSL 3.5+ with OQS provider required",
                 String::from_utf8_lossy(&alg_name[..alg_name.len() - 1])
             )));
         }

@@ -146,19 +146,20 @@ impl PrivateKeyProvider for SoftwareKeyProvider {
             }
             #[cfg(feature = "composite")]
             KeyAlgorithm::Composite => {
-                // Composite key generation uses OpenSSL 3.5+ composite provider.
-                // The algorithm name encodes both the PQC and classical components.
-                let alg_name = match size {
-                    44 => "MLDSA44-ECDSA-P256-SHA256",
-                    87 => "MLDSA87-ECDSA-P384-SHA384",
-                    _ => "MLDSA65-ECDSA-P384-SHA384", // default
+                // OQS provider hybrid naming convention (null-terminated C strings).
+                // Requires oqs-provider loaded in OpenSSL.
+                // See native/scripts/setup-oqs-provider.ps1
+                let alg_name: &[u8] = match size {
+                    44 => b"p256_mldsa44\0",
+                    87 => b"p384_mldsa87\0",
+                    _ => b"p384_mldsa65\0", // default
                 };
 
-                // Generate via EVP_PKEY_keygen with the composite algorithm name.
-                // This requires OpenSSL 3.5+ with the default provider chain.
+                // Generate via EVP_PKEY_keygen with the OQS hybrid algorithm name.
+                // This requires OpenSSL 3.5+ with the OQS provider loaded.
                 use foreign_types::ForeignType;
 
-                let pkey = unsafe {
+                let pkey: PKey<openssl::pkey::Private> = unsafe {
                     let ctx = openssl_sys::EVP_PKEY_CTX_new_from_name(
                         std::ptr::null_mut(),
                         alg_name.as_ptr() as *const std::os::raw::c_char,
@@ -166,8 +167,8 @@ impl PrivateKeyProvider for SoftwareKeyProvider {
                     );
                     if ctx.is_null() {
                         return Err(CertLocalError::KeyGenerationFailed(format!(
-                            "EVP_PKEY_CTX_new_from_name({}) failed — OpenSSL 3.5+ with composite provider required",
-                            alg_name
+                            "EVP_PKEY_CTX_new_from_name({}) failed — OpenSSL 3.5+ with OQS provider required",
+                            String::from_utf8_lossy(&alg_name[..alg_name.len() - 1])
                         )));
                     }
 
@@ -175,7 +176,8 @@ impl PrivateKeyProvider for SoftwareKeyProvider {
                     if rc != 1 {
                         openssl_sys::EVP_PKEY_CTX_free(ctx);
                         return Err(CertLocalError::KeyGenerationFailed(format!(
-                            "EVP_PKEY_keygen_init({}) failed", alg_name
+                            "EVP_PKEY_keygen_init({}) failed",
+                            String::from_utf8_lossy(&alg_name[..alg_name.len() - 1])
                         )));
                     }
 
@@ -185,7 +187,8 @@ impl PrivateKeyProvider for SoftwareKeyProvider {
 
                     if rc != 1 || pkey_raw.is_null() {
                         return Err(CertLocalError::KeyGenerationFailed(format!(
-                            "EVP_PKEY_keygen({}) failed", alg_name
+                            "EVP_PKEY_keygen({}) failed",
+                            String::from_utf8_lossy(&alg_name[..alg_name.len() - 1])
                         )));
                     }
 

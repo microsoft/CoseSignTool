@@ -618,9 +618,9 @@ fn print_message_sizes() {
             EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
 
         for (name, key_size) in [
-            ("MLDSA44+ECDSA-P256", 44u32),
-            ("MLDSA65+ECDSA-P384", 65),
-            ("MLDSA87+ECDSA-P384", 87),
+            ("p256_mldsa44", 44u32),
+            ("p384_mldsa65", 65),
+            ("p384_mldsa87", 87),
         ] {
             match factory.create_certificate(
                 CertificateOptions::new()

@@ -122,15 +122,19 @@ impl DirectSignatureFactory {
         // Sign the payload
         let message_bytes = builder.sign(signer.signer(), payload)?;
 
-        // POST-SIGN VERIFICATION (critical V2 alignment)
-        let verification_result = self
-            .signing_service
-            .verify_signature(&message_bytes, &context)?;
+        // Post-sign verification: verify the signature is cryptographically valid.
+        // This catches signing errors (wrong key, corrupted output, algorithm mismatch)
+        // before the message leaves the factory. Does NOT establish trust over the signing key.
+        if options.verify_after_sign {
+            let verification_result = self
+                .signing_service
+                .verify_signature(&message_bytes, &context)?;
 
-        if !verification_result {
-            return Err(FactoryError::VerificationFailed {
-                detail: std::borrow::Cow::Borrowed("Post-sign verification failed"),
-            });
+            if !verification_result {
+                return Err(FactoryError::VerificationFailed {
+                    detail: std::borrow::Cow::Borrowed("Post-sign verification failed"),
+                });
+            }
         }
 
         // Apply transparency providers if configured
@@ -249,15 +253,17 @@ impl DirectSignatureFactory {
         // Sign the streaming payload
         let message_bytes = builder.sign_streaming(signer.signer(), payload)?;
 
-        // POST-SIGN VERIFICATION (critical V2 alignment)
-        let verification_result = self
-            .signing_service
-            .verify_signature(&message_bytes, &context)?;
+        // Post-sign verification: verify the signature is cryptographically valid.
+        if options.verify_after_sign {
+            let verification_result = self
+                .signing_service
+                .verify_signature(&message_bytes, &context)?;
 
-        if !verification_result {
-            return Err(FactoryError::VerificationFailed {
-                detail: std::borrow::Cow::Borrowed("Post-sign verification failed"),
-            });
+            if !verification_result {
+                return Err(FactoryError::VerificationFailed {
+                    detail: std::borrow::Cow::Borrowed("Post-sign verification failed"),
+                });
+            }
         }
 
         // Apply transparency providers if configured

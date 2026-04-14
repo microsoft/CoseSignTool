@@ -60,4 +60,25 @@ public class SigningOptions
     /// Set to false if you want best-effort transparency (succeed with signature even if transparency fails).
     /// </remarks>
     public bool FailOnTransparencyError { get; set; } = true;
+
+    /// <summary>
+    /// Whether to verify the signature after signing to ensure the COSE_Sign1
+    /// message is cryptographically valid.
+    /// </summary>
+    /// <remarks>
+    /// <para>Default is <see langword="true"/>.</para>
+    /// <para>
+    /// When enabled, catches signing errors (wrong key, corrupted output,
+    /// algorithm mismatch) before the message leaves the factory.
+    /// </para>
+    /// <para>
+    /// Set to <see langword="false"/> only in performance-critical paths where
+    /// the signer is trusted and the ~100μs verification overhead matters.
+    /// </para>
+    /// <para>
+    /// <b>Note:</b> This verifies cryptographic integrity only — it does NOT
+    /// establish trust over the signing key or certificate chain.
+    /// </para>
+    /// </remarks>
+    public bool VerifyAfterSign { get; set; } = true;
 }

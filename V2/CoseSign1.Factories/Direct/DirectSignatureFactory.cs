@@ -239,14 +239,17 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
                 LogEvents.PostSignVerificationStartedEvent,
                 ClassStrings.LogPostSignVerificationStarted);
             CoseSign1Message decodedForVerify = CoseMessage.DecodeSign1(result);
-            if (!SigningService.VerifySignature(decodedForVerify, context))
+            if (options.VerifyAfterSign)
             {
-                CoseSign1FactoriesEventSource.Log.PostSignVerificationFailed(operationId);
-                Logger.LogError(
-                    LogEvents.PostSignVerificationFailedEvent,
-                    ClassStrings.LogPostSignVerificationFailed);
-                throw new SignatureVerificationException(
-                    ClassStrings.LogPostSignVerificationFailed, operationId);
+                if (!SigningService.VerifySignature(decodedForVerify, context))
+                {
+                    CoseSign1FactoriesEventSource.Log.PostSignVerificationFailed(operationId);
+                    Logger.LogError(
+                        LogEvents.PostSignVerificationFailedEvent,
+                        ClassStrings.LogPostSignVerificationFailed);
+                    throw new SignatureVerificationException(
+                        ClassStrings.LogPostSignVerificationFailed, operationId);
+                }
             }
 
             // Cache for reuse by CreateCoseSign1Message to avoid re-decoding
@@ -484,14 +487,17 @@ public class DirectSignatureFactory : ICoseSign1MessageFactory<DirectSignatureOp
                 LogEvents.PostSignVerificationStartedEvent,
                 ClassStrings.LogPostSignVerificationStarted);
             CoseSign1Message decodedForVerify = CoseMessage.DecodeSign1(result);
-            if (!SigningService.VerifySignature(decodedForVerify, context))
+            if (options.VerifyAfterSign)
             {
-                CoseSign1FactoriesEventSource.Log.PostSignVerificationFailed(operationId);
-                Logger.LogError(
-                    LogEvents.PostSignVerificationFailedEvent,
-                    ClassStrings.LogPostSignVerificationFailed);
-                throw new SignatureVerificationException(
-                    ClassStrings.LogPostSignVerificationFailed, operationId);
+                if (!SigningService.VerifySignature(decodedForVerify, context))
+                {
+                    CoseSign1FactoriesEventSource.Log.PostSignVerificationFailed(operationId);
+                    Logger.LogError(
+                        LogEvents.PostSignVerificationFailedEvent,
+                        ClassStrings.LogPostSignVerificationFailed);
+                    throw new SignatureVerificationException(
+                        ClassStrings.LogPostSignVerificationFailed, operationId);
+                }
             }
 
             // Cache for reuse by CreateCoseSign1MessageAsync to avoid re-decoding

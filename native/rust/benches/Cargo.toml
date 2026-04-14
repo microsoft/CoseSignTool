@@ -8,6 +8,9 @@ publish = false
 [lib]
 test = false
 
+[features]
+pqc = ["cose_sign1_crypto_openssl/pqc", "cose_sign1_certificates_local/pqc"]
+
 [dev-dependencies]
 criterion = { workspace = true }
 
@@ -15,6 +18,9 @@ criterion = { workspace = true }
 cose_sign1_primitives = { path = "../primitives/cose/sign1" }
 cose_primitives = { path = "../primitives/cose" }
 cose_sign1_crypto_openssl = { path = "../primitives/crypto/openssl" }
+cose_sign1_signing = { path = "../signing/core" }
+cose_sign1_factories = { path = "../signing/factories" }
+cose_sign1_certificates_local = { path = "../extension_packs/certificates/local" }
 openssl = { workspace = true }
 sha2 = { workspace = true }
 
@@ -23,4 +29,4 @@ name = "cose_benchmarks"
 harness = false
 
 [lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)', 'cfg(feature, values("pqc"))'] }

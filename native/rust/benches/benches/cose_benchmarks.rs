@@ -10,7 +10,7 @@ use std::sync::Arc;
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 
-use cose_sign1_crypto_openssl::{EvpSigner, EvpVerifier, ES256};
+use cose_sign1_crypto_openssl::{EvpSigner, EvpVerifier, ES256, ES384, PS256};
 use cose_sign1_factories::direct::{DirectSignatureFactory, DirectSignatureOptions};
 use cose_sign1_primitives::{CoseHeaderMap, CoseSign1Builder, CoseSign1Message};
 use cose_sign1_signing::{
@@ -19,6 +19,7 @@ use cose_sign1_signing::{
 use openssl::ec::{EcGroup, EcKey};
 use openssl::nid::Nid;
 use openssl::pkey::PKey;
+use openssl::rsa::Rsa;
 
 /// Generate an EC P-256 key pair and return (private_der, public_der).
 fn setup_ec_key() -> (Vec<u8>, Vec<u8>) {
@@ -305,6 +306,272 @@ fn bench_factory_sign(c: &mut Criterion) {
     group.finish();
 }
 
+// ---------------------------------------------------------------------------
+// RSA signing / verification benchmarks
+// ---------------------------------------------------------------------------
+
+fn setup_rsa_key() -> (Vec<u8>, Vec<u8>) {
+    let rsa = Rsa::generate(2048).unwrap();
+    let pkey = PKey::from_rsa(rsa).unwrap();
+    (
+        pkey.private_key_to_der().unwrap(),
+        pkey.public_key_to_der().unwrap(),
+    )
+}
+
+fn bench_rsa(c: &mut Criterion) {
+    let (priv_key, pub_key) = setup_rsa_key();
+    let signer = EvpSigner::from_der(&priv_key, PS256).unwrap();
+    let verifier = EvpVerifier::from_der(&pub_key, PS256).unwrap();
+
+    let payload = vec![0x42u8; 1024];
+    let mut protected = CoseHeaderMap::new();
+    protected.set_alg(PS256);
+
+    let mut group = c.benchmark_group("rsa");
+
+    group.bench_function("sign_ps256_2048_1kb", |b| {
+        b.iter(|| {
+            CoseSign1Builder::new()
+                .protected(protected.clone())
+                .tagged(true)
+                .sign(black_box(&signer), black_box(&payload))
+                .unwrap()
+        })
+    });
+
+    let signed = CoseSign1Builder::new()
+        .protected(protected)
+        .tagged(true)
+        .sign(&signer, &payload)
+        .unwrap();
+    let message = CoseSign1Message::parse(&signed).unwrap();
+
+    group.bench_function("verify_ps256_2048_1kb", |b| {
+        b.iter(|| message.verify(black_box(&verifier), None).unwrap())
+    });
+
+    group.finish();
+}
+
+// ---------------------------------------------------------------------------
+// EC P-384 benchmarks
+// ---------------------------------------------------------------------------
+
+fn setup_p384_key() -> (Vec<u8>, Vec<u8>) {
+    let group = EcGroup::from_curve_name(Nid::SECP384R1).unwrap();
+    let ec = EcKey::generate(&group).unwrap();
+    let pkey = PKey::from_ec_key(ec).unwrap();
+    (
+        pkey.private_key_to_der().unwrap(),
+        pkey.public_key_to_der().unwrap(),
+    )
+}
+
+fn bench_p384(c: &mut Criterion) {
+    let (priv_key, pub_key) = setup_p384_key();
+    let signer = EvpSigner::from_der(&priv_key, ES384).unwrap();
+    let verifier = EvpVerifier::from_der(&pub_key, ES384).unwrap();
+
+    let payload = vec![0x42u8; 1024];
+    let mut protected = CoseHeaderMap::new();
+    protected.set_alg(ES384);
+
+    let mut group = c.benchmark_group("p384");
+
+    group.bench_function("sign_es384_1kb", |b| {
+        b.iter(|| {
+            CoseSign1Builder::new()
+                .protected(protected.clone())
+                .tagged(true)
+                .sign(black_box(&signer), black_box(&payload))
+                .unwrap()
+        })
+    });
+
+    let signed = CoseSign1Builder::new()
+        .protected(protected)
+        .tagged(true)
+        .sign(&signer, &payload)
+        .unwrap();
+    let message = CoseSign1Message::parse(&signed).unwrap();
+
+    group.bench_function("verify_es384_1kb", |b| {
+        b.iter(|| message.verify(black_box(&verifier), None).unwrap())
+    });
+
+    group.finish();
+}
+
+// ---------------------------------------------------------------------------
+// Certificate-based key generation benchmarks
+// ---------------------------------------------------------------------------
+
+fn bench_cert_keygen(c: &mut Criterion) {
+    use cose_sign1_certificates_local::traits::CertificateFactory;
+    use cose_sign1_certificates_local::{
+        CertificateOptions, EphemeralCertificateFactory, KeyAlgorithm, SoftwareKeyProvider,
+    };
+
+    let mut group = c.benchmark_group("cert_keygen");
+
+    group.bench_function("ecdsa_p256", |b| {
+        let factory =
+            EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+        b.iter(|| {
+            factory
+                .create_certificate(
+                    CertificateOptions::new()
+                        .with_subject_name("CN=Benchmark")
+                        .with_key_algorithm(KeyAlgorithm::Ecdsa)
+                        .with_key_size(256),
+                )
+                .unwrap()
+        })
+    });
+
+    group.bench_function("rsa_2048", |b| {
+        let factory =
+            EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+        b.iter(|| {
+            factory
+                .create_certificate(
+                    CertificateOptions::new()
+                        .with_subject_name("CN=Benchmark")
+                        .with_key_algorithm(KeyAlgorithm::Rsa)
+                        .with_key_size(2048),
+                )
+                .unwrap()
+        })
+    });
+
+    group.bench_function("eddsa_ed25519", |b| {
+        let factory =
+            EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+        b.iter(|| {
+            factory
+                .create_certificate(
+                    CertificateOptions::new()
+                        .with_subject_name("CN=Benchmark")
+                        .with_key_algorithm(KeyAlgorithm::EdDsa),
+                )
+                .unwrap()
+        })
+    });
+
+    group.finish();
+}
+
+// ---------------------------------------------------------------------------
+// PQC (ML-DSA) benchmarks — feature-gated
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "pqc")]
+fn bench_pqc(c: &mut Criterion) {
+    use cose_sign1_crypto_openssl::{generate_mldsa_key_der, MlDsaVariant, ML_DSA_44, ML_DSA_65, ML_DSA_87};
+
+    let mut group = c.benchmark_group("pqc");
+
+    // ML-DSA-44 (lightweight PQC)
+    {
+        let (priv_der, pub_der) = generate_mldsa_key_der(MlDsaVariant::MlDsa44).unwrap();
+        let signer = EvpSigner::from_der(&priv_der, ML_DSA_44).unwrap();
+        let verifier = EvpVerifier::from_der(&pub_der, ML_DSA_44).unwrap();
+
+        let payload = vec![0x42u8; 1024];
+        let mut protected = CoseHeaderMap::new();
+        protected.set_alg(ML_DSA_44);
+
+        group.bench_function("sign_mldsa44_1kb", |b| {
+            b.iter(|| {
+                CoseSign1Builder::new()
+                    .protected(protected.clone())
+                    .tagged(true)
+                    .sign(black_box(&signer), black_box(&payload))
+                    .unwrap()
+            })
+        });
+
+        let signed = CoseSign1Builder::new()
+            .protected(protected)
+            .tagged(true)
+            .sign(&signer, &payload)
+            .unwrap();
+        let message = CoseSign1Message::parse(&signed).unwrap();
+
+        group.bench_function("verify_mldsa44_1kb", |b| {
+            b.iter(|| message.verify(black_box(&verifier), None).unwrap())
+        });
+    }
+
+    // ML-DSA-65 (standard PQC)
+    {
+        let (priv_der, pub_der) = generate_mldsa_key_der(MlDsaVariant::MlDsa65).unwrap();
+        let signer = EvpSigner::from_der(&priv_der, ML_DSA_65).unwrap();
+        let verifier = EvpVerifier::from_der(&pub_der, ML_DSA_65).unwrap();
+
+        let payload = vec![0x42u8; 1024];
+        let mut protected = CoseHeaderMap::new();
+        protected.set_alg(ML_DSA_65);
+
+        group.bench_function("sign_mldsa65_1kb", |b| {
+            b.iter(|| {
+                CoseSign1Builder::new()
+                    .protected(protected.clone())
+                    .tagged(true)
+                    .sign(black_box(&signer), black_box(&payload))
+                    .unwrap()
+            })
+        });
+
+        let signed = CoseSign1Builder::new()
+            .protected(protected)
+            .tagged(true)
+            .sign(&signer, &payload)
+            .unwrap();
+        let message = CoseSign1Message::parse(&signed).unwrap();
+
+        group.bench_function("verify_mldsa65_1kb", |b| {
+            b.iter(|| message.verify(black_box(&verifier), None).unwrap())
+        });
+    }
+
+    // ML-DSA-87 (high-security PQC)
+    {
+        let (priv_der, pub_der) = generate_mldsa_key_der(MlDsaVariant::MlDsa87).unwrap();
+        let signer = EvpSigner::from_der(&priv_der, ML_DSA_87).unwrap();
+        let verifier = EvpVerifier::from_der(&pub_der, ML_DSA_87).unwrap();
+
+        let payload = vec![0x42u8; 1024];
+        let mut protected = CoseHeaderMap::new();
+        protected.set_alg(ML_DSA_87);
+
+        group.bench_function("sign_mldsa87_1kb", |b| {
+            b.iter(|| {
+                CoseSign1Builder::new()
+                    .protected(protected.clone())
+                    .tagged(true)
+                    .sign(black_box(&signer), black_box(&payload))
+                    .unwrap()
+            })
+        });
+
+        let signed = CoseSign1Builder::new()
+            .protected(protected)
+            .tagged(true)
+            .sign(&signer, &payload)
+            .unwrap();
+        let message = CoseSign1Message::parse(&signed).unwrap();
+
+        group.bench_function("verify_mldsa87_1kb", |b| {
+            b.iter(|| message.verify(black_box(&verifier), None).unwrap())
+        });
+    }
+
+    group.finish();
+}
+
+#[cfg(not(feature = "pqc"))]
 criterion_group!(
     benches,
     bench_parse,
@@ -314,5 +581,25 @@ criterion_group!(
     bench_roundtrip,
     bench_allocations,
     bench_factory_sign,
+    bench_rsa,
+    bench_p384,
+    bench_cert_keygen,
 );
+
+#[cfg(feature = "pqc")]
+criterion_group!(
+    benches,
+    bench_parse,
+    bench_sign,
+    bench_verify,
+    bench_header_decode,
+    bench_roundtrip,
+    bench_allocations,
+    bench_factory_sign,
+    bench_rsa,
+    bench_p384,
+    bench_cert_keygen,
+    bench_pqc,
+);
+
 criterion_main!(benches);

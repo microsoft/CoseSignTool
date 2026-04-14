@@ -18,18 +18,21 @@ pub enum KeyAlgorithm {
     /// Post-quantum cryptographic algorithm. Default parameter set is 65.
     #[cfg(feature = "pqc")]
     MlDsa,
-    /// IETF composite: ML-DSA + ECDSA dual key/signature.
+    /// **EXPERIMENTAL** — Hybrid PQC: classical ECDSA + ML-DSA dual key/signature.
     ///
-    /// Produces X.509 certificates with composite public keys and composite
-    /// signatures per the IETF draft-ietf-lamps-pq-composite-sigs spec.
-    /// The key_size selects the ML-DSA parameter set (44/65/87) and the
-    /// classical algorithm is auto-selected:
-    /// - 44 → ML-DSA-44 + ECDSA-P256-SHA256
-    /// - 65 → ML-DSA-65 + ECDSA-P384-SHA384
-    /// - 87 → ML-DSA-87 + ECDSA-P384-SHA384
+    /// ⚠️ This feature is experimental. The IETF composite signature spec
+    /// (draft-ietf-lamps-pq-composite-sigs) is still evolving, and the
+    /// required OpenSSL OQS provider has unstable algorithm naming.
+    /// Pure ML-DSA (`KeyAlgorithm::MlDsa`) is the recommended PQC path today.
     ///
-    /// Requires OpenSSL 3.5+ with the composite provider.
+    /// The key_size selects the ML-DSA parameter set and paired classical algorithm:
+    /// - 44 → ECDSA-P256 + ML-DSA-44
+    /// - 65 → ECDSA-P384 + ML-DSA-65 [default]
+    /// - 87 → ECDSA-P384 + ML-DSA-87
+    ///
+    /// Requires OpenSSL 3.5+ with the OQS provider installed.
     #[cfg(feature = "composite")]
+    #[deprecated(note = "Experimental: IETF composite spec is in flux. Use MlDsa for stable PQC.")]
     Composite,
 }
 

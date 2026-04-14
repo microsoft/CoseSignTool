@@ -7,7 +7,7 @@
     <!-- Benchmarks need full optimization -->
     <Optimize>true</Optimize>
     <!-- Suppress doc analyzer for benchmark code -->
-    <NoWarn>$(NoWarn);CSTDOC001;CSTSTR001;CSTGUARD001;CS1591;SA1600;SA1615</NoWarn>
+    <NoWarn>$(NoWarn);CSTDOC001;CSTSTR001;CSTGUARD001;CS1591;SA1600;SA1615;SYSLIB5006</NoWarn>
     <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
   </PropertyGroup>
 

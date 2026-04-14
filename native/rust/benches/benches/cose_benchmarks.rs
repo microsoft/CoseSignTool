@@ -5,10 +5,17 @@
 //!
 //! Benchmarks the hot paths: parsing, signing, verification, and header decode.
 
+use std::collections::HashMap;
+use std::sync::Arc;
+
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 
 use cose_sign1_crypto_openssl::{EvpSigner, EvpVerifier, ES256};
+use cose_sign1_factories::direct::{DirectSignatureFactory, DirectSignatureOptions};
 use cose_sign1_primitives::{CoseHeaderMap, CoseSign1Builder, CoseSign1Message};
+use cose_sign1_signing::{
+    CoseSigner, SigningContext, SigningError, SigningService, SigningServiceMetadata,
+};
 use openssl::ec::{EcGroup, EcKey};
 use openssl::nid::Nid;
 use openssl::pkey::PKey;
@@ -191,6 +198,113 @@ fn bench_allocations(c: &mut Criterion) {
     });
 }
 
+// ---------------------------------------------------------------------------
+// Factory-level signing benchmarks (DirectSignatureFactory)
+// ---------------------------------------------------------------------------
+
+/// A real `SigningService` backed by OpenSSL ECDSA for benchmarking the factory pipeline.
+struct BenchSigningService {
+    private_der: Vec<u8>,
+    verifier: EvpVerifier,
+    metadata: SigningServiceMetadata,
+}
+
+impl BenchSigningService {
+    fn new(private_der: &[u8], public_der: &[u8]) -> Self {
+        Self {
+            private_der: private_der.to_vec(),
+            verifier: EvpVerifier::from_der(public_der, ES256).unwrap(),
+            metadata: SigningServiceMetadata {
+                service_name: "BenchSigningService".to_string(),
+                service_description: "Benchmark signing service".to_string(),
+                additional_metadata: HashMap::new(),
+            },
+        }
+    }
+}
+
+impl SigningService for BenchSigningService {
+    fn get_cose_signer(&self, _context: &SigningContext<'_>) -> Result<CoseSigner, SigningError> {
+        let signer = EvpSigner::from_der(&self.private_der, ES256).map_err(|e| {
+            SigningError::KeyError {
+                detail: e.to_string().into(),
+            }
+        })?;
+
+        let mut protected = CoseHeaderMap::new();
+        protected.set_alg(ES256);
+
+        Ok(CoseSigner::new(
+            Box::new(signer),
+            protected,
+            CoseHeaderMap::new(),
+        ))
+    }
+
+    fn is_remote(&self) -> bool {
+        false
+    }
+
+    fn service_metadata(&self) -> &SigningServiceMetadata {
+        &self.metadata
+    }
+
+    fn verify_signature(
+        &self,
+        message_bytes: &[u8],
+        _context: &SigningContext<'_>,
+    ) -> Result<bool, SigningError> {
+        let message =
+            CoseSign1Message::parse(message_bytes).map_err(|e| SigningError::VerificationFailed {
+                detail: e.to_string().into(),
+            })?;
+        message
+            .verify(&self.verifier, None)
+            .map_err(|e| SigningError::VerificationFailed {
+                detail: e.to_string().into(),
+            })
+    }
+}
+
+fn bench_factory_sign(c: &mut Criterion) {
+    let (priv_key, pub_key) = setup_ec_key();
+    let signing_service: Arc<dyn SigningService> =
+        Arc::new(BenchSigningService::new(&priv_key, &pub_key));
+    let factory = DirectSignatureFactory::new(signing_service);
+
+    let payload = vec![0x42u8; 1024];
+
+    let mut group = c.benchmark_group("factory_sign");
+
+    // WITH post-sign verification (default, secure)
+    group.bench_function("ecdsa_p256_1kb_with_verify", |b| {
+        b.iter(|| {
+            factory
+                .create_bytes(
+                    black_box(&payload),
+                    "application/octet-stream",
+                    Some(DirectSignatureOptions::new().with_verify_after_sign(true)),
+                )
+                .unwrap()
+        })
+    });
+
+    // WITHOUT post-sign verification (performance mode)
+    group.bench_function("ecdsa_p256_1kb_no_verify", |b| {
+        b.iter(|| {
+            factory
+                .create_bytes(
+                    black_box(&payload),
+                    "application/octet-stream",
+                    Some(DirectSignatureOptions::new().with_verify_after_sign(false)),
+                )
+                .unwrap()
+        })
+    });
+
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_parse,
@@ -199,5 +313,6 @@ criterion_group!(
     bench_header_decode,
     bench_roundtrip,
     bench_allocations,
+    bench_factory_sign,
 );
 criterion_main!(benches);

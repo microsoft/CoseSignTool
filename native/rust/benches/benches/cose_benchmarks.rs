@@ -27,8 +27,8 @@ use cose_sign1_certificates::{
 };
 use cose_sign1_certificates_local::traits::CertificateFactory;
 use cose_sign1_certificates_local::{
-    Certificate, CertificateOptions, EphemeralCertificateFactory, KeyAlgorithm,
-    SoftwareKeyProvider,
+    Certificate, CertificateChainFactory, CertificateChainOptions, CertificateOptions,
+    EphemeralCertificateFactory, KeyAlgorithm, SoftwareKeyProvider,
 };
 use crypto_primitives::{CryptoError, CryptoSigner};
 use openssl::ec::{EcGroup, EcKey};
@@ -446,18 +446,25 @@ impl SigningKeyProvider for BenchSigningKeyProvider {
 
 /// Creates a `DirectSignatureFactory` backed by `CertificateSigningService`
 /// with x5chain, x5t, and SCITT CWT headers — matching V2 C# behavior.
-fn create_cert_signing_factory(cert: &Certificate, cose_algorithm: i64) -> DirectSignatureFactory {
-    let private_key_der = cert
+///
+/// `leaf` must contain a private key. `chain_ders` should be the full chain
+/// (leaf + intermediate + root) as DER-encoded bytes.
+fn create_cert_signing_factory(
+    leaf: &Certificate,
+    chain_ders: &[Vec<u8>],
+    cose_algorithm: i64,
+) -> DirectSignatureFactory {
+    let private_key_der = leaf
         .private_key_der
         .as_ref()
-        .expect("cert must have private key");
+        .expect("leaf must have private key");
     let signer = EvpSigner::from_der(private_key_der, cose_algorithm)
-        .expect("failed to create EvpSigner from cert private key");
+        .expect("failed to create EvpSigner from leaf private key");
 
-    // Self-signed: chain contains only the signing certificate.
+    // Chain includes all certs (leaf + intermediate + root)
     let source = Box::new(BenchCertificateSource::new(
-        cert.cert_der.clone(),
-        vec![cert.cert_der.clone()],
+        leaf.cert_der.clone(),
+        chain_ders.to_vec(),
     ));
     let provider: Arc<dyn SigningKeyProvider> = Arc::new(BenchSigningKeyProvider { signer });
     let options = CertificateSigningOptions::default(); // SCITT enabled per V2
@@ -469,21 +476,23 @@ fn create_cert_signing_factory(cert: &Certificate, cose_algorithm: i64) -> Direc
 
 fn bench_cert_factory_sign(c: &mut Criterion) {
     let cert_factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let chain_factory = CertificateChainFactory::new(cert_factory);
     let payload = vec![0x42u8; 1024];
 
     let mut group = c.benchmark_group("cert_factory_sign");
 
-    // ECDSA P-256 with x5chain + x5t + CWT claims
+    // ECDSA P-256 with 3-tier chain (Root CA → Intermediate CA → Leaf)
     {
-        let cert = cert_factory
-            .create_certificate(
-                CertificateOptions::new()
-                    .with_subject_name("CN=Benchmark ECDSA P-256")
+        let chain = chain_factory
+            .create_chain_with_options(
+                CertificateChainOptions::new()
                     .with_key_algorithm(KeyAlgorithm::Ecdsa)
-                    .with_key_size(256),
+                    .with_key_size(256)
+                    .with_leaf_first(true),
             )
             .unwrap();
-        let factory = create_cert_signing_factory(&cert, ES256);
+        let chain_ders: Vec<Vec<u8>> = chain.iter().map(|cert| cert.cert_der.clone()).collect();
+        let factory = create_cert_signing_factory(&chain[0], &chain_ders, ES256);
 
         group.bench_function("ecdsa_p256_1kb_with_x5chain", |b| {
             b.iter(|| {
@@ -498,17 +507,18 @@ fn bench_cert_factory_sign(c: &mut Criterion) {
         });
     }
 
-    // RSA-PSS 2048 with x5chain + x5t + CWT claims
+    // RSA-PSS 2048 with 3-tier chain (Root CA → Intermediate CA → Leaf)
     {
-        let cert = cert_factory
-            .create_certificate(
-                CertificateOptions::new()
-                    .with_subject_name("CN=Benchmark RSA 2048")
+        let chain = chain_factory
+            .create_chain_with_options(
+                CertificateChainOptions::new()
                     .with_key_algorithm(KeyAlgorithm::Rsa)
-                    .with_key_size(2048),
+                    .with_key_size(2048)
+                    .with_leaf_first(true),
             )
             .unwrap();
-        let factory = create_cert_signing_factory(&cert, PS256);
+        let chain_ders: Vec<Vec<u8>> = chain.iter().map(|cert| cert.cert_der.clone()).collect();
+        let factory = create_cert_signing_factory(&chain[0], &chain_ders, PS256);
 
         group.bench_function("rsa_2048_1kb_with_x5chain", |b| {
             b.iter(|| {
@@ -523,17 +533,18 @@ fn bench_cert_factory_sign(c: &mut Criterion) {
         });
     }
 
-    // ECDSA P-384 with x5chain + x5t + CWT claims
+    // ECDSA P-384 with 3-tier chain (Root CA → Intermediate CA → Leaf)
     {
-        let cert = cert_factory
-            .create_certificate(
-                CertificateOptions::new()
-                    .with_subject_name("CN=Benchmark ECDSA P-384")
+        let chain = chain_factory
+            .create_chain_with_options(
+                CertificateChainOptions::new()
                     .with_key_algorithm(KeyAlgorithm::Ecdsa)
-                    .with_key_size(384),
+                    .with_key_size(384)
+                    .with_leaf_first(true),
             )
             .unwrap();
-        let factory = create_cert_signing_factory(&cert, ES384);
+        let chain_ders: Vec<Vec<u8>> = chain.iter().map(|cert| cert.cert_der.clone()).collect();
+        let factory = create_cert_signing_factory(&chain[0], &chain_ders, ES384);
 
         group.bench_function("ecdsa_p384_1kb_with_x5chain", |b| {
             b.iter(|| {
@@ -548,16 +559,17 @@ fn bench_cert_factory_sign(c: &mut Criterion) {
         });
     }
 
-    // EdDSA Ed25519 with x5chain + x5t + CWT claims
+    // EdDSA Ed25519 with 3-tier chain (Root CA → Intermediate CA → Leaf)
     {
-        let cert = cert_factory
-            .create_certificate(
-                CertificateOptions::new()
-                    .with_subject_name("CN=Benchmark EdDSA Ed25519")
-                    .with_key_algorithm(KeyAlgorithm::EdDsa),
+        let chain = chain_factory
+            .create_chain_with_options(
+                CertificateChainOptions::new()
+                    .with_key_algorithm(KeyAlgorithm::EdDsa)
+                    .with_leaf_first(true),
             )
             .unwrap();
-        let factory = create_cert_signing_factory(&cert, EDDSA);
+        let chain_ders: Vec<Vec<u8>> = chain.iter().map(|cert| cert.cert_der.clone()).collect();
+        let factory = create_cert_signing_factory(&chain[0], &chain_ders, EDDSA);
 
         group.bench_function("eddsa_ed25519_1kb_with_x5chain", |b| {
             b.iter(|| {
@@ -572,18 +584,21 @@ fn bench_cert_factory_sign(c: &mut Criterion) {
         });
     }
 
-    // ML-DSA-65 with x5chain + x5t + CWT claims (PQC, feature-gated)
+    // ML-DSA-65 with hybrid 3-tier chain (ECDSA root/intermediate → ML-DSA leaf)
     #[cfg(feature = "pqc")]
     {
-        let cert = cert_factory
-            .create_certificate(
-                CertificateOptions::new()
-                    .with_subject_name("CN=Benchmark ML-DSA-65")
-                    .with_key_algorithm(KeyAlgorithm::MlDsa)
-                    .with_key_size(65),
+        let chain = chain_factory
+            .create_chain_with_options(
+                CertificateChainOptions::new()
+                    .with_root_key_algorithm(KeyAlgorithm::Ecdsa)
+                    .with_intermediate_key_algorithm(KeyAlgorithm::Ecdsa)
+                    .with_leaf_key_algorithm(KeyAlgorithm::MlDsa)
+                    .with_leaf_key_size(65)
+                    .with_leaf_first(true),
             )
             .unwrap();
-        let factory = create_cert_signing_factory(&cert, ML_DSA_65);
+        let chain_ders: Vec<Vec<u8>> = chain.iter().map(|cert| cert.cert_der.clone()).collect();
+        let factory = create_cert_signing_factory(&chain[0], &chain_ders, ML_DSA_65);
 
         group.bench_function("mldsa65_1kb_with_x5chain", |b| {
             b.iter(|| {
@@ -890,23 +905,25 @@ fn print_message_sizes() {
         );
     }
 
-    // Certificate-based message sizes (x5chain + x5t + CWT embedded)
+    // 3-tier certificate chain message sizes (x5chain + x5t + CWT embedded)
     println!("\u{2560}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{256C}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{256C}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2563}");
     println!("\u{2551} Cert-Based (x5chain)  \u{2551}                \u{2551} (includes SCITT CWT)  \u{2551}");
     println!("\u{2560}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{256C}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{256C}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2563}");
     {
         let cert_factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+        let chain_factory = CertificateChainFactory::new(cert_factory);
 
-        // ES256 + x5chain
-        let cert = cert_factory
-            .create_certificate(
-                CertificateOptions::new()
-                    .with_subject_name("CN=Size Test ECDSA P-256")
+        // ES256 + x5chain (3-tier chain)
+        let chain = chain_factory
+            .create_chain_with_options(
+                CertificateChainOptions::new()
                     .with_key_algorithm(KeyAlgorithm::Ecdsa)
-                    .with_key_size(256),
+                    .with_key_size(256)
+                    .with_leaf_first(true),
             )
             .unwrap();
-        let factory = create_cert_signing_factory(&cert, ES256);
+        let chain_ders: Vec<Vec<u8>> = chain.iter().map(|cert| cert.cert_der.clone()).collect();
+        let factory = create_cert_signing_factory(&chain[0], &chain_ders, ES256);
         let bytes = factory
             .create_bytes(&payload, "application/octet-stream", None)
             .unwrap();
@@ -918,16 +935,17 @@ fn print_message_sizes() {
             (overhead as f64 / 1024.0) * 100.0
         );
 
-        // PS256 + x5chain
-        let cert = cert_factory
-            .create_certificate(
-                CertificateOptions::new()
-                    .with_subject_name("CN=Size Test RSA 2048")
+        // PS256 + x5chain (3-tier chain)
+        let chain = chain_factory
+            .create_chain_with_options(
+                CertificateChainOptions::new()
                     .with_key_algorithm(KeyAlgorithm::Rsa)
-                    .with_key_size(2048),
+                    .with_key_size(2048)
+                    .with_leaf_first(true),
             )
             .unwrap();
-        let factory = create_cert_signing_factory(&cert, PS256);
+        let chain_ders: Vec<Vec<u8>> = chain.iter().map(|cert| cert.cert_der.clone()).collect();
+        let factory = create_cert_signing_factory(&chain[0], &chain_ders, PS256);
         let bytes = factory
             .create_bytes(&payload, "application/octet-stream", None)
             .unwrap();
@@ -939,16 +957,17 @@ fn print_message_sizes() {
             (overhead as f64 / 1024.0) * 100.0
         );
 
-        // ES384 + x5chain
-        let cert = cert_factory
-            .create_certificate(
-                CertificateOptions::new()
-                    .with_subject_name("CN=Size Test ECDSA P-384")
+        // ES384 + x5chain (3-tier chain)
+        let chain = chain_factory
+            .create_chain_with_options(
+                CertificateChainOptions::new()
                     .with_key_algorithm(KeyAlgorithm::Ecdsa)
-                    .with_key_size(384),
+                    .with_key_size(384)
+                    .with_leaf_first(true),
             )
             .unwrap();
-        let factory = create_cert_signing_factory(&cert, ES384);
+        let chain_ders: Vec<Vec<u8>> = chain.iter().map(|cert| cert.cert_der.clone()).collect();
+        let factory = create_cert_signing_factory(&chain[0], &chain_ders, ES384);
         let bytes = factory
             .create_bytes(&payload, "application/octet-stream", None)
             .unwrap();
@@ -960,15 +979,16 @@ fn print_message_sizes() {
             (overhead as f64 / 1024.0) * 100.0
         );
 
-        // EdDSA Ed25519 + x5chain
-        let cert = cert_factory
-            .create_certificate(
-                CertificateOptions::new()
-                    .with_subject_name("CN=Size Test EdDSA Ed25519")
-                    .with_key_algorithm(KeyAlgorithm::EdDsa),
+        // EdDSA Ed25519 + x5chain (3-tier chain)
+        let chain = chain_factory
+            .create_chain_with_options(
+                CertificateChainOptions::new()
+                    .with_key_algorithm(KeyAlgorithm::EdDsa)
+                    .with_leaf_first(true),
             )
             .unwrap();
-        let factory = create_cert_signing_factory(&cert, EDDSA);
+        let chain_ders: Vec<Vec<u8>> = chain.iter().map(|cert| cert.cert_der.clone()).collect();
+        let factory = create_cert_signing_factory(&chain[0], &chain_ders, EDDSA);
         let bytes = factory
             .create_bytes(&payload, "application/octet-stream", None)
             .unwrap();
@@ -981,19 +1001,23 @@ fn print_message_sizes() {
         );
     }
 
-    // PQC cert-based message sizes
+    // PQC cert-based message sizes (hybrid 3-tier chain)
     #[cfg(feature = "pqc")]
     {
         let cert_factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
-        let cert = cert_factory
-            .create_certificate(
-                CertificateOptions::new()
-                    .with_subject_name("CN=Size Test ML-DSA-65")
-                    .with_key_algorithm(KeyAlgorithm::MlDsa)
-                    .with_key_size(65),
+        let chain_factory = CertificateChainFactory::new(cert_factory);
+        let chain = chain_factory
+            .create_chain_with_options(
+                CertificateChainOptions::new()
+                    .with_root_key_algorithm(KeyAlgorithm::Ecdsa)
+                    .with_intermediate_key_algorithm(KeyAlgorithm::Ecdsa)
+                    .with_leaf_key_algorithm(KeyAlgorithm::MlDsa)
+                    .with_leaf_key_size(65)
+                    .with_leaf_first(true),
             )
             .unwrap();
-        let factory = create_cert_signing_factory(&cert, ML_DSA_65);
+        let chain_ders: Vec<Vec<u8>> = chain.iter().map(|cert| cert.cert_der.clone()).collect();
+        let factory = create_cert_signing_factory(&chain[0], &chain_ders, ML_DSA_65);
         let bytes = factory
             .create_bytes(&payload, "application/octet-stream", None)
             .unwrap();

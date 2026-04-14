@@ -10,7 +10,9 @@ use std::sync::Arc;
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 
-use cose_sign1_crypto_openssl::{EvpSigner, EvpVerifier, ES256, ES384, PS256};
+use cose_sign1_crypto_openssl::{EvpSigner, EvpVerifier, EDDSA, ES256, ES384, PS256};
+#[cfg(feature = "pqc")]
+use cose_sign1_crypto_openssl::{generate_mldsa_key_der, MlDsaVariant, ML_DSA_44, ML_DSA_65, ML_DSA_87};
 use cose_sign1_factories::direct::{DirectSignatureFactory, DirectSignatureOptions};
 use cose_sign1_primitives::{CoseHeaderMap, CoseSign1Builder, CoseSign1Message};
 use cose_sign1_signing::{
@@ -463,6 +465,182 @@ fn bench_cert_keygen(c: &mut Criterion) {
 }
 
 // ---------------------------------------------------------------------------
+// Message size measurement (informational, runs once)
+// ---------------------------------------------------------------------------
+
+/// Prints a table of COSE_Sign1 message sizes for each algorithm.
+/// This gives consumers critical sizing data for capacity planning.
+fn print_message_sizes() {
+    println!("\n\u{2554}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2557}");
+    println!("\u{2551}              COSE_Sign1 Message Sizes (1 KB payload)           \u{2551}");
+    println!("\u{2560}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2566}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2566}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2563}");
+    println!("\u{2551} Algorithm             \u{2551} Message Size   \u{2551} Overhead vs Payload   \u{2551}");
+    println!("\u{2560}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{256C}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{256C}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2563}");
+
+    let payload = vec![0x42u8; 1024];
+
+    // ECDSA P-256
+    {
+        let (priv_key, _) = setup_ec_key();
+        let bytes = create_signed_message(&priv_key, &payload);
+        let overhead = bytes.len() - 1024;
+        println!(
+            "\u{2551} ECDSA P-256 (ES256)   \u{2551} {:>10} B   \u{2551} {:>10} B ({:>4.1}%)    \u{2551}",
+            bytes.len(),
+            overhead,
+            (overhead as f64 / 1024.0) * 100.0
+        );
+    }
+
+    // ECDSA P-384
+    {
+        let (priv_key, _) = setup_p384_key();
+        let signer = EvpSigner::from_der(&priv_key, ES384).unwrap();
+        let mut protected = CoseHeaderMap::new();
+        protected.set_alg(ES384);
+        let bytes = CoseSign1Builder::new()
+            .protected(protected)
+            .tagged(true)
+            .sign(&signer, &payload)
+            .unwrap();
+        let overhead = bytes.len() - 1024;
+        println!(
+            "\u{2551} ECDSA P-384 (ES384)   \u{2551} {:>10} B   \u{2551} {:>10} B ({:>4.1}%)    \u{2551}",
+            bytes.len(),
+            overhead,
+            (overhead as f64 / 1024.0) * 100.0
+        );
+    }
+
+    // RSA-PSS 2048
+    {
+        let (priv_key, _) = setup_rsa_key();
+        let signer = EvpSigner::from_der(&priv_key, PS256).unwrap();
+        let mut protected = CoseHeaderMap::new();
+        protected.set_alg(PS256);
+        let bytes = CoseSign1Builder::new()
+            .protected(protected)
+            .tagged(true)
+            .sign(&signer, &payload)
+            .unwrap();
+        let overhead = bytes.len() - 1024;
+        println!(
+            "\u{2551} RSA-PSS 2048 (PS256)  \u{2551} {:>10} B   \u{2551} {:>10} B ({:>4.1}%)    \u{2551}",
+            bytes.len(),
+            overhead,
+            (overhead as f64 / 1024.0) * 100.0
+        );
+    }
+
+    // EdDSA Ed25519
+    {
+        let pkey = PKey::generate_ed25519().unwrap();
+        let priv_der = pkey.private_key_to_der().unwrap();
+        let signer = EvpSigner::from_der(&priv_der, EDDSA).unwrap();
+        let mut protected = CoseHeaderMap::new();
+        protected.set_alg(EDDSA);
+        let bytes = CoseSign1Builder::new()
+            .protected(protected)
+            .tagged(true)
+            .sign(&signer, &payload)
+            .unwrap();
+        let overhead = bytes.len() - 1024;
+        println!(
+            "\u{2551} EdDSA Ed25519         \u{2551} {:>10} B   \u{2551} {:>10} B ({:>4.1}%)    \u{2551}",
+            bytes.len(),
+            overhead,
+            (overhead as f64 / 1024.0) * 100.0
+        );
+    }
+
+    // PQC: ML-DSA-44/65/87
+    #[cfg(feature = "pqc")]
+    {
+        for (name, variant, alg) in [
+            ("ML-DSA-44", MlDsaVariant::MlDsa44, ML_DSA_44),
+            ("ML-DSA-65", MlDsaVariant::MlDsa65, ML_DSA_65),
+            ("ML-DSA-87", MlDsaVariant::MlDsa87, ML_DSA_87),
+        ] {
+            let (priv_der, _pub_der) = generate_mldsa_key_der(variant).unwrap();
+            let signer = EvpSigner::from_der(&priv_der, alg).unwrap();
+            let mut protected = CoseHeaderMap::new();
+            protected.set_alg(alg);
+            let bytes = CoseSign1Builder::new()
+                .protected(protected)
+                .tagged(true)
+                .sign(&signer, &payload)
+                .unwrap();
+            let overhead = bytes.len() - 1024;
+            println!(
+                "\u{2551} {:21} \u{2551} {:>10} B   \u{2551} {:>10} B ({:>4.1}%)    \u{2551}",
+                name,
+                bytes.len(),
+                overhead,
+                (overhead as f64 / 1024.0) * 100.0
+            );
+        }
+    }
+
+    println!("\u{255A}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2569}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2569}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{255D}\n");
+}
+
+fn bench_message_sizes(c: &mut Criterion) {
+    // Print sizes once (not benchmarked, just informational)
+    print_message_sizes();
+
+    // Benchmark message creation for size reference
+    c.bench_function("message_size/ecdsa_p256_1kb", |b| {
+        let (priv_key, _) = setup_ec_key();
+        b.iter(|| {
+            let bytes =
+                create_signed_message(black_box(&priv_key), black_box(&[0x42u8; 1024]));
+            black_box(bytes.len())
+        })
+    });
+}
+
+// ---------------------------------------------------------------------------
+// EdDSA Ed25519 sign/verify benchmarks
+// ---------------------------------------------------------------------------
+
+fn bench_ed25519(c: &mut Criterion) {
+    let pkey = PKey::generate_ed25519().unwrap();
+    let priv_der = pkey.private_key_to_der().unwrap();
+    let pub_der = pkey.public_key_to_der().unwrap();
+    let signer = EvpSigner::from_der(&priv_der, EDDSA).unwrap();
+    let verifier = EvpVerifier::from_der(&pub_der, EDDSA).unwrap();
+
+    let payload = vec![0x42u8; 1024];
+    let mut protected = CoseHeaderMap::new();
+    protected.set_alg(EDDSA);
+
+    let mut group = c.benchmark_group("ed25519");
+
+    group.bench_function("sign_1kb", |b| {
+        b.iter(|| {
+            CoseSign1Builder::new()
+                .protected(protected.clone())
+                .tagged(true)
+                .sign(black_box(&signer), black_box(&payload))
+                .unwrap()
+        })
+    });
+
+    let signed = CoseSign1Builder::new()
+        .protected(protected)
+        .tagged(true)
+        .sign(&signer, &payload)
+        .unwrap();
+    let message = CoseSign1Message::parse(&signed).unwrap();
+
+    group.bench_function("verify_1kb", |b| {
+        b.iter(|| message.verify(black_box(&verifier), None).unwrap())
+    });
+
+    group.finish();
+}
+
+// ---------------------------------------------------------------------------
 // PQC (ML-DSA) benchmarks — feature-gated
 // ---------------------------------------------------------------------------
 
@@ -583,7 +761,9 @@ criterion_group!(
     bench_factory_sign,
     bench_rsa,
     bench_p384,
+    bench_ed25519,
     bench_cert_keygen,
+    bench_message_sizes,
 );
 
 #[cfg(feature = "pqc")]
@@ -598,8 +778,10 @@ criterion_group!(
     bench_factory_sign,
     bench_rsa,
     bench_p384,
+    bench_ed25519,
     bench_cert_keygen,
     bench_pqc,
+    bench_message_sizes,
 );
 
 criterion_main!(benches);

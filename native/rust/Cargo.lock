@@ -444,12 +444,14 @@ name = "cose_benchmarks"
 version = "0.1.0"
 dependencies = [
  "cose_primitives",
+ "cose_sign1_certificates",
  "cose_sign1_certificates_local",
  "cose_sign1_crypto_openssl",
  "cose_sign1_factories",
  "cose_sign1_primitives",
  "cose_sign1_signing",
  "criterion",
+ "crypto_primitives",
  "openssl",
  "sha2",
 ]

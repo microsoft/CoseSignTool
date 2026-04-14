@@ -19,6 +19,18 @@ use cose_sign1_primitives::{CoseHeaderMap, CoseSign1Builder, CoseSign1Message};
 use cose_sign1_signing::{
     CoseSigner, SigningContext, SigningError, SigningService, SigningServiceMetadata,
 };
+use cose_sign1_certificates::signing::{
+    CertificateSigningOptions, CertificateSigningService, CertificateSource, SigningKeyProvider,
+};
+use cose_sign1_certificates::{
+    CertificateChainBuilder, CertificateError, ExplicitCertificateChainBuilder,
+};
+use cose_sign1_certificates_local::traits::CertificateFactory;
+use cose_sign1_certificates_local::{
+    Certificate, CertificateOptions, EphemeralCertificateFactory, KeyAlgorithm,
+    SoftwareKeyProvider,
+};
+use crypto_primitives::{CryptoError, CryptoSigner};
 use openssl::ec::{EcGroup, EcKey};
 use openssl::nid::Nid;
 use openssl::pkey::PKey;
@@ -310,8 +322,202 @@ fn bench_factory_sign(c: &mut Criterion) {
 }
 
 // ---------------------------------------------------------------------------
-// RSA signing / verification benchmarks
+// Certificate-based factory signing benchmarks (CertificateSigningService)
+//
+// These benchmarks mirror V2 C# CertificateSigningService behavior:
+// x5chain + x5t + CWT (SCITT) headers are embedded in every COSE_Sign1 message.
 // ---------------------------------------------------------------------------
+
+/// Certificate source backed by in-memory DER bytes and an explicit chain.
+struct BenchCertificateSource {
+    cert_der: Vec<u8>,
+    chain_builder: ExplicitCertificateChainBuilder,
+}
+
+impl BenchCertificateSource {
+    fn new(cert_der: Vec<u8>, chain: Vec<Vec<u8>>) -> Self {
+        Self {
+            cert_der,
+            chain_builder: ExplicitCertificateChainBuilder::new(chain),
+        }
+    }
+}
+
+impl CertificateSource for BenchCertificateSource {
+    fn get_signing_certificate(&self) -> Result<&[u8], CertificateError> {
+        Ok(&self.cert_der)
+    }
+
+    fn has_private_key(&self) -> bool {
+        true
+    }
+
+    fn get_chain_builder(&self) -> &dyn CertificateChainBuilder {
+        &self.chain_builder
+    }
+}
+
+/// Signing key provider wrapping an EvpSigner for local (non-remote) signing.
+struct BenchSigningKeyProvider {
+    signer: EvpSigner,
+}
+
+impl CryptoSigner for BenchSigningKeyProvider {
+    fn sign(&self, data: &[u8]) -> Result<Vec<u8>, CryptoError> {
+        self.signer.sign(data)
+    }
+
+    fn algorithm(&self) -> i64 {
+        self.signer.algorithm()
+    }
+
+    fn key_id(&self) -> Option<&[u8]> {
+        self.signer.key_id()
+    }
+
+    fn key_type(&self) -> &str {
+        self.signer.key_type()
+    }
+}
+
+impl SigningKeyProvider for BenchSigningKeyProvider {
+    fn is_remote(&self) -> bool {
+        false
+    }
+}
+
+/// Creates a `DirectSignatureFactory` backed by `CertificateSigningService`
+/// with x5chain, x5t, and SCITT CWT headers — matching V2 C# behavior.
+fn create_cert_signing_factory(cert: &Certificate, cose_algorithm: i64) -> DirectSignatureFactory {
+    let private_key_der = cert
+        .private_key_der
+        .as_ref()
+        .expect("cert must have private key");
+    let signer = EvpSigner::from_der(private_key_der, cose_algorithm)
+        .expect("failed to create EvpSigner from cert private key");
+
+    // Self-signed: chain contains only the signing certificate.
+    let source = Box::new(BenchCertificateSource::new(
+        cert.cert_der.clone(),
+        vec![cert.cert_der.clone()],
+    ));
+    let provider: Arc<dyn SigningKeyProvider> = Arc::new(BenchSigningKeyProvider { signer });
+    let options = CertificateSigningOptions::default(); // SCITT enabled per V2
+
+    let service: Arc<dyn SigningService> =
+        Arc::new(CertificateSigningService::new(source, provider, options));
+    DirectSignatureFactory::new(service)
+}
+
+fn bench_cert_factory_sign(c: &mut Criterion) {
+    let cert_factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let payload = vec![0x42u8; 1024];
+
+    let mut group = c.benchmark_group("cert_factory_sign");
+
+    // ECDSA P-256 with x5chain + x5t + CWT claims
+    {
+        let cert = cert_factory
+            .create_certificate(
+                CertificateOptions::new()
+                    .with_subject_name("CN=Benchmark ECDSA P-256")
+                    .with_key_algorithm(KeyAlgorithm::Ecdsa)
+                    .with_key_size(256),
+            )
+            .unwrap();
+        let factory = create_cert_signing_factory(&cert, ES256);
+
+        group.bench_function("ecdsa_p256_1kb_with_x5chain", |b| {
+            b.iter(|| {
+                factory
+                    .create_bytes(
+                        black_box(&payload),
+                        "application/octet-stream",
+                        None,
+                    )
+                    .unwrap()
+            })
+        });
+    }
+
+    // RSA-PSS 2048 with x5chain + x5t + CWT claims
+    {
+        let cert = cert_factory
+            .create_certificate(
+                CertificateOptions::new()
+                    .with_subject_name("CN=Benchmark RSA 2048")
+                    .with_key_algorithm(KeyAlgorithm::Rsa)
+                    .with_key_size(2048),
+            )
+            .unwrap();
+        let factory = create_cert_signing_factory(&cert, PS256);
+
+        group.bench_function("rsa_2048_1kb_with_x5chain", |b| {
+            b.iter(|| {
+                factory
+                    .create_bytes(
+                        black_box(&payload),
+                        "application/octet-stream",
+                        None,
+                    )
+                    .unwrap()
+            })
+        });
+    }
+
+    // ECDSA P-384 with x5chain + x5t + CWT claims
+    {
+        let cert = cert_factory
+            .create_certificate(
+                CertificateOptions::new()
+                    .with_subject_name("CN=Benchmark ECDSA P-384")
+                    .with_key_algorithm(KeyAlgorithm::Ecdsa)
+                    .with_key_size(384),
+            )
+            .unwrap();
+        let factory = create_cert_signing_factory(&cert, ES384);
+
+        group.bench_function("ecdsa_p384_1kb_with_x5chain", |b| {
+            b.iter(|| {
+                factory
+                    .create_bytes(
+                        black_box(&payload),
+                        "application/octet-stream",
+                        None,
+                    )
+                    .unwrap()
+            })
+        });
+    }
+
+    // ML-DSA-65 with x5chain + x5t + CWT claims (PQC, feature-gated)
+    #[cfg(feature = "pqc")]
+    {
+        let cert = cert_factory
+            .create_certificate(
+                CertificateOptions::new()
+                    .with_subject_name("CN=Benchmark ML-DSA-65")
+                    .with_key_algorithm(KeyAlgorithm::MlDsa)
+                    .with_key_size(65),
+            )
+            .unwrap();
+        let factory = create_cert_signing_factory(&cert, ML_DSA_65);
+
+        group.bench_function("mldsa65_1kb_with_x5chain", |b| {
+            b.iter(|| {
+                factory
+                    .create_bytes(
+                        black_box(&payload),
+                        "application/octet-stream",
+                        None,
+                    )
+                    .unwrap()
+            })
+        });
+    }
+
+    group.finish();
+}
 
 fn setup_rsa_key() -> (Vec<u8>, Vec<u8>) {
     let rsa = Rsa::generate(2048).unwrap();
@@ -599,6 +805,102 @@ fn print_message_sizes() {
         println!(
             "\u{2551} ES256 Indirect SHA256 \u{2551} {:>10} B   \u{2551} (original: 1024 B)    \u{2551}",
             indirect_bytes.len()
+        );
+    }
+
+    // Certificate-based message sizes (x5chain + x5t + CWT embedded)
+    println!("\u{2560}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{256C}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{256C}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2563}");
+    println!("\u{2551} Cert-Based (x5chain)  \u{2551}                \u{2551} (includes SCITT CWT)  \u{2551}");
+    println!("\u{2560}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{256C}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{256C}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2563}");
+    {
+        let cert_factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+
+        // ES256 + x5chain
+        let cert = cert_factory
+            .create_certificate(
+                CertificateOptions::new()
+                    .with_subject_name("CN=Size Test ECDSA P-256")
+                    .with_key_algorithm(KeyAlgorithm::Ecdsa)
+                    .with_key_size(256),
+            )
+            .unwrap();
+        let factory = create_cert_signing_factory(&cert, ES256);
+        let bytes = factory
+            .create_bytes(&payload, "application/octet-stream", None)
+            .unwrap();
+        let overhead = bytes.len() - 1024;
+        println!(
+            "\u{2551} ES256 + x5chain       \u{2551} {:>10} B   \u{2551} {:>10} B ({:>4.1}%)    \u{2551}",
+            bytes.len(),
+            overhead,
+            (overhead as f64 / 1024.0) * 100.0
+        );
+
+        // PS256 + x5chain
+        let cert = cert_factory
+            .create_certificate(
+                CertificateOptions::new()
+                    .with_subject_name("CN=Size Test RSA 2048")
+                    .with_key_algorithm(KeyAlgorithm::Rsa)
+                    .with_key_size(2048),
+            )
+            .unwrap();
+        let factory = create_cert_signing_factory(&cert, PS256);
+        let bytes = factory
+            .create_bytes(&payload, "application/octet-stream", None)
+            .unwrap();
+        let overhead = bytes.len() - 1024;
+        println!(
+            "\u{2551} PS256 + x5chain       \u{2551} {:>10} B   \u{2551} {:>10} B ({:>4.1}%)    \u{2551}",
+            bytes.len(),
+            overhead,
+            (overhead as f64 / 1024.0) * 100.0
+        );
+
+        // ES384 + x5chain
+        let cert = cert_factory
+            .create_certificate(
+                CertificateOptions::new()
+                    .with_subject_name("CN=Size Test ECDSA P-384")
+                    .with_key_algorithm(KeyAlgorithm::Ecdsa)
+                    .with_key_size(384),
+            )
+            .unwrap();
+        let factory = create_cert_signing_factory(&cert, ES384);
+        let bytes = factory
+            .create_bytes(&payload, "application/octet-stream", None)
+            .unwrap();
+        let overhead = bytes.len() - 1024;
+        println!(
+            "\u{2551} ES384 + x5chain       \u{2551} {:>10} B   \u{2551} {:>10} B ({:>4.1}%)    \u{2551}",
+            bytes.len(),
+            overhead,
+            (overhead as f64 / 1024.0) * 100.0
+        );
+    }
+
+    // PQC cert-based message sizes
+    #[cfg(feature = "pqc")]
+    {
+        let cert_factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+        let cert = cert_factory
+            .create_certificate(
+                CertificateOptions::new()
+                    .with_subject_name("CN=Size Test ML-DSA-65")
+                    .with_key_algorithm(KeyAlgorithm::MlDsa)
+                    .with_key_size(65),
+            )
+            .unwrap();
+        let factory = create_cert_signing_factory(&cert, ML_DSA_65);
+        let bytes = factory
+            .create_bytes(&payload, "application/octet-stream", None)
+            .unwrap();
+        let overhead = bytes.len() - 1024;
+        println!(
+            "\u{2551} ML-DSA-65 + x5chain   \u{2551} {:>10} B   \u{2551} {:>10} B ({:>4.1}%)    \u{2551}",
+            bytes.len(),
+            overhead,
+            (overhead as f64 / 1024.0) * 100.0
         );
     }
 
@@ -918,6 +1220,7 @@ criterion_group!(
     bench_roundtrip,
     bench_allocations,
     bench_factory_sign,
+    bench_cert_factory_sign,
     bench_rsa,
     bench_p384,
     bench_ed25519,
@@ -936,6 +1239,7 @@ criterion_group!(
     bench_roundtrip,
     bench_allocations,
     bench_factory_sign,
+    bench_cert_factory_sign,
     bench_rsa,
     bench_p384,
     bench_ed25519,
@@ -955,6 +1259,7 @@ criterion_group!(
     bench_roundtrip,
     bench_allocations,
     bench_factory_sign,
+    bench_cert_factory_sign,
     bench_rsa,
     bench_p384,
     bench_ed25519,

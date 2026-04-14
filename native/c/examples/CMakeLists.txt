@@ -21,6 +21,18 @@ target_link_libraries(cose_trust_policy_example PRIVATE
     cose_sign1
 )
 
+add_executable(cose_hello_cose
+    hello_cose.c
+)
+
+target_link_libraries(cose_hello_cose PRIVATE
+    cose_sign1
+)
+
+if(TARGET cose_primitives)
+    target_link_libraries(cose_hello_cose PRIVATE cose_primitives)
+endif()
+
 add_executable(cose_full_example
     full_example.c
 )

@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>false</IsTestProject>
+    <!-- Benchmarks need full optimization -->
+    <Optimize>true</Optimize>
+    <!-- Suppress doc analyzer for benchmark code -->
+    <NoWarn>$(NoWarn);CSTDOC001;CSTSTR001;CSTGUARD001;CS1591;SA1600;SA1615</NoWarn>
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BenchmarkDotNet" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CoseSign1.Factories\CoseSign1.Factories.csproj" />
+    <ProjectReference Include="..\CoseSign1.Validation\CoseSign1.Validation.csproj" />
+    <ProjectReference Include="..\CoseSign1.Certificates\CoseSign1.Certificates.csproj" />
+    <ProjectReference Include="..\CoseSign1.Certificates.Local\CoseSign1.Certificates.Local.csproj" />
+    <ProjectReference Include="..\Cose.Headers\Cose.Headers.csproj" />
+    <ProjectReference Include="..\CoseSign1.Headers\CoseSign1.Headers.csproj" />
+  </ItemGroup>
+
+  <!-- Remove custom analyzers from benchmark project -->
+  <ItemGroup>
+    <PackageReference Remove="StyleCop.Analyzers" />
+    <ProjectReference Remove="$(MSBuildThisFileDirectory)..\CoseSignTool.DocumentationAnalyzers\CoseSignTool.DocumentationAnalyzers.csproj" />
+  </ItemGroup>
+</Project>

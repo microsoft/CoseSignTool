@@ -84,6 +84,29 @@ jobs:
         name: test-results-${{ matrix.os }}-${{ matrix.arch }}
         path: '**/test-results.trx'
 
+    - name: Run benchmarks (V2 performance)
+      if: matrix.os == 'ubuntu-latest' && matrix.arch == 'x64'
+      shell: pwsh
+      working-directory: V2
+      run: |
+        dotnet run -c Release --project CoseSign1.Benchmarks -- --filter '*' --exporters json 2>&1 | Tee-Object -FilePath benchmark-results.txt
+
+        # Check for any benchmark failures
+        if ($LASTEXITCODE -ne 0) {
+          Write-Host "::warning::Benchmark run had issues"
+        }
+
+    - name: Upload V2 benchmark results
+      if: matrix.os == 'ubuntu-latest' && matrix.arch == 'x64'
+      uses: actions/upload-artifact@v4
+      with:
+        name: v2-benchmark-results
+        path: |
+          V2/benchmark-results.txt
+          V2/BenchmarkDotNet.Artifacts/results/*.md
+          V2/BenchmarkDotNet.Artifacts/results/*.json
+        retention-days: 30
+
   create_changelog:
     needs: [ build ]
     if: github.event_name == 'pull_request'

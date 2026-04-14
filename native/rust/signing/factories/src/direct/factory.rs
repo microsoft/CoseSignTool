@@ -85,6 +85,13 @@ impl DirectSignatureFactory {
         );
         let signer = self.signing_service.get_cose_signer(&context)?;
 
+        info!(
+            method = "sign_direct",
+            algorithm = signer.signer().algorithm(),
+            key_id = ?signer.signer().key_id(),
+            "Signer created"
+        );
+
         // Build headers by applying contributors
         let mut protected = signer.protected_headers().clone();
         let mut unprotected = signer.unprotected_headers().clone();

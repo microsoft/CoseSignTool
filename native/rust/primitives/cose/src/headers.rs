@@ -18,6 +18,12 @@ use cbor_primitives::{CborDecoder, CborEncoder, CborProvider, CborType};
 use crate::arc_types::{ArcSlice, ArcStr};
 use crate::error::CoseError;
 
+/// Maximum nesting depth for CBOR header values (arrays, maps, tags).
+///
+/// Malicious inputs with deeply nested structures can cause stack overflow.
+/// This limit caps recursion during decode to prevent that attack vector.
+const MAX_CBOR_DEPTH: usize = 32;
+
 /// A COSE header label (key in a header map).
 ///
 /// Per RFC 9052, header labels can be integers or text strings.
@@ -486,7 +492,7 @@ impl CoseHeaderMap {
             Some(n) => {
                 for _ in 0..n {
                     let label = Self::decode_label(&mut decoder)?;
-                    let value = Self::decode_value(&mut decoder)?;
+                    let value = Self::decode_value(&mut decoder, 0)?;
                     headers.insert(label, value);
                 }
             }
@@ -503,7 +509,7 @@ impl CoseHeaderMap {
                         break;
                     }
                     let label = Self::decode_label(&mut decoder)?;
-                    let value = Self::decode_value(&mut decoder)?;
+                    let value = Self::decode_value(&mut decoder, 0)?;
                     headers.insert(label, value);
                 }
             }
@@ -534,7 +540,7 @@ impl CoseHeaderMap {
             Some(n) => {
                 for _ in 0..n {
                     let label = Self::decode_label(&mut decoder)?;
-                    let value = Self::decode_value_shared(&mut decoder, arc)?;
+                    let value = Self::decode_value_shared(&mut decoder, arc, 0)?;
                     headers.insert(label, value);
                 }
             }
@@ -551,7 +557,7 @@ impl CoseHeaderMap {
                         break;
                     }
                     let label = Self::decode_label(&mut decoder)?;
-                    let value = Self::decode_value_shared(&mut decoder, arc)?;
+                    let value = Self::decode_value_shared(&mut decoder, arc, 0)?;
                     headers.insert(label, value);
                 }
             }
@@ -659,7 +665,13 @@ impl CoseHeaderMap {
         }
     }
 
-    fn decode_value<'a, D: CborDecoder<'a>>(decoder: &mut D) -> Result<CoseHeaderValue, CoseError> {
+    fn decode_value<'a, D: CborDecoder<'a>>(decoder: &mut D, depth: usize) -> Result<CoseHeaderValue, CoseError> {
+        if depth >= MAX_CBOR_DEPTH {
+            return Err(CoseError::InvalidMessage(
+                "CBOR nesting depth exceeds maximum allowed depth".into(),
+            ));
+        }
+
         let typ = decoder
             .peek_type()
             .map_err(|e| CoseError::CborError(e.to_string()))?;
@@ -703,7 +715,7 @@ impl CoseHeaderMap {
                 match len {
                     Some(n) => {
                         for _ in 0..n {
-                            arr.push(Self::decode_value(decoder)?);
+                            arr.push(Self::decode_value(decoder, depth + 1)?);
                         }
                     }
                     None => loop {
@@ -716,7 +728,7 @@ impl CoseHeaderMap {
                                 .map_err(|e| CoseError::CborError(e.to_string()))?;
                             break;
                         }
-                        arr.push(Self::decode_value(decoder)?);
+                        arr.push(Self::decode_value(decoder, depth + 1)?);
                     },
                 }
                 Ok(CoseHeaderValue::Array(arr))
@@ -731,7 +743,7 @@ impl CoseHeaderMap {
                     Some(n) => {
                         for _ in 0..n {
                             let k = Self::decode_label(decoder)?;
-                            let v = Self::decode_value(decoder)?;
+                            let v = Self::decode_value(decoder, depth + 1)?;
                             pairs.push((k, v));
                         }
                     }
@@ -746,7 +758,7 @@ impl CoseHeaderMap {
                             break;
                         }
                         let k = Self::decode_label(decoder)?;
-                        let v = Self::decode_value(decoder)?;
+                        let v = Self::decode_value(decoder, depth + 1)?;
                         pairs.push((k, v));
                     },
                 }
@@ -756,7 +768,7 @@ impl CoseHeaderMap {
                 let tag = decoder
                     .decode_tag()
                     .map_err(|e| CoseError::CborError(e.to_string()))?;
-                let inner = Self::decode_value(decoder)?;
+                let inner = Self::decode_value(decoder, depth + 1)?;
                 Ok(CoseHeaderValue::Tagged(tag, Box::new(inner)))
             }
             CborType::Bool => {
@@ -795,7 +807,14 @@ impl CoseHeaderMap {
     fn decode_value_shared<'a, D: CborDecoder<'a>>(
         decoder: &mut D,
         arc: &Arc<[u8]>,
+        depth: usize,
     ) -> Result<CoseHeaderValue, CoseError> {
+        if depth >= MAX_CBOR_DEPTH {
+            return Err(CoseError::InvalidMessage(
+                "CBOR nesting depth exceeds maximum allowed depth".into(),
+            ));
+        }
+
         let typ = decoder
             .peek_type()
             .map_err(|e| CoseError::CborError(e.to_string()))?;
@@ -840,7 +859,7 @@ impl CoseHeaderMap {
                 match len {
                     Some(n) => {
                         for _ in 0..n {
-                            arr.push(Self::decode_value_shared(decoder, arc)?);
+                            arr.push(Self::decode_value_shared(decoder, arc, depth + 1)?);
                         }
                     }
                     None => loop {
@@ -853,7 +872,7 @@ impl CoseHeaderMap {
                                 .map_err(|e| CoseError::CborError(e.to_string()))?;
                             break;
                         }
-                        arr.push(Self::decode_value_shared(decoder, arc)?);
+                        arr.push(Self::decode_value_shared(decoder, arc, depth + 1)?);
                     },
                 }
                 Ok(CoseHeaderValue::Array(arr))
@@ -868,7 +887,7 @@ impl CoseHeaderMap {
                     Some(n) => {
                         for _ in 0..n {
                             let k = Self::decode_label(decoder)?;
-                            let v = Self::decode_value_shared(decoder, arc)?;
+                            let v = Self::decode_value_shared(decoder, arc, depth + 1)?;
                             pairs.push((k, v));
                         }
                     }
@@ -883,7 +902,7 @@ impl CoseHeaderMap {
                             break;
                         }
                         let k = Self::decode_label(decoder)?;
-                        let v = Self::decode_value_shared(decoder, arc)?;
+                        let v = Self::decode_value_shared(decoder, arc, depth + 1)?;
                         pairs.push((k, v));
                     },
                 }
@@ -893,7 +912,7 @@ impl CoseHeaderMap {
                 let tag = decoder
                     .decode_tag()
                     .map_err(|e| CoseError::CborError(e.to_string()))?;
-                let inner = Self::decode_value_shared(decoder, arc)?;
+                let inner = Self::decode_value_shared(decoder, arc, depth + 1)?;
                 Ok(CoseHeaderValue::Tagged(tag, Box::new(inner)))
             }
             CborType::Bool => {

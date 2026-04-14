@@ -1,6 +1,14 @@
 use cborrs::cbordet::*;
 use cborrs_nondet::cbornondet::*;
 
+// KNOWN LIMITATION: The `CborValue::to_raw()` method below is recursive through
+// Array, Map, and Tagged variants without a depth limit. This is acceptable here
+// because `to_raw` serializes *trusted, in-memory* values that were built by our
+// code — not attacker-controlled input. The cose_openssl crate is excluded from
+// the workspace build (`--exclude cose-openssl`) so this does not affect the main
+// build. If this crate is ever exposed to untrusted CborValue trees, a depth
+// guard (e.g. MAX_CBOR_DEPTH = 32) should be added to `to_raw()`.
+
 struct SimpleArena<T>(std::cell::RefCell<Vec<Box<[T]>>>);
 
 impl<T> SimpleArena<T> {

@@ -35,6 +35,13 @@ pub const DEFAULT_MISS_THRESHOLD: u32 = 5;
 /// Default sliding window size for the global verification tracker.
 pub const DEFAULT_VERIFICATION_WINDOW: usize = 20;
 
+/// Maximum number of entries allowed in the cache.
+///
+/// When inserting a new entry would exceed this limit, the oldest entry
+/// (by `fetched_at`) is evicted first. This prevents unbounded memory
+/// growth from an attacker registering many distinct issuer URLs.
+pub const MAX_CACHE_ENTRIES: usize = 1000;
+
 /// A cached JWKS entry with metadata.
 #[derive(Debug, Clone)]
 struct CacheEntry {
@@ -224,11 +231,34 @@ impl JwksCache {
     /// Insert or update a cached JWKS for an issuer.
     ///
     /// Resets the miss counter and refreshes the timestamp.
+    /// Evicts expired entries first, then enforces [`MAX_CACHE_ENTRIES`].
+    /// If still at capacity after evicting expired entries, the oldest
+    /// entry (by `fetched_at`) is removed.
     pub fn insert(&self, issuer: &str, jwks: JwksDocument) {
         let mut inner = match self.inner.write() {
             Ok(w) => w,
             Err(_) => return,
         };
+
+        // Evict expired entries
+        let ttl = self.refresh_interval;
+        inner
+            .entries
+            .retain(|_, v| v.fetched_at.elapsed() <= ttl);
+
+        // Enforce size limit (skip if updating an existing key)
+        if !inner.entries.contains_key(issuer)
+            && inner.entries.len() >= MAX_CACHE_ENTRIES
+        {
+            if let Some(oldest_key) = inner
+                .entries
+                .iter()
+                .min_by_key(|(_, v)| v.fetched_at)
+                .map(|(k, _)| k.clone())
+            {
+                inner.entries.remove(&oldest_key);
+            }
+        }
 
         inner.entries.insert(
             issuer.to_string(),

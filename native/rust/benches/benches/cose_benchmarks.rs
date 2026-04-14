@@ -145,6 +145,64 @@ fn bench_verify(c: &mut Criterion) {
             });
         });
     }
+
+    // ECDSA P-384 verify
+    {
+        let (priv_key_384, pub_key_384) = setup_p384_key();
+        let verifier_384 = EvpVerifier::from_der(&pub_key_384, ES384).unwrap();
+        let signer_384 = EvpSigner::from_der(&priv_key_384, ES384).unwrap();
+        let mut protected_384 = CoseHeaderMap::new();
+        protected_384.set_alg(ES384);
+
+        for (label, size) in sizes {
+            let payload = vec![0x42u8; *size];
+            let signed_bytes = CoseSign1Builder::new()
+                .protected(protected_384.clone())
+                .tagged(true)
+                .sign(&signer_384, &payload)
+                .unwrap();
+            let message = CoseSign1Message::parse(&signed_bytes).unwrap();
+
+            group.throughput(Throughput::Bytes(*size as u64));
+            group.bench_function(BenchmarkId::new("ecdsa_p384", label), |b| {
+                b.iter(|| {
+                    message
+                        .verify(black_box(&verifier_384), None)
+                        .unwrap();
+                });
+            });
+        }
+    }
+
+    // ML-DSA-65 verify (PQC, feature-gated)
+    #[cfg(feature = "pqc")]
+    {
+        let (priv_der, pub_der) = generate_mldsa_key_der(MlDsaVariant::MlDsa65).unwrap();
+        let signer_mldsa = EvpSigner::from_der(&priv_der, ML_DSA_65).unwrap();
+        let verifier_mldsa = EvpVerifier::from_der(&pub_der, ML_DSA_65).unwrap();
+        let mut protected_mldsa = CoseHeaderMap::new();
+        protected_mldsa.set_alg(ML_DSA_65);
+
+        for (label, size) in sizes {
+            let payload = vec![0x42u8; *size];
+            let signed_bytes = CoseSign1Builder::new()
+                .protected(protected_mldsa.clone())
+                .tagged(true)
+                .sign(&signer_mldsa, &payload)
+                .unwrap();
+            let message = CoseSign1Message::parse(&signed_bytes).unwrap();
+
+            group.throughput(Throughput::Bytes(*size as u64));
+            group.bench_function(BenchmarkId::new("mldsa65", label), |b| {
+                b.iter(|| {
+                    message
+                        .verify(black_box(&verifier_mldsa), None)
+                        .unwrap();
+                });
+            });
+        }
+    }
+
     group.finish();
 }
 
@@ -478,6 +536,30 @@ fn bench_cert_factory_sign(c: &mut Criterion) {
         let factory = create_cert_signing_factory(&cert, ES384);
 
         group.bench_function("ecdsa_p384_1kb_with_x5chain", |b| {
+            b.iter(|| {
+                factory
+                    .create_bytes(
+                        black_box(&payload),
+                        "application/octet-stream",
+                        None,
+                    )
+                    .unwrap()
+            })
+        });
+    }
+
+    // EdDSA Ed25519 with x5chain + x5t + CWT claims
+    {
+        let cert = cert_factory
+            .create_certificate(
+                CertificateOptions::new()
+                    .with_subject_name("CN=Benchmark EdDSA Ed25519")
+                    .with_key_algorithm(KeyAlgorithm::EdDsa),
+            )
+            .unwrap();
+        let factory = create_cert_signing_factory(&cert, EDDSA);
+
+        group.bench_function("eddsa_ed25519_1kb_with_x5chain", |b| {
             b.iter(|| {
                 factory
                     .create_bytes(
@@ -873,6 +955,26 @@ fn print_message_sizes() {
         let overhead = bytes.len() - 1024;
         println!(
             "\u{2551} ES384 + x5chain       \u{2551} {:>10} B   \u{2551} {:>10} B ({:>4.1}%)    \u{2551}",
+            bytes.len(),
+            overhead,
+            (overhead as f64 / 1024.0) * 100.0
+        );
+
+        // EdDSA Ed25519 + x5chain
+        let cert = cert_factory
+            .create_certificate(
+                CertificateOptions::new()
+                    .with_subject_name("CN=Size Test EdDSA Ed25519")
+                    .with_key_algorithm(KeyAlgorithm::EdDsa),
+            )
+            .unwrap();
+        let factory = create_cert_signing_factory(&cert, EDDSA);
+        let bytes = factory
+            .create_bytes(&payload, "application/octet-stream", None)
+            .unwrap();
+        let overhead = bytes.len() - 1024;
+        println!(
+            "\u{2551} EdDSA Ed25519 + x5ch  \u{2551} {:>10} B   \u{2551} {:>10} B ({:>4.1}%)    \u{2551}",
             bytes.len(),
             overhead,
             (overhead as f64 / 1024.0) * 100.0

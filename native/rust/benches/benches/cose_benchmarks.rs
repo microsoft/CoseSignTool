@@ -14,6 +14,7 @@ use cose_sign1_crypto_openssl::{EvpSigner, EvpVerifier, EDDSA, ES256, ES384, PS2
 #[cfg(feature = "pqc")]
 use cose_sign1_crypto_openssl::{generate_mldsa_key_der, MlDsaVariant, ML_DSA_44, ML_DSA_65, ML_DSA_87};
 use cose_sign1_factories::direct::{DirectSignatureFactory, DirectSignatureOptions};
+use cose_sign1_factories::indirect::IndirectSignatureFactory;
 use cose_sign1_primitives::{CoseHeaderMap, CoseSign1Builder, CoseSign1Message};
 use cose_sign1_signing::{
     CoseSigner, SigningContext, SigningError, SigningService, SigningServiceMetadata,
@@ -581,6 +582,69 @@ fn print_message_sizes() {
         }
     }
 
+    // Indirect signature sizes (hash of payload, not payload itself)
+    println!("\u{2560}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{256C}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{256C}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2563}");
+    println!("\u{2551} Indirect Signatures   \u{2551}                \u{2551} (payload = hash only) \u{2551}");
+    println!("\u{2560}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{256C}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{256C}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2563}");
+    {
+        let (priv_key, pub_key) = setup_ec_key();
+        let service: Arc<dyn SigningService> =
+            Arc::new(BenchSigningService::new(&priv_key, &pub_key));
+        let direct = DirectSignatureFactory::new(service);
+        let indirect = IndirectSignatureFactory::new(direct);
+
+        let indirect_bytes = indirect
+            .create_bytes(&payload, "application/octet-stream", None)
+            .unwrap();
+        println!(
+            "\u{2551} ES256 Indirect SHA256 \u{2551} {:>10} B   \u{2551} (original: 1024 B)    \u{2551}",
+            indirect_bytes.len()
+        );
+    }
+
+    // Composite certificate sizes (feature-gated)
+    #[cfg(feature = "composite")]
+    {
+        use cose_sign1_certificates_local::traits::CertificateFactory;
+        use cose_sign1_certificates_local::{
+            CertificateOptions, EphemeralCertificateFactory, KeyAlgorithm, SoftwareKeyProvider,
+        };
+
+        println!("\u{2560}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{256C}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{256C}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2563}");
+        println!("\u{2551} Composite Certs       \u{2551}  Cert DER Size \u{2551}                       \u{2551}");
+        println!("\u{2560}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{256C}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{256C}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2563}");
+
+        let factory =
+            EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+
+        for (name, key_size) in [
+            ("MLDSA44+ECDSA-P256", 44u32),
+            ("MLDSA65+ECDSA-P384", 65),
+            ("MLDSA87+ECDSA-P384", 87),
+        ] {
+            match factory.create_certificate(
+                CertificateOptions::new()
+                    .with_subject_name("CN=Composite Size Test")
+                    .with_key_algorithm(KeyAlgorithm::Composite)
+                    .with_key_size(key_size),
+            ) {
+                Ok(cert) => {
+                    println!(
+                        "\u{2551} {:21} \u{2551} {:>10} B   \u{2551}                       \u{2551}",
+                        name,
+                        cert.cert_der.len()
+                    );
+                }
+                Err(e) => {
+                    println!(
+                        "\u{2551} {:21} \u{2551}        N/A   \u{2551} Error: {:14} \u{2551}",
+                        name, e
+                    );
+                }
+            }
+        }
+    }
+
     println!("\u{255A}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2569}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2569}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{255D}\n");
 }
 
@@ -635,6 +699,101 @@ fn bench_ed25519(c: &mut Criterion) {
 
     group.bench_function("verify_1kb", |b| {
         b.iter(|| message.verify(black_box(&verifier), None).unwrap())
+    });
+
+    group.finish();
+}
+
+// ---------------------------------------------------------------------------
+// Indirect signature benchmarks
+// ---------------------------------------------------------------------------
+
+fn bench_indirect_sign(c: &mut Criterion) {
+    let (priv_key, pub_key) = setup_ec_key();
+    let service: Arc<dyn SigningService> =
+        Arc::new(BenchSigningService::new(&priv_key, &pub_key));
+    let direct = DirectSignatureFactory::new(service);
+    let indirect = IndirectSignatureFactory::new(direct);
+
+    let payload = vec![0x42u8; 1024];
+
+    let mut group = c.benchmark_group("indirect");
+    group.bench_function("sign_es256_sha256_1kb", |b| {
+        b.iter(|| {
+            indirect
+                .create_bytes(
+                    black_box(&payload),
+                    "application/octet-stream",
+                    None,
+                )
+                .unwrap()
+        })
+    });
+    group.finish();
+}
+
+// ---------------------------------------------------------------------------
+// Composite/Hybrid PQC certificate benchmarks — feature-gated
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "composite")]
+fn bench_composite(c: &mut Criterion) {
+    use cose_sign1_certificates_local::traits::CertificateFactory;
+    use cose_sign1_certificates_local::{
+        CertificateChainFactory, CertificateChainOptions, CertificateOptions,
+        EphemeralCertificateFactory, KeyAlgorithm, SoftwareKeyProvider,
+    };
+
+    let mut group = c.benchmark_group("composite");
+
+    // Composite cert generation: ML-DSA-44 + ECDSA-P256
+    group.bench_function("cert_mldsa44_ecdsa_p256", |b| {
+        let factory =
+            EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+        b.iter(|| {
+            factory
+                .create_certificate(
+                    CertificateOptions::new()
+                        .with_subject_name("CN=Composite Bench")
+                        .with_key_algorithm(KeyAlgorithm::Composite)
+                        .with_key_size(44),
+                )
+                .unwrap()
+        })
+    });
+
+    // Composite cert generation: ML-DSA-65 + ECDSA-P384
+    group.bench_function("cert_mldsa65_ecdsa_p384", |b| {
+        let factory =
+            EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+        b.iter(|| {
+            factory
+                .create_certificate(
+                    CertificateOptions::new()
+                        .with_subject_name("CN=Composite Bench")
+                        .with_key_algorithm(KeyAlgorithm::Composite)
+                        .with_key_size(65),
+                )
+                .unwrap()
+        })
+    });
+
+    // Hybrid chain: ECDSA root → Composite leaf
+    group.bench_function("hybrid_chain_ecdsa_root_composite_leaf", |b| {
+        let factory =
+            EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+        let chain_factory = CertificateChainFactory::new(factory);
+        b.iter(|| {
+            chain_factory
+                .create_chain_with_options(
+                    CertificateChainOptions::new()
+                        .with_root_key_algorithm(KeyAlgorithm::Ecdsa)
+                        .with_leaf_key_algorithm(KeyAlgorithm::Composite)
+                        .with_leaf_key_size(65)
+                        .with_intermediate_name(None::<String>),
+                )
+                .unwrap()
+        })
     });
 
     group.finish();
@@ -749,7 +908,7 @@ fn bench_pqc(c: &mut Criterion) {
     group.finish();
 }
 
-#[cfg(not(feature = "pqc"))]
+#[cfg(not(any(feature = "pqc", feature = "composite")))]
 criterion_group!(
     benches,
     bench_parse,
@@ -764,9 +923,10 @@ criterion_group!(
     bench_ed25519,
     bench_cert_keygen,
     bench_message_sizes,
+    bench_indirect_sign,
 );
 
-#[cfg(feature = "pqc")]
+#[cfg(all(feature = "pqc", not(feature = "composite")))]
 criterion_group!(
     benches,
     bench_parse,
@@ -780,8 +940,29 @@ criterion_group!(
     bench_p384,
     bench_ed25519,
     bench_cert_keygen,
-    bench_pqc,
     bench_message_sizes,
+    bench_indirect_sign,
+    bench_pqc,
+);
+
+#[cfg(feature = "composite")]
+criterion_group!(
+    benches,
+    bench_parse,
+    bench_sign,
+    bench_verify,
+    bench_header_decode,
+    bench_roundtrip,
+    bench_allocations,
+    bench_factory_sign,
+    bench_rsa,
+    bench_p384,
+    bench_ed25519,
+    bench_cert_keygen,
+    bench_message_sizes,
+    bench_indirect_sign,
+    bench_pqc,
+    bench_composite,
 );
 
 criterion_main!(benches);

@@ -10,6 +10,7 @@ test = false
 
 [features]
 pqc = ["cose_sign1_crypto_openssl/pqc", "cose_sign1_certificates_local/pqc"]
+composite = ["pqc", "cose_sign1_certificates_local/composite"]
 
 [dev-dependencies]
 criterion = { workspace = true }
@@ -29,4 +30,4 @@ name = "cose_benchmarks"
 harness = false
 
 [lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)', 'cfg(feature, values("pqc"))'] }
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)', 'cfg(feature, values("pqc", "composite"))'] }

@@ -3,7 +3,6 @@
 
 namespace CoseSign1.Benchmarks;
 
-using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using BenchmarkDotNet.Attributes;
 using CoseSign1.Certificates;
@@ -26,44 +25,51 @@ public class MessageSizeBenchmarks
         byte[] payload = new byte[1024];
         Random.Shared.NextBytes(payload);
 
-        DateTimeOffset notBefore = DateTimeOffset.Now.AddDays(-1);
-        DateTimeOffset notAfter = DateTimeOffset.Now.AddHours(2);
         string contentType = "application/octet-stream";
+        CertificateChainFactory chainFactory = new();
 
-        // ECDSA P-256
-        using ECDsa ecdsaP256 = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        CertificateRequest ecdsaP256Req = new("CN=Size-P256", ecdsaP256, HashAlgorithmName.SHA256);
-        using X509Certificate2 ecdsaP256Cert = ecdsaP256Req.CreateSelfSigned(notBefore, notAfter);
-        CertificateSigningService ecdsaP256Service = CertificateSigningService.Create(ecdsaP256Cert, new[] { ecdsaP256Cert });
+        // ECDSA P-256 (3-tier chain: Root CA → Intermediate CA → Leaf)
+        X509Certificate2Collection ecdsaP256Chain = chainFactory.CreateChain(opts =>
+        {
+            opts.KeyAlgorithm = KeyAlgorithm.ECDSA;
+            opts.KeySize = 256;
+            opts.LeafFirst = true;
+        });
+        CertificateSigningService ecdsaP256Service = CertificateSigningService.Create(ecdsaP256Chain[0], ecdsaP256Chain.ToArray());
         using DirectSignatureFactory ecdsaP256Factory = new(ecdsaP256Service);
         this.sizes["ECDSA P-256"] = ecdsaP256Factory.CreateCoseSign1MessageBytes(payload, contentType).Length;
 
-        // ECDSA P-384
-        using ECDsa ecdsaP384 = ECDsa.Create(ECCurve.NamedCurves.nistP384);
-        CertificateRequest ecdsaP384Req = new("CN=Size-P384", ecdsaP384, HashAlgorithmName.SHA384);
-        using X509Certificate2 ecdsaP384Cert = ecdsaP384Req.CreateSelfSigned(notBefore, notAfter);
-        CertificateSigningService ecdsaP384Service = CertificateSigningService.Create(ecdsaP384Cert, new[] { ecdsaP384Cert });
+        // ECDSA P-384 (3-tier chain: Root CA → Intermediate CA → Leaf)
+        X509Certificate2Collection ecdsaP384Chain = chainFactory.CreateChain(opts =>
+        {
+            opts.KeyAlgorithm = KeyAlgorithm.ECDSA;
+            opts.KeySize = 384;
+            opts.LeafFirst = true;
+        });
+        CertificateSigningService ecdsaP384Service = CertificateSigningService.Create(ecdsaP384Chain[0], ecdsaP384Chain.ToArray());
         using DirectSignatureFactory ecdsaP384Factory = new(ecdsaP384Service);
         this.sizes["ECDSA P-384"] = ecdsaP384Factory.CreateCoseSign1MessageBytes(payload, contentType).Length;
 
-        // RSA-PSS 2048
-        using RSA rsa = RSA.Create(2048);
-        CertificateRequest rsaReq = new("CN=Size-RSA", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pss);
-        using X509Certificate2 rsaCert = rsaReq.CreateSelfSigned(notBefore, notAfter);
-        CertificateSigningService rsaService = CertificateSigningService.Create(rsaCert, new[] { rsaCert });
+        // RSA-PSS 2048 (3-tier chain: Root CA → Intermediate CA → Leaf)
+        X509Certificate2Collection rsaChain = chainFactory.CreateChain(opts =>
+        {
+            opts.KeyAlgorithm = KeyAlgorithm.RSA;
+            opts.KeySize = 2048;
+            opts.LeafFirst = true;
+        });
+        CertificateSigningService rsaService = CertificateSigningService.Create(rsaChain[0], rsaChain.ToArray());
         using DirectSignatureFactory rsaFactory = new(rsaService);
         this.sizes["RSA-PSS 2048"] = rsaFactory.CreateCoseSign1MessageBytes(payload, contentType).Length;
 
 #pragma warning disable SYSLIB5006 // ML-DSA is preview in .NET 10
-        // ML-DSA-65
-        EphemeralCertificateFactory certFactory = new();
-        using X509Certificate2 mldsaCert = certFactory.CreateCertificate(opts =>
+        // ML-DSA-65 (3-tier chain: Root CA → Intermediate CA → Leaf)
+        X509Certificate2Collection mldsaChain = chainFactory.CreateChain(opts =>
         {
-            opts.SubjectName = "CN=Size-MLDSA65";
             opts.KeyAlgorithm = KeyAlgorithm.MLDSA;
             opts.KeySize = 65;
+            opts.LeafFirst = true;
         });
-        CertificateSigningService mldsaService = CertificateSigningService.Create(mldsaCert, new[] { mldsaCert });
+        CertificateSigningService mldsaService = CertificateSigningService.Create(mldsaChain[0], mldsaChain.ToArray());
         using DirectSignatureFactory mldsaFactory = new(mldsaService);
         this.sizes["ML-DSA-65"] = mldsaFactory.CreateCoseSign1MessageBytes(payload, contentType).Length;
 #pragma warning restore SYSLIB5006
@@ -76,7 +82,7 @@ public class MessageSizeBenchmarks
 
         // Print table
         Console.WriteLine();
-        Console.WriteLine("=== COSE_Sign1 Message Sizes (1 KB payload) ===");
+        Console.WriteLine("=== COSE_Sign1 Message Sizes (1 KB payload, 3-tier cert chains) ===");
         Console.WriteLine($"{"Algorithm",-25} {"Size",10} {"Overhead",10} {"Overhead%",10}");
         foreach (KeyValuePair<string, int> entry in this.sizes)
         {

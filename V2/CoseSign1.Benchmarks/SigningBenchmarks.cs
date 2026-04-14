@@ -3,7 +3,6 @@
 
 namespace CoseSign1.Benchmarks;
 
-using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using BenchmarkDotNet.Attributes;
 using CoseSign1.Certificates;
@@ -24,10 +23,10 @@ public class SigningBenchmarks : IDisposable
     private DirectSignatureFactory rsaFactory = null!;
     private DirectSignatureFactory mldsaFactory = null!;
     private IndirectSignatureFactory indirectP256Factory = null!;
-    private X509Certificate2 ecdsaP256Cert = null!;
-    private X509Certificate2 ecdsaP384Cert = null!;
-    private X509Certificate2 rsaCert = null!;
-    private X509Certificate2 mldsaCert = null!;
+    private X509Certificate2Collection ecdsaP256Chain = null!;
+    private X509Certificate2Collection ecdsaP384Chain = null!;
+    private X509Certificate2Collection rsaChain = null!;
+    private X509Certificate2Collection mldsaChain = null!;
     private byte[] payload1KB = null!;
     private byte[] payload100KB = null!;
     private byte[] payload1MB = null!;
@@ -35,55 +34,62 @@ public class SigningBenchmarks : IDisposable
     [GlobalSetup]
     public void Setup()
     {
-        DateTimeOffset notBefore = DateTimeOffset.Now.AddDays(-1);
-        DateTimeOffset notAfter = DateTimeOffset.Now.AddHours(2);
+        CertificateChainFactory chainFactory = new();
 
-        // ECDSA P-256
-        using ECDsa ecdsaP256 = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-        CertificateRequest ecdsaP256Req = new("CN=Benchmark-ECDSA-P256", ecdsaP256, HashAlgorithmName.SHA256);
-        this.ecdsaP256Cert = ecdsaP256Req.CreateSelfSigned(notBefore, notAfter);
+        // ECDSA P-256 (3-tier chain: Root CA → Intermediate CA → Leaf)
+        this.ecdsaP256Chain = chainFactory.CreateChain(opts =>
+        {
+            opts.KeyAlgorithm = KeyAlgorithm.ECDSA;
+            opts.KeySize = 256;
+            opts.LeafFirst = true;
+        });
 
         CertificateSigningService ecdsaP256Service = CertificateSigningService.Create(
-            this.ecdsaP256Cert,
-            new X509Certificate2[] { this.ecdsaP256Cert });
+            this.ecdsaP256Chain[0],
+            this.ecdsaP256Chain.ToArray());
         this.ecdsaP256Factory = new DirectSignatureFactory(ecdsaP256Service);
 
         // Indirect signature factory wrapping the ECDSA P-256 direct factory
         this.indirectP256Factory = new IndirectSignatureFactory(this.ecdsaP256Factory);
 
-        // ECDSA P-384
-        using ECDsa ecdsaP384 = ECDsa.Create(ECCurve.NamedCurves.nistP384);
-        CertificateRequest ecdsaP384Req = new("CN=Benchmark-ECDSA-P384", ecdsaP384, HashAlgorithmName.SHA384);
-        this.ecdsaP384Cert = ecdsaP384Req.CreateSelfSigned(notBefore, notAfter);
+        // ECDSA P-384 (3-tier chain: Root CA → Intermediate CA → Leaf)
+        this.ecdsaP384Chain = chainFactory.CreateChain(opts =>
+        {
+            opts.KeyAlgorithm = KeyAlgorithm.ECDSA;
+            opts.KeySize = 384;
+            opts.LeafFirst = true;
+        });
 
         CertificateSigningService ecdsaP384Service = CertificateSigningService.Create(
-            this.ecdsaP384Cert,
-            new X509Certificate2[] { this.ecdsaP384Cert });
+            this.ecdsaP384Chain[0],
+            this.ecdsaP384Chain.ToArray());
         this.ecdsaP384Factory = new DirectSignatureFactory(ecdsaP384Service);
 
-        // RSA-2048
-        using RSA rsa = RSA.Create(2048);
-        CertificateRequest rsaReq = new("CN=Benchmark-RSA", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pss);
-        this.rsaCert = rsaReq.CreateSelfSigned(notBefore, notAfter);
+        // RSA-2048 (3-tier chain: Root CA → Intermediate CA → Leaf)
+        this.rsaChain = chainFactory.CreateChain(opts =>
+        {
+            opts.KeyAlgorithm = KeyAlgorithm.RSA;
+            opts.KeySize = 2048;
+            opts.LeafFirst = true;
+        });
 
         CertificateSigningService rsaService = CertificateSigningService.Create(
-            this.rsaCert,
-            new X509Certificate2[] { this.rsaCert });
+            this.rsaChain[0],
+            this.rsaChain.ToArray());
         this.rsaFactory = new DirectSignatureFactory(rsaService);
 
 #pragma warning disable SYSLIB5006 // ML-DSA is preview in .NET 10
-        // ML-DSA-65 (Post-Quantum)
-        EphemeralCertificateFactory certFactory = new();
-        this.mldsaCert = certFactory.CreateCertificate(opts =>
+        // ML-DSA-65 (3-tier chain: Root CA → Intermediate CA → Leaf)
+        this.mldsaChain = chainFactory.CreateChain(opts =>
         {
-            opts.SubjectName = "CN=Benchmark-MLDSA65";
             opts.KeyAlgorithm = KeyAlgorithm.MLDSA;
             opts.KeySize = 65;
+            opts.LeafFirst = true;
         });
 
         CertificateSigningService mldsaService = CertificateSigningService.Create(
-            this.mldsaCert,
-            new X509Certificate2[] { this.mldsaCert });
+            this.mldsaChain[0],
+            this.mldsaChain.ToArray());
         this.mldsaFactory = new DirectSignatureFactory(mldsaService);
 #pragma warning restore SYSLIB5006
 
@@ -106,11 +112,24 @@ public class SigningBenchmarks : IDisposable
         this.ecdsaP384Factory?.Dispose();
         this.rsaFactory?.Dispose();
         this.mldsaFactory?.Dispose();
-        this.ecdsaP256Cert?.Dispose();
-        this.ecdsaP384Cert?.Dispose();
-        this.rsaCert?.Dispose();
-        this.mldsaCert?.Dispose();
+        DisposeCertificateChain(this.ecdsaP256Chain);
+        DisposeCertificateChain(this.ecdsaP384Chain);
+        DisposeCertificateChain(this.rsaChain);
+        DisposeCertificateChain(this.mldsaChain);
         GC.SuppressFinalize(this);
+    }
+
+    private static void DisposeCertificateChain(X509Certificate2Collection? chain)
+    {
+        if (chain is null)
+        {
+            return;
+        }
+
+        foreach (X509Certificate2 cert in chain)
+        {
+            cert.Dispose();
+        }
     }
 
     // --- ECDSA P-256 ---

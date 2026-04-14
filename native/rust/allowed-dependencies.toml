@@ -23,6 +23,7 @@ tracing = "Structured logging for the validation/signing pipeline and FFI diagno
 # ---------------------------------------------------------------------------
 [dev]
 anyhow = "Ergonomic error context in test assertions"
+criterion = "Criterion benchmarking framework for performance regression testing"
 ring = "Key generation in tests"
 sha1 = "Hash verification in tests"
 x509-parser = "Certificate inspection in tests"

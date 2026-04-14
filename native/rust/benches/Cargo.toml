@@ -1,0 +1,26 @@
+[package]
+name = "cose_benchmarks"
+edition = { workspace = true }
+license = { workspace = true }
+version = "0.1.0"
+publish = false
+
+[lib]
+test = false
+
+[dev-dependencies]
+criterion = { workspace = true }
+
+# Crates to benchmark
+cose_sign1_primitives = { path = "../primitives/cose/sign1" }
+cose_primitives = { path = "../primitives/cose" }
+cose_sign1_crypto_openssl = { path = "../primitives/crypto/openssl" }
+openssl = { workspace = true }
+sha2 = { workspace = true }
+
+[[bench]]
+name = "cose_benchmarks"
+harness = false
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }

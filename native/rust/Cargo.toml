@@ -35,6 +35,7 @@ members = [
   "extension_packs/azure_artifact_signing/client",
   "extension_packs/azure_artifact_signing/ffi",
   "cose_openssl",
+  "benches",
 ]
 
 [workspace.package]
@@ -88,4 +89,5 @@ azure_security_keyvault_certificates = "0.11"  # Planned: proper cert fetch in A
 tokio = { version = "1", features = ["rt", "macros"] }
 reqwest = { version = "0.13", features = ["json", "rustls-tls"] }
 async-trait = "0.1"
+criterion = { version = "0.5", features = ["html_reports"] }
 

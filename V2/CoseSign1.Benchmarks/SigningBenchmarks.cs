@@ -9,6 +9,7 @@ using BenchmarkDotNet.Attributes;
 using CoseSign1.Certificates;
 using CoseSign1.Certificates.Local;
 using CoseSign1.Factories.Direct;
+using CoseSign1.Factories.Indirect;
 
 /// <summary>
 /// Benchmarks for COSE Sign1 direct signature creation using certificate-based signing.
@@ -22,6 +23,7 @@ public class SigningBenchmarks : IDisposable
     private DirectSignatureFactory ecdsaP384Factory = null!;
     private DirectSignatureFactory rsaFactory = null!;
     private DirectSignatureFactory mldsaFactory = null!;
+    private IndirectSignatureFactory indirectP256Factory = null!;
     private X509Certificate2 ecdsaP256Cert = null!;
     private X509Certificate2 ecdsaP384Cert = null!;
     private X509Certificate2 rsaCert = null!;
@@ -45,6 +47,9 @@ public class SigningBenchmarks : IDisposable
             this.ecdsaP256Cert,
             new X509Certificate2[] { this.ecdsaP256Cert });
         this.ecdsaP256Factory = new DirectSignatureFactory(ecdsaP256Service);
+
+        // Indirect signature factory wrapping the ECDSA P-256 direct factory
+        this.indirectP256Factory = new IndirectSignatureFactory(this.ecdsaP256Factory);
 
         // ECDSA P-384
         using ECDsa ecdsaP384 = ECDsa.Create(ECCurve.NamedCurves.nistP384);
@@ -96,6 +101,7 @@ public class SigningBenchmarks : IDisposable
 
     public void Dispose()
     {
+        // Do NOT dispose indirectP256Factory — it would double-dispose ecdsaP256Factory.
         this.ecdsaP256Factory?.Dispose();
         this.ecdsaP384Factory?.Dispose();
         this.rsaFactory?.Dispose();
@@ -162,4 +168,19 @@ public class SigningBenchmarks : IDisposable
     [Benchmark(Description = "Sign ML-DSA-65 1 MB")]
     public byte[] Sign_MLDSA65_1MB() =>
         this.mldsaFactory.CreateCoseSign1MessageBytes(this.payload1MB, "application/octet-stream");
+
+    // --- Indirect ECDSA P-256 (hash-then-sign) ---
+    // EdDSA / Ed25519: N/A — System.Security.Cryptography.EdDsa does not exist in .NET 10
+
+    [Benchmark(Description = "Sign Indirect ECDSA P-256 1 KB")]
+    public byte[] Sign_Indirect_ECDSA_P256_1KB() =>
+        this.indirectP256Factory.CreateCoseSign1MessageBytes(this.payload1KB, "application/octet-stream");
+
+    [Benchmark(Description = "Sign Indirect ECDSA P-256 100 KB")]
+    public byte[] Sign_Indirect_ECDSA_P256_100KB() =>
+        this.indirectP256Factory.CreateCoseSign1MessageBytes(this.payload100KB, "application/octet-stream");
+
+    [Benchmark(Description = "Sign Indirect ECDSA P-256 1 MB")]
+    public byte[] Sign_Indirect_ECDSA_P256_1MB() =>
+        this.indirectP256Factory.CreateCoseSign1MessageBytes(this.payload1MB, "application/octet-stream");
 }

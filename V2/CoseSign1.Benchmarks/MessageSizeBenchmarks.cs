@@ -9,6 +9,7 @@ using BenchmarkDotNet.Attributes;
 using CoseSign1.Certificates;
 using CoseSign1.Certificates.Local;
 using CoseSign1.Factories.Direct;
+using CoseSign1.Factories.Indirect;
 
 /// <summary>
 /// Reports COSE_Sign1 message sizes across all algorithms.
@@ -66,6 +67,12 @@ public class MessageSizeBenchmarks
         using DirectSignatureFactory mldsaFactory = new(mldsaService);
         this.sizes["ML-DSA-65"] = mldsaFactory.CreateCoseSign1MessageBytes(payload, contentType).Length;
 #pragma warning restore SYSLIB5006
+
+        // Indirect ECDSA P-256 (hash-then-sign)
+        using IndirectSignatureFactory indirectP256Factory = new(ecdsaP256Factory);
+        this.sizes["ES256 Indirect SHA-256"] = indirectP256Factory.CreateCoseSign1MessageBytes(payload, contentType).Length;
+
+        // EdDSA / Ed25519: N/A — System.Security.Cryptography.EdDsa does not exist in .NET 10
 
         // Print table
         Console.WriteLine();

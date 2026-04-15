@@ -3,7 +3,6 @@
 
 namespace CoseSignTool.DocumentationAnalyzers;
 
-using System;
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;

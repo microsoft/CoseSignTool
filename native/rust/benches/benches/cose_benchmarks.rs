@@ -7,6 +7,7 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::thread;
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 
@@ -15,7 +16,7 @@ use cose_sign1_crypto_openssl::{EvpSigner, EvpVerifier, EDDSA, ES256, ES384, PS2
 use cose_sign1_crypto_openssl::{generate_mldsa_key_der, MlDsaVariant, ML_DSA_44, ML_DSA_65, ML_DSA_87};
 use cose_sign1_factories::direct::{DirectSignatureFactory, DirectSignatureOptions};
 use cose_sign1_factories::indirect::IndirectSignatureFactory;
-use cose_sign1_primitives::{CoseHeaderMap, CoseSign1Builder, CoseSign1Message};
+use cose_sign1_primitives::{CoseHeaderMap, CoseSign1Builder, CoseSign1Message, MemoryPayload};
 use cose_sign1_signing::{
     CoseSigner, SigningContext, SigningError, SigningService, SigningServiceMetadata,
 };
@@ -1336,6 +1337,111 @@ fn bench_pqc(c: &mut Criterion) {
     group.finish();
 }
 
+// ---------------------------------------------------------------------------
+// Streaming payload benchmarks (factory.create_streaming_bytes)
+// ---------------------------------------------------------------------------
+
+fn bench_streaming_sign(c: &mut Criterion) {
+    let cert_factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let chain_factory = CertificateChainFactory::new(cert_factory);
+    let chain = chain_factory
+        .create_chain_with_options(
+            CertificateChainOptions::new()
+                .with_key_algorithm(KeyAlgorithm::Ecdsa)
+                .with_key_size(256)
+                .with_leaf_first(true),
+        )
+        .unwrap();
+    let chain_ders: Vec<Vec<u8>> = chain.iter().map(|cert| cert.cert_der.clone()).collect();
+    let factory = create_cert_signing_factory(&chain[0], &chain_ders, ES256);
+
+    let mut group = c.benchmark_group("streaming_sign");
+
+    // 1 MB streaming payload — embedded
+    let payload_1mb = Arc::new(MemoryPayload::new(vec![0x42u8; 1024 * 1024]));
+    group.throughput(Throughput::Bytes(1024 * 1024));
+    group.bench_function("es256_1mb", |b| {
+        b.iter(|| {
+            factory
+                .create_streaming_bytes(
+                    payload_1mb.clone(),
+                    "application/octet-stream",
+                    Some(
+                        DirectSignatureOptions::new()
+                            .with_embed_payload(false)
+                            .with_verify_after_sign(false),
+                    ),
+                )
+                .unwrap()
+        })
+    });
+
+    // 10 MB streaming payload — detached, no post-sign verify
+    let payload_10mb = Arc::new(MemoryPayload::new(vec![0x42u8; 10 * 1024 * 1024]));
+    group.throughput(Throughput::Bytes(10 * 1024 * 1024));
+    group.bench_function("es256_10mb_detached", |b| {
+        b.iter(|| {
+            factory
+                .create_streaming_bytes(
+                    payload_10mb.clone(),
+                    "application/octet-stream",
+                    Some(
+                        DirectSignatureOptions::new()
+                            .with_embed_payload(false)
+                            .with_verify_after_sign(false),
+                    ),
+                )
+                .unwrap()
+        })
+    });
+
+    group.finish();
+}
+
+// ---------------------------------------------------------------------------
+// Concurrent throughput benchmarks
+// ---------------------------------------------------------------------------
+
+fn bench_concurrent_throughput(c: &mut Criterion) {
+    let mut group = c.benchmark_group("concurrent");
+    group.sample_size(10);
+
+    for threads in [1usize, 2, 4, 8] {
+        let ops_per_thread: usize = 50;
+        group.throughput(Throughput::Elements((threads * ops_per_thread) as u64));
+
+        group.bench_function(format!("es256_sign_{}t_x{}", threads, ops_per_thread), |b| {
+            b.iter(|| {
+                let handles: Vec<_> = (0..threads)
+                    .map(|_| {
+                        thread::spawn(move || {
+                            let (pk, _pub_key) = setup_ec_key();
+                            let signer = EvpSigner::from_der(&pk, ES256).unwrap();
+                            let mut protected = CoseHeaderMap::new();
+                            protected.set_alg(ES256);
+                            let payload = [0x42u8; 1024];
+
+                            for _ in 0..ops_per_thread {
+                                black_box(
+                                    CoseSign1Builder::new()
+                                        .protected(protected.clone())
+                                        .tagged(true)
+                                        .sign(&signer, &payload)
+                                        .unwrap(),
+                                );
+                            }
+                        })
+                    })
+                    .collect();
+                for h in handles {
+                    h.join().unwrap();
+                }
+            })
+        });
+    }
+    group.finish();
+}
+
 #[cfg(not(any(feature = "pqc", feature = "composite")))]
 criterion_group!(
     benches,
@@ -1353,6 +1459,8 @@ criterion_group!(
     bench_cert_keygen,
     bench_message_sizes,
     bench_indirect_sign,
+    bench_streaming_sign,
+    bench_concurrent_throughput,
 );
 
 #[cfg(all(feature = "pqc", not(feature = "composite")))]
@@ -1372,6 +1480,8 @@ criterion_group!(
     bench_cert_keygen,
     bench_message_sizes,
     bench_indirect_sign,
+    bench_streaming_sign,
+    bench_concurrent_throughput,
     bench_pqc,
 );
 
@@ -1392,6 +1502,8 @@ criterion_group!(
     bench_cert_keygen,
     bench_message_sizes,
     bench_indirect_sign,
+    bench_streaming_sign,
+    bench_concurrent_throughput,
     bench_pqc,
     bench_composite,
 );

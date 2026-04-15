@@ -13,7 +13,7 @@ use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criteri
 
 use cose_sign1_crypto_openssl::{EvpSigner, EvpVerifier, EDDSA, ES256, ES384, PS256};
 #[cfg(feature = "pqc")]
-use cose_sign1_crypto_openssl::{generate_mldsa_key_der, MlDsaVariant, ML_DSA_44, ML_DSA_65, ML_DSA_87};
+use cose_sign1_crypto_openssl::{ML_DSA_44, ML_DSA_65, ML_DSA_87};
 use cose_sign1_factories::direct::{DirectSignatureFactory, DirectSignatureOptions};
 use cose_sign1_factories::indirect::IndirectSignatureFactory;
 use cose_sign1_primitives::{CoseHeaderMap, CoseSign1Builder, CoseSign1Message, MemoryPayload};
@@ -26,16 +26,15 @@ use cose_sign1_certificates::signing::{
 use cose_sign1_certificates::{
     CertificateChainBuilder, CertificateError, ExplicitCertificateChainBuilder,
 };
-use cose_sign1_certificates_local::traits::CertificateFactory;
 use cose_sign1_certificates_local::{
-    Certificate, CertificateChainFactory, CertificateChainOptions, CertificateOptions,
+    Certificate, CertificateChainFactory, CertificateChainOptions,
     EphemeralCertificateFactory, KeyAlgorithm, SoftwareKeyProvider,
 };
 use crypto_primitives::{CryptoError, CryptoSigner};
 use openssl::ec::{EcGroup, EcKey};
 use openssl::nid::Nid;
 use openssl::pkey::PKey;
-use openssl::rsa::Rsa;
+use openssl::x509::X509;
 
 /// Generate an EC P-256 key pair and return (private_der, public_der).
 fn setup_ec_key() -> (Vec<u8>, Vec<u8>) {
@@ -95,11 +94,18 @@ fn bench_parse(c: &mut Criterion) {
 // ---------------------------------------------------------------------------
 
 fn bench_sign(c: &mut Criterion) {
-    let (priv_key, _) = setup_ec_key();
-    let signer = EvpSigner::from_der(&priv_key, ES256).unwrap();
-
-    let mut protected = CoseHeaderMap::new();
-    protected.set_alg(ES256);
+    let cert_factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let chain_factory = CertificateChainFactory::new(cert_factory);
+    let chain = chain_factory
+        .create_chain_with_options(
+            CertificateChainOptions::new()
+                .with_key_algorithm(KeyAlgorithm::Ecdsa)
+                .with_key_size(256)
+                .with_leaf_first(true),
+        )
+        .unwrap();
+    let chain_ders: Vec<Vec<u8>> = chain.iter().map(|cert| cert.cert_der.clone()).collect();
+    let factory = create_cert_signing_factory(&chain[0], &chain_ders, ES256);
 
     let sizes: &[(&str, usize)] = &[("1KB", 1024), ("100KB", 100 * 1024)];
 
@@ -110,10 +116,12 @@ fn bench_sign(c: &mut Criterion) {
         group.throughput(Throughput::Bytes(*size as u64));
         group.bench_function(BenchmarkId::new("ecdsa_p256", label), |b| {
             b.iter(|| {
-                CoseSign1Builder::new()
-                    .protected(protected.clone())
-                    .tagged(true)
-                    .sign(black_box(&signer), black_box(&payload))
+                factory
+                    .create_bytes(
+                        black_box(&payload),
+                        "application/octet-stream",
+                        None,
+                    )
                     .unwrap()
             });
         });
@@ -126,41 +134,67 @@ fn bench_sign(c: &mut Criterion) {
 // ---------------------------------------------------------------------------
 
 fn bench_verify(c: &mut Criterion) {
-    let (priv_key, pub_key) = setup_ec_key();
-    let verifier = EvpVerifier::from_der(&pub_key, ES256).unwrap();
+    let cert_factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let chain_factory = CertificateChainFactory::new(cert_factory);
 
     let sizes: &[(&str, usize)] = &[("1KB", 1024), ("100KB", 100 * 1024)];
 
     let mut group = c.benchmark_group("verify");
-    for (label, size) in sizes {
-        let payload = vec![0x42u8; *size];
-        let signed_bytes = create_signed_message(&priv_key, &payload);
-        let message = CoseSign1Message::parse(&signed_bytes).unwrap();
 
-        group.throughput(Throughput::Bytes(*size as u64));
-        group.bench_function(BenchmarkId::new("ecdsa_p256", label), |b| {
-            b.iter(|| {
-                message
-                    .verify(black_box(&verifier), None)
-                    .unwrap();
+    // ECDSA P-256 verify
+    {
+        let chain = chain_factory
+            .create_chain_with_options(
+                CertificateChainOptions::new()
+                    .with_key_algorithm(KeyAlgorithm::Ecdsa)
+                    .with_key_size(256)
+                    .with_leaf_first(true),
+            )
+            .unwrap();
+        let chain_ders: Vec<Vec<u8>> = chain.iter().map(|cert| cert.cert_der.clone()).collect();
+        let factory = create_cert_signing_factory(&chain[0], &chain_ders, ES256);
+        let leaf_x509 = X509::from_der(&chain[0].cert_der).unwrap();
+        let pub_key_der = leaf_x509.public_key().unwrap().public_key_to_der().unwrap();
+        let verifier = EvpVerifier::from_der(&pub_key_der, ES256).unwrap();
+
+        for (label, size) in sizes {
+            let payload = vec![0x42u8; *size];
+            let signed_bytes = factory
+                .create_bytes(&payload, "application/octet-stream", None)
+                .unwrap();
+            let message = CoseSign1Message::parse(&signed_bytes).unwrap();
+
+            group.throughput(Throughput::Bytes(*size as u64));
+            group.bench_function(BenchmarkId::new("ecdsa_p256", label), |b| {
+                b.iter(|| {
+                    message
+                        .verify(black_box(&verifier), None)
+                        .unwrap();
+                });
             });
-        });
+        }
     }
 
     // ECDSA P-384 verify
     {
-        let (priv_key_384, pub_key_384) = setup_p384_key();
-        let verifier_384 = EvpVerifier::from_der(&pub_key_384, ES384).unwrap();
-        let signer_384 = EvpSigner::from_der(&priv_key_384, ES384).unwrap();
-        let mut protected_384 = CoseHeaderMap::new();
-        protected_384.set_alg(ES384);
+        let chain = chain_factory
+            .create_chain_with_options(
+                CertificateChainOptions::new()
+                    .with_key_algorithm(KeyAlgorithm::Ecdsa)
+                    .with_key_size(384)
+                    .with_leaf_first(true),
+            )
+            .unwrap();
+        let chain_ders: Vec<Vec<u8>> = chain.iter().map(|cert| cert.cert_der.clone()).collect();
+        let factory = create_cert_signing_factory(&chain[0], &chain_ders, ES384);
+        let leaf_x509 = X509::from_der(&chain[0].cert_der).unwrap();
+        let pub_key_der = leaf_x509.public_key().unwrap().public_key_to_der().unwrap();
+        let verifier_384 = EvpVerifier::from_der(&pub_key_der, ES384).unwrap();
 
         for (label, size) in sizes {
             let payload = vec![0x42u8; *size];
-            let signed_bytes = CoseSign1Builder::new()
-                .protected(protected_384.clone())
-                .tagged(true)
-                .sign(&signer_384, &payload)
+            let signed_bytes = factory
+                .create_bytes(&payload, "application/octet-stream", None)
                 .unwrap();
             let message = CoseSign1Message::parse(&signed_bytes).unwrap();
 
@@ -178,18 +212,26 @@ fn bench_verify(c: &mut Criterion) {
     // ML-DSA-65 verify (PQC, feature-gated)
     #[cfg(feature = "pqc")]
     {
-        let (priv_der, pub_der) = generate_mldsa_key_der(MlDsaVariant::MlDsa65).unwrap();
-        let signer_mldsa = EvpSigner::from_der(&priv_der, ML_DSA_65).unwrap();
-        let verifier_mldsa = EvpVerifier::from_der(&pub_der, ML_DSA_65).unwrap();
-        let mut protected_mldsa = CoseHeaderMap::new();
-        protected_mldsa.set_alg(ML_DSA_65);
+        let chain = chain_factory
+            .create_chain_with_options(
+                CertificateChainOptions::new()
+                    .with_root_key_algorithm(KeyAlgorithm::Ecdsa)
+                    .with_intermediate_key_algorithm(KeyAlgorithm::Ecdsa)
+                    .with_leaf_key_algorithm(KeyAlgorithm::MlDsa)
+                    .with_leaf_key_size(65)
+                    .with_leaf_first(true),
+            )
+            .unwrap();
+        let chain_ders: Vec<Vec<u8>> = chain.iter().map(|cert| cert.cert_der.clone()).collect();
+        let factory = create_cert_signing_factory(&chain[0], &chain_ders, ML_DSA_65);
+        let leaf_x509 = X509::from_der(&chain[0].cert_der).unwrap();
+        let pub_key_der = leaf_x509.public_key().unwrap().public_key_to_der().unwrap();
+        let verifier_mldsa = EvpVerifier::from_der(&pub_key_der, ML_DSA_65).unwrap();
 
         for (label, size) in sizes {
             let payload = vec![0x42u8; *size];
-            let signed_bytes = CoseSign1Builder::new()
-                .protected(protected_mldsa.clone())
-                .tagged(true)
-                .sign(&signer_mldsa, &payload)
+            let signed_bytes = factory
+                .create_bytes(&payload, "application/octet-stream", None)
                 .unwrap();
             let message = CoseSign1Message::parse(&signed_bytes).unwrap();
 
@@ -234,21 +276,32 @@ fn bench_header_decode(c: &mut Criterion) {
 // ---------------------------------------------------------------------------
 
 fn bench_roundtrip(c: &mut Criterion) {
-    let (priv_key, pub_key) = setup_ec_key();
-    let signer = EvpSigner::from_der(&priv_key, ES256).unwrap();
-    let verifier = EvpVerifier::from_der(&pub_key, ES256).unwrap();
-
-    let mut protected = CoseHeaderMap::new();
-    protected.set_alg(ES256);
+    let cert_factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let chain_factory = CertificateChainFactory::new(cert_factory);
+    let chain = chain_factory
+        .create_chain_with_options(
+            CertificateChainOptions::new()
+                .with_key_algorithm(KeyAlgorithm::Ecdsa)
+                .with_key_size(256)
+                .with_leaf_first(true),
+        )
+        .unwrap();
+    let chain_ders: Vec<Vec<u8>> = chain.iter().map(|cert| cert.cert_der.clone()).collect();
+    let factory = create_cert_signing_factory(&chain[0], &chain_ders, ES256);
+    let leaf_x509 = X509::from_der(&chain[0].cert_der).unwrap();
+    let pub_key_der = leaf_x509.public_key().unwrap().public_key_to_der().unwrap();
+    let verifier = EvpVerifier::from_der(&pub_key_der, ES256).unwrap();
 
     let payload = vec![0x42u8; 1024];
 
     c.bench_function("roundtrip/sign_parse_verify_1KB", |b| {
         b.iter(|| {
-            let bytes = CoseSign1Builder::new()
-                .protected(protected.clone())
-                .tagged(true)
-                .sign(black_box(&signer), black_box(&payload))
+            let bytes = factory
+                .create_bytes(
+                    black_box(&payload),
+                    "application/octet-stream",
+                    None,
+                )
                 .unwrap();
             let msg = CoseSign1Message::parse(black_box(&bytes)).unwrap();
             msg.verify(black_box(&verifier), None).unwrap();
@@ -617,40 +670,41 @@ fn bench_cert_factory_sign(c: &mut Criterion) {
     group.finish();
 }
 
-fn setup_rsa_key() -> (Vec<u8>, Vec<u8>) {
-    let rsa = Rsa::generate(2048).unwrap();
-    let pkey = PKey::from_rsa(rsa).unwrap();
-    (
-        pkey.private_key_to_der().unwrap(),
-        pkey.public_key_to_der().unwrap(),
-    )
-}
-
 fn bench_rsa(c: &mut Criterion) {
-    let (priv_key, pub_key) = setup_rsa_key();
-    let signer = EvpSigner::from_der(&priv_key, PS256).unwrap();
-    let verifier = EvpVerifier::from_der(&pub_key, PS256).unwrap();
+    let cert_factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let chain_factory = CertificateChainFactory::new(cert_factory);
+    let chain = chain_factory
+        .create_chain_with_options(
+            CertificateChainOptions::new()
+                .with_key_algorithm(KeyAlgorithm::Rsa)
+                .with_key_size(2048)
+                .with_leaf_first(true),
+        )
+        .unwrap();
+    let chain_ders: Vec<Vec<u8>> = chain.iter().map(|cert| cert.cert_der.clone()).collect();
+    let factory = create_cert_signing_factory(&chain[0], &chain_ders, PS256);
+    let leaf_x509 = X509::from_der(&chain[0].cert_der).unwrap();
+    let pub_key_der = leaf_x509.public_key().unwrap().public_key_to_der().unwrap();
+    let verifier = EvpVerifier::from_der(&pub_key_der, PS256).unwrap();
 
     let payload = vec![0x42u8; 1024];
-    let mut protected = CoseHeaderMap::new();
-    protected.set_alg(PS256);
 
     let mut group = c.benchmark_group("rsa");
 
     group.bench_function("sign_ps256_2048_1kb", |b| {
         b.iter(|| {
-            CoseSign1Builder::new()
-                .protected(protected.clone())
-                .tagged(true)
-                .sign(black_box(&signer), black_box(&payload))
+            factory
+                .create_bytes(
+                    black_box(&payload),
+                    "application/octet-stream",
+                    None,
+                )
                 .unwrap()
         })
     });
 
-    let signed = CoseSign1Builder::new()
-        .protected(protected)
-        .tagged(true)
-        .sign(&signer, &payload)
+    let signed = factory
+        .create_bytes(&payload, "application/octet-stream", None)
         .unwrap();
     let message = CoseSign1Message::parse(&signed).unwrap();
 
@@ -665,41 +719,41 @@ fn bench_rsa(c: &mut Criterion) {
 // EC P-384 benchmarks
 // ---------------------------------------------------------------------------
 
-fn setup_p384_key() -> (Vec<u8>, Vec<u8>) {
-    let group = EcGroup::from_curve_name(Nid::SECP384R1).unwrap();
-    let ec = EcKey::generate(&group).unwrap();
-    let pkey = PKey::from_ec_key(ec).unwrap();
-    (
-        pkey.private_key_to_der().unwrap(),
-        pkey.public_key_to_der().unwrap(),
-    )
-}
-
 fn bench_p384(c: &mut Criterion) {
-    let (priv_key, pub_key) = setup_p384_key();
-    let signer = EvpSigner::from_der(&priv_key, ES384).unwrap();
-    let verifier = EvpVerifier::from_der(&pub_key, ES384).unwrap();
+    let cert_factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let chain_factory = CertificateChainFactory::new(cert_factory);
+    let chain = chain_factory
+        .create_chain_with_options(
+            CertificateChainOptions::new()
+                .with_key_algorithm(KeyAlgorithm::Ecdsa)
+                .with_key_size(384)
+                .with_leaf_first(true),
+        )
+        .unwrap();
+    let chain_ders: Vec<Vec<u8>> = chain.iter().map(|cert| cert.cert_der.clone()).collect();
+    let factory = create_cert_signing_factory(&chain[0], &chain_ders, ES384);
+    let leaf_x509 = X509::from_der(&chain[0].cert_der).unwrap();
+    let pub_key_der = leaf_x509.public_key().unwrap().public_key_to_der().unwrap();
+    let verifier = EvpVerifier::from_der(&pub_key_der, ES384).unwrap();
 
     let payload = vec![0x42u8; 1024];
-    let mut protected = CoseHeaderMap::new();
-    protected.set_alg(ES384);
 
     let mut group = c.benchmark_group("p384");
 
     group.bench_function("sign_es384_1kb", |b| {
         b.iter(|| {
-            CoseSign1Builder::new()
-                .protected(protected.clone())
-                .tagged(true)
-                .sign(black_box(&signer), black_box(&payload))
+            factory
+                .create_bytes(
+                    black_box(&payload),
+                    "application/octet-stream",
+                    None,
+                )
                 .unwrap()
         })
     });
 
-    let signed = CoseSign1Builder::new()
-        .protected(protected)
-        .tagged(true)
-        .sign(&signer, &payload)
+    let signed = factory
+        .create_bytes(&payload, "application/octet-stream", None)
         .unwrap();
     let message = CoseSign1Message::parse(&signed).unwrap();
 
@@ -783,11 +837,24 @@ fn print_message_sizes() {
     println!("\u{2560}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{256C}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{256C}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2563}");
 
     let payload = vec![0x42u8; 1024];
+    let cert_factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let chain_factory = CertificateChainFactory::new(cert_factory);
 
-    // ECDSA P-256
+    // ECDSA P-256 + x5chain (3-tier chain)
     {
-        let (priv_key, _) = setup_ec_key();
-        let bytes = create_signed_message(&priv_key, &payload);
+        let chain = chain_factory
+            .create_chain_with_options(
+                CertificateChainOptions::new()
+                    .with_key_algorithm(KeyAlgorithm::Ecdsa)
+                    .with_key_size(256)
+                    .with_leaf_first(true),
+            )
+            .unwrap();
+        let chain_ders: Vec<Vec<u8>> = chain.iter().map(|cert| cert.cert_der.clone()).collect();
+        let factory = create_cert_signing_factory(&chain[0], &chain_ders, ES256);
+        let bytes = factory
+            .create_bytes(&payload, "application/octet-stream", None)
+            .unwrap();
         let overhead = bytes.len() - 1024;
         println!(
             "\u{2551} ECDSA P-256 (ES256)   \u{2551} {:>10} B   \u{2551} {:>10} B ({:>4.1}%)    \u{2551}",
@@ -797,16 +864,20 @@ fn print_message_sizes() {
         );
     }
 
-    // ECDSA P-384
+    // ECDSA P-384 + x5chain (3-tier chain)
     {
-        let (priv_key, _) = setup_p384_key();
-        let signer = EvpSigner::from_der(&priv_key, ES384).unwrap();
-        let mut protected = CoseHeaderMap::new();
-        protected.set_alg(ES384);
-        let bytes = CoseSign1Builder::new()
-            .protected(protected)
-            .tagged(true)
-            .sign(&signer, &payload)
+        let chain = chain_factory
+            .create_chain_with_options(
+                CertificateChainOptions::new()
+                    .with_key_algorithm(KeyAlgorithm::Ecdsa)
+                    .with_key_size(384)
+                    .with_leaf_first(true),
+            )
+            .unwrap();
+        let chain_ders: Vec<Vec<u8>> = chain.iter().map(|cert| cert.cert_der.clone()).collect();
+        let factory = create_cert_signing_factory(&chain[0], &chain_ders, ES384);
+        let bytes = factory
+            .create_bytes(&payload, "application/octet-stream", None)
             .unwrap();
         let overhead = bytes.len() - 1024;
         println!(
@@ -817,16 +888,20 @@ fn print_message_sizes() {
         );
     }
 
-    // RSA-PSS 2048
+    // RSA-PSS 2048 + x5chain (3-tier chain)
     {
-        let (priv_key, _) = setup_rsa_key();
-        let signer = EvpSigner::from_der(&priv_key, PS256).unwrap();
-        let mut protected = CoseHeaderMap::new();
-        protected.set_alg(PS256);
-        let bytes = CoseSign1Builder::new()
-            .protected(protected)
-            .tagged(true)
-            .sign(&signer, &payload)
+        let chain = chain_factory
+            .create_chain_with_options(
+                CertificateChainOptions::new()
+                    .with_key_algorithm(KeyAlgorithm::Rsa)
+                    .with_key_size(2048)
+                    .with_leaf_first(true),
+            )
+            .unwrap();
+        let chain_ders: Vec<Vec<u8>> = chain.iter().map(|cert| cert.cert_der.clone()).collect();
+        let factory = create_cert_signing_factory(&chain[0], &chain_ders, PS256);
+        let bytes = factory
+            .create_bytes(&payload, "application/octet-stream", None)
             .unwrap();
         let overhead = bytes.len() - 1024;
         println!(
@@ -837,17 +912,19 @@ fn print_message_sizes() {
         );
     }
 
-    // EdDSA Ed25519
+    // EdDSA Ed25519 + x5chain (3-tier chain)
     {
-        let pkey = PKey::generate_ed25519().unwrap();
-        let priv_der = pkey.private_key_to_der().unwrap();
-        let signer = EvpSigner::from_der(&priv_der, EDDSA).unwrap();
-        let mut protected = CoseHeaderMap::new();
-        protected.set_alg(EDDSA);
-        let bytes = CoseSign1Builder::new()
-            .protected(protected)
-            .tagged(true)
-            .sign(&signer, &payload)
+        let chain = chain_factory
+            .create_chain_with_options(
+                CertificateChainOptions::new()
+                    .with_key_algorithm(KeyAlgorithm::EdDsa)
+                    .with_leaf_first(true),
+            )
+            .unwrap();
+        let chain_ders: Vec<Vec<u8>> = chain.iter().map(|cert| cert.cert_der.clone()).collect();
+        let factory = create_cert_signing_factory(&chain[0], &chain_ders, EDDSA);
+        let bytes = factory
+            .create_bytes(&payload, "application/octet-stream", None)
             .unwrap();
         let overhead = bytes.len() - 1024;
         println!(
@@ -858,22 +935,28 @@ fn print_message_sizes() {
         );
     }
 
-    // PQC: ML-DSA-44/65/87
+    // PQC: ML-DSA-44/65/87 + x5chain (hybrid 3-tier chain)
     #[cfg(feature = "pqc")]
     {
-        for (name, variant, alg) in [
-            ("ML-DSA-44", MlDsaVariant::MlDsa44, ML_DSA_44),
-            ("ML-DSA-65", MlDsaVariant::MlDsa65, ML_DSA_65),
-            ("ML-DSA-87", MlDsaVariant::MlDsa87, ML_DSA_87),
+        for (name, leaf_size, alg) in [
+            ("ML-DSA-44", 44u32, ML_DSA_44),
+            ("ML-DSA-65", 65, ML_DSA_65),
+            ("ML-DSA-87", 87, ML_DSA_87),
         ] {
-            let (priv_der, _pub_der) = generate_mldsa_key_der(variant).unwrap();
-            let signer = EvpSigner::from_der(&priv_der, alg).unwrap();
-            let mut protected = CoseHeaderMap::new();
-            protected.set_alg(alg);
-            let bytes = CoseSign1Builder::new()
-                .protected(protected)
-                .tagged(true)
-                .sign(&signer, &payload)
+            let chain = chain_factory
+                .create_chain_with_options(
+                    CertificateChainOptions::new()
+                        .with_root_key_algorithm(KeyAlgorithm::Ecdsa)
+                        .with_intermediate_key_algorithm(KeyAlgorithm::Ecdsa)
+                        .with_leaf_key_algorithm(KeyAlgorithm::MlDsa)
+                        .with_leaf_key_size(leaf_size)
+                        .with_leaf_first(true),
+                )
+                .unwrap();
+            let chain_ders: Vec<Vec<u8>> = chain.iter().map(|cert| cert.cert_der.clone()).collect();
+            let factory = create_cert_signing_factory(&chain[0], &chain_ders, alg);
+            let bytes = factory
+                .create_bytes(&payload, "application/octet-stream", None)
                 .unwrap();
             let overhead = bytes.len() - 1024;
             println!(
@@ -891,30 +974,6 @@ fn print_message_sizes() {
     println!("\u{2551} Indirect Signatures   \u{2551}                \u{2551} (payload = hash only) \u{2551}");
     println!("\u{2560}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{256C}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{256C}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2563}");
     {
-        let (priv_key, pub_key) = setup_ec_key();
-        let service: Arc<dyn SigningService> =
-            Arc::new(BenchSigningService::new(&priv_key, &pub_key));
-        let direct = DirectSignatureFactory::new(service);
-        let indirect = IndirectSignatureFactory::new(direct);
-
-        let indirect_bytes = indirect
-            .create_bytes(&payload, "application/octet-stream", None)
-            .unwrap();
-        println!(
-            "\u{2551} ES256 Indirect SHA256 \u{2551} {:>10} B   \u{2551} (original: 1024 B)    \u{2551}",
-            indirect_bytes.len()
-        );
-    }
-
-    // 3-tier certificate chain message sizes (x5chain + x5t + CWT embedded)
-    println!("\u{2560}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{256C}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{256C}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2563}");
-    println!("\u{2551} Cert-Based (x5chain)  \u{2551}                \u{2551} (includes SCITT CWT)  \u{2551}");
-    println!("\u{2560}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{256C}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{256C}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2563}");
-    {
-        let cert_factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
-        let chain_factory = CertificateChainFactory::new(cert_factory);
-
-        // ES256 + x5chain (3-tier chain)
         let chain = chain_factory
             .create_chain_with_options(
                 CertificateChainOptions::new()
@@ -924,110 +983,15 @@ fn print_message_sizes() {
             )
             .unwrap();
         let chain_ders: Vec<Vec<u8>> = chain.iter().map(|cert| cert.cert_der.clone()).collect();
-        let factory = create_cert_signing_factory(&chain[0], &chain_ders, ES256);
-        let bytes = factory
-            .create_bytes(&payload, "application/octet-stream", None)
-            .unwrap();
-        let overhead = bytes.len() - 1024;
-        println!(
-            "\u{2551} ES256 + x5chain       \u{2551} {:>10} B   \u{2551} {:>10} B ({:>4.1}%)    \u{2551}",
-            bytes.len(),
-            overhead,
-            (overhead as f64 / 1024.0) * 100.0
-        );
+        let direct = create_cert_signing_factory(&chain[0], &chain_ders, ES256);
+        let indirect = IndirectSignatureFactory::new(direct);
 
-        // PS256 + x5chain (3-tier chain)
-        let chain = chain_factory
-            .create_chain_with_options(
-                CertificateChainOptions::new()
-                    .with_key_algorithm(KeyAlgorithm::Rsa)
-                    .with_key_size(2048)
-                    .with_leaf_first(true),
-            )
-            .unwrap();
-        let chain_ders: Vec<Vec<u8>> = chain.iter().map(|cert| cert.cert_der.clone()).collect();
-        let factory = create_cert_signing_factory(&chain[0], &chain_ders, PS256);
-        let bytes = factory
+        let indirect_bytes = indirect
             .create_bytes(&payload, "application/octet-stream", None)
             .unwrap();
-        let overhead = bytes.len() - 1024;
         println!(
-            "\u{2551} PS256 + x5chain       \u{2551} {:>10} B   \u{2551} {:>10} B ({:>4.1}%)    \u{2551}",
-            bytes.len(),
-            overhead,
-            (overhead as f64 / 1024.0) * 100.0
-        );
-
-        // ES384 + x5chain (3-tier chain)
-        let chain = chain_factory
-            .create_chain_with_options(
-                CertificateChainOptions::new()
-                    .with_key_algorithm(KeyAlgorithm::Ecdsa)
-                    .with_key_size(384)
-                    .with_leaf_first(true),
-            )
-            .unwrap();
-        let chain_ders: Vec<Vec<u8>> = chain.iter().map(|cert| cert.cert_der.clone()).collect();
-        let factory = create_cert_signing_factory(&chain[0], &chain_ders, ES384);
-        let bytes = factory
-            .create_bytes(&payload, "application/octet-stream", None)
-            .unwrap();
-        let overhead = bytes.len() - 1024;
-        println!(
-            "\u{2551} ES384 + x5chain       \u{2551} {:>10} B   \u{2551} {:>10} B ({:>4.1}%)    \u{2551}",
-            bytes.len(),
-            overhead,
-            (overhead as f64 / 1024.0) * 100.0
-        );
-
-        // EdDSA Ed25519 + x5chain (3-tier chain)
-        let chain = chain_factory
-            .create_chain_with_options(
-                CertificateChainOptions::new()
-                    .with_key_algorithm(KeyAlgorithm::EdDsa)
-                    .with_leaf_first(true),
-            )
-            .unwrap();
-        let chain_ders: Vec<Vec<u8>> = chain.iter().map(|cert| cert.cert_der.clone()).collect();
-        let factory = create_cert_signing_factory(&chain[0], &chain_ders, EDDSA);
-        let bytes = factory
-            .create_bytes(&payload, "application/octet-stream", None)
-            .unwrap();
-        let overhead = bytes.len() - 1024;
-        println!(
-            "\u{2551} EdDSA Ed25519 + x5ch  \u{2551} {:>10} B   \u{2551} {:>10} B ({:>4.1}%)    \u{2551}",
-            bytes.len(),
-            overhead,
-            (overhead as f64 / 1024.0) * 100.0
-        );
-    }
-
-    // PQC cert-based message sizes (hybrid 3-tier chain)
-    #[cfg(feature = "pqc")]
-    {
-        let cert_factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
-        let chain_factory = CertificateChainFactory::new(cert_factory);
-        let chain = chain_factory
-            .create_chain_with_options(
-                CertificateChainOptions::new()
-                    .with_root_key_algorithm(KeyAlgorithm::Ecdsa)
-                    .with_intermediate_key_algorithm(KeyAlgorithm::Ecdsa)
-                    .with_leaf_key_algorithm(KeyAlgorithm::MlDsa)
-                    .with_leaf_key_size(65)
-                    .with_leaf_first(true),
-            )
-            .unwrap();
-        let chain_ders: Vec<Vec<u8>> = chain.iter().map(|cert| cert.cert_der.clone()).collect();
-        let factory = create_cert_signing_factory(&chain[0], &chain_ders, ML_DSA_65);
-        let bytes = factory
-            .create_bytes(&payload, "application/octet-stream", None)
-            .unwrap();
-        let overhead = bytes.len() - 1024;
-        println!(
-            "\u{2551} ML-DSA-65 + x5chain   \u{2551} {:>10} B   \u{2551} {:>10} B ({:>4.1}%)    \u{2551}",
-            bytes.len(),
-            overhead,
-            (overhead as f64 / 1024.0) * 100.0
+            "\u{2551} ES256 Indirect SHA256 \u{2551} {:>10} B   \u{2551} (original: 1024 B)    \u{2551}",
+            indirect_bytes.len()
         );
     }
 
@@ -1083,10 +1047,22 @@ fn bench_message_sizes(c: &mut Criterion) {
 
     // Benchmark message creation for size reference
     c.bench_function("message_size/ecdsa_p256_1kb", |b| {
-        let (priv_key, _) = setup_ec_key();
+        let cert_factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+        let chain_factory = CertificateChainFactory::new(cert_factory);
+        let chain = chain_factory
+            .create_chain_with_options(
+                CertificateChainOptions::new()
+                    .with_key_algorithm(KeyAlgorithm::Ecdsa)
+                    .with_key_size(256)
+                    .with_leaf_first(true),
+            )
+            .unwrap();
+        let chain_ders: Vec<Vec<u8>> = chain.iter().map(|cert| cert.cert_der.clone()).collect();
+        let factory = create_cert_signing_factory(&chain[0], &chain_ders, ES256);
         b.iter(|| {
-            let bytes =
-                create_signed_message(black_box(&priv_key), black_box(&[0x42u8; 1024]));
+            let bytes = factory
+                .create_bytes(black_box(&[0x42u8; 1024]), "application/octet-stream", None)
+                .unwrap();
             black_box(bytes.len())
         })
     });
@@ -1097,32 +1073,39 @@ fn bench_message_sizes(c: &mut Criterion) {
 // ---------------------------------------------------------------------------
 
 fn bench_ed25519(c: &mut Criterion) {
-    let pkey = PKey::generate_ed25519().unwrap();
-    let priv_der = pkey.private_key_to_der().unwrap();
-    let pub_der = pkey.public_key_to_der().unwrap();
-    let signer = EvpSigner::from_der(&priv_der, EDDSA).unwrap();
-    let verifier = EvpVerifier::from_der(&pub_der, EDDSA).unwrap();
+    let cert_factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let chain_factory = CertificateChainFactory::new(cert_factory);
+    let chain = chain_factory
+        .create_chain_with_options(
+            CertificateChainOptions::new()
+                .with_key_algorithm(KeyAlgorithm::EdDsa)
+                .with_leaf_first(true),
+        )
+        .unwrap();
+    let chain_ders: Vec<Vec<u8>> = chain.iter().map(|cert| cert.cert_der.clone()).collect();
+    let factory = create_cert_signing_factory(&chain[0], &chain_ders, EDDSA);
+    let leaf_x509 = X509::from_der(&chain[0].cert_der).unwrap();
+    let pub_key_der = leaf_x509.public_key().unwrap().public_key_to_der().unwrap();
+    let verifier = EvpVerifier::from_der(&pub_key_der, EDDSA).unwrap();
 
     let payload = vec![0x42u8; 1024];
-    let mut protected = CoseHeaderMap::new();
-    protected.set_alg(EDDSA);
 
     let mut group = c.benchmark_group("ed25519");
 
     group.bench_function("sign_1kb", |b| {
         b.iter(|| {
-            CoseSign1Builder::new()
-                .protected(protected.clone())
-                .tagged(true)
-                .sign(black_box(&signer), black_box(&payload))
+            factory
+                .create_bytes(
+                    black_box(&payload),
+                    "application/octet-stream",
+                    None,
+                )
                 .unwrap()
         })
     });
 
-    let signed = CoseSign1Builder::new()
-        .protected(protected)
-        .tagged(true)
-        .sign(&signer, &payload)
+    let signed = factory
+        .create_bytes(&payload, "application/octet-stream", None)
         .unwrap();
     let message = CoseSign1Message::parse(&signed).unwrap();
 
@@ -1138,10 +1121,18 @@ fn bench_ed25519(c: &mut Criterion) {
 // ---------------------------------------------------------------------------
 
 fn bench_indirect_sign(c: &mut Criterion) {
-    let (priv_key, pub_key) = setup_ec_key();
-    let service: Arc<dyn SigningService> =
-        Arc::new(BenchSigningService::new(&priv_key, &pub_key));
-    let direct = DirectSignatureFactory::new(service);
+    let cert_factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let chain_factory = CertificateChainFactory::new(cert_factory);
+    let chain = chain_factory
+        .create_chain_with_options(
+            CertificateChainOptions::new()
+                .with_key_algorithm(KeyAlgorithm::Ecdsa)
+                .with_key_size(256)
+                .with_leaf_first(true),
+        )
+        .unwrap();
+    let chain_ders: Vec<Vec<u8>> = chain.iter().map(|cert| cert.cert_der.clone()).collect();
+    let direct = create_cert_signing_factory(&chain[0], &chain_ders, ES256);
     let indirect = IndirectSignatureFactory::new(direct);
 
     let payload = vec![0x42u8; 1024];
@@ -1234,34 +1225,47 @@ fn bench_composite(c: &mut Criterion) {
 
 #[cfg(feature = "pqc")]
 fn bench_pqc(c: &mut Criterion) {
-    use cose_sign1_crypto_openssl::{generate_mldsa_key_der, MlDsaVariant, ML_DSA_44, ML_DSA_65, ML_DSA_87};
+    use cose_sign1_crypto_openssl::{ML_DSA_44, ML_DSA_65, ML_DSA_87};
+
+    let cert_factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let chain_factory = CertificateChainFactory::new(cert_factory);
 
     let mut group = c.benchmark_group("pqc");
 
     // ML-DSA-44 (lightweight PQC)
     {
-        let (priv_der, pub_der) = generate_mldsa_key_der(MlDsaVariant::MlDsa44).unwrap();
-        let signer = EvpSigner::from_der(&priv_der, ML_DSA_44).unwrap();
-        let verifier = EvpVerifier::from_der(&pub_der, ML_DSA_44).unwrap();
+        let chain = chain_factory
+            .create_chain_with_options(
+                CertificateChainOptions::new()
+                    .with_root_key_algorithm(KeyAlgorithm::Ecdsa)
+                    .with_intermediate_key_algorithm(KeyAlgorithm::Ecdsa)
+                    .with_leaf_key_algorithm(KeyAlgorithm::MlDsa)
+                    .with_leaf_key_size(44)
+                    .with_leaf_first(true),
+            )
+            .unwrap();
+        let chain_ders: Vec<Vec<u8>> = chain.iter().map(|cert| cert.cert_der.clone()).collect();
+        let factory = create_cert_signing_factory(&chain[0], &chain_ders, ML_DSA_44);
+        let leaf_x509 = X509::from_der(&chain[0].cert_der).unwrap();
+        let pub_key_der = leaf_x509.public_key().unwrap().public_key_to_der().unwrap();
+        let verifier = EvpVerifier::from_der(&pub_key_der, ML_DSA_44).unwrap();
 
         let payload = vec![0x42u8; 1024];
-        let mut protected = CoseHeaderMap::new();
-        protected.set_alg(ML_DSA_44);
 
         group.bench_function("sign_mldsa44_1kb", |b| {
             b.iter(|| {
-                CoseSign1Builder::new()
-                    .protected(protected.clone())
-                    .tagged(true)
-                    .sign(black_box(&signer), black_box(&payload))
+                factory
+                    .create_bytes(
+                        black_box(&payload),
+                        "application/octet-stream",
+                        None,
+                    )
                     .unwrap()
             })
         });
 
-        let signed = CoseSign1Builder::new()
-            .protected(protected)
-            .tagged(true)
-            .sign(&signer, &payload)
+        let signed = factory
+            .create_bytes(&payload, "application/octet-stream", None)
             .unwrap();
         let message = CoseSign1Message::parse(&signed).unwrap();
 
@@ -1272,28 +1276,38 @@ fn bench_pqc(c: &mut Criterion) {
 
     // ML-DSA-65 (standard PQC)
     {
-        let (priv_der, pub_der) = generate_mldsa_key_der(MlDsaVariant::MlDsa65).unwrap();
-        let signer = EvpSigner::from_der(&priv_der, ML_DSA_65).unwrap();
-        let verifier = EvpVerifier::from_der(&pub_der, ML_DSA_65).unwrap();
+        let chain = chain_factory
+            .create_chain_with_options(
+                CertificateChainOptions::new()
+                    .with_root_key_algorithm(KeyAlgorithm::Ecdsa)
+                    .with_intermediate_key_algorithm(KeyAlgorithm::Ecdsa)
+                    .with_leaf_key_algorithm(KeyAlgorithm::MlDsa)
+                    .with_leaf_key_size(65)
+                    .with_leaf_first(true),
+            )
+            .unwrap();
+        let chain_ders: Vec<Vec<u8>> = chain.iter().map(|cert| cert.cert_der.clone()).collect();
+        let factory = create_cert_signing_factory(&chain[0], &chain_ders, ML_DSA_65);
+        let leaf_x509 = X509::from_der(&chain[0].cert_der).unwrap();
+        let pub_key_der = leaf_x509.public_key().unwrap().public_key_to_der().unwrap();
+        let verifier = EvpVerifier::from_der(&pub_key_der, ML_DSA_65).unwrap();
 
         let payload = vec![0x42u8; 1024];
-        let mut protected = CoseHeaderMap::new();
-        protected.set_alg(ML_DSA_65);
 
         group.bench_function("sign_mldsa65_1kb", |b| {
             b.iter(|| {
-                CoseSign1Builder::new()
-                    .protected(protected.clone())
-                    .tagged(true)
-                    .sign(black_box(&signer), black_box(&payload))
+                factory
+                    .create_bytes(
+                        black_box(&payload),
+                        "application/octet-stream",
+                        None,
+                    )
                     .unwrap()
             })
         });
 
-        let signed = CoseSign1Builder::new()
-            .protected(protected)
-            .tagged(true)
-            .sign(&signer, &payload)
+        let signed = factory
+            .create_bytes(&payload, "application/octet-stream", None)
             .unwrap();
         let message = CoseSign1Message::parse(&signed).unwrap();
 
@@ -1304,28 +1318,38 @@ fn bench_pqc(c: &mut Criterion) {
 
     // ML-DSA-87 (high-security PQC)
     {
-        let (priv_der, pub_der) = generate_mldsa_key_der(MlDsaVariant::MlDsa87).unwrap();
-        let signer = EvpSigner::from_der(&priv_der, ML_DSA_87).unwrap();
-        let verifier = EvpVerifier::from_der(&pub_der, ML_DSA_87).unwrap();
+        let chain = chain_factory
+            .create_chain_with_options(
+                CertificateChainOptions::new()
+                    .with_root_key_algorithm(KeyAlgorithm::Ecdsa)
+                    .with_intermediate_key_algorithm(KeyAlgorithm::Ecdsa)
+                    .with_leaf_key_algorithm(KeyAlgorithm::MlDsa)
+                    .with_leaf_key_size(87)
+                    .with_leaf_first(true),
+            )
+            .unwrap();
+        let chain_ders: Vec<Vec<u8>> = chain.iter().map(|cert| cert.cert_der.clone()).collect();
+        let factory = create_cert_signing_factory(&chain[0], &chain_ders, ML_DSA_87);
+        let leaf_x509 = X509::from_der(&chain[0].cert_der).unwrap();
+        let pub_key_der = leaf_x509.public_key().unwrap().public_key_to_der().unwrap();
+        let verifier = EvpVerifier::from_der(&pub_key_der, ML_DSA_87).unwrap();
 
         let payload = vec![0x42u8; 1024];
-        let mut protected = CoseHeaderMap::new();
-        protected.set_alg(ML_DSA_87);
 
         group.bench_function("sign_mldsa87_1kb", |b| {
             b.iter(|| {
-                CoseSign1Builder::new()
-                    .protected(protected.clone())
-                    .tagged(true)
-                    .sign(black_box(&signer), black_box(&payload))
+                factory
+                    .create_bytes(
+                        black_box(&payload),
+                        "application/octet-stream",
+                        None,
+                    )
                     .unwrap()
             })
         });
 
-        let signed = CoseSign1Builder::new()
-            .protected(protected)
-            .tagged(true)
-            .sign(&signer, &payload)
+        let signed = factory
+            .create_bytes(&payload, "application/octet-stream", None)
             .unwrap();
         let message = CoseSign1Message::parse(&signed).unwrap();
 
@@ -1406,6 +1430,28 @@ fn bench_concurrent_throughput(c: &mut Criterion) {
     let mut group = c.benchmark_group("concurrent");
     group.sample_size(10);
 
+    // Pre-generate the 3-tier cert chain once (expensive keygen)
+    let cert_factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let chain_factory = CertificateChainFactory::new(cert_factory);
+    let chain = chain_factory
+        .create_chain_with_options(
+            CertificateChainOptions::new()
+                .with_key_algorithm(KeyAlgorithm::Ecdsa)
+                .with_key_size(256)
+                .with_leaf_first(true),
+        )
+        .unwrap();
+    let leaf_key_der: Arc<Vec<u8>> = Arc::new(
+        chain[0]
+            .private_key_der
+            .as_ref()
+            .expect("leaf must have private key")
+            .clone(),
+    );
+    let chain_ders: Arc<Vec<Vec<u8>>> =
+        Arc::new(chain.iter().map(|cert| cert.cert_der.clone()).collect());
+    let leaf_cert_der: Arc<Vec<u8>> = Arc::new(chain[0].cert_der.clone());
+
     for threads in [1usize, 2, 4, 8] {
         let ops_per_thread: usize = 50;
         group.throughput(Throughput::Elements((threads * ops_per_thread) as u64));
@@ -1414,19 +1460,35 @@ fn bench_concurrent_throughput(c: &mut Criterion) {
             b.iter(|| {
                 let handles: Vec<_> = (0..threads)
                     .map(|_| {
+                        let leaf_key = leaf_key_der.clone();
+                        let chain = chain_ders.clone();
+                        let leaf_cert = leaf_cert_der.clone();
                         thread::spawn(move || {
-                            let (pk, _pub_key) = setup_ec_key();
-                            let signer = EvpSigner::from_der(&pk, ES256).unwrap();
-                            let mut protected = CoseHeaderMap::new();
-                            protected.set_alg(ES256);
+                            // Each thread creates its own factory from shared key material
+                            let signer =
+                                EvpSigner::from_der(&leaf_key, ES256).unwrap();
+                            let source = Box::new(BenchCertificateSource::new(
+                                leaf_cert.as_ref().clone(),
+                                chain.as_ref().clone(),
+                            ));
+                            let provider: Arc<dyn SigningKeyProvider> =
+                                Arc::new(BenchSigningKeyProvider { signer });
+                            let options = CertificateSigningOptions::default();
+                            let service: Arc<dyn SigningService> =
+                                Arc::new(CertificateSigningService::new(
+                                    source, provider, options,
+                                ));
+                            let factory = DirectSignatureFactory::new(service);
                             let payload = [0x42u8; 1024];
 
                             for _ in 0..ops_per_thread {
                                 black_box(
-                                    CoseSign1Builder::new()
-                                        .protected(protected.clone())
-                                        .tagged(true)
-                                        .sign(&signer, &payload)
+                                    factory
+                                        .create_bytes(
+                                            &payload,
+                                            "application/octet-stream",
+                                            None,
+                                        )
                                         .unwrap(),
                                 );
                             }

@@ -41,6 +41,8 @@ public class CertificateSigningServiceKey : ICertificateSigningKey
     private readonly ISigningService<SigningOptions> SigningServiceField;
     private CoseKey? CoseKeyField;
     private readonly object CoseKeyLock = new();
+    private IReadOnlyList<X509Certificate2>? CachedChainLeafFirst;
+    private readonly object ChainLock = new();
     private bool Disposed;
 
     /// <summary>
@@ -95,16 +97,40 @@ public class CertificateSigningServiceKey : ICertificateSigningKey
     /// <inheritdoc/>
     public IEnumerable<X509Certificate2> GetCertificateChain(X509ChainSortOrder sortOrder)
     {
-        var chainBuilder = CertificateSourceField.GetChainBuilder();
-        var cert = CertificateSourceField.GetSigningCertificate();
+        IReadOnlyList<X509Certificate2> chain = GetCachedChain();
 
-        chainBuilder.Build(cert);
+        return sortOrder == X509ChainSortOrder.LeafFirst
+            ? chain
+            : chain.Reverse();
+    }
 
-        var chainElements = sortOrder == X509ChainSortOrder.LeafFirst
-            ? chainBuilder.ChainElements
-            : chainBuilder.ChainElements.Reverse();
+    /// <summary>
+    /// Returns the cached certificate chain in leaf-first order, building it on first access.
+    /// Thread-safe via double-checked locking.
+    /// </summary>
+    private IReadOnlyList<X509Certificate2> GetCachedChain()
+    {
+        IReadOnlyList<X509Certificate2>? cached = CachedChainLeafFirst;
+        if (cached is not null)
+        {
+            return cached;
+        }
 
-        return chainElements;
+        lock (ChainLock)
+        {
+            if (CachedChainLeafFirst is not null)
+            {
+                return CachedChainLeafFirst;
+            }
+
+            ICertificateChainBuilder chainBuilder = CertificateSourceField.GetChainBuilder();
+            X509Certificate2 cert = CertificateSourceField.GetSigningCertificate();
+
+            chainBuilder.Build(cert);
+
+            CachedChainLeafFirst = chainBuilder.ChainElements.ToList();
+            return CachedChainLeafFirst;
+        }
     }
 
     /// <inheritdoc/>

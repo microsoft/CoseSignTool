@@ -32,6 +32,7 @@ public sealed class X509ChainBuilder : ICertificateChainBuilder, IDisposable
 
     private readonly X509Chain Chain;
     private readonly ILogger<X509ChainBuilder> LoggerField;
+    private readonly object BuildLock = new();
     private bool Disposed;
     private IReadOnlyCollection<X509Certificate2>? _cachedElements;
 
@@ -124,16 +125,28 @@ public sealed class X509ChainBuilder : ICertificateChainBuilder, IDisposable
         get
         {
             Guard.ThrowIfDisposed(Disposed, this);
-            if (_cachedElements is null)
+            IReadOnlyCollection<X509Certificate2>? cached = _cachedElements;
+            if (cached is not null)
             {
-                var elements = new List<X509Certificate2>(Chain.ChainElements.Count);
-                foreach (var element in Chain.ChainElements)
+                return cached;
+            }
+
+            lock (BuildLock)
+            {
+                if (_cachedElements is not null)
+                {
+                    return _cachedElements;
+                }
+
+                List<X509Certificate2> elements = new(Chain.ChainElements.Count);
+                foreach (X509ChainElement element in Chain.ChainElements)
                 {
                     elements.Add(element.Certificate);
                 }
+
                 _cachedElements = elements;
+                return _cachedElements;
             }
-            return _cachedElements;
         }
     }
 
@@ -174,33 +187,36 @@ public sealed class X509ChainBuilder : ICertificateChainBuilder, IDisposable
         Guard.ThrowIfDisposed(Disposed, this);
         Guard.ThrowIfNull(certificate);
 
-        LoggerField.LogTrace(
-            LogEvents.CertificateChainBuildStartedEvent,
-            ClassStrings.LogBuildingChainFormat,
-            certificate.Subject,
-            certificate.Thumbprint);
-
-        _cachedElements = null;
-        bool result = Chain.Build(certificate);
-
-        if (result)
+        lock (BuildLock)
         {
             LoggerField.LogTrace(
-                LogEvents.CertificateChainBuiltEvent,
-                ClassStrings.LogChainBuiltFormat,
-                Chain.ChainElements.Count);
-        }
-        else
-        {
-            var statusSummary = string.Join(ClassStrings.ChainStatusJoinSeparator, Chain.ChainStatus.Select(s => s.Status.ToString()));
-            LoggerField.LogTrace(
-                LogEvents.CertificateChainBuildFailedEvent,
-                ClassStrings.LogChainBuildFailedFormat,
-                Chain.ChainElements.Count,
-                statusSummary);
-        }
+                LogEvents.CertificateChainBuildStartedEvent,
+                ClassStrings.LogBuildingChainFormat,
+                certificate.Subject,
+                certificate.Thumbprint);
 
-        return result;
+            _cachedElements = null;
+            bool result = Chain.Build(certificate);
+
+            if (result)
+            {
+                LoggerField.LogTrace(
+                    LogEvents.CertificateChainBuiltEvent,
+                    ClassStrings.LogChainBuiltFormat,
+                    Chain.ChainElements.Count);
+            }
+            else
+            {
+                string statusSummary = string.Join(ClassStrings.ChainStatusJoinSeparator, Chain.ChainStatus.Select(s => s.Status.ToString()));
+                LoggerField.LogTrace(
+                    LogEvents.CertificateChainBuildFailedEvent,
+                    ClassStrings.LogChainBuildFailedFormat,
+                    Chain.ChainElements.Count,
+                    statusSummary);
+            }
+
+            return result;
+        }
     }
 
     /// <inheritdoc/>

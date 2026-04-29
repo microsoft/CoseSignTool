@@ -64,6 +64,7 @@ public class SignCommand : CoseCommand
         ["--EnableScittCompliance"] = "EnableScittCompliance",
         ["--scitt"] = "EnableScittCompliance",
         ["--CertProvider"] = "CertProvider",
+        ["--cert-provider"] = "CertProvider",
         ["--cp"] = "CertProvider"
     };
 

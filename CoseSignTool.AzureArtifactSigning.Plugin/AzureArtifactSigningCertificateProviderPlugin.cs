@@ -112,9 +112,10 @@ public class AzureArtifactSigningCertificateProviderPlugin : ICertificateProvide
 
             logger?.LogVerbose("Creating AzSignContext...");
             // Create AzSignContext using the certificate profile client
+            // Constructor: AzSignContext(accountName, certProfile, cpClient, ...)
             AzSignContext signContext = new AzSignContext(
-                endpoint,
                 accountName,
+                certProfileName,
                 certificateProfileClient);
 
             logger?.LogVerbose("Creating AzureArtifactSigningCoseSigningKeyProvider...");

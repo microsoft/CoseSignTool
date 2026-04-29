@@ -222,8 +222,15 @@ public class CoseSignTool
             switch (verb)
             {
                 case Verbs.Sign:
-                    provider = CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out badArg);
-                    return (provider is null) ? Usage(SignCommand.Usage, badArg) : new SignCommand(provider).Run();
+                    Dictionary<string, string> signOptions = GetSignOptionsWithCertProvider(args);
+                    provider = CoseCommand.LoadCommandLineArgs(args, signOptions, out badArg);
+                    if (provider is null)
+                    {
+                        return Usage(SignCommand.Usage, badArg);
+                    }
+                    SignCommand signCommand = new(provider);
+                    signCommand.SetCertificateProviderPluginManager(CertificateProviderManager);
+                    return signCommand.Run();
                 case Verbs.Validate:
                     provider = CoseCommand.LoadCommandLineArgs(args, ValidateCommand.Options, out badArg);
                     return (provider is null) ? Usage(ValidateCommand.Usage, badArg) : new ValidateCommand(provider).Run();
@@ -242,6 +249,69 @@ public class CoseSignTool
         {
             return Fail(ExitCode.InvalidArgumentValue, ex);
         }
+    }
+
+    /// <summary>
+    /// Builds the sign command options dictionary, merging in certificate provider plugin options
+    /// if a --cp / --CertProvider / --cert-provider flag is found in the args.
+    /// This allows the plugin to project its options into the sign command's arg parser.
+    /// </summary>
+    /// <param name="args">The command line arguments (after the verb).</param>
+    /// <returns>The options dictionary, possibly merged with provider-specific options.</returns>
+    private static Dictionary<string, string> GetSignOptionsWithCertProvider(string[] args)
+    {
+        string? providerName = FindCertProviderInArgs(args);
+        if (providerName is null)
+        {
+            return SignCommand.Options;
+        }
+
+        ICertificateProviderPlugin? plugin = CertificateProviderManager.GetProvider(providerName);
+        if (plugin is null)
+        {
+            // Return base options — the error will surface later in LoadSigningKeyProviderFromPlugin
+            // with a clear "provider not found" message.
+            return SignCommand.Options;
+        }
+
+        // Merge provider-specific options into a copy of SignCommand.Options
+        Dictionary<string, string> merged = new(SignCommand.Options);
+        foreach (KeyValuePair<string, string> kvp in plugin.GetProviderOptions().Where(kvp => !merged.ContainsKey(kvp.Key)))
+        {
+            merged[kvp.Key] = kvp.Value;
+        }
+
+        return merged;
+    }
+
+    /// <summary>
+    /// Pre-scans command line arguments to find the certificate provider name.
+    /// Applies the same prefix normalization as CleanArgs (/, - become --) to match
+    /// the known cert provider aliases.
+    /// </summary>
+    /// <param name="args">The command line arguments (after the verb).</param>
+    /// <returns>The provider name if found; null otherwise.</returns>
+    private static string? FindCertProviderInArgs(string[] args)
+    {
+        for (int i = 0; i < args.Length - 1; i++)
+        {
+            string arg = args[i];
+
+            // Normalize prefix the same way CleanArgs does: / or single - becomes --
+            if (arg.StartsWith('/') || (arg.StartsWith('-') && !arg.StartsWith("--")))
+            {
+                arg = $"--{arg.AsSpan(1)}";
+            }
+
+            if (arg.Equals("--cp", StringComparison.OrdinalIgnoreCase) ||
+                arg.Equals("--CertProvider", StringComparison.OrdinalIgnoreCase) ||
+                arg.Equals("--cert-provider", StringComparison.OrdinalIgnoreCase))
+            {
+                return args[i + 1];
+            }
+        }
+
+        return null;
     }
 
     /// <summary>

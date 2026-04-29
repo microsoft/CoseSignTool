@@ -24,10 +24,21 @@ public class AzureArtifactSigningCoseSigningKeyProvider : CertificateCoseSigning
 
     /// <summary>
     /// Initializes a new instance of the <see cref="AzureArtifactSigningCoseSigningKeyProvider"/> class.
+    /// Uses the base class <see cref="CertificateCoseSigningKeyProvider(ICertificateChainBuilder?, HashAlgorithmName?, List{X509Certificate2}?)"/>
+    /// constructor to initialize an <see cref="ICertificateChainBuilder"/> with a permissive chain policy
+    /// for ordering the certificate chain returned by the Azure Artifact Signing service.
     /// </summary>
     /// <param name="signContext">The <see cref="ISignContext"/> used to interact with Azure Artifact Signing.</param>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="signContext"/> is null.</exception>
     public AzureArtifactSigningCoseSigningKeyProvider(ISignContext signContext)
+        : base(new X509ChainBuilder()
+        {
+            ChainPolicy = new X509ChainPolicy
+            {
+                VerificationFlags = X509VerificationFlags.AllFlags,
+                RevocationMode = X509RevocationMode.NoCheck
+            }
+        })
     {
         SignContext = signContext ?? throw new ArgumentNullException(nameof(ISignContext));
     }
@@ -63,9 +74,12 @@ public class AzureArtifactSigningCoseSigningKeyProvider : CertificateCoseSigning
 
     private readonly object CertificateChainLock = new object();
     private IReadOnlyList<X509Certificate2>? CertificateChain;
+    private List<X509Certificate2>? OrderedChainLeafFirst;
 
     /// <summary>
-    /// Retrieves the certificate chain from the Azure Artifact Signing service.
+    /// Retrieves the certificate chain from the Azure Artifact Signing service
+    /// and uses the base class <see cref="CertificateCoseSigningKeyProvider.ChainBuilder"/>
+    /// to build a properly ordered chain.
     /// </summary>
     /// <param name="sortOrder">The desired sort order of the certificate chain (root-first or leaf-first).</param>
     /// <returns>An enumerable collection of <see cref="X509Certificate2"/> objects representing the certificate chain.</returns>
@@ -76,49 +90,38 @@ public class AzureArtifactSigningCoseSigningKeyProvider : CertificateCoseSigning
     {
         lock (CertificateChainLock)
         {
-            CertificateChain ??= SignContext.GetCertChain()
-                ?? throw new InvalidOperationException("Certificate chain is not available. Please check the Azure Artifact Signing configuration.");
-        }
-
-        if (CertificateChain.Count == 0)
-        {
-            throw new InvalidOperationException("Certificate chain is empty. Please check the Azure Artifact Signing configuration.");
-        }
-
-        // Build a properly ordered chain: leaf-first, walking from signing cert to root.
-        X509Certificate2 signingCert = GetSigningCertificate();
-        List<X509Certificate2> ordered = new() { signingCert };
-        HashSet<string> used = new() { signingCert.Thumbprint };
-
-        // Walk up the chain: find the issuer of the current cert
-        X509Certificate2? current = signingCert;
-        while (current != null && current.Issuer != current.Subject)
-        {
-            X509Certificate2? issuer = CertificateChain
-                .FirstOrDefault(c => !used.Contains(c.Thumbprint) && c.Subject == current.Issuer);
-            if (issuer is null)
+            if (OrderedChainLeafFirst is null)
             {
-                break;
+                CertificateChain ??= SignContext.GetCertChain()
+                    ?? throw new InvalidOperationException("Certificate chain is not available. Please check the Azure Artifact Signing configuration.");
+
+                if (CertificateChain.Count == 0)
+                {
+                    throw new InvalidOperationException("Certificate chain is empty. Please check the Azure Artifact Signing configuration.");
+                }
+
+                // Add the service-provided certs to ExtraStore so the ChainBuilder can find them
+                X509Certificate2 signingCert = GetSigningCertificate();
+                ChainBuilder!.ChainPolicy.ExtraStore.Clear();
+                foreach (X509Certificate2 cert in CertificateChain)
+                {
+                    ChainBuilder.ChainPolicy.ExtraStore.Add(cert);
+                }
+
+                // Build the chain — ChainElements comes back leaf-first
+                ChainBuilder.Build(signingCert);
+                OrderedChainLeafFirst = ChainBuilder.ChainElements.ToList();
             }
-            ordered.Add(issuer);
-            used.Add(issuer.Thumbprint);
-            current = issuer;
         }
 
-        // Add any remaining certs not yet included (defensive)
-        foreach (X509Certificate2 cert in CertificateChain.Where(c => !used.Contains(c.Thumbprint)))
-        {
-            ordered.Add(cert);
-            used.Add(cert.Thumbprint);
-        }
-
-        // ordered is now leaf-first; reverse if root-first was requested
         if (sortOrder == X509ChainSortOrder.RootFirst)
         {
-            ordered.Reverse();
+            List<X509Certificate2> reversed = new(OrderedChainLeafFirst);
+            reversed.Reverse();
+            return reversed;
         }
 
-        return ordered;
+        return OrderedChainLeafFirst;
     }
 
     private X509Certificate2? SigningCertificate;

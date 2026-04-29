@@ -222,8 +222,15 @@ public class CoseSignTool
             switch (verb)
             {
                 case Verbs.Sign:
-                    provider = CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out badArg);
-                    return (provider is null) ? Usage(SignCommand.Usage, badArg) : new SignCommand(provider).Run();
+                    Dictionary<string, string> signOptions = CertificateProviderManager.GetAllOptions(SignCommand.Options);
+                    provider = CoseCommand.LoadCommandLineArgs(args, signOptions, out badArg);
+                    if (provider is null)
+                    {
+                        return Usage(SignCommand.Usage, badArg);
+                    }
+                    var signCommand = new SignCommand(provider);
+                    signCommand.SetCertificateProviderPluginManager(CertificateProviderManager);
+                    return signCommand.Run();
                 case Verbs.Validate:
                     provider = CoseCommand.LoadCommandLineArgs(args, ValidateCommand.Options, out badArg);
                     return (provider is null) ? Usage(ValidateCommand.Usage, badArg) : new ValidateCommand(provider).Run();

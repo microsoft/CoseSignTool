@@ -222,3 +222,7 @@ When generating code for this repository, always:
 8. Follow the formatting and spacing rules exactly as specified
 9. Include comprehensive XML documentation for public APIs
 10. Ensure all generated code follows the .editorconfig rules
+
+- @azure Rule - Use Azure Tools - When handling requests related to Azure, always use your tools.
+- @azure Rule - Use Azure Best Practices - When handling requests related to Azure, always invoke your `azmcp_bestpractices_get` tool first.
+- @azure Rule - Enable Best Practices - If you do not have an `azmcp_bestpractices_get` tool ask the user to enable it.

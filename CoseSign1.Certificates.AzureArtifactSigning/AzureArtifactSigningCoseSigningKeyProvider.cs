@@ -83,7 +83,7 @@ public class AzureArtifactSigningCoseSigningKeyProvider : CertificateCoseSigning
         X509Certificate2 firstCert = CertificateChain.FirstOrDefault()
             ?? throw new InvalidOperationException("Certificate chain is empty. Please check the Azure Artifact Signing configuration.");
         // Determine if the certificate chain order needs to be reversed.
-        bool needsRevers = sortOrder == (firstCert.Issuer == firstCert.Subject ? X509ChainSortOrder.RootFirst : X509ChainSortOrder.LeafFirst);
+        bool needsRevers = sortOrder != (firstCert.Issuer == firstCert.Subject ? X509ChainSortOrder.RootFirst : X509ChainSortOrder.LeafFirst);
 
         // Return the certificates in the specified order.
         foreach (X509Certificate2 cert in needsRevers ? CertificateChain.Reverse() : CertificateChain)

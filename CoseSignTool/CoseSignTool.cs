@@ -276,12 +276,9 @@ public class CoseSignTool
 
         // Merge provider-specific options into a copy of SignCommand.Options
         Dictionary<string, string> merged = new(SignCommand.Options);
-        foreach (KeyValuePair<string, string> kvp in plugin.GetProviderOptions())
+        foreach (KeyValuePair<string, string> kvp in plugin.GetProviderOptions().Where(kvp => !merged.ContainsKey(kvp.Key)))
         {
-            if (!merged.ContainsKey(kvp.Key))
-            {
-                merged[kvp.Key] = kvp.Value;
-            }
+            merged[kvp.Key] = kvp.Value;
         }
 
         return merged;

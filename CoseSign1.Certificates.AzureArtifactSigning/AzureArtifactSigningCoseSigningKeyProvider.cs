@@ -106,13 +106,10 @@ public class AzureArtifactSigningCoseSigningKeyProvider : CertificateCoseSigning
         }
 
         // Add any remaining certs not yet included (defensive)
-        foreach (X509Certificate2 cert in CertificateChain)
+        foreach (X509Certificate2 cert in CertificateChain.Where(c => !used.Contains(c.Thumbprint)))
         {
-            if (!used.Contains(cert.Thumbprint))
-            {
-                ordered.Add(cert);
-                used.Add(cert.Thumbprint);
-            }
+            ordered.Add(cert);
+            used.Add(cert.Thumbprint);
         }
 
         // ordered is now leaf-first; reverse if root-first was requested

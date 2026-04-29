@@ -88,6 +88,7 @@ public class AzureArtifactSigningCertificateProviderPlugin : ICertificateProvide
             logger?.LogVerbose($"  Account: {accountName}");
             logger?.LogVerbose($"  Certificate Profile: {certProfileName}");
 
+
             // Create Azure credential using DefaultAzureCredential
             // This supports multiple authentication methods in order of precedence:
             // 1. Environment variables (AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, etc.)
@@ -113,8 +114,8 @@ public class AzureArtifactSigningCertificateProviderPlugin : ICertificateProvide
             logger?.LogVerbose("Creating AzSignContext...");
             // Create AzSignContext using the certificate profile client
             AzSignContext signContext = new AzSignContext(
-                endpoint,
                 accountName,
+                certProfileName,
                 certificateProfileClient);
 
             logger?.LogVerbose("Creating AzureArtifactSigningCoseSigningKeyProvider...");

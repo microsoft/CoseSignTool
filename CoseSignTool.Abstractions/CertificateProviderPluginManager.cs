@@ -208,10 +208,16 @@ public class CertificateProviderPluginManager
     public Dictionary<string, string> GetAllOptions(Dictionary<string, string> baseOptions)
     {
         Dictionary<string, string> allOptions = new Dictionary<string, string>(baseOptions);
-        
-        // Add the cert-provider option
-        allOptions["--cert-provider"] = "cert-provider";
-        allOptions["-cp"] = "cert-provider";
+
+        // Merge options from all registered providers
+        foreach (ICertificateProviderPlugin provider in Providers.Values)
+        {
+            IDictionary<string, string> providerOptions = provider.GetProviderOptions();
+            foreach (KeyValuePair<string, string> kvp in providerOptions)
+            {
+                allOptions.TryAdd(kvp.Key, kvp.Value);
+            }
+        }
 
         return allOptions;
     }

@@ -88,19 +88,9 @@ public class AzureArtifactSigningCertificateProviderPlugin : ICertificateProvide
             logger?.LogVerbose($"  Account: {accountName}");
             logger?.LogVerbose($"  Certificate Profile: {certProfileName}");
 
-            // Create Azure credential using DefaultAzureCredential
-            // This supports multiple authentication methods in order of precedence:
-            // 1. Environment variables (AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, etc.)
-            // 2. Managed Identity (for Azure VMs, App Service, etc.)
-            // 3. Visual Studio credential
-            // 4. Azure CLI credential
-            // 5. Azure PowerShell credential
-            logger?.LogVerbose("Acquiring Azure credentials using DefaultAzureCredential...");
-            TokenCredential credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions // CodeQL [SM02196] DefaultAzureCredential is the recommended approach for client applications and libraries to authenticate to Azure services
-            {
-                // Exclude interactive browser auth to avoid unexpected prompts in CI/CD
-                ExcludeInteractiveBrowserCredential = true
-            });
+            // Use AzureCliCredential to authenticate via 'az login'
+            logger?.LogVerbose("Acquiring Azure credentials using AzureCliCredential...");
+            TokenCredential credential = new Azure.Identity.AzureCliCredential();
 
             logger?.LogVerbose("Creating CertificateProfileClient...");
             // Create the Certificate Profile Client

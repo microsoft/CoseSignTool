@@ -82,8 +82,10 @@ public class AzureArtifactSigningCoseSigningKeyProviderTests
     /// <param name="sortOrder">The desired sort order of the certificate chain.</param>
     /// <param name="reverseOrder">Indicates whether the chain should be reversed.</param>
     [Test]
-    [TestCase(X509ChainSortOrder.LeafFirst, false, TestName = "GetCertificateChain_ReturnsChainInLeafFirstOrder")]
-    [TestCase(X509ChainSortOrder.RootFirst, true, TestName = "GetCertificateChain_ReturnsChainInRootFirstOrder")]
+    // CreateMockCertificateChain() returns the chain in natural (root-first) order: [root, issuer, leaf].
+    // Requesting LeafFirst should reverse it; requesting RootFirst should leave it as-is.
+    [TestCase(X509ChainSortOrder.LeafFirst, true, TestName = "GetCertificateChain_ReturnsChainInLeafFirstOrder")]
+    [TestCase(X509ChainSortOrder.RootFirst, false, TestName = "GetCertificateChain_ReturnsChainInRootFirstOrder")]
     public void GetCertificateChain_ReturnsChainInCorrectOrder(X509ChainSortOrder sortOrder, bool reverseOrder)
     {
         // Arrange

@@ -80,16 +80,48 @@ public class AzureArtifactSigningCoseSigningKeyProvider : CertificateCoseSigning
                 ?? throw new InvalidOperationException("Certificate chain is not available. Please check the Azure Artifact Signing configuration.");
         }
 
-        X509Certificate2 firstCert = CertificateChain.FirstOrDefault()
-            ?? throw new InvalidOperationException("Certificate chain is empty. Please check the Azure Artifact Signing configuration.");
-        // Determine if the certificate chain order needs to be reversed.
-        bool needsRevers = sortOrder == (firstCert.Issuer == firstCert.Subject ? X509ChainSortOrder.RootFirst : X509ChainSortOrder.LeafFirst);
-
-        // Return the certificates in the specified order.
-        foreach (X509Certificate2 cert in needsRevers ? CertificateChain.Reverse() : CertificateChain)
+        if (CertificateChain.Count == 0)
         {
-            yield return cert;
+            throw new InvalidOperationException("Certificate chain is empty. Please check the Azure Artifact Signing configuration.");
         }
+
+        // Build a properly ordered chain: leaf-first, walking from signing cert to root.
+        X509Certificate2 signingCert = GetSigningCertificate();
+        List<X509Certificate2> ordered = new() { signingCert };
+        HashSet<string> used = new() { signingCert.Thumbprint };
+
+        // Walk up the chain: find the issuer of the current cert
+        X509Certificate2? current = signingCert;
+        while (current != null && current.Issuer != current.Subject)
+        {
+            X509Certificate2? issuer = CertificateChain
+                .FirstOrDefault(c => !used.Contains(c.Thumbprint) && c.Subject == current.Issuer);
+            if (issuer is null)
+            {
+                break;
+            }
+            ordered.Add(issuer);
+            used.Add(issuer.Thumbprint);
+            current = issuer;
+        }
+
+        // Add any remaining certs not yet included (defensive)
+        foreach (X509Certificate2 cert in CertificateChain)
+        {
+            if (!used.Contains(cert.Thumbprint))
+            {
+                ordered.Add(cert);
+                used.Add(cert.Thumbprint);
+            }
+        }
+
+        // ordered is now leaf-first; reverse if root-first was requested
+        if (sortOrder == X509ChainSortOrder.RootFirst)
+        {
+            ordered.Reverse();
+        }
+
+        return ordered;
     }
 
     private X509Certificate2? SigningCertificate;

@@ -37,6 +37,7 @@ members = [
   "cose_openssl",
   "cli",
   "cli/plugin-api",
+  "cli/plugin-loader",
   "benches",
 ]
 

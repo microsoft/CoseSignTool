@@ -86,6 +86,11 @@ impl Request {
     pub fn shutdown() -> Self {
         Self::new(methods::SHUTDOWN, RequestParams::None)
     }
+
+    /// Creates an `authenticate` request with the given auth key.
+    pub fn authenticate(auth_key: Vec<u8>) -> Self {
+        Self::new(methods::AUTHENTICATE, RequestParams::Authenticate { auth_key })
+    }
 }
 
 /// Typed request parameters for the well-known plugin methods.
@@ -93,6 +98,11 @@ impl Request {
 pub enum RequestParams {
     /// No parameters (`null`).
     None,
+    /// Parameters for `authenticate` — 32-byte auth key as CBOR bstr.
+    Authenticate {
+        /// The auth key bytes (must be AUTH_KEY_LENGTH bytes).
+        auth_key: Vec<u8>,
+    },
     /// Parameters for `create_service`.
     CreateService(PluginConfig),
     /// Parameters containing only a service identifier.
@@ -141,6 +151,8 @@ impl Response {
 pub enum ResponseResult {
     /// No result (`null`).
     None,
+    /// Acknowledgment (used for `authenticate` and `shutdown`).
+    Acknowledged,
     /// Result payload for `capabilities`.
     PluginInfo(PluginInfo),
     /// Result payload for `create_service`.
@@ -201,6 +213,12 @@ pub type ProtocolResult<T> = Result<T, ProtocolCodecError>;
 
 /// Method names for the plugin protocol.
 pub mod methods {
+    /// Authenticate the connection. Must be the first message sent by the host.
+    /// Params: `{ "auth_key": bstr }` — 32-byte random key passed via environment variable.
+    /// The plugin verifies this key using constant-time comparison before accepting
+    /// any further requests. This prevents unauthorized processes from connecting
+    /// to the named pipe.
+    pub const AUTHENTICATE: &str = "authenticate";
     /// Query plugin capabilities. Returns `PluginInfo`.
     pub const CAPABILITIES: &str = "capabilities";
     /// Create a signing service from configuration. Returns `{"service_id": "..."}`.
@@ -214,6 +232,12 @@ pub mod methods {
     /// Graceful shutdown.
     pub const SHUTDOWN: &str = "shutdown";
 }
+
+/// Environment variable name for the auth key passed from host to plugin.
+pub const AUTH_KEY_ENV_VAR: &str = "COSESIGNTOOL_PLUGIN_AUTH_KEY";
+
+/// Length of the auth key in bytes.
+pub const AUTH_KEY_LENGTH: usize = 32;
 
 /// Encodes a request body into CBOR.
 pub fn encode_request<E>(encoder: &mut E, request: &Request) -> ProtocolResult<()>
@@ -423,6 +447,13 @@ fn validate_request(request: &Request) -> ProtocolResult<()> {
                 )));
             }
         }
+        methods::AUTHENTICATE => {
+            if !matches!(request.params, RequestParams::Authenticate { .. }) {
+                return Err(ProtocolCodecError::InvalidMessage(
+                    "'authenticate' requires auth_key bstr param".into(),
+                ));
+            }
+        }
         methods::CREATE_SERVICE => {
             if !matches!(request.params, RequestParams::CreateService(_)) {
                 return Err(ProtocolCodecError::InvalidMessage(
@@ -458,6 +489,11 @@ where
 {
     match params {
         RequestParams::None => encoder.encode_null().map_err(cbor_error),
+        RequestParams::Authenticate { auth_key } => {
+            encoder.encode_map(1).map_err(cbor_error)?;
+            encoder.encode_tstr("auth_key").map_err(cbor_error)?;
+            encoder.encode_bstr(auth_key.as_slice()).map_err(cbor_error)
+        }
         RequestParams::CreateService(config) => encode_plugin_config(encoder, config),
         RequestParams::ServiceId { service_id } => {
             encoder.encode_map(1).map_err(cbor_error)?;
@@ -484,6 +520,7 @@ where
 {
     match result {
         ResponseResult::None => encoder.encode_null().map_err(cbor_error),
+        ResponseResult::Acknowledged => encoder.encode_bool(true).map_err(cbor_error),
         ResponseResult::PluginInfo(info) => encode_plugin_info(encoder, info),
         ResponseResult::CreateService { service_id } => {
             encoder.encode_map(1).map_err(cbor_error)?;
@@ -576,6 +613,11 @@ fn decode_request_params(method: &str, raw_params: Option<&[u8]>) -> ProtocolRes
                 )));
             }
             Ok(RequestParams::None)
+        }
+        methods::AUTHENTICATE => {
+            let raw = require_params(method, raw_params)?;
+            let auth_key = decode_auth_key_from_bytes(raw)?;
+            Ok(RequestParams::Authenticate { auth_key })
         }
         methods::CREATE_SERVICE => {
             let raw = require_params(method, raw_params)?;
@@ -713,6 +755,31 @@ fn decode_service_id_map_from_bytes(data: &[u8], context: &str) -> ProtocolResul
 
     service_id.ok_or_else(|| {
         ProtocolCodecError::InvalidMessage(format!("{} is missing 'service_id'", context))
+    })
+}
+
+fn decode_auth_key_from_bytes(data: &[u8]) -> ProtocolResult<Vec<u8>> {
+    let provider = EverParseCborProvider;
+    let mut decoder = provider.decoder(data);
+    let entry_count = decode_required_map_len(&mut decoder, "authenticate")?;
+    let mut auth_key: Option<Vec<u8>> = None;
+
+    for _ in 0..entry_count {
+        let key = decode_tstr_owned(&mut decoder)?;
+        match key.as_str() {
+            "auth_key" => {
+                auth_key = Some(decoder.decode_bstr_owned().map_err(cbor_error)?);
+            }
+            _ => {
+                decoder.skip().map_err(cbor_error)?;
+            }
+        }
+    }
+
+    ensure_no_trailing(&decoder, "authenticate")?;
+
+    auth_key.ok_or_else(|| {
+        ProtocolCodecError::InvalidMessage("authenticate is missing 'auth_key'".into())
     })
 }
 

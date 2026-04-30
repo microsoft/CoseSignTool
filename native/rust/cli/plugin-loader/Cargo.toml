@@ -1,0 +1,18 @@
+[package]
+name = "cosesigntool_plugin_loader"
+version = "0.1.0"
+edition = { workspace = true }
+license = { workspace = true }
+description = "CoseSignTool plugin loader — trusted process that bridges named pipe IPC to plugin DLLs"
+
+[[bin]]
+name = "cosesigntool-plugin-loader"
+path = "src/main.rs"
+
+[dependencies]
+cosesigntool_plugin_api = { path = "../plugin-api" }
+cbor_primitives = { path = "../../primitives/cbor" }
+cbor_primitives_everparse = { path = "../../primitives/cbor/everparse" }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }

@@ -195,7 +195,7 @@ public class CoseHandlerSignValidateTests
     {
         ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(Payload1Bytes, Leaf1Priv);
         signedBytes.ToArray().Should().NotBeNull();
-        string validCommonName = Leaf1Priv.Subject;
+        string validCommonName = Leaf1Priv.GetNameInfo(X509NameType.SimpleName, forIssuer: false);
 
         ValidationResult result = CoseHandler.Validate(signedBytes.ToArray(), Payload1Bytes, ValidRootSetPriv, RevMode, requiredCommonName: "Not the cert common name");
         result.Success.Should().Be(false);

@@ -1,1 +1,0 @@
-error: --exclude-from-test can only be used together with --workspace

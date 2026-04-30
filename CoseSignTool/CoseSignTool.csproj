@@ -169,8 +169,9 @@
         <Message Text="Removed plugins folder from publish output (plugins are bundled in single-file exe)" Importance="high" />
     </Target>
 
-    <!--Build all plugins before main build so they're ready for deployment-->
-    <Target Name="BuildPlugins" BeforeTargets="Build" Condition="'$(DeployPlugins)' == 'true'">
+    <!--Build all plugins before main build when building the app project directly.
+        Solution builds already compile plugin projects, so rebuilding them here can race on shared outputs. -->
+    <Target Name="BuildPlugins" BeforeTargets="Build" Condition="'$(DeployPlugins)' == 'true' AND '$(SolutionPath)' == ''">
         <!-- Build each plugin project using consolidated PluginProjects ItemGroup -->
         <Message Text="Building @(PluginProjects->Count()) plugin project(s)..." Importance="high" Condition="'@(PluginProjects)' != ''" />
         <MSBuild Projects="@(PluginProjects)" Properties="Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier)" Condition="'@(PluginProjects)' != ''" />

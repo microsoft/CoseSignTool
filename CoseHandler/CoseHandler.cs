@@ -498,7 +498,7 @@ public static class CoseHandler
     /// Validates a detached or embedded COSE signature in  memory.
     /// </summary>
     /// <param name="signature">A byte array containing the COSE signatureFile.</param>
-    /// <param name="validator">A <see cref="CoseSign1MessageValidator"/> to validate the signature with, or <see cref="CoseSign1MessageValidator.None"/> to only check certificate validity and payload integrity.</param>
+    /// <param name="validator">A <see cref="CoseSign1MessageValidator"/> to validate the signature with, or <see cref="CoseSign1MessageValidator.None"/> to skip all trust validation and only verify signature structure and payload integrity. This is unsafe for untrusted input.</param>
     /// <param name="payload">For detached signatures, a byte array or Stream object containing the original payload; null for embedded signatures.</param>
     /// <exception cref="CoseValidationException">Validation failed</exception>
     /// <remarks>An <see cref="X509ChainTrustValidator"/> is recommended to ensure that the signing certificate chains to a valid root. You can also add an <see cref="X509CommonNameValidator"/> as a <see cref="CoseSign1MessageValidator.NextElement"/> to require a specific certificate Common Name.</remarks>
@@ -514,7 +514,7 @@ public static class CoseHandler
     /// Validates a detached or embedded COSE signature in memory.
     /// </summary>
     /// <param name="signature">The COSE signature stream to validate.</param>
-    /// <param name="validator">A <see cref="CoseSign1MessageValidator"/> to validate the signature structure with, or <see cref="CoseSign1MessageValidator.None"/> to only check certificate validity and payload integrity.</param>
+    /// <param name="validator">A <see cref="CoseSign1MessageValidator"/> to validate the signature structure with, or <see cref="CoseSign1MessageValidator.None"/> to skip all trust validation and only verify signature structure and payload integrity. This is unsafe for untrusted input.</param>
     /// <param name="payload">For detached signatures, a string pointing to the original file that was signed, or a byte array or Stream object containing the original payload; null for embedded signatures.</param>
     /// <exception cref="CoseValidationException">Validation failed</exception>
     /// <remarks>An <see cref="X509ChainTrustValidator"/> is recommended to ensure that the signing certificate chains to a valid root. You can also add an <see cref="X509CommonNameValidator"/> as a <see cref="CoseSign1MessageValidator.NextElement"/> to require a specific certificate Common Name.</remarks>
@@ -530,7 +530,7 @@ public static class CoseHandler
     /// Validates a detached or embedded COSE signature in memory.
     /// </summary>
     /// <param name="signature">A byte array containing the COSE signature file.</param>
-    /// <param name="validator">A <see cref="CoseSign1MessageValidator"/> to validate the signature with, or <see cref="CoseSign1MessageValidator.None"/> to only check certificate validity and payload integrity.</param>
+    /// <param name="validator">A <see cref="CoseSign1MessageValidator"/> to validate the signature with, or <see cref="CoseSign1MessageValidator.None"/> to skip all trust validation and only verify signature structure and payload integrity. This is unsafe for untrusted input.</param>
     /// <param name="payload">For detached signatures, the original payload that was signed; null for embedded signatures.</param>
     /// <exception cref="CoseValidationException">Validation failed</exception>
     /// <remarks>An <see cref="X509ChainTrustValidator"/> is recommended to ensure that the signing certificate chains to a valid root. You can also add an <see cref="X509CommonNameValidator"/> as a <see cref="CoseSign1MessageValidator.NextElement"/> to require a specific certificate Common Name.</remarks>
@@ -546,7 +546,7 @@ public static class CoseHandler
     /// Validates a detached COSE signature in memory.
     /// </summary>
     /// <param name="signature">The COSE signature stream to validate.</param>
-    /// <param name="validator">A <see cref="CoseSign1MessageValidator"/> to validate the signature structure with, or <see cref="CoseSign1MessageValidator.None"/> to only check certificate validity and payload integrity.</param>
+    /// <param name="validator">A <see cref="CoseSign1MessageValidator"/> to validate the signature structure with, or <see cref="CoseSign1MessageValidator.None"/> to skip all trust validation and only verify signature structure and payload integrity. This is unsafe for untrusted input.</param>
     /// <param name="payload">For detached signatures, the original payload that was signed; null for embedded signatures.</param>
     /// <exception cref="CoseValidationException">Validation failed</exception>
     /// <remarks>An <see cref="X509ChainTrustValidator"/> is recommended to ensure that the signing certificate chains to a valid root. You can also add an <see cref="X509CommonNameValidator"/> as a <see cref="CoseSign1MessageValidator.NextElement"/> to require a specific certificate Common Name.</remarks>
@@ -633,7 +633,7 @@ public static class CoseHandler
     /// Reads and decodes the original payload from an embedded COSE signature and validates the signature structure.
     /// </summary>
     /// <param name="signature">A byte array containing a COSE signature structure with embedded payload.</param>
-    /// <param name="validator">A <see cref="CoseSign1MessageValidator"/> to validate the signature with, or <see cref="CoseSign1MessageValidator.None"/> to only check certificate validity and payload integrity.</param>
+    /// <param name="validator">A <see cref="CoseSign1MessageValidator"/> to validate the signature with, or <see cref="CoseSign1MessageValidator.None"/> to skip all trust validation and only verify signature structure and payload integrity. This is unsafe for untrusted input.</param>
     /// <param name="result">The results of signature validation.</param>
     /// <returns>The decoded payload as a string.</returns>
     public static string? GetPayload(
@@ -646,7 +646,7 @@ public static class CoseHandler
     /// Reads and decodes the original payload from an embedded COSE signature and validates the signature structure.
     /// </summary>
     /// <param name="signature">A stream containing a COSE signature structure with embedded payload.</param>
-    /// <param name="validator">A <see cref="CoseSign1MessageValidator"/> to validate the signature with, or <see cref="CoseSign1MessageValidator.None"/> to only check certificate validity and payload integrity.</param>
+    /// <param name="validator">A <see cref="CoseSign1MessageValidator"/> to validate the signature with, or <see cref="CoseSign1MessageValidator.None"/> to skip all trust validation and only verify signature structure and payload integrity. This is unsafe for untrusted input.</param>
     /// <param name="result">The results of signature validation.</param>
     /// <returns>A result object containing the original payload, as read and decoded from the embedded signature, and the validation results.</returns>
     public static string? GetPayload(
@@ -817,7 +817,7 @@ public static class CoseHandler
     /// Reads and decodes the original payload from an embedded COSE signature and validates the signature structure.
     /// </summary>
     /// <param name="signatureBytes">A COSE signature structure with embedded payload.</param>
-    /// <param name="validator">A <see cref="CoseSign1MessageValidator"/> to validate the signature with, or <see cref="CoseSign1MessageValidator.None"/> to only check certificate validity and payload integrity.</param>
+    /// <param name="validator">A <see cref="CoseSign1MessageValidator"/> to validate the signature with, or <see cref="CoseSign1MessageValidator.None"/> to skip all trust validation and only verify signature structure and payload integrity. This is unsafe for untrusted input.</param>
     /// <param name="result">The results of signature validation.</param>
     /// <returns>The decoded payload as a string.</returns>
     internal static string? GetPayloadInternal(

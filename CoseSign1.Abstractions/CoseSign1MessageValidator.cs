@@ -91,15 +91,17 @@ public abstract class CoseSign1MessageValidator
     protected abstract CoseSign1ValidationResult ValidateMessage(CoseSign1Message message);
 
     /// <summary>
-    /// Returns a null validator that can be used as a place holder when a validator is expected.
+    /// Returns a validator that performs no validation.
     /// </summary>
-    /// <returns>A null validator.</returns>
+    /// <returns>A validator that returns success without performing any trust checks.</returns>
+    [Obsolete("Performs no trust validation — unsafe for untrusted input. Use X509ChainTrustValidator.")]
+    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public static CoseSign1MessageValidator None => new EmptyValidator();
 
     /// <summary>
     /// A placeholder CoseSign1MessageValidator that does not validate anything.
     /// </summary>
-    public class EmptyValidator : CoseSign1MessageValidator
+    internal sealed class EmptyValidator : CoseSign1MessageValidator
     {
         /// <summary>
         /// Returns an empty validation result.

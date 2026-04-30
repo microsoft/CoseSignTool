@@ -99,4 +99,20 @@ public class CoseSign1MessageValidatorTests
         CoseSign1MessageValidator realObject = mockValidator.Object;
         Assert.Throws<ArgumentOutOfRangeException>(() => realObject.NextElement = realObject);
     }
+
+    [Test]
+    public void NoneValidatorIsHiddenAndObsolete()
+    {
+        System.Reflection.PropertyInfo noneProperty = typeof(CoseSign1MessageValidator).GetProperty("None")!;
+        ObsoleteAttribute? obsoleteAttribute = System.Reflection.CustomAttributeExtensions.GetCustomAttribute<ObsoleteAttribute>(noneProperty);
+        System.ComponentModel.EditorBrowsableAttribute? editorBrowsableAttribute = System.Reflection.CustomAttributeExtensions.GetCustomAttribute<System.ComponentModel.EditorBrowsableAttribute>(noneProperty);
+        Type? emptyValidatorType = typeof(CoseSign1MessageValidator).GetNestedType("EmptyValidator", System.Reflection.BindingFlags.NonPublic);
+
+        obsoleteAttribute.Should().NotBeNull();
+        obsoleteAttribute!.Message.Should().Be("Performs no trust validation — unsafe for untrusted input. Use X509ChainTrustValidator.");
+        editorBrowsableAttribute.Should().NotBeNull();
+        editorBrowsableAttribute!.State.Should().Be(System.ComponentModel.EditorBrowsableState.Never);
+        emptyValidatorType.Should().NotBeNull();
+        emptyValidatorType!.IsNestedAssembly.Should().BeTrue();
+    }
 }

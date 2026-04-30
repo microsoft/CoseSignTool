@@ -23,17 +23,12 @@ pub fn print_banner() {
 }
 
 /// Output format for command results.
-#[derive(Debug, Clone, Copy, clap::ValueEnum)]
+#[derive(Debug, Clone, Copy, Default, clap::ValueEnum)]
 pub enum OutputFormat {
+    #[default]
     Text,
     Json,
     Quiet,
-}
-
-impl Default for OutputFormat {
-    fn default() -> Self {
-        Self::Text
-    }
 }
 
 /// Parsed certificate details for text and JSON output.

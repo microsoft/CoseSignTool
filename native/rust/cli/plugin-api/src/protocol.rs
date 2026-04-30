@@ -519,56 +519,46 @@ pub fn read_response(reader: &mut (impl Read + ?Sized)) -> std::io::Result<Respo
 
 fn validate_request(request: &Request) -> ProtocolResult<()> {
     match request.method.as_str() {
-        methods::CAPABILITIES | methods::GET_TRUST_POLICY_INFO | methods::SHUTDOWN => {
-            if !matches!(request.params, RequestParams::None) {
-                return Err(ProtocolCodecError::InvalidMessage(format!(
-                    "'{}' must not include params",
-                    request.method
-                )));
-            }
+        methods::CAPABILITIES | methods::GET_TRUST_POLICY_INFO | methods::SHUTDOWN
+            if !matches!(request.params, RequestParams::None) =>
+        {
+            return Err(ProtocolCodecError::InvalidMessage(format!(
+                "'{}' must not include params",
+                request.method
+            )));
         }
-        methods::AUTHENTICATE => {
-            if !matches!(request.params, RequestParams::Authenticate { .. }) {
-                return Err(ProtocolCodecError::InvalidMessage(
-                    "'authenticate' requires auth_key bstr param".into(),
-                ));
-            }
+        methods::AUTHENTICATE if !matches!(request.params, RequestParams::Authenticate { .. }) => {
+            return Err(ProtocolCodecError::InvalidMessage(
+                "'authenticate' requires auth_key bstr param".into(),
+            ));
         }
-        methods::CREATE_SERVICE => {
-            if !matches!(request.params, RequestParams::CreateService(_)) {
-                return Err(ProtocolCodecError::InvalidMessage(
-                    "'create_service' requires PluginConfig params".into(),
-                ));
-            }
+        methods::CREATE_SERVICE if !matches!(request.params, RequestParams::CreateService(_)) => {
+            return Err(ProtocolCodecError::InvalidMessage(
+                "'create_service' requires PluginConfig params".into(),
+            ));
         }
-        methods::GET_CERT_CHAIN | methods::GET_ALGORITHM => {
-            if !matches!(request.params, RequestParams::ServiceId { .. }) {
-                return Err(ProtocolCodecError::InvalidMessage(format!(
-                    "'{}' requires a service_id param map",
-                    request.method
-                )));
-            }
+        methods::GET_CERT_CHAIN | methods::GET_ALGORITHM
+            if !matches!(request.params, RequestParams::ServiceId { .. }) =>
+        {
+            return Err(ProtocolCodecError::InvalidMessage(format!(
+                "'{}' requires a service_id param map",
+                request.method
+            )));
         }
-        methods::SIGN => {
-            if !matches!(request.params, RequestParams::Sign(_)) {
-                return Err(ProtocolCodecError::InvalidMessage(
-                    "'sign' requires SignRequest params".into(),
-                ));
-            }
+        methods::SIGN if !matches!(request.params, RequestParams::Sign(_)) => {
+            return Err(ProtocolCodecError::InvalidMessage(
+                "'sign' requires SignRequest params".into(),
+            ));
         }
-        methods::SIGN_PAYLOAD => {
-            if !matches!(request.params, RequestParams::SignPayload(_)) {
-                return Err(ProtocolCodecError::InvalidMessage(
-                    "'sign_payload' requires SignPayloadRequest params".into(),
-                ));
-            }
+        methods::SIGN_PAYLOAD if !matches!(request.params, RequestParams::SignPayload(_)) => {
+            return Err(ProtocolCodecError::InvalidMessage(
+                "'sign_payload' requires SignPayloadRequest params".into(),
+            ));
         }
-        methods::VERIFY => {
-            if !matches!(request.params, RequestParams::Verify { .. }) {
-                return Err(ProtocolCodecError::InvalidMessage(
-                    "'verify' requires verification params".into(),
-                ));
-            }
+        methods::VERIFY if !matches!(request.params, RequestParams::Verify { .. }) => {
+            return Err(ProtocolCodecError::InvalidMessage(
+                "'verify' requires verification params".into(),
+            ));
         }
         _ => {}
     }
@@ -1943,14 +1933,12 @@ where
             }
             "capability" => {
                 let capability_name = decode_tstr_owned(decoder)?;
-                capability = Some(
-                    PluginCapability::from_str(capability_name.as_str()).ok_or_else(|| {
-                        ProtocolCodecError::InvalidMessage(format!(
-                            "unknown plugin capability '{}'",
-                            capability_name
-                        ))
-                    })?,
-                );
+                capability = Some(capability_name.parse::<PluginCapability>().map_err(|_| {
+                    ProtocolCodecError::InvalidMessage(format!(
+                        "unknown plugin capability '{}'",
+                        capability_name
+                    ))
+                })?);
             }
             _ => {
                 decoder.skip().map_err(cbor_error)?;
@@ -2082,7 +2070,7 @@ where
 
     for _ in 0..entry_count {
         let capability = decode_tstr_owned(decoder)?;
-        let capability = PluginCapability::from_str(capability.as_str()).ok_or_else(|| {
+        let capability = capability.parse::<PluginCapability>().map_err(|_| {
             ProtocolCodecError::InvalidMessage(format!(
                 "unknown plugin capability '{}'",
                 capability

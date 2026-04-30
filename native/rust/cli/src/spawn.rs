@@ -77,6 +77,7 @@ impl SpawnedProvider {
             .with_context(|| format!("Failed to sign payload for service '{service_id}'"))
     }
 
+    #[allow(dead_code)]
     pub fn shutdown(mut self) -> Result<()> {
         let _ = self.client.send_shutdown();
         wait_for_child_exit(&mut self.child, Duration::from_secs(2))?;

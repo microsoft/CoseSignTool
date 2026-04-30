@@ -7,6 +7,7 @@
 
 use crate::output::{self, OutputFormat};
 use crate::plugin_host::{PluginProcess, PluginRegistry};
+#[cfg(feature = "mst")]
 use crate::providers;
 use crate::spawn::{spawn_provider, SpawnedProvider};
 use anyhow::{anyhow, Context, Result};
@@ -878,19 +879,21 @@ fn apply_scitt_transparency(
 }
 
 fn apply_transparency_submission_target(
-    signed_bytes: Vec<u8>,
+    _signed_bytes: Vec<u8>,
     target: &TransparencySubmissionTarget,
 ) -> Result<Vec<u8>> {
     #[cfg(feature = "mst")]
     if target.service_type.eq_ignore_ascii_case("mst") {
         let provider = providers::mst::create_mst_transparency_provider(target.endpoint.as_str())?;
-        return provider.add_transparency_proof(&signed_bytes).map_err(|e| {
-            anyhow::anyhow!(
-                "SCITT submission failed for {} ({}): {e}",
-                target.endpoint,
-                target.display_name
-            )
-        });
+        return provider
+            .add_transparency_proof(&_signed_bytes)
+            .map_err(|e| {
+                anyhow::anyhow!(
+                    "SCITT submission failed for {} ({}): {e}",
+                    target.endpoint,
+                    target.display_name
+                )
+            });
     }
 
     if target.service_type.eq_ignore_ascii_case("mst") {
@@ -1177,6 +1180,7 @@ fn leak_str(value: &str) -> &'static str {
     Box::leak(value.to_string().into_boxed_str())
 }
 
+#[cfg(test)]
 fn resolve_pfx_password(
     password_file: Option<&str>,
     password_env: Option<&str>,

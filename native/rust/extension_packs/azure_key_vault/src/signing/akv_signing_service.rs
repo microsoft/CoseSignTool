@@ -74,7 +74,7 @@ impl AzureKeyVaultSigningService {
         let curve = self.signing_key.crypto_client().curve_name();
 
         // Verify the algorithm can be determined from the key metadata
-        let _algorithm = match key_type {
+        match key_type {
             "EC" => {
                 let curve_name = curve.ok_or_else(|| {
                     AkvError::InvalidKeyType(

@@ -63,6 +63,7 @@ pub struct PluginProcess {
 
 impl PluginProcess {
     /// Get the certificate chain from the plugin.
+    #[allow(dead_code)]
     pub fn get_cert_chain(&mut self, service_id: &str) -> Result<Vec<Vec<u8>>> {
         self.client.get_cert_chain(service_id).with_context(|| {
             format!(
@@ -73,6 +74,7 @@ impl PluginProcess {
     }
 
     /// Get the signing algorithm from the plugin.
+    #[allow(dead_code)]
     pub fn get_algorithm(&mut self, service_id: &str) -> Result<i64> {
         self.client.get_algorithm(service_id).with_context(|| {
             format!(
@@ -83,6 +85,7 @@ impl PluginProcess {
     }
 
     /// Sign data using the plugin.
+    #[allow(dead_code)]
     pub fn sign(&mut self, service_id: &str, data: &[u8], algorithm: i64) -> Result<Vec<u8>> {
         self.client
             .sign(service_id, data, algorithm)
@@ -121,6 +124,7 @@ impl PluginProcess {
     }
 
     /// Send shutdown and wait for the process to exit.
+    #[allow(dead_code)]
     pub fn shutdown(mut self) -> Result<()> {
         let _ = self.client.send_shutdown();
         wait_for_child_exit(&mut self.child, Duration::from_secs(2))?;
@@ -158,6 +162,12 @@ impl Drop for PluginProcess {
 /// The plugin registry — discovers and manages plugin subprocesses.
 pub struct PluginRegistry {
     plugins: HashMap<String, Arc<Mutex<PluginProcess>>>,
+}
+
+impl Default for PluginRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl PluginRegistry {
@@ -292,6 +302,7 @@ impl PluginRegistry {
     }
 
     /// Find plugins that provide a specific capability.
+    #[allow(dead_code)]
     pub fn find_by_capability(&self, capability: PluginCapability) -> Vec<PluginInfo> {
         let mut plugins = self
             .plugins
@@ -320,6 +331,7 @@ impl PluginRegistry {
     }
 
     /// Shutdown all plugins.
+    #[allow(dead_code)]
     pub fn shutdown_all(self) {
         for (_, plugin) in self.plugins {
             match Arc::try_unwrap(plugin) {

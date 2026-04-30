@@ -79,15 +79,18 @@ pub fn create_provider(name: &str) -> Result<Box<dyn PluginProvider>> {
 }
 
 pub fn available_plugins() -> Vec<&'static str> {
-    let mut plugins = vec!["local-ephemeral", "local-pem", "local-pfx"];
-    #[cfg(feature = "aas")]
-    plugins.push("aas");
-    #[cfg(feature = "akv")]
-    {
-        plugins.push("akv");
-        plugins.push("akv-cert");
-    }
-    plugins
+    [
+        "local-ephemeral",
+        "local-pem",
+        "local-pfx",
+        #[cfg(feature = "aas")]
+        "aas",
+        #[cfg(feature = "akv")]
+        "akv",
+        #[cfg(feature = "akv")]
+        "akv-cert",
+    ]
+    .to_vec()
 }
 
 #[derive(Default)]
@@ -771,13 +774,7 @@ fn sign_payload_with_service(
 fn build_direct_signature_options(options: &PluginConfig) -> Result<DirectSignatureOptions> {
     ensure_supported_scitt_type(optional_option(options, "scitt-type"))?;
 
-    let embed_payload = if flag_is_set(options, "embed") {
-        true
-    } else if flag_is_set(options, "detached") {
-        false
-    } else {
-        true
-    };
+    let embed_payload = !flag_is_set(options, "detached");
     let mut direct_options = DirectSignatureOptions::default().with_embed_payload(embed_payload);
     let scitt_subject = selected_scitt_subject(options);
 
@@ -817,7 +814,7 @@ fn ensure_supported_scitt_type(scitt_type: Option<&str>) -> Result<()> {
     Ok(())
 }
 
-fn selected_scitt_subject<'a>(options: &'a PluginConfig) -> Option<&'a str> {
+fn selected_scitt_subject(options: &PluginConfig) -> Option<&str> {
     optional_option(options, "cwt-subject").or(optional_option(options, "scitt-subject"))
 }
 

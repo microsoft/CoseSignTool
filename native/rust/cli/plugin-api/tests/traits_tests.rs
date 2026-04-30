@@ -13,12 +13,12 @@ fn plugin_capability_roundtrips_to_and_from_strings() {
         PluginCapability::Transparency,
     ] {
         assert_eq!(
-            PluginCapability::from_str(capability.as_str()),
+            capability.as_str().parse::<PluginCapability>().ok(),
             Some(capability.clone())
         );
     }
 
-    assert_eq!(PluginCapability::from_str("unknown"), None);
+    assert!("unknown".parse::<PluginCapability>().is_err());
 }
 
 #[test]

@@ -83,13 +83,17 @@ impl PluginCapability {
             Self::Transparency => "transparency",
         }
     }
+}
 
-    pub fn from_str(s: &str) -> Option<Self> {
+impl std::str::FromStr for PluginCapability {
+    type Err = &'static str;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "signing" => Some(Self::Signing),
-            "verification" => Some(Self::Verification),
-            "transparency" => Some(Self::Transparency),
-            _ => None,
+            "signing" => Ok(Self::Signing),
+            "verification" => Ok(Self::Verification),
+            "transparency" => Ok(Self::Transparency),
+            _ => Err("unknown plugin capability"),
         }
     }
 }

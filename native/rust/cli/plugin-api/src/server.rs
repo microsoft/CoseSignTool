@@ -90,11 +90,7 @@ where
 {
     authenticate(stream, expected_key)?;
 
-    loop {
-        let request = match protocol::read_request(stream)? {
-            Some(request) => request,
-            None => break,
-        };
+    while let Some(request) = protocol::read_request(stream)? {
         let should_shutdown = request.method == methods::SHUTDOWN;
         let response = dispatch_request(plugin, &request);
         protocol::write_response(stream, &response)?;

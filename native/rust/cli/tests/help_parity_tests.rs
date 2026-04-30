@@ -43,6 +43,17 @@ fn pfx_help_includes_exact_v2_option_strings() {
     assert!(help.contains("--embed"));
     assert!(help.contains("--issuer <issuer>"));
     assert!(help.contains("--cwt-subject <cwt-subject>"));
+    assert!(help.contains("--enable-scitt"));
+    assert!(help.contains("Enable SCITT transparency ledger"));
+    assert!(help.contains("--scitt-subject <SCITT_SUBJECT>"));
+    assert!(help.contains("SCITT transparency ledger entry"));
+    assert!(help.contains("--scitt-type <SCITT_TYPE>"));
+    assert!(help.contains("SCITT implementation type"));
+    #[cfg(feature = "mst")]
+    {
+        assert!(help.contains("--mst-endpoint <mst-endpoint>"));
+        assert!(help.contains("MST service endpoint URL"));
+    }
 }
 
 #[test]
@@ -90,6 +101,23 @@ fn verify_help_includes_v2_parity_options() {
     assert!(help.contains("Allow untrusted roots (skip chain trust requirement)"));
     assert!(help.contains("--allow-thumbprint <thumbprint>"));
     assert!(help.contains("Allow specific signing certificate thumbprint (SHA-256 hex)"));
+}
+
+#[test]
+fn verify_scitt_help_includes_v2_parity_options() {
+    let help = help_text(
+        commands::build_command(&[]),
+        ["CoseSignTool", "verify", "scitt", "--help"],
+    );
+
+    assert!(help.contains("-p, --payload <payload>"));
+    assert!(help.contains("--scitt-type <SCITT_TYPE>"));
+    assert!(help.contains("SCITT implementation type"));
+    #[cfg(feature = "mst")]
+    {
+        assert!(help.contains("--mst-endpoint <mst-endpoint>"));
+        assert!(help.contains("MST service endpoint URL"));
+    }
 }
 
 #[test]

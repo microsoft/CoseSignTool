@@ -5,6 +5,7 @@
 //!
 //! Mirrors V2 .NET sign command structure exactly.
 
+use super::ScittType;
 use crate::output::{self, OutputFormat};
 use crate::plugin_host::PluginRegistry;
 use crate::providers;
@@ -120,12 +121,19 @@ pub struct CommonSignArgs {
     #[arg(long = "cwt-subject", value_name = "cwt-subject")]
     pub cwt_subject: Option<String>,
 
-    /// Add MST transparency receipt after signing.
-    #[cfg(feature = "mst")]
-    #[arg(long = "add-mst-receipt")]
-    pub add_mst_receipt: bool,
+    /// Enable SCITT transparency ledger submission after signing.
+    #[arg(long = "enable-scitt")]
+    pub enable_scitt: bool,
 
-    /// MST service endpoint URL.
+    /// Subject identifier for the SCITT transparency ledger entry.
+    #[arg(long = "scitt-subject")]
+    pub scitt_subject: Option<String>,
+
+    /// SCITT implementation type.
+    #[arg(long = "scitt-type", value_enum)]
+    pub scitt_type: Option<ScittType>,
+
+    /// MST service endpoint URL (when --scitt-type mst).
     #[cfg(feature = "mst")]
     #[arg(long = "mst-endpoint", value_name = "mst-endpoint")]
     pub mst_endpoint: Option<String>,
@@ -362,7 +370,7 @@ fn execute_signing_service(
     format: OutputFormat,
 ) -> Result<i32> {
     let (payload, payload_display) = read_payload_bytes(&common)?;
-    let direct_factory = build_direct_factory(service, &common)?;
+    let direct_factory = DirectSignatureFactory::new(service);
 
     let signed_bytes = match common.format {
         SignatureFormat::Direct => {
@@ -380,9 +388,10 @@ fn execute_signing_service(
         }
     };
 
-    let writes_to_stdout = write_output_bytes(&common.output, &signed_bytes)?;
+    let output_bytes = apply_scitt_transparency(signed_bytes, &common)?;
+    let writes_to_stdout = write_output_bytes(&common.output, &output_bytes)?;
     let certificate_subject =
-        extract_certificate_subject(&signed_bytes)?.unwrap_or_else(|| "Unavailable".to_string());
+        extract_certificate_subject(&output_bytes)?.unwrap_or_else(|| "Unavailable".to_string());
 
     if !matches!(format, OutputFormat::Quiet) {
         let mut writer: Box<dyn Write> = if writes_to_stdout {
@@ -430,11 +439,10 @@ fn execute_signing_service(
                 .unwrap_or("N/A"),
         )?;
         output::write_field(writer.as_mut(), "Certificate Subject", &certificate_subject)?;
-        #[cfg(feature = "mst")]
         output::write_field(
             writer.as_mut(),
-            "MST Receipt",
-            if common.add_mst_receipt {
+            "SCITT Submission",
+            if common.enable_scitt {
                 "Enabled"
             } else {
                 "Disabled"
@@ -442,8 +450,18 @@ fn execute_signing_service(
         )?;
         output::write_field(
             writer.as_mut(),
+            "SCITT Type",
+            describe_scitt_type(common.scitt_type),
+        )?;
+        output::write_field(
+            writer.as_mut(),
+            "SCITT Subject",
+            common.scitt_subject.as_deref().unwrap_or("N/A"),
+        )?;
+        output::write_field(
+            writer.as_mut(),
             "Signature Size",
-            &format!("{} bytes", signed_bytes.len()),
+            &format!("{} bytes", output_bytes.len()),
         )?;
         writeln!(writer, "\n[OK] Successfully signed payload")?;
     }
@@ -514,31 +532,49 @@ fn extract_certificate_subject(signed_bytes: &[u8]) -> Result<Option<String>> {
     Ok(output::extract_signing_certificate_details(&message)?.map(|details| details.subject))
 }
 
-#[cfg(feature = "mst")]
-fn build_direct_factory(
-    service: Arc<dyn SigningService>,
-    common: &CommonSignArgs,
-) -> Result<DirectSignatureFactory> {
-    if common.add_mst_receipt {
-        let endpoint = common.mst_endpoint.as_deref().ok_or_else(|| {
-            anyhow::anyhow!("--mst-endpoint is required when --add-mst-receipt is set")
-        })?;
-        let provider = providers::mst::create_mst_transparency_provider(endpoint)?;
-        Ok(DirectSignatureFactory::with_transparency_providers(
-            service,
-            vec![provider],
-        ))
-    } else {
-        Ok(DirectSignatureFactory::new(service))
+fn apply_scitt_transparency(signed_bytes: Vec<u8>, common: &CommonSignArgs) -> Result<Vec<u8>> {
+    if !common.enable_scitt {
+        return Ok(signed_bytes);
+    }
+
+    let scitt_type = common.scitt_type.ok_or_else(|| {
+        anyhow::anyhow!("--scitt-type is required when --enable-scitt is set")
+    })?;
+
+    match scitt_type {
+        ScittType::Mst => apply_mst_scitt_transparency(signed_bytes, common),
     }
 }
 
+#[cfg(feature = "mst")]
+fn apply_mst_scitt_transparency(
+    signed_bytes: Vec<u8>,
+    common: &CommonSignArgs,
+) -> Result<Vec<u8>> {
+    let endpoint = common.mst_endpoint.as_deref().ok_or_else(|| {
+        anyhow::anyhow!("--mst-endpoint is required when --scitt-type mst is set")
+    })?;
+    let provider = providers::mst::create_mst_transparency_provider(endpoint)?;
+    provider
+        .add_transparency_proof(&signed_bytes)
+        .map_err(|e| anyhow::anyhow!("SCITT submission failed: {e}"))
+}
+
 #[cfg(not(feature = "mst"))]
-fn build_direct_factory(
-    service: Arc<dyn SigningService>,
+fn apply_mst_scitt_transparency(
+    _signed_bytes: Vec<u8>,
     _common: &CommonSignArgs,
-) -> Result<DirectSignatureFactory> {
-    Ok(DirectSignatureFactory::new(service))
+) -> Result<Vec<u8>> {
+    Err(anyhow::anyhow!(
+        "MST SCITT support is not enabled in this build"
+    ))
+}
+
+fn describe_scitt_type(scitt_type: Option<ScittType>) -> &'static str {
+    match scitt_type {
+        Some(ScittType::Mst) => "mst",
+        None => "N/A",
+    }
 }
 
 pub fn build_sign_command(plugin_infos: &[PluginInfo]) -> ClapCommand {
@@ -696,8 +732,9 @@ fn common_sign_args_from_matches(matches: &ArgMatches) -> Result<CommonSignArgs,
         embed: matches.get_flag("embed"),
         issuer: optional_string_arg(matches, "issuer"),
         cwt_subject: optional_string_arg(matches, "cwt_subject"),
-        #[cfg(feature = "mst")]
-        add_mst_receipt: matches.get_flag("add_mst_receipt"),
+        enable_scitt: matches.get_flag("enable_scitt"),
+        scitt_subject: optional_string_arg(matches, "scitt_subject"),
+        scitt_type: matches.get_one::<ScittType>("scitt_type").copied(),
         #[cfg(feature = "mst")]
         mst_endpoint: optional_string_arg(matches, "mst_endpoint"),
     })

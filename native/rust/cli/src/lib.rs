@@ -6,7 +6,7 @@
 //! Mirrors the V2 .NET CoseSignTool command structure:
 //! ```text
 //! CoseSignTool sign x509 {pfx|pem|ats|ephemeral|akv-cert} <payload> [options]
-//! CoseSignTool verify x509 <signature> [--payload <file>]
+//! CoseSignTool verify {x509|scitt} <signature> [--payload <file>]
 //! CoseSignTool inspect <signature>
 //! ```
 

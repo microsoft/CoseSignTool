@@ -6,7 +6,9 @@
 use crate::auth::{constant_time_eq, read_and_clear_auth_key, AuthError, AUTH_KEY_LENGTH};
 use crate::client::PipeStream;
 use crate::protocol::{self, methods, Request, RequestParams, Response, ResponseResult};
-use crate::traits::{AlgorithmResponse, CertificateChainResponse, PluginProvider, SignResponse};
+use crate::traits::{
+    AlgorithmResponse, CertificateChainResponse, PluginCapability, PluginProvider, SignResponse,
+};
 
 #[cfg(unix)]
 use std::os::unix::net::UnixListener;
@@ -195,9 +197,55 @@ fn handle_request(plugin: &mut dyn PluginProvider, request: &Request) -> Respons
                 Err(error) => Response::err("SIGN_FAILED", error),
             }
         }
+        methods::GET_TRUST_POLICY_INFO => {
+            if !supports_capability(plugin, PluginCapability::Verification) {
+                return Response::ok(ResponseResult::None);
+            }
+
+            if !matches!(request.params, RequestParams::None) {
+                return Response::err("INVALID_PARAMS", "get_trust_policy_info requires no params");
+            }
+
+            match plugin.trust_policy_info() {
+                Some(info) => Response::ok(ResponseResult::TrustPolicyInfo(info)),
+                None => Response::ok(ResponseResult::None),
+            }
+        }
+        methods::VERIFY => {
+            if !supports_capability(plugin, PluginCapability::Verification) {
+                return Response::ok(ResponseResult::None);
+            }
+
+            let (cose_bytes, detached_payload, options) = match &request.params {
+                RequestParams::Verify {
+                    cose_bytes,
+                    detached_payload,
+                    options,
+                } => (
+                    cose_bytes.as_slice(),
+                    detached_payload.as_deref(),
+                    options.clone(),
+                ),
+                _ => return Response::err("INVALID_PARAMS", "verify requires verification params"),
+            };
+
+            match plugin.verify(cose_bytes, detached_payload, options) {
+                Ok(Some(result)) => Response::ok(ResponseResult::Verification(result)),
+                Ok(None) => Response::ok(ResponseResult::None),
+                Err(error) => Response::err("VERIFY_FAILED", error),
+            }
+        }
         methods::SHUTDOWN => Response::ok(ResponseResult::Acknowledged),
         _ => Response::err("UNKNOWN_METHOD", format!("Unknown: {}", request.method)),
     }
+}
+
+fn supports_capability(plugin: &dyn PluginProvider, capability: PluginCapability) -> bool {
+    plugin
+        .info()
+        .capabilities
+        .iter()
+        .any(|item| item == &capability)
 }
 
 fn find_arg(args: &[String], name: &str) -> Option<String> {

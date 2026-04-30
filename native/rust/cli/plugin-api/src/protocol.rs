@@ -87,6 +87,27 @@ impl Request {
         )
     }
 
+    /// Creates a `verify` request.
+    pub fn verify(
+        cose_bytes: Vec<u8>,
+        payload: Option<Vec<u8>>,
+        options: VerificationOptions,
+    ) -> Self {
+        Self::new(
+            methods::VERIFY,
+            RequestParams::Verify {
+                cose_bytes,
+                detached_payload: payload,
+                options,
+            },
+        )
+    }
+
+    /// Creates a `get_trust_policy_info` request.
+    pub fn trust_policy_info() -> Self {
+        Self::new(methods::GET_TRUST_POLICY_INFO, RequestParams::None)
+    }
+
     /// Creates a `shutdown` request.
     pub fn shutdown() -> Self {
         Self::new(methods::SHUTDOWN, RequestParams::None)
@@ -120,6 +141,15 @@ pub enum RequestParams {
     },
     /// Parameters for `sign`.
     Sign(SignRequest),
+    /// Parameters for `verify`.
+    Verify {
+        /// Raw COSE_Sign1 bytes.
+        cose_bytes: Vec<u8>,
+        /// Optional detached payload bytes.
+        detached_payload: Option<Vec<u8>>,
+        /// Verification options.
+        options: VerificationOptions,
+    },
     /// Raw pre-encoded CBOR for forward-compatible extensions.
     RawCbor(Vec<u8>),
 }
@@ -174,6 +204,10 @@ pub enum ResponseResult {
     Algorithm(AlgorithmResponse),
     /// Result payload for `sign`.
     Sign(SignResponse),
+    /// Result payload for `get_trust_policy_info`.
+    TrustPolicyInfo(TrustPolicyInfo),
+    /// Result payload for `verify`.
+    Verification(VerificationResult),
     /// Raw pre-encoded CBOR for forward-compatible extensions.
     RawCbor(Vec<u8>),
 }
@@ -237,6 +271,10 @@ pub mod methods {
     pub const GET_ALGORITHM: &str = "get_algorithm";
     /// Sign data. Returns `SignResponse`.
     pub const SIGN: &str = "sign";
+    /// Describe verification trust policies. Returns `TrustPolicyInfo` or `null`.
+    pub const GET_TRUST_POLICY_INFO: &str = "get_trust_policy_info";
+    /// Verify a COSE_Sign1 message. Returns `VerificationResult` or `null`.
+    pub const VERIFY: &str = "verify";
     /// Graceful shutdown.
     pub const SHUTDOWN: &str = "shutdown";
 }
@@ -447,7 +485,7 @@ pub fn read_response(reader: &mut impl Read) -> std::io::Result<Response> {
 
 fn validate_request(request: &Request) -> ProtocolResult<()> {
     match request.method.as_str() {
-        methods::CAPABILITIES | methods::SHUTDOWN => {
+        methods::CAPABILITIES | methods::GET_TRUST_POLICY_INFO | methods::SHUTDOWN => {
             if !matches!(request.params, RequestParams::None) {
                 return Err(ProtocolCodecError::InvalidMessage(format!(
                     "'{}' must not include params",
@@ -481,6 +519,13 @@ fn validate_request(request: &Request) -> ProtocolResult<()> {
             if !matches!(request.params, RequestParams::Sign(_)) {
                 return Err(ProtocolCodecError::InvalidMessage(
                     "'sign' requires SignRequest params".into(),
+                ));
+            }
+        }
+        methods::VERIFY => {
+            if !matches!(request.params, RequestParams::Verify { .. }) {
+                return Err(ProtocolCodecError::InvalidMessage(
+                    "'verify' requires verification params".into(),
                 ));
             }
         }
@@ -520,6 +565,26 @@ where
                 .map_err(cbor_error)?;
             encoder.encode_tstr("algorithm").map_err(cbor_error)?;
             encoder.encode_i64(request.algorithm).map_err(cbor_error)
+        }
+        RequestParams::Verify {
+            cose_bytes,
+            detached_payload,
+            options,
+        } => {
+            encoder.encode_map(3).map_err(cbor_error)?;
+            encoder.encode_tstr("cose_bytes").map_err(cbor_error)?;
+            encoder
+                .encode_bstr(cose_bytes.as_slice())
+                .map_err(cbor_error)?;
+            encoder.encode_tstr("payload").map_err(cbor_error)?;
+            match detached_payload {
+                Some(payload) => encoder
+                    .encode_bstr(payload.as_slice())
+                    .map_err(cbor_error)?,
+                None => encoder.encode_null().map_err(cbor_error)?,
+            }
+            encoder.encode_tstr("options").map_err(cbor_error)?;
+            encode_verification_options(encoder, options)
         }
         RequestParams::RawCbor(raw) => encoder.encode_raw(raw.as_slice()).map_err(cbor_error),
     }
@@ -564,6 +629,8 @@ where
                 .encode_bstr(result.signature.as_slice())
                 .map_err(cbor_error)
         }
+        ResponseResult::TrustPolicyInfo(result) => encode_trust_policy_info(encoder, result),
+        ResponseResult::Verification(result) => encode_verification_result(encoder, result),
         ResponseResult::RawCbor(raw) => encoder.encode_raw(raw.as_slice()).map_err(cbor_error),
     }
 }
@@ -605,14 +672,144 @@ where
     E: CborEncoder,
     E::Error: std::fmt::Display,
 {
-    let mut options: Vec<(&String, &String)> = config.options.iter().collect();
-    options.sort_by(|left, right| left.0.cmp(right.0));
-
     encoder.encode_map(1).map_err(cbor_error)?;
     encoder.encode_tstr("options").map_err(cbor_error)?;
-    encoder.encode_map(options.len()).map_err(cbor_error)?;
-    for (key, value) in options {
+    encode_string_map(encoder, &config.options)
+}
+
+fn encode_verification_options<E>(
+    encoder: &mut E,
+    options: &VerificationOptions,
+) -> ProtocolResult<()>
+where
+    E: CborEncoder,
+    E::Error: std::fmt::Display,
+{
+    encoder.encode_map(3).map_err(cbor_error)?;
+    encoder
+        .encode_tstr("trust_embedded_chain")
+        .map_err(cbor_error)?;
+    encoder
+        .encode_bool(options.trust_embedded_chain)
+        .map_err(cbor_error)?;
+    encoder
+        .encode_tstr("allowed_thumbprints")
+        .map_err(cbor_error)?;
+    encode_string_array(encoder, options.allowed_thumbprints.as_slice())?;
+    encoder.encode_tstr("signature_only").map_err(cbor_error)?;
+    encoder
+        .encode_bool(options.signature_only)
+        .map_err(cbor_error)
+}
+
+fn encode_trust_policy_info<E>(encoder: &mut E, info: &TrustPolicyInfo) -> ProtocolResult<()>
+where
+    E: CborEncoder,
+    E::Error: std::fmt::Display,
+{
+    encoder.encode_map(3).map_err(cbor_error)?;
+    encoder.encode_tstr("name").map_err(cbor_error)?;
+    encoder
+        .encode_tstr(info.name.as_str())
+        .map_err(cbor_error)?;
+    encoder.encode_tstr("description").map_err(cbor_error)?;
+    encoder
+        .encode_tstr(info.description.as_str())
+        .map_err(cbor_error)?;
+    encoder.encode_tstr("supported_modes").map_err(cbor_error)?;
+    encode_string_array(encoder, info.supported_modes.as_slice())
+}
+
+fn encode_verification_result<E>(encoder: &mut E, result: &VerificationResult) -> ProtocolResult<()>
+where
+    E: CborEncoder,
+    E::Error: std::fmt::Display,
+{
+    encoder.encode_map(3).map_err(cbor_error)?;
+    encoder.encode_tstr("is_valid").map_err(cbor_error)?;
+    encoder.encode_bool(result.is_valid).map_err(cbor_error)?;
+    encoder.encode_tstr("stages").map_err(cbor_error)?;
+    encoder
+        .encode_array(result.stages.len())
+        .map_err(cbor_error)?;
+    for stage in &result.stages {
+        encode_verification_stage_result(encoder, stage)?;
+    }
+    encoder.encode_tstr("metadata").map_err(cbor_error)?;
+    encode_string_map(encoder, &result.metadata)
+}
+
+fn encode_verification_stage_result<E>(
+    encoder: &mut E,
+    result: &VerificationStageResult,
+) -> ProtocolResult<()>
+where
+    E: CborEncoder,
+    E::Error: std::fmt::Display,
+{
+    encoder.encode_map(4).map_err(cbor_error)?;
+    encoder.encode_tstr("stage").map_err(cbor_error)?;
+    encoder
+        .encode_tstr(result.stage.as_str())
+        .map_err(cbor_error)?;
+    encoder.encode_tstr("kind").map_err(cbor_error)?;
+    encoder
+        .encode_tstr(verification_stage_kind_as_str(&result.kind))
+        .map_err(cbor_error)?;
+    encoder.encode_tstr("failures").map_err(cbor_error)?;
+    encoder
+        .encode_array(result.failures.len())
+        .map_err(cbor_error)?;
+    for failure in &result.failures {
+        encode_verification_failure(encoder, failure)?;
+    }
+    encoder.encode_tstr("metadata").map_err(cbor_error)?;
+    encode_string_map(encoder, &result.metadata)
+}
+
+fn encode_verification_failure<E>(
+    encoder: &mut E,
+    failure: &VerificationFailure,
+) -> ProtocolResult<()>
+where
+    E: CborEncoder,
+    E::Error: std::fmt::Display,
+{
+    encoder.encode_map(2).map_err(cbor_error)?;
+    encoder.encode_tstr("message").map_err(cbor_error)?;
+    encoder
+        .encode_tstr(failure.message.as_str())
+        .map_err(cbor_error)?;
+    encoder.encode_tstr("error_code").map_err(cbor_error)?;
+    match &failure.error_code {
+        Some(error_code) => encoder.encode_tstr(error_code.as_str()).map_err(cbor_error),
+        None => encoder.encode_null().map_err(cbor_error),
+    }
+}
+
+fn encode_string_map<E>(encoder: &mut E, values: &HashMap<String, String>) -> ProtocolResult<()>
+where
+    E: CborEncoder,
+    E::Error: std::fmt::Display,
+{
+    let mut entries: Vec<(&String, &String)> = values.iter().collect();
+    entries.sort_by(|left, right| left.0.cmp(right.0));
+
+    encoder.encode_map(entries.len()).map_err(cbor_error)?;
+    for (key, value) in entries {
         encoder.encode_tstr(key.as_str()).map_err(cbor_error)?;
+        encoder.encode_tstr(value.as_str()).map_err(cbor_error)?;
+    }
+    Ok(())
+}
+
+fn encode_string_array<E>(encoder: &mut E, values: &[String]) -> ProtocolResult<()>
+where
+    E: CborEncoder,
+    E::Error: std::fmt::Display,
+{
+    encoder.encode_array(values.len()).map_err(cbor_error)?;
+    for value in values {
         encoder.encode_tstr(value.as_str()).map_err(cbor_error)?;
     }
     Ok(())
@@ -637,7 +834,7 @@ where
 
 fn decode_request_params(method: &str, raw_params: Option<&[u8]>) -> ProtocolResult<RequestParams> {
     match method {
-        methods::CAPABILITIES | methods::SHUTDOWN => {
+        methods::CAPABILITIES | methods::GET_TRUST_POLICY_INFO | methods::SHUTDOWN => {
             if raw_params.is_some() {
                 return Err(ProtocolCodecError::InvalidMessage(format!(
                     "'{}' must not include params",
@@ -665,6 +862,10 @@ fn decode_request_params(method: &str, raw_params: Option<&[u8]>) -> ProtocolRes
         methods::SIGN => {
             let raw = require_params(method, raw_params)?;
             Ok(RequestParams::Sign(decode_sign_request_from_bytes(raw)?))
+        }
+        methods::VERIFY => {
+            let raw = require_params(method, raw_params)?;
+            decode_verify_request_from_bytes(raw)
         }
         _ => match raw_params {
             Some(raw) => Ok(RequestParams::RawCbor(raw.to_vec())),
@@ -696,6 +897,14 @@ fn decode_response_result(raw_result: &[u8]) -> ProtocolResult<ResponseResult> {
 
     if let Some(signature) = try_decode_sign_response_from_bytes(raw_result)? {
         return Ok(ResponseResult::Sign(signature));
+    }
+
+    if let Some(info) = try_decode_trust_policy_info_from_bytes(raw_result)? {
+        return Ok(ResponseResult::TrustPolicyInfo(info));
+    }
+
+    if let Some(result) = try_decode_verification_result_from_bytes(raw_result)? {
+        return Ok(ResponseResult::Verification(result));
     }
 
     Ok(ResponseResult::RawCbor(raw_result.to_vec()))
@@ -767,6 +976,58 @@ fn decode_sign_request_from_bytes(data: &[u8]) -> ProtocolResult<SignRequest> {
         })?,
         algorithm: algorithm.ok_or_else(|| {
             ProtocolCodecError::InvalidMessage("sign params are missing 'algorithm'".into())
+        })?,
+    })
+}
+
+fn decode_verify_request_from_bytes(data: &[u8]) -> ProtocolResult<RequestParams> {
+    let provider = EverParseCborProvider;
+    let mut decoder = provider.decoder(data);
+    let entry_count = decode_required_map_len(&mut decoder, "verify params")?;
+    let mut cose_bytes: Option<Vec<u8>> = None;
+    let mut detached_payload: Option<Vec<u8>> = None;
+    let mut payload_seen = false;
+    let mut options: Option<VerificationOptions> = None;
+
+    for _ in 0..entry_count {
+        let key = decode_tstr_owned(&mut decoder)?;
+        match key.as_str() {
+            "cose_bytes" => {
+                cose_bytes = Some(decode_bstr_owned(&mut decoder)?);
+            }
+            "payload" => {
+                payload_seen = true;
+                if decoder.is_null().map_err(cbor_error)? {
+                    decoder.decode_null().map_err(cbor_error)?;
+                    detached_payload = None;
+                } else {
+                    detached_payload = Some(decode_bstr_owned(&mut decoder)?);
+                }
+            }
+            "options" => {
+                options = Some(decode_verification_options(&mut decoder)?);
+            }
+            _ => {
+                decoder.skip().map_err(cbor_error)?;
+            }
+        }
+    }
+
+    ensure_no_trailing(&decoder, "verify params")?;
+
+    if !payload_seen {
+        return Err(ProtocolCodecError::InvalidMessage(
+            "verify params are missing 'payload'".into(),
+        ));
+    }
+
+    Ok(RequestParams::Verify {
+        cose_bytes: cose_bytes.ok_or_else(|| {
+            ProtocolCodecError::InvalidMessage("verify params are missing 'cose_bytes'".into())
+        })?,
+        detached_payload,
+        options: options.ok_or_else(|| {
+            ProtocolCodecError::InvalidMessage("verify params are missing 'options'".into())
         })?,
     })
 }
@@ -846,29 +1107,27 @@ fn try_decode_plugin_info_from_bytes(data: &[u8]) -> ProtocolResult<Option<Plugi
     let mut version: Option<String> = None;
     let mut description: Option<String> = None;
     let mut capabilities: Option<Vec<PluginCapability>> = None;
-    let mut matched_field = false;
+    let mut matched_unique_field = false;
 
     for _ in 0..entry_count {
         let key = decode_tstr_owned(&mut decoder)?;
         match key.as_str() {
             "id" => {
-                matched_field = true;
+                matched_unique_field = true;
                 id = Some(decode_tstr_owned(&mut decoder)?);
             }
             "name" => {
-                matched_field = true;
                 name = Some(decode_tstr_owned(&mut decoder)?);
             }
             "version" => {
-                matched_field = true;
+                matched_unique_field = true;
                 version = Some(decode_tstr_owned(&mut decoder)?);
             }
             "description" => {
-                matched_field = true;
                 description = Some(decode_tstr_owned(&mut decoder)?);
             }
             "capabilities" => {
-                matched_field = true;
+                matched_unique_field = true;
                 capabilities = Some(decode_capabilities_array(&mut decoder)?);
             }
             _ => {
@@ -879,7 +1138,7 @@ fn try_decode_plugin_info_from_bytes(data: &[u8]) -> ProtocolResult<Option<Plugi
 
     ensure_no_trailing(&decoder, "capabilities result")?;
 
-    if !matched_field {
+    if !matched_unique_field {
         return Ok(None);
     }
 
@@ -1026,6 +1285,232 @@ fn try_decode_sign_response_from_bytes(data: &[u8]) -> ProtocolResult<Option<Sig
     }
 }
 
+fn try_decode_trust_policy_info_from_bytes(data: &[u8]) -> ProtocolResult<Option<TrustPolicyInfo>> {
+    let provider = EverParseCborProvider;
+    let mut decoder = provider.decoder(data);
+    if decoder.peek_type().map_err(cbor_error)? != CborType::Map {
+        return Ok(None);
+    }
+
+    let entry_count = decode_required_map_len(&mut decoder, "trust policy info result")?;
+    let mut name: Option<String> = None;
+    let mut description: Option<String> = None;
+    let mut supported_modes: Option<Vec<String>> = None;
+
+    for _ in 0..entry_count {
+        let key = decode_tstr_owned(&mut decoder)?;
+        match key.as_str() {
+            "name" => {
+                name = Some(decode_tstr_owned(&mut decoder)?);
+            }
+            "description" => {
+                description = Some(decode_tstr_owned(&mut decoder)?);
+            }
+            "supported_modes" => {
+                supported_modes = Some(decode_string_array(&mut decoder, "supported_modes")?);
+            }
+            _ => {
+                decoder.skip().map_err(cbor_error)?;
+            }
+        }
+    }
+
+    ensure_no_trailing(&decoder, "trust policy info result")?;
+
+    match supported_modes {
+        Some(supported_modes) => Ok(Some(TrustPolicyInfo {
+            name: name.ok_or_else(|| {
+                ProtocolCodecError::InvalidMessage(
+                    "trust policy info result is missing 'name'".into(),
+                )
+            })?,
+            description: description.ok_or_else(|| {
+                ProtocolCodecError::InvalidMessage(
+                    "trust policy info result is missing 'description'".into(),
+                )
+            })?,
+            supported_modes,
+        })),
+        None => Ok(None),
+    }
+}
+
+fn try_decode_verification_result_from_bytes(
+    data: &[u8],
+) -> ProtocolResult<Option<VerificationResult>> {
+    let provider = EverParseCborProvider;
+    let mut decoder = provider.decoder(data);
+    if decoder.peek_type().map_err(cbor_error)? != CborType::Map {
+        return Ok(None);
+    }
+
+    let entry_count = decode_required_map_len(&mut decoder, "verify result")?;
+    let mut is_valid: Option<bool> = None;
+    let mut stages: Option<Vec<VerificationStageResult>> = None;
+    let mut metadata: Option<HashMap<String, String>> = None;
+
+    for _ in 0..entry_count {
+        let key = decode_tstr_owned(&mut decoder)?;
+        match key.as_str() {
+            "is_valid" => {
+                is_valid = Some(decoder.decode_bool().map_err(cbor_error)?);
+            }
+            "stages" => {
+                stages = Some(decode_verification_stage_array(&mut decoder)?);
+            }
+            "metadata" => {
+                metadata = Some(decode_string_map(&mut decoder, "verification metadata")?);
+            }
+            _ => {
+                decoder.skip().map_err(cbor_error)?;
+            }
+        }
+    }
+
+    ensure_no_trailing(&decoder, "verify result")?;
+
+    if is_valid.is_none() && stages.is_none() {
+        return Ok(None);
+    }
+
+    Ok(Some(VerificationResult {
+        is_valid: is_valid.ok_or_else(|| {
+            ProtocolCodecError::InvalidMessage("verify result is missing 'is_valid'".into())
+        })?,
+        stages: stages.ok_or_else(|| {
+            ProtocolCodecError::InvalidMessage("verify result is missing 'stages'".into())
+        })?,
+        metadata: metadata.ok_or_else(|| {
+            ProtocolCodecError::InvalidMessage("verify result is missing 'metadata'".into())
+        })?,
+    }))
+}
+
+fn decode_verification_stage_array<'a, D>(
+    decoder: &mut D,
+) -> ProtocolResult<Vec<VerificationStageResult>>
+where
+    D: CborDecoder<'a>,
+    D::Error: std::fmt::Display,
+{
+    let entry_count = decode_required_array_len(decoder, "verification stages")?;
+    let mut stages = Vec::with_capacity(entry_count);
+
+    for _ in 0..entry_count {
+        stages.push(decode_verification_stage_result(decoder)?);
+    }
+
+    Ok(stages)
+}
+
+fn decode_verification_stage_result<'a, D>(
+    decoder: &mut D,
+) -> ProtocolResult<VerificationStageResult>
+where
+    D: CborDecoder<'a>,
+    D::Error: std::fmt::Display,
+{
+    let entry_count = decode_required_map_len(decoder, "verification stage")?;
+    let mut stage: Option<String> = None;
+    let mut kind: Option<VerificationStageKind> = None;
+    let mut failures: Option<Vec<VerificationFailure>> = None;
+    let mut metadata: Option<HashMap<String, String>> = None;
+
+    for _ in 0..entry_count {
+        let key = decode_tstr_owned(decoder)?;
+        match key.as_str() {
+            "stage" => {
+                stage = Some(decode_tstr_owned(decoder)?);
+            }
+            "kind" => {
+                kind = Some(decode_verification_stage_kind(decoder)?);
+            }
+            "failures" => {
+                failures = Some(decode_verification_failure_array(decoder)?);
+            }
+            "metadata" => {
+                metadata = Some(decode_string_map(decoder, "verification stage metadata")?);
+            }
+            _ => {
+                decoder.skip().map_err(cbor_error)?;
+            }
+        }
+    }
+
+    Ok(VerificationStageResult {
+        stage: stage.ok_or_else(|| {
+            ProtocolCodecError::InvalidMessage("verification stage is missing 'stage'".into())
+        })?,
+        kind: kind.ok_or_else(|| {
+            ProtocolCodecError::InvalidMessage("verification stage is missing 'kind'".into())
+        })?,
+        failures: failures.ok_or_else(|| {
+            ProtocolCodecError::InvalidMessage("verification stage is missing 'failures'".into())
+        })?,
+        metadata: metadata.ok_or_else(|| {
+            ProtocolCodecError::InvalidMessage("verification stage is missing 'metadata'".into())
+        })?,
+    })
+}
+
+fn decode_verification_failure_array<'a, D>(
+    decoder: &mut D,
+) -> ProtocolResult<Vec<VerificationFailure>>
+where
+    D: CborDecoder<'a>,
+    D::Error: std::fmt::Display,
+{
+    let entry_count = decode_required_array_len(decoder, "verification failures")?;
+    let mut failures = Vec::with_capacity(entry_count);
+
+    for _ in 0..entry_count {
+        failures.push(decode_verification_failure(decoder)?);
+    }
+
+    Ok(failures)
+}
+
+fn decode_verification_failure<'a, D>(decoder: &mut D) -> ProtocolResult<VerificationFailure>
+where
+    D: CborDecoder<'a>,
+    D::Error: std::fmt::Display,
+{
+    let entry_count = decode_required_map_len(decoder, "verification failure")?;
+    let mut message: Option<String> = None;
+    let mut error_code: Option<Option<String>> = None;
+
+    for _ in 0..entry_count {
+        let key = decode_tstr_owned(decoder)?;
+        match key.as_str() {
+            "message" => {
+                message = Some(decode_tstr_owned(decoder)?);
+            }
+            "error_code" => {
+                if decoder.is_null().map_err(cbor_error)? {
+                    decoder.decode_null().map_err(cbor_error)?;
+                    error_code = Some(None);
+                } else {
+                    error_code = Some(Some(decode_tstr_owned(decoder)?));
+                }
+            }
+            _ => {
+                decoder.skip().map_err(cbor_error)?;
+            }
+        }
+    }
+
+    Ok(VerificationFailure {
+        message: message.ok_or_else(|| {
+            ProtocolCodecError::InvalidMessage("verification failure is missing 'message'".into())
+        })?,
+        error_code: error_code.ok_or_else(|| {
+            ProtocolCodecError::InvalidMessage(
+                "verification failure is missing 'error_code'".into(),
+            )
+        })?,
+    })
+}
+
 fn decode_protocol_error<'a, D>(decoder: &mut D) -> ProtocolResult<ProtocolError>
 where
     D: CborDecoder<'a>,
@@ -1065,16 +1550,77 @@ where
     D: CborDecoder<'a>,
     D::Error: std::fmt::Display,
 {
-    let entry_count = decode_required_map_len(decoder, "options map")?;
-    let mut options = HashMap::with_capacity(entry_count);
+    decode_string_map(decoder, "options map")
+}
+
+fn decode_verification_options<'a, D>(decoder: &mut D) -> ProtocolResult<VerificationOptions>
+where
+    D: CborDecoder<'a>,
+    D::Error: std::fmt::Display,
+{
+    let entry_count = decode_required_map_len(decoder, "verification options")?;
+    let mut trust_embedded_chain = false;
+    let mut allowed_thumbprints = Vec::new();
+    let mut signature_only = false;
+
+    for _ in 0..entry_count {
+        let key = decode_tstr_owned(decoder)?;
+        match key.as_str() {
+            "trust_embedded_chain" => {
+                trust_embedded_chain = decoder.decode_bool().map_err(cbor_error)?;
+            }
+            "allowed_thumbprints" => {
+                allowed_thumbprints = decode_string_array(decoder, "allowed_thumbprints")?;
+            }
+            "signature_only" => {
+                signature_only = decoder.decode_bool().map_err(cbor_error)?;
+            }
+            _ => {
+                decoder.skip().map_err(cbor_error)?;
+            }
+        }
+    }
+
+    Ok(VerificationOptions {
+        trust_embedded_chain,
+        allowed_thumbprints,
+        signature_only,
+    })
+}
+
+fn decode_string_map<'a, D>(
+    decoder: &mut D,
+    context: &str,
+) -> ProtocolResult<HashMap<String, String>>
+where
+    D: CborDecoder<'a>,
+    D::Error: std::fmt::Display,
+{
+    let entry_count = decode_required_map_len(decoder, context)?;
+    let mut values = HashMap::with_capacity(entry_count);
 
     for _ in 0..entry_count {
         let key = decode_tstr_owned(decoder)?;
         let value = decode_tstr_owned(decoder)?;
-        options.insert(key, value);
+        values.insert(key, value);
     }
 
-    Ok(options)
+    Ok(values)
+}
+
+fn decode_string_array<'a, D>(decoder: &mut D, context: &str) -> ProtocolResult<Vec<String>>
+where
+    D: CborDecoder<'a>,
+    D::Error: std::fmt::Display,
+{
+    let entry_count = decode_required_array_len(decoder, context)?;
+    let mut values = Vec::with_capacity(entry_count);
+
+    for _ in 0..entry_count {
+        values.push(decode_tstr_owned(decoder)?);
+    }
+
+    Ok(values)
 }
 
 fn decode_capabilities_array<'a, D>(decoder: &mut D) -> ProtocolResult<Vec<PluginCapability>>
@@ -1112,6 +1658,31 @@ where
     }
 
     Ok(certificates)
+}
+
+fn verification_stage_kind_as_str(kind: &VerificationStageKind) -> &'static str {
+    match kind {
+        VerificationStageKind::Success => "success",
+        VerificationStageKind::Failure => "failure",
+        VerificationStageKind::NotApplicable => "not_applicable",
+    }
+}
+
+fn decode_verification_stage_kind<'a, D>(decoder: &mut D) -> ProtocolResult<VerificationStageKind>
+where
+    D: CborDecoder<'a>,
+    D::Error: std::fmt::Display,
+{
+    let kind = decode_tstr_owned(decoder)?;
+    match kind.as_str() {
+        "success" => Ok(VerificationStageKind::Success),
+        "failure" => Ok(VerificationStageKind::Failure),
+        "not_applicable" => Ok(VerificationStageKind::NotApplicable),
+        _ => Err(ProtocolCodecError::InvalidMessage(format!(
+            "unknown verification stage kind '{}'",
+            kind
+        ))),
+    }
 }
 
 fn decode_required_map_len<'a, D>(decoder: &mut D, context: &str) -> ProtocolResult<usize>

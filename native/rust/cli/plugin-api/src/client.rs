@@ -11,7 +11,9 @@ use std::os::unix::net::UnixStream;
 
 use crate::auth::AUTH_KEY_LENGTH;
 use crate::protocol::{self, methods, Request, Response, ResponseResult};
-use crate::traits::{PluginConfig, PluginInfo};
+use crate::traits::{
+    PluginConfig, PluginInfo, TrustPolicyInfo, VerificationOptions, VerificationResult,
+};
 
 const CONNECT_RETRY_DELAY: Duration = Duration::from_millis(50);
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
@@ -181,6 +183,43 @@ impl PluginClient {
             result => Err(Self::unexpected_response(
                 methods::SIGN,
                 "expected signature response",
+                result,
+            )),
+        }
+    }
+
+    /// Get trust policy information, if the plugin supports verification.
+    pub fn trust_policy_info(&mut self) -> Result<Option<TrustPolicyInfo>, ClientError> {
+        let response = self.call(&Request::trust_policy_info())?;
+        match response.result {
+            ResponseResult::None => Ok(None),
+            ResponseResult::TrustPolicyInfo(info) => Ok(Some(info)),
+            result => Err(Self::unexpected_response(
+                methods::GET_TRUST_POLICY_INFO,
+                "expected trust policy info or null",
+                result,
+            )),
+        }
+    }
+
+    /// Verify a COSE_Sign1 message, if the plugin supports verification.
+    pub fn verify(
+        &mut self,
+        cose_bytes: &[u8],
+        payload: Option<&[u8]>,
+        options: VerificationOptions,
+    ) -> Result<Option<VerificationResult>, ClientError> {
+        let response = self.call(&Request::verify(
+            cose_bytes.to_vec(),
+            payload.map(|bytes| bytes.to_vec()),
+            options,
+        ))?;
+        match response.result {
+            ResponseResult::None => Ok(None),
+            ResponseResult::Verification(result) => Ok(Some(result)),
+            result => Err(Self::unexpected_response(
+                methods::VERIFY,
+                "expected verification result or null",
                 result,
             )),
         }

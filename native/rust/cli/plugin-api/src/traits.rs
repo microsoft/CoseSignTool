@@ -9,6 +9,8 @@
 //! All byte arrays are CBOR byte strings (major type 2) on the wire —
 //! no base64 encoding overhead.
 
+use std::collections::HashMap;
+
 /// Metadata about a plugin, reported during capability discovery.
 #[derive(Debug, Clone)]
 pub struct PluginInfo {
@@ -93,6 +95,72 @@ pub struct AlgorithmResponse {
     pub algorithm: i64,
 }
 
+/// Result of a verification operation.
+#[derive(Debug, Clone)]
+pub struct VerificationResult {
+    /// Overall pass/fail.
+    pub is_valid: bool,
+    /// Per-stage results.
+    pub stages: Vec<VerificationStageResult>,
+    /// Metadata (provider name, trust mode, etc.).
+    pub metadata: HashMap<String, String>,
+}
+
+/// Result of one verification stage.
+#[derive(Debug, Clone)]
+pub struct VerificationStageResult {
+    /// Stage name (e.g., "key_resolution", "trust", "signature", "post_signature").
+    pub stage: String,
+    /// Pass/fail/not_applicable.
+    pub kind: VerificationStageKind,
+    /// Failure details (empty if passed).
+    pub failures: Vec<VerificationFailure>,
+    /// Stage metadata.
+    pub metadata: HashMap<String, String>,
+}
+
+/// Outcome kind for a verification stage.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum VerificationStageKind {
+    /// Stage completed successfully.
+    Success,
+    /// Stage failed.
+    Failure,
+    /// Stage does not apply to this provider/message.
+    NotApplicable,
+}
+
+/// Failure detail produced during verification.
+#[derive(Debug, Clone)]
+pub struct VerificationFailure {
+    /// Human-readable failure message.
+    pub message: String,
+    /// Optional stable error code.
+    pub error_code: Option<String>,
+}
+
+/// Verification options passed from host to plugin.
+#[derive(Debug, Clone, Default)]
+pub struct VerificationOptions {
+    /// Trust embedded x5chain as trusted (no OS trust store).
+    pub trust_embedded_chain: bool,
+    /// Allow specific thumbprints (SHA-256 hex).
+    pub allowed_thumbprints: Vec<String>,
+    /// Skip post-signature policy validation (signature-only mode).
+    pub signature_only: bool,
+}
+
+/// Describes what trust policies a verification plugin supports.
+#[derive(Debug, Clone)]
+pub struct TrustPolicyInfo {
+    /// Name of this trust provider (e.g., "x509", "akv-kid", "mst-receipt").
+    pub name: String,
+    /// What this provider validates.
+    pub description: String,
+    /// Supported trust modes.
+    pub supported_modes: Vec<String>,
+}
+
 /// Trait that plugin implementations must implement.
 ///
 /// First-party plugins implement this directly in the plugin-loader.
@@ -112,6 +180,24 @@ pub trait PluginProvider: Send {
 
     /// Sign data, returning signature bytes.
     fn sign(&mut self, service_id: &str, data: &[u8], algorithm: i64) -> Result<Vec<u8>, String>;
+
+    /// Verify a COSE_Sign1 message. Returns `None` if this plugin does not support verification.
+    fn verify(
+        &mut self,
+        cose_bytes: &[u8],
+        detached_payload: Option<&[u8]>,
+        options: VerificationOptions,
+    ) -> Result<Option<VerificationResult>, String> {
+        let _ = cose_bytes;
+        let _ = detached_payload;
+        let _ = options;
+        Ok(None)
+    }
+
+    /// Describe supported trust policies. Returns `None` if this plugin does not support verification.
+    fn trust_policy_info(&self) -> Option<TrustPolicyInfo> {
+        None
+    }
 }
 
 impl<T> PluginProvider for Box<T>
@@ -136,5 +222,18 @@ where
 
     fn sign(&mut self, service_id: &str, data: &[u8], algorithm: i64) -> Result<Vec<u8>, String> {
         self.as_mut().sign(service_id, data, algorithm)
+    }
+
+    fn verify(
+        &mut self,
+        cose_bytes: &[u8],
+        detached_payload: Option<&[u8]>,
+        options: VerificationOptions,
+    ) -> Result<Option<VerificationResult>, String> {
+        self.as_mut().verify(cose_bytes, detached_payload, options)
+    }
+
+    fn trust_policy_info(&self) -> Option<TrustPolicyInfo> {
+        self.as_ref().trust_policy_info()
     }
 }

@@ -51,9 +51,24 @@ fn sign_x509_help_shows_all_providers() {
     assert!(stdout.contains("pfx"));
     assert!(stdout.contains("pem"));
     assert!(stdout.contains("ephemeral"));
+
+    #[cfg(feature = "aas")]
     assert!(stdout.contains("aas"));
-    assert!(stdout.contains("akv"));
-    assert!(stdout.contains("akv-cert"));
+
+    #[cfg(not(feature = "aas"))]
+    assert!(!stdout.contains("aas"));
+
+    #[cfg(feature = "akv")]
+    {
+        assert!(stdout.contains("akv"));
+        assert!(stdout.contains("akv-cert"));
+    }
+
+    #[cfg(not(feature = "akv"))]
+    {
+        assert!(!stdout.contains("akv"));
+        assert!(!stdout.contains("akv-cert"));
+    }
 }
 
 #[test]

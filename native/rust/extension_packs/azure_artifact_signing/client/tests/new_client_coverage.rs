@@ -38,13 +38,13 @@ fn base_url_with_trailing_slash() {
 #[test]
 fn auth_scope_without_trailing_slash() {
     let opts = CertificateProfileClientOptions::new("https://ats.example.com", "acct", "prof");
-    assert_eq!(opts.auth_scope(), "https://ats.example.com/.default");
+    assert_eq!(opts.auth_scope(), "https://codesigning.azure.net/.default");
 }
 
 #[test]
 fn auth_scope_with_trailing_slash() {
     let opts = CertificateProfileClientOptions::new("https://ats.example.com/", "acct", "prof");
-    assert_eq!(opts.auth_scope(), "https://ats.example.com/.default");
+    assert_eq!(opts.auth_scope(), "https://codesigning.azure.net/.default");
 }
 
 #[test]

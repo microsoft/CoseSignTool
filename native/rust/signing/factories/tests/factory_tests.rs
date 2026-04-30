@@ -164,10 +164,10 @@ fn test_factory_create_direct_with_none_options() {
     assert!(result.is_ok(), "Should work with None options");
 
     let message = result.unwrap();
-    // Default should be detached payload
+    // Default direct options embed the payload.
     assert!(
-        message.payload().is_none(),
-        "Default should be detached payload"
+        message.payload().is_some(),
+        "Default should embed the payload"
     );
 }
 
@@ -198,10 +198,10 @@ fn test_factory_create_indirect_with_none_options() {
     assert!(result.is_ok(), "Should work with None options");
 
     let message = result.unwrap();
-    // Indirect with default options should be detached
+    // Indirect defaults inherit the direct option defaults and embed the hash envelope.
     assert!(
-        message.payload().is_none(),
-        "Default indirect should be detached"
+        message.payload().is_some(),
+        "Default indirect should embed the payload hash envelope"
     );
 }
 

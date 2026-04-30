@@ -68,31 +68,16 @@ fn test_base_url_for_different_regions() {
 #[test]
 fn test_auth_scope_for_different_endpoints() {
     let test_cases = vec![
-        (
-            "https://eus.codesigning.azure.net",
-            "https://eus.codesigning.azure.net/.default",
-        ),
-        (
-            "https://weu.codesigning.azure.net/",
-            "https://weu.codesigning.azure.net/.default",
-        ),
-        (
-            "https://neu.codesigning.azure.net",
-            "https://neu.codesigning.azure.net/.default",
-        ),
-        (
-            "https://custom.endpoint.com",
-            "https://custom.endpoint.com/.default",
-        ),
-        (
-            "https://custom.endpoint.com/",
-            "https://custom.endpoint.com/.default",
-        ),
+        "https://eus.codesigning.azure.net",
+        "https://weu.codesigning.azure.net/",
+        "https://neu.codesigning.azure.net",
+        "https://custom.endpoint.com",
+        "https://custom.endpoint.com/",
     ];
 
-    for (endpoint, expected_scope) in test_cases {
+    for endpoint in test_cases {
         let opts = CertificateProfileClientOptions::new(endpoint, "account", "profile");
-        assert_eq!(opts.auth_scope(), expected_scope);
+        assert_eq!(opts.auth_scope(), "https://codesigning.azure.net/.default");
     }
 }
 
@@ -147,8 +132,8 @@ fn test_endpoint_slash_trimming() {
         let opts = CertificateProfileClientOptions::new(endpoint, "acc", "prof");
         assert_eq!(opts.base_url(), expected_base_url);
 
-        // Auth scope should also trim properly
-        assert_eq!(opts.auth_scope(), "https://example.com/.default");
+        // Auth scope uses the Azure Code Signing resource ID.
+        assert_eq!(opts.auth_scope(), "https://codesigning.azure.net/.default");
     }
 }
 
@@ -164,10 +149,7 @@ fn test_special_characters_in_account_and_profile_names() {
     assert_eq!(opts.base_url(), expected);
 
     // Auth scope should remain unchanged
-    assert_eq!(
-        opts.auth_scope(),
-        "https://eus.codesigning.azure.net/.default"
-    );
+    assert_eq!(opts.auth_scope(), "https://codesigning.azure.net/.default");
 }
 
 #[test]

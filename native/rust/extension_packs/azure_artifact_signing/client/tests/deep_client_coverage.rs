@@ -171,7 +171,7 @@ fn options_auth_scope() {
     let opts =
         CertificateProfileClientOptions::new("https://eus.codesigning.azure.net", "acct", "prof");
     let scope = opts.auth_scope();
-    assert_eq!(scope, "https://eus.codesigning.azure.net/.default");
+    assert_eq!(scope, "https://codesigning.azure.net/.default");
 }
 
 #[test]
@@ -179,7 +179,7 @@ fn options_auth_scope_trailing_slash() {
     let opts =
         CertificateProfileClientOptions::new("https://eus.codesigning.azure.net/", "acct", "prof");
     let scope = opts.auth_scope();
-    assert_eq!(scope, "https://eus.codesigning.azure.net/.default");
+    assert_eq!(scope, "https://codesigning.azure.net/.default");
 }
 
 #[test]

@@ -26,7 +26,7 @@ fn authenticate_request_roundtrips_through_framed_cbor() {
 
     match decoded.params {
         RequestParams::Authenticate { auth_key } => assert_eq!(auth_key, vec![0x55; AUTH_KEY_LENGTH]),
-        other => panic!("unexpected params: {other:?}"),
+        _ => panic!("unexpected request params variant"),
     }
 }
 
@@ -37,7 +37,7 @@ fn service_id_request_roundtrips_through_framed_cbor() {
 
     match decoded.params {
         RequestParams::ServiceId { service_id } => assert_eq!(service_id, "service-42"),
-        other => panic!("unexpected params: {other:?}"),
+        _ => panic!("unexpected request params variant"),
     }
 }
 
@@ -49,7 +49,7 @@ fn raw_cbor_request_roundtrips_for_unknown_methods() {
 
     match decoded.params {
         RequestParams::RawCbor(raw) => assert_eq!(raw, raw_params),
-        other => panic!("unexpected params: {other:?}"),
+        _ => panic!("unexpected request params variant"),
     }
 }
 
@@ -63,7 +63,7 @@ fn none_create_service_sign_and_raw_cbor_responses_roundtrip() {
     .result
     {
         ResponseResult::CreateService { service_id } => assert_eq!(service_id, "service-123"),
-        other => panic!("unexpected create_service result: {other:?}"),
+        _ => panic!("unexpected create_service result variant"),
     }
 
     match roundtrip_response(&Response::ok(ResponseResult::Sign(SignResponse {
@@ -72,12 +72,12 @@ fn none_create_service_sign_and_raw_cbor_responses_roundtrip() {
     .result
     {
         ResponseResult::Sign(result) => assert_eq!(result.signature, vec![0xde, 0xad, 0xbe, 0xef]),
-        other => panic!("unexpected sign result: {other:?}"),
+        _ => panic!("unexpected sign result variant"),
     }
 
     match roundtrip_response(&Response::ok(ResponseResult::RawCbor(vec![0x18, 0x2a]))).result {
         ResponseResult::RawCbor(raw) => assert_eq!(raw, vec![0x18, 0x2a]),
-        other => panic!("unexpected raw CBOR result: {other:?}"),
+        _ => panic!("unexpected raw CBOR result variant"),
     }
 }
 

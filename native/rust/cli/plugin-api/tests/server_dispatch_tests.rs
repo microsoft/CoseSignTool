@@ -24,7 +24,7 @@ fn dispatch_request_routes_supported_methods() {
             assert!(info.capabilities.contains(&PluginCapability::Signing));
             assert!(info.capabilities.contains(&PluginCapability::Verification));
         }
-        other => panic!("unexpected capabilities result: {other:?}"),
+        _ => panic!("unexpected capabilities result variant"),
     }
 
     let create_service = dispatch_request(
@@ -35,29 +35,29 @@ fn dispatch_request_routes_supported_methods() {
     );
     match create_service.result {
         ResponseResult::CreateService { service_id } => assert_eq!(service_id, "service:contoso"),
-        other => panic!("unexpected create_service result: {other:?}"),
+        _ => panic!("unexpected create_service result variant"),
     }
 
     match dispatch_request(&mut plugin, &Request::get_cert_chain("service:contoso")).result {
         ResponseResult::CertificateChain(chain) => {
             assert_eq!(chain.certificates, vec![b"service:contoso".to_vec()]);
         }
-        other => panic!("unexpected cert chain result: {other:?}"),
+        _ => panic!("unexpected certificate chain result variant"),
     }
 
     match dispatch_request(&mut plugin, &Request::get_algorithm("service:contoso")).result {
         ResponseResult::Algorithm(result) => assert_eq!(result.algorithm, -37),
-        other => panic!("unexpected algorithm result: {other:?}"),
+        _ => panic!("unexpected algorithm result variant"),
     }
 
     match dispatch_request(&mut plugin, &Request::sign("service:contoso", vec![1, 2, 3], -37)).result {
         ResponseResult::Sign(result) => assert_eq!(result.signature, vec![1, 2, 3, 0x7f]),
-        other => panic!("unexpected sign result: {other:?}"),
+        _ => panic!("unexpected sign result variant"),
     }
 
     match dispatch_request(&mut plugin, &Request::trust_policy_info()).result {
         ResponseResult::TrustPolicyInfo(info) => assert_eq!(info.name, "test-trust"),
-        other => panic!("unexpected trust policy result: {other:?}"),
+        _ => panic!("unexpected trust policy result variant"),
     }
 
     match dispatch_request(
@@ -78,7 +78,7 @@ fn dispatch_request_routes_supported_methods() {
             assert!(result.is_valid);
             assert_eq!(result.stages[0].kind, VerificationStageKind::Success);
         }
-        other => panic!("unexpected verification result: {other:?}"),
+        _ => panic!("unexpected verification result variant"),
     }
 
     assert!(matches!(
@@ -128,7 +128,7 @@ fn serve_connection_rejects_incorrect_auth_key() {
         ServerError::AuthenticationFailed(message) => {
             assert!(message.contains("invalid auth key"));
         }
-        other => panic!("unexpected error: {other:?}"),
+        _ => panic!("unexpected server error variant"),
     }
 
     let responses = decode_responses(pipe.write_buf.as_slice());

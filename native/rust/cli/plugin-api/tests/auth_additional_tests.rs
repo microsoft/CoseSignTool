@@ -35,7 +35,7 @@ fn auth_key_from_hex_rejects_odd_length_input() {
             assert_eq!(expected, AUTH_KEY_LENGTH * 2);
             assert_eq!(actual, (AUTH_KEY_LENGTH * 2) - 1);
         }
-        other => panic!("unexpected error: {other:?}"),
+        _ => panic!("unexpected auth error variant"),
     }
 }
 
@@ -48,6 +48,6 @@ fn auth_key_from_hex_rejects_wrong_length_input() {
             assert_eq!(expected, AUTH_KEY_LENGTH * 2);
             assert_eq!(actual, 4);
         }
-        other => panic!("unexpected error: {other:?}"),
+        _ => panic!("unexpected auth error variant"),
     }
 }

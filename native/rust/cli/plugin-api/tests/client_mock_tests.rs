@@ -98,14 +98,14 @@ fn connect_with_stream_and_rpc_methods_send_expected_requests() {
 
     match &requests[0].params {
         RequestParams::Authenticate { auth_key } => assert_eq!(auth_key, &sample_auth_key()),
-        other => panic!("unexpected auth params: {other:?}"),
+        _ => panic!("unexpected auth params variant"),
     }
     assert_eq!(requests[1].method, "capabilities");
     match &requests[2].params {
         RequestParams::CreateService(config) => {
             assert_eq!(config.options.get("profile"), Some(&"contoso".to_string()));
         }
-        other => panic!("unexpected create_service params: {other:?}"),
+        _ => panic!("unexpected create_service params variant"),
     }
     assert_eq!(requests[3].method, "get_cert_chain");
     assert_eq!(requests[4].method, "get_algorithm");
@@ -115,7 +115,7 @@ fn connect_with_stream_and_rpc_methods_send_expected_requests() {
             assert_eq!(request.data, b"payload");
             assert_eq!(request.algorithm, -37);
         }
-        other => panic!("unexpected sign params: {other:?}"),
+        _ => panic!("unexpected sign params variant"),
     }
     assert_eq!(requests[6].method, "get_trust_policy_info");
     match &requests[7].params {
@@ -130,7 +130,7 @@ fn connect_with_stream_and_rpc_methods_send_expected_requests() {
             assert_eq!(options.allowed_thumbprints, vec!["ABC123"]);
             assert!(!options.signature_only);
         }
-        other => panic!("unexpected verify params: {other:?}"),
+        _ => panic!("unexpected verify params variant"),
     }
     assert_eq!(requests[8].method, "shutdown");
 }
@@ -157,7 +157,7 @@ fn connect_with_stream_returns_plugin_error_when_authentication_fails() {
             assert_eq!(code, "AUTH_FAILED");
             assert_eq!(message, "invalid auth key");
         }
-        other => panic!("unexpected error: {other:?}"),
+        _ => panic!("unexpected client error variant"),
     }
 }
 
@@ -189,7 +189,7 @@ fn rpc_errors_are_returned_as_client_errors() {
             assert_eq!(code, "SIGN_FAILED");
             assert_eq!(message, "boom");
         }
-        other => panic!("unexpected error: {other:?}"),
+        _ => panic!("unexpected client error variant"),
     }
 }
 
@@ -216,7 +216,7 @@ fn unexpected_response_shapes_are_reported() {
             assert_eq!(method, "capabilities");
             assert!(details.contains("expected plugin info"));
         }
-        other => panic!("unexpected error: {other:?}"),
+        _ => panic!("unexpected client error variant"),
     }
 }
 

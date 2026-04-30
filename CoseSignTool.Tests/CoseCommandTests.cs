@@ -91,4 +91,28 @@ public class CoseCommandTests
         SignCommand cmd1 = new SignCommand();
         cmd1.ApplyOptions(provider);
     }
+
+    [TestMethod]
+    public void ExplicitFalseBooleanOptionsRemainFalse()
+    {
+        string[] falseArgs = ["-sf", FilePath1, "-AllowUntrusted", "false", "-AllowOutdated", "false"];
+        Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider falseProvider = CoseCommand.LoadCommandLineArgs(falseArgs, ValidateCommand.Options, out string? falseBadArg)!;
+        falseBadArg.Should().BeNull("badArg should be null.");
+
+        ValidateCommand falseCommand = new();
+        falseCommand.ApplyOptions(falseProvider);
+
+        falseCommand.AllowUntrusted.Should().BeFalse();
+        falseCommand.AllowOutdated.Should().BeFalse();
+
+        string[] trueArgs = ["-sf", FilePath1, "-AllowUntrusted", "true", "-AllowOutdated", "true"];
+        Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider trueProvider = CoseCommand.LoadCommandLineArgs(trueArgs, ValidateCommand.Options, out string? trueBadArg)!;
+        trueBadArg.Should().BeNull("badArg should be null.");
+
+        ValidateCommand trueCommand = new();
+        trueCommand.ApplyOptions(trueProvider);
+
+        trueCommand.AllowUntrusted.Should().BeTrue();
+        trueCommand.AllowOutdated.Should().BeTrue();
+    }
 }

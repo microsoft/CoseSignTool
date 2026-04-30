@@ -185,7 +185,7 @@ public abstract partial class CoseCommand
     /// <param name="name">The name of the command line option.</param>
     /// <returns>True if the option was set to "true" or to no value; false if the option was not set or was set to "false".</returns>
     protected static bool GetOptionBool(CommandLineConfigurationProvider provider, string name) =>
-        provider.TryGet(name, out string? s) && bool.TryParse(s, out _);
+        provider.TryGet(name, out string? s) && bool.TryParse(s, out bool value) && value;
 
     /// <summary>
     /// Checks whether a command line option has been set.

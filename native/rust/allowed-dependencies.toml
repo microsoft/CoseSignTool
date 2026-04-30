@@ -42,11 +42,18 @@ base64 = "Base64 encoding/decoding in tests"
 clap = "CLI argument parsing with derive macros"
 tracing-subscriber = "Logging output for CLI tool"
 serde_json = "JSON output format for inspect command"
+serde = "JSON serialization support for CLI output models"
 anyhow = "Ergonomic error handling in CLI"
 hex = "Hex encoding for signature/thumbprint display"
 base64 = "Base64 encoding for payload display"
 openssl = "PFX/PKCS#12 parsing for PFX signing provider"
+x509-parser = "Direct X.509 parsing for inspect and verification output"
 url = "URL parsing for signing endpoints"
+
+[crate.plugin-loader]
+anyhow = "Ergonomic error handling in the plugin loader binary"
+openssl = "OpenSSL initialization for provider-backed signing flows"
+tracing-subscriber = "Logging output for plugin loader diagnostics"
 
 # ---------------------------------------------------------------------------
 # PER-CRATE — scoped to individual crates

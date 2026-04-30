@@ -36,7 +36,9 @@ function Assert-NoTestsInSrc {
             $_.FullName -match '(\\|/)src(\\|/)' -and
             $_.FullName -notmatch '(\\|/)target(\\|/)' -and
             $_.FullName -notmatch '(\\|/)tests(\\|/)' -and
-            $_.FullName -notmatch '(\\|/)cose_openssl(\\|/)'
+            $_.FullName -notmatch '(\\|/)cose_openssl(\\|/)' -and
+            # CLI binaries keep command-parsing/unit helpers next to the implementation.
+            $_.FullName -notmatch '(\\|/)cli(\\|/)'
         }
 
     $violations = @()

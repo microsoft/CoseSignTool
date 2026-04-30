@@ -63,5 +63,8 @@ akv = ["dep:cose_sign1_azure_key_vault", "dep:azure_identity", "dep:azure_core"]
 mst = ["dep:cose_sign1_transparent_mst"]
 all = ["local", "ats", "akv", "mst"]
 
+[dev-dependencies]
+tempfile = { workspace = true }
+
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly)'] }

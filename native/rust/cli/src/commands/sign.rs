@@ -10,7 +10,6 @@ use crate::plugin_host::PluginRegistry;
 use crate::providers;
 use anyhow::{Context, Result};
 use clap::{Arg, ArgAction, ArgMatches, Args, Command as ClapCommand, Subcommand};
-use cosesigntool_plugin_api::traits::{PluginCapability, PluginCommandDef, PluginInfo};
 use cose_sign1_factories::{
     direct::{DirectSignatureFactory, DirectSignatureOptions},
     indirect::{IndirectSignatureFactory, IndirectSignatureOptions},
@@ -18,9 +17,10 @@ use cose_sign1_factories::{
 use cose_sign1_headers::{CwtClaims, CwtClaimsHeaderContributor};
 use cose_sign1_primitives::CoseSign1Message;
 use cose_sign1_signing::SigningService;
+use cosesigntool_plugin_api::traits::{PluginCapability, PluginCommandDef, PluginInfo};
 use std::collections::HashMap;
 use std::fs;
-use std::io::{IsTerminal, Read, Write};
+use std::io::{Read, Write};
 use std::sync::Arc;
 
 /// Signing method (currently x509 only, extensible).
@@ -116,21 +116,41 @@ pub struct CommonSignArgs {
     #[arg(long = "issuer", value_name = "issuer")]
     pub issuer: Option<String>,
 
-    /// SCITT subject — CWT Claims subject (sub) field. Identifies what is being signed.
-    /// SCITT compliance is enabled by default; this sets the subject registered in the ledger.
-    #[arg(long = "scitt-subject", value_name = "subject")]
+    /// CWT Claims subject (sub) field.
+    #[arg(
+        long = "cwt-subject",
+        value_name = "cwt-subject",
+        conflicts_with = "scitt_subject"
+    )]
+    pub cwt_subject: Option<String>,
+
+    /// SCITT transparency ledger entry.
+    #[arg(
+        long = "scitt-subject",
+        value_name = "SCITT_SUBJECT",
+        conflicts_with = "cwt_subject"
+    )]
     pub scitt_subject: Option<String>,
 
+    /// Enable SCITT transparency ledger.
+    #[arg(long = "enable-scitt", conflicts_with = "no_scitt")]
+    pub enable_scitt: bool,
+
     /// Disable SCITT compliance (omit default CWT claims from signature).
-    #[arg(long = "no-scitt")]
+    #[arg(long = "no-scitt", conflicts_with = "enable_scitt")]
     pub no_scitt: bool,
 
-    /// MST transparency service endpoint. Can be specified multiple times for multi-ledger submission.
+    /// SCITT implementation type.
+    #[arg(long = "scitt-type", value_name = "SCITT_TYPE")]
+    pub scitt_type: Option<String>,
+
+    /// MST service endpoint URL.
+    /// Can be specified multiple times for multi-ledger submission.
     /// When specified, the signed output is submitted to each MST endpoint and the receipt-enhanced
     /// COSE_Sign1 is written as output.
     #[cfg(feature = "mst")]
-    #[arg(long = "scitt-mst-endpoint", value_name = "url", action = clap::ArgAction::Append)]
-    pub scitt_mst_endpoints: Vec<String>,
+    #[arg(long = "mst-endpoint", value_name = "mst-endpoint", action = clap::ArgAction::Append, alias = "scitt-mst-endpoint")]
+    pub mst_endpoints: Vec<String>,
 }
 
 #[derive(Debug, Clone, clap::ValueEnum)]
@@ -387,11 +407,13 @@ fn execute_signing_service(
     let certificate_subject =
         extract_certificate_subject(&output_bytes)?.unwrap_or_else(|| "Unavailable".to_string());
     #[cfg(feature = "mst")]
-    let scitt_mst_endpoints_display: String = if common.scitt_mst_endpoints.is_empty() {
+    let scitt_mst_endpoints_display: String = if common.mst_endpoints.is_empty() {
         "N/A".to_string()
     } else {
-        common.scitt_mst_endpoints.join(", ")
+        common.mst_endpoints.join(", ")
     };
+
+    let scitt_subject_display: &str = selected_scitt_subject(&common).unwrap_or("N/A");
 
     if !matches!(format, OutputFormat::Quiet) {
         let mut writer: Box<dyn Write> = if writes_to_stdout {
@@ -454,11 +476,7 @@ fn execute_signing_service(
             "SCITT MST Endpoints",
             &scitt_mst_endpoints_display,
         )?;
-        output::write_field(
-            writer.as_mut(),
-            "SCITT Subject",
-            common.scitt_subject.as_deref().unwrap_or("N/A"),
-        )?;
+        output::write_field(writer.as_mut(), "SCITT Subject", scitt_subject_display)?;
         output::write_field(
             writer.as_mut(),
             "Signature Size",
@@ -471,18 +489,21 @@ fn execute_signing_service(
 }
 
 fn build_direct_signature_options(common: &CommonSignArgs) -> Result<DirectSignatureOptions> {
+    ensure_supported_scitt_type(common.scitt_type.as_deref())?;
+
     let embed_payload = common.embed || !common.detached;
     let mut options = DirectSignatureOptions::default().with_embed_payload(embed_payload);
+    let scitt_subject = selected_scitt_subject(common);
 
-    if common.issuer.is_some() || common.scitt_subject.is_some() {
+    if common.issuer.is_some() || scitt_subject.is_some() {
         let mut claims = CwtClaims::new();
 
         if let Some(issuer) = &common.issuer {
             claims = claims.with_issuer(issuer.clone());
         }
 
-        if let Some(subject) = &common.scitt_subject {
-            claims = claims.with_subject(subject.clone());
+        if let Some(subject) = scitt_subject {
+            claims = claims.with_subject(subject.to_string());
         }
 
         let contributor = CwtClaimsHeaderContributor::new(&claims)
@@ -499,7 +520,7 @@ fn build_indirect_signature_options(common: &CommonSignArgs) -> Result<IndirectS
 }
 
 fn read_payload_bytes(common: &CommonSignArgs) -> Result<(Vec<u8>, String)> {
-    if common.payload == "-" || !std::io::stdin().is_terminal() {
+    if common.payload == "-" {
         let mut payload = Vec::new();
         std::io::stdin()
             .read_to_end(&mut payload)
@@ -536,7 +557,7 @@ fn extract_certificate_subject(signed_bytes: &[u8]) -> Result<Option<String>> {
 fn apply_scitt_transparency(signed_bytes: Vec<u8>, common: &CommonSignArgs) -> Result<Vec<u8>> {
     #[cfg(feature = "mst")]
     {
-        if common.scitt_mst_endpoints.is_empty() {
+        if common.mst_endpoints.is_empty() {
             return Ok(signed_bytes);
         }
 
@@ -551,13 +572,10 @@ fn apply_scitt_transparency(signed_bytes: Vec<u8>, common: &CommonSignArgs) -> R
 }
 
 #[cfg(feature = "mst")]
-fn apply_mst_scitt_transparency(
-    signed_bytes: Vec<u8>,
-    common: &CommonSignArgs,
-) -> Result<Vec<u8>> {
+fn apply_mst_scitt_transparency(signed_bytes: Vec<u8>, common: &CommonSignArgs) -> Result<Vec<u8>> {
     let mut receipt_bytes = signed_bytes;
 
-    for endpoint in &common.scitt_mst_endpoints {
+    for endpoint in &common.mst_endpoints {
         let provider = providers::mst::create_mst_transparency_provider(endpoint)?;
         receipt_bytes = provider
             .add_transparency_proof(&receipt_bytes)
@@ -721,11 +739,14 @@ fn common_sign_args_from_matches(matches: &ArgMatches) -> Result<CommonSignArgs,
         detached: matches.get_flag("detached"),
         embed: matches.get_flag("embed"),
         issuer: optional_string_arg(matches, "issuer"),
+        cwt_subject: optional_string_arg(matches, "cwt_subject"),
         scitt_subject: optional_string_arg(matches, "scitt_subject"),
+        enable_scitt: matches.get_flag("enable_scitt"),
         no_scitt: matches.get_flag("no_scitt"),
+        scitt_type: optional_string_arg(matches, "scitt_type"),
         #[cfg(feature = "mst")]
-        scitt_mst_endpoints: matches
-            .get_many::<String>("scitt_mst_endpoints")
+        mst_endpoints: matches
+            .get_many::<String>("mst_endpoints")
             .map(|values| values.cloned().collect())
             .unwrap_or_default(),
     })
@@ -740,6 +761,26 @@ fn required_string_arg(matches: &ArgMatches, id: &str) -> Result<String, String>
 
 fn optional_string_arg(matches: &ArgMatches, id: &str) -> Option<String> {
     matches.get_one::<String>(id).cloned()
+}
+
+fn selected_scitt_subject(common: &CommonSignArgs) -> Option<&str> {
+    common
+        .cwt_subject
+        .as_deref()
+        .or(common.scitt_subject.as_deref())
+}
+
+fn ensure_supported_scitt_type(scitt_type: Option<&str>) -> Result<()> {
+    if let Some(scitt_type) = scitt_type {
+        if !scitt_type.eq_ignore_ascii_case("mst") {
+            return Err(anyhow::anyhow!(
+                "Unsupported --scitt-type '{}'. Only 'mst' is currently supported",
+                scitt_type
+            ));
+        }
+    }
+
+    Ok(())
 }
 
 fn leak_str(value: &str) -> &'static str {

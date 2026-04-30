@@ -261,6 +261,11 @@ fn find_header_value<'a>(
 }
 
 fn parse_cwt_claims(value: &CoseHeaderValue) -> Result<CwtClaims> {
+    if let CoseHeaderValue::Bytes(bytes) = value {
+        return CwtClaims::from_cbor_bytes(bytes)
+            .map_err(|e| anyhow::anyhow!("Failed to decode CWT claims bytes: {e}"));
+    }
+
     let CoseHeaderValue::Map(entries) = value else {
         return Err(anyhow::anyhow!("CWT claims header is not a CBOR map"));
     };

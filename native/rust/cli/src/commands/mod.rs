@@ -9,7 +9,9 @@ pub mod verify;
 
 use crate::output::OutputFormat;
 use crate::plugin_host::PluginRegistry;
-use clap::{value_parser, Arg, Command as ClapCommand, FromArgMatches, Parser, Subcommand};
+use clap::{
+    value_parser, Arg, ArgAction, Command as ClapCommand, FromArgMatches, Parser, Subcommand,
+};
 use cosesigntool_plugin_api::traits::PluginInfo;
 
 /// Modern CLI tool for COSE Sign1 signing and verification.
@@ -119,12 +121,14 @@ pub fn build_command(plugin_infos: &[PluginInfo]) -> ClapCommand {
             Arg::new("debug")
                 .long("vv")
                 .global(true)
+                .action(ArgAction::SetTrue)
                 .help("Enable debug logging (equivalent to --verbosity 3)."),
         )
         .arg(
             Arg::new("trace")
                 .long("vvv")
                 .global(true)
+                .action(ArgAction::SetTrue)
                 .help("Enable trace logging (equivalent to --verbosity 4)."),
         )
         .subcommand(sign::build_sign_command(plugin_infos))

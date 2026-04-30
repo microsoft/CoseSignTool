@@ -15,11 +15,18 @@ use cose_sign1_certificates::validation::fluent_ext::{
 use cose_sign1_certificates::validation::pack::{
     CertificateTrustOptions, X509CertificateTrustPack,
 };
-use cose_sign1_validation::fluent::{
-    CoseSign1TrustPack, CoseSign1Validator, Payload, TrustPlanBuilder,
+#[cfg(feature = "mst")]
+use cose_sign1_transparent_mst::validation::facts::MstReceiptTrustedFact;
+#[cfg(feature = "mst")]
+use cose_sign1_transparent_mst::validation::fluent_ext::{
+    MstCounterSignatureScopeRulesExt, MstReceiptTrustedWhereExt,
 };
 #[cfg(feature = "mst")]
 use cose_sign1_transparent_mst::validation::MstTrustPack;
+use cose_sign1_validation::fluent::{
+    CoseSign1TrustPack, CoseSign1Validator, Payload, TrustPlanBuilder,
+};
+use std::collections::HashMap;
 use std::fs;
 use std::io::Read;
 use std::sync::Arc;
@@ -57,6 +64,10 @@ pub struct VerifyX509Args {
     #[arg(long = "allow-untrusted")]
     pub allow_untrusted: bool,
 
+    /// Trust the embedded x5chain as a trust anchor.
+    #[arg(long = "trust-embedded")]
+    pub trust_embedded: bool,
+
     /// Allow specific signing certificate thumbprint (SHA-256 hex)
     #[arg(long = "allow-thumbprint", value_name = "thumbprint")]
     pub allow_thumbprint: Option<String>,
@@ -77,6 +88,15 @@ pub struct VerifyScittArgs {
     /// Can be specified multiple times. If omitted, all issuers are accepted.
     #[arg(long = "issuer", value_name = "url", action = clap::ArgAction::Append)]
     pub issuer: Vec<String>,
+
+    /// SCITT implementation type.
+    #[arg(long = "scitt-type", value_name = "SCITT_TYPE")]
+    pub scitt_type: Option<String>,
+
+    /// MST service endpoint URL.
+    #[cfg(feature = "mst")]
+    #[arg(long = "mst-endpoint", value_name = "mst-endpoint", action = clap::ArgAction::Append)]
+    pub mst_endpoints: Vec<String>,
 
     /// Offline JWKS keys for a specific issuer, in the format issuer=path.
     /// Skips online key discovery for that issuer. Can be specified multiple times.
@@ -122,7 +142,9 @@ fn execute_x509(args: VerifyX509Args, format: OutputFormat) -> Result<i32> {
             .cloned()
             .collect::<Vec<String>>(),
         identity_pinning_enabled: args.allow_thumbprint.is_some(),
-        trust_embedded_chain_as_trusted: args.trust_system_roots || args.allow_untrusted,
+        trust_embedded_chain_as_trusted: args.trust_embedded
+            || args.trust_system_roots
+            || args.allow_untrusted,
         ..Default::default()
     };
     let cert_pack: Arc<dyn CoseSign1TrustPack> =
@@ -168,21 +190,27 @@ fn execute_x509(args: VerifyX509Args, format: OutputFormat) -> Result<i32> {
 }
 
 fn execute_scitt(args: VerifyScittArgs, format: OutputFormat) -> Result<i32> {
+    ensure_supported_scitt_type(args.scitt_type.as_deref())?;
+
     // Parse offline keys: each is "issuer=path"
-    let mut offline_keys: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+    let mut offline_keys: HashMap<String, String> = HashMap::new();
     let mut trusted_issuers: Vec<String> = args.issuer.clone();
 
+    #[cfg(feature = "mst")]
+    for endpoint in &args.mst_endpoints {
+        push_unique(&mut trusted_issuers, endpoint.clone());
+    }
+
     for entry in &args.issuer_offline_keys {
-        let (issuer, path) = entry.split_once('=')
-            .ok_or_else(|| anyhow::anyhow!(
+        let (issuer, path) = entry.split_once('=').ok_or_else(|| {
+            anyhow::anyhow!(
                 "Invalid --issuer-offline-keys format: '{}'. Expected issuer=path (e.g., https://eus.mst.azure.net=keys.jwks)",
                 entry
-            ))?;
+            )
+        })?;
         offline_keys.insert(issuer.to_string(), path.to_string());
-        // Specifying offline keys implicitly trusts that issuer
-        if !trusted_issuers.iter().any(|i| i == issuer) {
-            trusted_issuers.push(issuer.to_string());
-        }
+        // Specifying offline keys implicitly trusts that issuer.
+        push_unique(&mut trusted_issuers, issuer.to_string());
     }
 
     execute_scitt_inner(args, trusted_issuers, offline_keys, format)
@@ -192,7 +220,7 @@ fn execute_scitt(args: VerifyScittArgs, format: OutputFormat) -> Result<i32> {
 fn execute_scitt_inner(
     args: VerifyScittArgs,
     trusted_issuers: Vec<String>,
-    offline_keys: std::collections::HashMap<String, String>,
+    offline_keys: HashMap<String, String>,
     format: OutputFormat,
 ) -> Result<i32> {
     let (sig_bytes, signature_display) = read_signature_bytes(&args.signature)?;
@@ -204,26 +232,8 @@ fn execute_scitt_inner(
     let raw_arc: Arc<[u8]> = Arc::from(sig_bytes);
     let detached_payload = read_detached_payload(args.payload.as_deref())?;
 
-    // Build MST trust pack with issuer-specific key configuration
-    let mst_pack: Arc<dyn CoseSign1TrustPack> = if offline_keys.is_empty() {
-        // Online mode: fetch keys from issuer endpoints
-        Arc::new(MstTrustPack::online())
-    } else {
-        // Offline mode: use provided JWKS for specific issuers
-        let mut combined_jwks = String::new();
-        for (_issuer, jwks_path) in &offline_keys {
-            let jwks = std::fs::read_to_string(jwks_path)
-                .with_context(|| format!("Failed to read offline JWKS: {jwks_path}"))?;
-            if combined_jwks.is_empty() {
-                combined_jwks = jwks;
-            }
-        }
-        Arc::new(MstTrustPack::new(false, Some(combined_jwks), None))
-    };
-
-    let validator = CoseSign1Validator::new(vec![mst_pack]).with_options(|options| {
-        options.detached_payload = detached_payload;
-    });
+    let mst_pack = build_scitt_trust_pack(&offline_keys)?;
+    let validator = build_scitt_validator(mst_pack, &trusted_issuers, detached_payload)?;
 
     let result = validator
         .validate_arc(message, raw_arc)
@@ -245,7 +255,11 @@ fn execute_scitt_inner(
             output::write_field(stdout, "Trusted Issuers", "all (no restriction)")?;
         } else {
             for issuer in &trusted_issuers {
-                let mode = if offline_keys.contains_key(issuer) { "offline keys" } else { "online" };
+                let mode = if offline_keys.contains_key(issuer) {
+                    "offline keys"
+                } else {
+                    "online"
+                };
                 output::write_field(stdout, "Trusted Issuer", &format!("{issuer} ({mode})"))?;
             }
         }
@@ -270,12 +284,78 @@ fn execute_scitt_inner(
 fn execute_scitt_inner(
     _args: VerifyScittArgs,
     _trusted_issuers: Vec<String>,
-    _offline_keys: std::collections::HashMap<String, String>,
+    _offline_keys: HashMap<String, String>,
     _format: OutputFormat,
 ) -> Result<i32> {
     Err(anyhow::anyhow!(
         "SCITT verification requires the 'mst' feature. Rebuild with --features mst"
     ))
+}
+
+#[cfg(feature = "mst")]
+fn build_scitt_trust_pack(
+    offline_keys: &HashMap<String, String>,
+) -> Result<Arc<dyn CoseSign1TrustPack>> {
+    if offline_keys.is_empty() {
+        return Ok(Arc::new(MstTrustPack::online()));
+    }
+
+    // MstTrustPack currently accepts a single shared JWKS document. Issuer allowlisting happens in
+    // the trust plan below; per-issuer offline JWKS selection is not yet modeled by the pack API.
+    let mut shared_jwks_json: Option<String> = None;
+    for jwks_path in offline_keys.values() {
+        let jwks_json = fs::read_to_string(jwks_path)
+            .with_context(|| format!("Failed to read offline JWKS: {jwks_path}"))?;
+        match &shared_jwks_json {
+            None => {
+                shared_jwks_json = Some(jwks_json);
+            }
+            Some(existing) if existing == &jwks_json => {}
+            Some(_) => {
+                return Err(anyhow::anyhow!(
+                    "The current MstTrustPack API accepts only one offline JWKS document. Multiple --issuer-offline-keys entries with different files are not yet supported."
+                ));
+            }
+        }
+    }
+
+    Ok(Arc::new(MstTrustPack::new(false, shared_jwks_json, None)))
+}
+
+#[cfg(feature = "mst")]
+fn build_scitt_validator(
+    mst_pack: Arc<dyn CoseSign1TrustPack>,
+    trusted_issuers: &[String],
+    detached_payload: Option<Payload>,
+) -> Result<CoseSign1Validator> {
+    let validator = if trusted_issuers.is_empty() {
+        CoseSign1Validator::new(vec![mst_pack])
+    } else {
+        let mut trust_plan_builder = TrustPlanBuilder::new(vec![mst_pack.clone()]);
+
+        for (index, issuer) in trusted_issuers.iter().enumerate() {
+            if index > 0 {
+                trust_plan_builder = trust_plan_builder.or();
+            }
+
+            let issuer = issuer.clone();
+            trust_plan_builder = trust_plan_builder.for_counter_signature(|counter_signature| {
+                counter_signature
+                    .require::<MstReceiptTrustedFact>(|fact| fact.require_receipt_trusted())
+                    .and()
+                    .require_mst_receipt_issuer_eq(issuer)
+            });
+        }
+
+        let trust_plan = trust_plan_builder
+            .compile()
+            .map_err(|e| anyhow::anyhow!("Failed to compile SCITT trust plan: {e}"))?;
+        CoseSign1Validator::new(trust_plan)
+    };
+
+    Ok(validator.with_options(|options| {
+        options.detached_payload = detached_payload;
+    }))
 }
 
 fn build_validator(
@@ -310,9 +390,11 @@ fn build_validator(
 
 fn read_detached_payload(payload_path: Option<&str>) -> Result<Option<Payload>> {
     match payload_path {
-        Some(path) => Ok(Some(Payload::from(
-            fs::read(path).with_context(|| format!("Failed to read payload file: {path}"))?,
-        ))),
+        Some(path) => {
+            Ok(Some(Payload::from(fs::read(path).with_context(|| {
+                format!("Failed to read payload file: {path}")
+            })?)))
+        }
         None => Ok(None),
     }
 }
@@ -329,6 +411,25 @@ fn read_signature_bytes(signature_path: &str) -> Result<(Vec<u8>, String)> {
             .with_context(|| format!("Failed to read signature file: {signature_path}"))?;
         Ok((signature, signature_path.to_string()))
     }
+}
+
+fn push_unique(items: &mut Vec<String>, value: String) {
+    if !items.iter().any(|item| item == &value) {
+        items.push(value);
+    }
+}
+
+fn ensure_supported_scitt_type(scitt_type: Option<&str>) -> Result<()> {
+    if let Some(scitt_type) = scitt_type {
+        if !scitt_type.eq_ignore_ascii_case("mst") {
+            return Err(anyhow::anyhow!(
+                "Unsupported --scitt-type '{}'. Only 'mst' is currently supported",
+                scitt_type
+            ));
+        }
+    }
+
+    Ok(())
 }
 
 fn describe_trust_mode(args: &VerifyX509Args) -> String {

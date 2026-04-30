@@ -11,6 +11,10 @@ pub const API_VERSION: &str = "2022-06-15-preview";
 /// Auth scope suffix.
 pub const AUTH_SCOPE_SUFFIX: &str = "/.default";
 
+/// Azure Code Signing resource identifier for authentication.
+/// This is the common resource ID across all regional endpoints.
+pub const AUTH_RESOURCE: &str = "https://codesigning.azure.net";
+
 /// Sign request body (POST /sign).
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -120,13 +124,10 @@ impl CertificateProfileClientOptions {
         )
     }
 
-    /// Build the auth scope from the endpoint.
+    /// Build the auth scope for token acquisition.
+    /// Uses the common Azure Code Signing resource ID, not the per-region endpoint.
     pub fn auth_scope(&self) -> String {
-        format!(
-            "{}{}",
-            self.endpoint.trim_end_matches('/'),
-            AUTH_SCOPE_SUFFIX
-        )
+        format!("{}{}", AUTH_RESOURCE, AUTH_SCOPE_SUFFIX)
     }
 }
 

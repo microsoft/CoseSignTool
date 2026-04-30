@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 use clap::error::ErrorKind;
-use cose_sign1_cli::commands::{self, ParsedCli};
+use cose_sign1_cli::commands::{self, Command, ParsedCli};
 use cosesigntool_plugin_api::traits::{
     PluginCapability, PluginCommandDef, PluginInfo, PluginOptionDef,
 };
@@ -132,6 +132,51 @@ fn inspect_help_includes_extract_payload_option() {
 }
 
 #[test]
+fn transparency_plugin_options_are_added_to_builtin_sign_subcommands() {
+    let plugin_info = sample_transparency_plugin_info();
+    let help = help_text(
+        commands::build_command(&[plugin_info.clone()]),
+        ["CoseSignTool", "sign", "x509", "ephemeral", "--help"],
+    );
+
+    assert!(help.contains("--scitt-rekor-endpoint <scitt-rekor-endpoint>"));
+    assert!(help.contains("Rekor transparency log endpoint"));
+
+    let parsed = commands::parse_from(
+        [
+            "CoseSignTool",
+            "sign",
+            "x509",
+            "ephemeral",
+            "payload.bin",
+            "-o",
+            "signature.cose",
+            "--scitt-rekor-endpoint",
+            "https://rekor.example.test",
+        ],
+        &[plugin_info],
+    )
+    .expect("builtin command should parse with transparency plugin options");
+
+    match parsed {
+        ParsedCli::BuiltIn(cli) => match cli.command {
+            Command::Sign {
+                method: commands::sign::SignMethod::X509 {
+                    provider: commands::sign::X509Provider::Ephemeral(args),
+                },
+            } => {
+                assert_eq!(
+                    args.common.transparency_options.get("scitt-rekor-endpoint"),
+                    Some(&"https://rekor.example.test".to_string())
+                );
+            }
+            other => panic!("expected built-in sign command, got {other:?}"),
+        },
+        other => panic!("expected built-in parse result, got {other:?}"),
+    }
+}
+
+#[test]
 fn dynamic_plugin_help_and_parse_include_declared_options() {
     let plugin_info = sample_plugin_info();
     let help = help_text(
@@ -222,6 +267,27 @@ fn sample_plugin_info() -> PluginInfo {
                 },
             ],
             capability: PluginCapability::Signing,
+        }],
+        transparency_options: Vec::new(),
+    }
+}
+
+fn sample_transparency_plugin_info() -> PluginInfo {
+    PluginInfo {
+        id: "rekor".to_string(),
+        name: "Rekor Transparency".to_string(),
+        version: "1.0.0".to_string(),
+        description: "Contributes Rekor transparency options".to_string(),
+        capabilities: vec![PluginCapability::Transparency],
+        commands: Vec::new(),
+        transparency_options: vec![PluginOptionDef {
+            name: "scitt-rekor-endpoint".to_string(),
+            value_name: "scitt-rekor-endpoint".to_string(),
+            description: "Rekor transparency log endpoint".to_string(),
+            required: false,
+            default_value: None,
+            short: None,
+            is_flag: false,
         }],
     }
 }

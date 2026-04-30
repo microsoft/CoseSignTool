@@ -640,7 +640,7 @@ where
     E: CborEncoder,
     E::Error: std::fmt::Display,
 {
-    encoder.encode_map(6).map_err(cbor_error)?;
+    encoder.encode_map(7).map_err(cbor_error)?;
     encoder.encode_tstr("id").map_err(cbor_error)?;
     encoder.encode_tstr(info.id.as_str()).map_err(cbor_error)?;
     encoder.encode_tstr("name").map_err(cbor_error)?;
@@ -666,6 +666,10 @@ where
     }
     encoder.encode_tstr("commands").map_err(cbor_error)?;
     encode_plugin_command_array(encoder, info.commands.as_slice())?;
+    encoder
+        .encode_tstr("transparency_options")
+        .map_err(cbor_error)?;
+    encode_plugin_option_array(encoder, info.transparency_options.as_slice())?;
     Ok(())
 }
 
@@ -1195,6 +1199,7 @@ fn try_decode_plugin_info_from_bytes(data: &[u8]) -> ProtocolResult<Option<Plugi
     let mut description: Option<String> = None;
     let mut capabilities: Option<Vec<PluginCapability>> = None;
     let mut commands: Option<Vec<PluginCommandDef>> = None;
+    let mut transparency_options: Option<Vec<PluginOptionDef>> = None;
     let mut matched_unique_field = false;
 
     for _ in 0..entry_count {
@@ -1220,6 +1225,9 @@ fn try_decode_plugin_info_from_bytes(data: &[u8]) -> ProtocolResult<Option<Plugi
             }
             "commands" => {
                 commands = Some(decode_plugin_command_array(&mut decoder)?);
+            }
+            "transparency_options" => {
+                transparency_options = Some(decode_plugin_option_array(&mut decoder)?);
             }
             _ => {
                 decoder.skip().map_err(cbor_error)?;
@@ -1254,6 +1262,7 @@ fn try_decode_plugin_info_from_bytes(data: &[u8]) -> ProtocolResult<Option<Plugi
             )
         })?,
         commands: commands.unwrap_or_default(),
+        transparency_options: transparency_options.unwrap_or_default(),
     }))
 }
 

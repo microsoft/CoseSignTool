@@ -100,6 +100,30 @@ fn from_client_service_metadata() {
 }
 
 #[test]
+fn from_client_transparency_endpoints_exposes_mst_discovery() {
+    let cert_der = make_test_cert();
+    let client = mock_pipeline_client(vec![
+        MockResponse::ok(cert_der.clone()),
+        MockResponse::ok(cert_der.clone()),
+    ]);
+
+    let service = AzureArtifactSigningService::from_client(client).unwrap();
+    let endpoints = service.transparency_endpoints();
+
+    assert_eq!(endpoints.len(), 1);
+    assert_eq!(endpoints[0].service_type, "mst");
+    assert_eq!(
+        endpoints[0].endpoint,
+        "https://signing.transparency.azure.net"
+    );
+    assert_eq!(
+        endpoints[0].display_name,
+        "Microsoft Signing Transparency"
+    );
+    assert!(!endpoints[0].auto_submit);
+}
+
+#[test]
 fn from_client_did_issuer_failure_uses_fallback() {
     // If root cert fetch fails, the DID issuer should fallback to "did:x509:ats:pending"
     // Mock: first fetch fails (for DID builder), but composition still succeeds

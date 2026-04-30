@@ -37,11 +37,17 @@ fn client_and_server_roundtrip_all_supported_methods() {
     assert_eq!(info.id, "test-plugin");
     assert_eq!(
         info.capabilities,
-        vec![PluginCapability::Signing, PluginCapability::Verification]
+        vec![
+            PluginCapability::Signing,
+            PluginCapability::Verification,
+            PluginCapability::Transparency,
+        ]
     );
     assert_eq!(info.commands.len(), 1);
     assert_eq!(info.commands[0].name, "ats");
     assert_eq!(info.commands[0].options.len(), 2);
+    assert_eq!(info.transparency_options.len(), 1);
+    assert_eq!(info.transparency_options[0].name, "scitt-rekor-endpoint");
 
     let mut options = HashMap::new();
     options.insert("profile".to_string(), "contoso".to_string());
@@ -158,8 +164,13 @@ impl PluginProvider for TestPlugin {
             name: "Test Plugin".to_string(),
             version: "1.0.0".to_string(),
             description: "Exercises the shared client/server helpers".to_string(),
-            capabilities: vec![PluginCapability::Signing, PluginCapability::Verification],
+            capabilities: vec![
+                PluginCapability::Signing,
+                PluginCapability::Verification,
+                PluginCapability::Transparency,
+            ],
             commands: sample_plugin_commands(),
+            transparency_options: sample_transparency_options(),
         }
     }
 
@@ -258,6 +269,7 @@ impl PluginProvider for SigningOnlyPlugin {
             description: "Advertises signing only to exercise capability gating".to_string(),
             capabilities: vec![PluginCapability::Signing],
             commands: sample_plugin_commands(),
+            transparency_options: Vec::new(),
         }
     }
 
@@ -316,6 +328,18 @@ fn sample_plugin_commands() -> Vec<PluginCommandDef> {
             },
         ],
         capability: PluginCapability::Signing,
+    }]
+}
+
+fn sample_transparency_options() -> Vec<PluginOptionDef> {
+    vec![PluginOptionDef {
+        name: "scitt-rekor-endpoint".to_string(),
+        value_name: "scitt-rekor-endpoint".to_string(),
+        description: "Rekor transparency log endpoint".to_string(),
+        required: false,
+        default_value: None,
+        short: None,
+        is_flag: false,
     }]
 }
 

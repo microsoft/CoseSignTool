@@ -58,6 +58,10 @@ pub struct PluginInfo {
     pub capabilities: Vec<PluginCapability>,
     /// CLI commands exposed by this plugin.
     pub commands: Vec<PluginCommandDef>,
+    /// Transparency-specific CLI options this plugin contributes to sign commands.
+    /// These are added to all sign x509 subcommands when the plugin is loaded.
+    /// Convention: options should be prefixed with --scitt-<plugin-id>-.
+    pub transparency_options: Vec<PluginOptionDef>,
 }
 
 /// What a plugin can do.

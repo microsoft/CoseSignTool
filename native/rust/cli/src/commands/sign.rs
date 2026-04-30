@@ -16,9 +16,11 @@ use cose_sign1_factories::{
 };
 use cose_sign1_headers::{CwtClaims, CwtClaimsHeaderContributor};
 use cose_sign1_primitives::CoseSign1Message;
-use cose_sign1_signing::SigningService;
-use cosesigntool_plugin_api::traits::{PluginCapability, PluginCommandDef, PluginInfo};
-use std::collections::HashMap;
+use cose_sign1_signing::{SigningService, TransparencyEndpointInfo};
+use cosesigntool_plugin_api::traits::{
+    PluginCapability, PluginCommandDef, PluginInfo, PluginOptionDef,
+};
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::io::{Read, Write};
 use std::sync::Arc;
@@ -76,6 +78,20 @@ pub struct PluginSignInvocation {
     pub command_name: String,
     pub common: CommonSignArgs,
     pub provider_options: HashMap<String, String>,
+}
+
+#[derive(Debug, Clone)]
+struct TransparencyCommandPlan {
+    discovered_endpoints: Vec<TransparencyEndpointInfo>,
+    submission_targets: Vec<TransparencySubmissionTarget>,
+    suggestions: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+struct TransparencySubmissionTarget {
+    service_type: String,
+    endpoint: String,
+    display_name: String,
 }
 
 // ============================================================================
@@ -151,6 +167,10 @@ pub struct CommonSignArgs {
     #[cfg(feature = "mst")]
     #[arg(long = "mst-endpoint", value_name = "mst-endpoint", action = clap::ArgAction::Append, alias = "scitt-mst-endpoint")]
     pub mst_endpoints: Vec<String>,
+
+    /// Plugin-contributed transparency options resolved from CLI arguments.
+    #[arg(skip = HashMap::new())]
+    pub transparency_options: HashMap<String, String>,
 }
 
 #[derive(Debug, Clone, clap::ValueEnum)]
@@ -383,6 +403,7 @@ fn execute_signing_service(
     provider_info: ProviderDisplayInfo,
     format: OutputFormat,
 ) -> Result<i32> {
+    let transparency_plan = build_transparency_plan(service.as_ref(), &common);
     let (payload, payload_display) = read_payload_bytes(&common)?;
     let direct_factory = DirectSignatureFactory::new(service);
 
@@ -402,7 +423,10 @@ fn execute_signing_service(
         }
     };
 
-    let output_bytes = apply_scitt_transparency(signed_bytes, &common)?;
+    let output_bytes = apply_scitt_transparency(
+        signed_bytes,
+        transparency_plan.submission_targets.as_slice(),
+    )?;
     let writes_to_stdout = write_output_bytes(&common.output, &output_bytes)?;
     let certificate_subject =
         extract_certificate_subject(&output_bytes)?.unwrap_or_else(|| "Unavailable".to_string());
@@ -412,7 +436,12 @@ fn execute_signing_service(
     } else {
         common.mst_endpoints.join(", ")
     };
-
+    let discovered_transparency_display =
+        format_discovered_transparency_endpoints(transparency_plan.discovered_endpoints.as_slice());
+    let transparency_submission_display =
+        format_transparency_submission_targets(transparency_plan.submission_targets.as_slice());
+    let transparency_suggestions_display =
+        format_transparency_suggestions(transparency_plan.suggestions.as_slice());
     let scitt_subject_display: &str = selected_scitt_subject(&common).unwrap_or("N/A");
 
     if !matches!(format, OutputFormat::Quiet) {
@@ -475,6 +504,21 @@ fn execute_signing_service(
             writer.as_mut(),
             "SCITT MST Endpoints",
             &scitt_mst_endpoints_display,
+        )?;
+        output::write_field(
+            writer.as_mut(),
+            "Discovered Transparency Services",
+            &discovered_transparency_display,
+        )?;
+        output::write_field(
+            writer.as_mut(),
+            "SCITT Submission Targets",
+            &transparency_submission_display,
+        )?;
+        output::write_field(
+            writer.as_mut(),
+            "SCITT Suggestions",
+            &transparency_suggestions_display,
         )?;
         output::write_field(writer.as_mut(), "SCITT Subject", scitt_subject_display)?;
         output::write_field(
@@ -554,35 +598,194 @@ fn extract_certificate_subject(signed_bytes: &[u8]) -> Result<Option<String>> {
     Ok(output::extract_signing_certificate_details(&message)?.map(|details| details.subject))
 }
 
-fn apply_scitt_transparency(signed_bytes: Vec<u8>, common: &CommonSignArgs) -> Result<Vec<u8>> {
-    #[cfg(feature = "mst")]
-    {
-        if common.mst_endpoints.is_empty() {
-            return Ok(signed_bytes);
-        }
+fn build_transparency_plan(
+    service: &dyn SigningService,
+    common: &CommonSignArgs,
+) -> TransparencyCommandPlan {
+    let discovered_endpoints = service.transparency_endpoints();
+    let mut submission_targets = Vec::new();
+    let mut seen_targets = HashSet::new();
 
-        return apply_mst_scitt_transparency(signed_bytes, common);
+    #[cfg(feature = "mst")]
+    for endpoint in &common.mst_endpoints {
+        push_transparency_submission_target(
+            &mut submission_targets,
+            &mut seen_targets,
+            "mst",
+            endpoint,
+            "Microsoft Signing Transparency",
+        );
     }
 
-    #[cfg(not(feature = "mst"))]
-    {
-        let _ = common;
-        Ok(signed_bytes)
+    for (option_name, value) in &common.transparency_options {
+        if value == "true" {
+            continue;
+        }
+
+        if let Some(service_type) = transparency_service_type_from_option(option_name.as_str()) {
+            push_transparency_submission_target(
+                &mut submission_targets,
+                &mut seen_targets,
+                service_type,
+                value,
+                option_name,
+            );
+        }
+    }
+
+    if submission_targets.is_empty() {
+        for endpoint in &discovered_endpoints {
+            if endpoint.auto_submit {
+                push_transparency_submission_target(
+                    &mut submission_targets,
+                    &mut seen_targets,
+                    endpoint.service_type.as_str(),
+                    endpoint.endpoint.as_str(),
+                    endpoint.display_name.as_str(),
+                );
+            }
+        }
+    }
+
+    let suggestions = if submission_targets.is_empty() {
+        discovered_endpoints
+            .iter()
+            .map(format_transparency_suggestion)
+            .collect()
+    } else {
+        Vec::new()
+    };
+
+    TransparencyCommandPlan {
+        discovered_endpoints,
+        submission_targets,
+        suggestions,
     }
 }
 
-#[cfg(feature = "mst")]
-fn apply_mst_scitt_transparency(signed_bytes: Vec<u8>, common: &CommonSignArgs) -> Result<Vec<u8>> {
+fn push_transparency_submission_target(
+    targets: &mut Vec<TransparencySubmissionTarget>,
+    seen_targets: &mut HashSet<String>,
+    service_type: &str,
+    endpoint: &str,
+    display_name: &str,
+) {
+    if endpoint.is_empty() {
+        return;
+    }
+
+    let dedupe_key = format!("{}\u{0}{}", service_type, endpoint);
+    if seen_targets.insert(dedupe_key) {
+        targets.push(TransparencySubmissionTarget {
+            service_type: service_type.to_string(),
+            endpoint: endpoint.to_string(),
+            display_name: display_name.to_string(),
+        });
+    }
+}
+
+fn format_discovered_transparency_endpoints(endpoints: &[TransparencyEndpointInfo]) -> String {
+    if endpoints.is_empty() {
+        return "N/A".to_string();
+    }
+
+    endpoints
+        .iter()
+        .map(|endpoint| {
+            format!(
+                "{} [{}] {} ({})",
+                endpoint.display_name,
+                endpoint.service_type,
+                endpoint.endpoint,
+                if endpoint.auto_submit {
+                    "auto-submit"
+                } else {
+                    "manual"
+                }
+            )
+        })
+        .collect::<Vec<String>>()
+        .join(", ")
+}
+
+fn format_transparency_submission_targets(targets: &[TransparencySubmissionTarget]) -> String {
+    if targets.is_empty() {
+        return "N/A".to_string();
+    }
+
+    targets
+        .iter()
+        .map(|target| {
+            format!(
+                "{} [{}] {}",
+                target.display_name, target.service_type, target.endpoint
+            )
+        })
+        .collect::<Vec<String>>()
+        .join(", ")
+}
+
+fn format_transparency_suggestions(suggestions: &[String]) -> String {
+    if suggestions.is_empty() {
+        return "N/A".to_string();
+    }
+
+    suggestions.join(", ")
+}
+
+fn format_transparency_suggestion(endpoint: &TransparencyEndpointInfo) -> String {
+    match endpoint.service_type.as_str() {
+        "mst" => format!("--scitt-mst-endpoint {}", endpoint.endpoint),
+        service_type => format!("--scitt-{}-endpoint {}", service_type, endpoint.endpoint),
+    }
+}
+
+fn transparency_service_type_from_option(option_name: &str) -> Option<&str> {
+    option_name
+        .strip_prefix("scitt-")
+        .and_then(|value| value.strip_suffix("-endpoint"))
+        .filter(|value| !value.is_empty())
+}
+
+fn apply_scitt_transparency(
+    signed_bytes: Vec<u8>,
+    submission_targets: &[TransparencySubmissionTarget],
+) -> Result<Vec<u8>> {
     let mut receipt_bytes = signed_bytes;
 
-    for endpoint in &common.mst_endpoints {
-        let provider = providers::mst::create_mst_transparency_provider(endpoint)?;
-        receipt_bytes = provider
-            .add_transparency_proof(&receipt_bytes)
-            .map_err(|e| anyhow::anyhow!("SCITT submission failed for {endpoint}: {e}"))?;
+    for target in submission_targets {
+        receipt_bytes = apply_transparency_submission_target(receipt_bytes, target)?;
     }
 
     Ok(receipt_bytes)
+}
+
+fn apply_transparency_submission_target(
+    signed_bytes: Vec<u8>,
+    target: &TransparencySubmissionTarget,
+) -> Result<Vec<u8>> {
+    #[cfg(feature = "mst")]
+    if target.service_type.eq_ignore_ascii_case("mst") {
+        let provider = providers::mst::create_mst_transparency_provider(target.endpoint.as_str())?;
+        return provider
+            .add_transparency_proof(&signed_bytes)
+            .map_err(|e| anyhow::anyhow!(
+                "SCITT submission failed for {} ({}): {e}",
+                target.endpoint,
+                target.display_name
+            ));
+    }
+
+    if target.service_type.eq_ignore_ascii_case("mst") {
+        return Err(anyhow::anyhow!(
+            "MST transparency support is not enabled in this build"
+        ));
+    }
+
+    Err(anyhow::anyhow!(
+        "Transparency service '{}' is not supported by this build",
+        target.service_type
+    ))
 }
 
 pub fn build_sign_command(plugin_infos: &[PluginInfo]) -> ClapCommand {
@@ -592,11 +795,18 @@ pub fn build_sign_command(plugin_infos: &[PluginInfo]) -> ClapCommand {
             .subcommand_required(true)
             .arg_required_else_help(true),
     );
-    let mut added_command_names = std::collections::HashSet::new();
+    let mut added_command_names = HashSet::new();
+    let mut added_transparency_option_names = HashSet::new();
 
     for plugin_command in collect_plugin_signing_commands(plugin_infos) {
         if added_command_names.insert(plugin_command.name.clone()) {
             x509_command = x509_command.subcommand(build_plugin_subcommand(plugin_command));
+        }
+    }
+
+    for option in collect_transparency_plugin_options(plugin_infos) {
+        if added_transparency_option_names.insert(option.name.clone()) {
+            x509_command = x509_command.arg(build_plugin_option_arg(option, true));
         }
     }
 
@@ -631,7 +841,7 @@ pub fn try_parse_plugin_invocation(
 
     Ok(Some(PluginSignInvocation {
         command_name: provider_name.to_string(),
-        common: common_sign_args_from_matches(provider_matches)?,
+        common: common_sign_args_from_matches(provider_matches, plugin_infos)?,
         provider_options: plugin_option_values_from_matches(provider_matches, command_def),
     }))
 }
@@ -647,6 +857,29 @@ pub fn is_builtin_provider_name(name: &str) -> bool {
     }
 }
 
+pub fn set_builtin_transparency_options(
+    method: &mut SignMethod,
+    transparency_options: HashMap<String, String>,
+) {
+    common_sign_args_mut(method).transparency_options = transparency_options;
+}
+
+fn common_sign_args_mut(method: &mut SignMethod) -> &mut CommonSignArgs {
+    match method {
+        SignMethod::X509 { provider } => match provider {
+            X509Provider::Pfx(args) => &mut args.common,
+            X509Provider::Pem(args) => &mut args.common,
+            X509Provider::Ephemeral(args) => &mut args.common,
+            #[cfg(feature = "ats")]
+            X509Provider::Ats(args) => &mut args.common,
+            #[cfg(feature = "akv")]
+            X509Provider::Akv(args) => &mut args.common,
+            #[cfg(feature = "akv")]
+            X509Provider::AkvCert(args) => &mut args.common,
+        },
+    }
+}
+
 fn build_plugin_subcommand(command: &PluginCommandDef) -> ClapCommand {
     let command_name = leak_str(command.name.as_str());
     let mut subcommand = CommonSignArgs::augment_args(
@@ -656,30 +889,38 @@ fn build_plugin_subcommand(command: &PluginCommandDef) -> ClapCommand {
     );
 
     for option in &command.options {
-        let option_name = leak_str(option.name.as_str());
-        let mut arg = Arg::new(option_name)
-            .long(option_name)
-            .help(leak_str(option.description.as_str()));
-
-        if let Some(short) = option.short {
-            arg = arg.short(short);
-        }
-
-        if option.is_flag {
-            arg = arg.action(ArgAction::SetTrue);
-        } else {
-            arg = arg
-                .value_name(leak_str(option.value_name.as_str()))
-                .required(option.required);
-            if let Some(default_value) = &option.default_value {
-                arg = arg.default_value(leak_str(default_value.as_str()));
-            }
-        }
-
-        subcommand = subcommand.arg(arg);
+        subcommand = subcommand.arg(build_plugin_option_arg(option, false));
     }
 
     subcommand
+}
+
+fn build_plugin_option_arg(option: &PluginOptionDef, global: bool) -> Arg {
+    let option_name = leak_str(option.name.as_str());
+    let mut arg = Arg::new(option_name)
+        .long(option_name)
+        .help(leak_str(option.description.as_str()));
+
+    if global {
+        arg = arg.global(true);
+    }
+
+    if let Some(short) = option.short {
+        arg = arg.short(short);
+    }
+
+    if option.is_flag {
+        return arg.action(ArgAction::SetTrue);
+    }
+
+    arg = arg
+        .value_name(leak_str(option.value_name.as_str()))
+        .required(option.required);
+    if let Some(default_value) = &option.default_value {
+        arg = arg.default_value(leak_str(default_value.as_str()));
+    }
+
+    arg
 }
 
 fn collect_plugin_signing_commands(plugin_infos: &[PluginInfo]) -> Vec<&PluginCommandDef> {
@@ -691,6 +932,16 @@ fn collect_plugin_signing_commands(plugin_infos: &[PluginInfo]) -> Vec<&PluginCo
         .collect();
     commands.sort_by(|left, right| left.name.cmp(&right.name));
     commands
+}
+
+fn collect_transparency_plugin_options(plugin_infos: &[PluginInfo]) -> Vec<&PluginOptionDef> {
+    let mut options: Vec<&PluginOptionDef> = plugin_infos
+        .iter()
+        .filter(|plugin| plugin.capabilities.contains(&PluginCapability::Transparency))
+        .flat_map(|plugin| plugin.transparency_options.iter())
+        .collect();
+    options.sort_by(|left, right| left.name.cmp(&right.name));
+    options
 }
 
 fn find_plugin_command<'a>(
@@ -705,13 +956,13 @@ fn find_plugin_command<'a>(
         })
 }
 
-fn plugin_option_values_from_matches(
-    matches: &ArgMatches,
-    command: &PluginCommandDef,
-) -> HashMap<String, String> {
+fn option_values_from_matches<'a, I>(matches: &ArgMatches, options: I) -> HashMap<String, String>
+where
+    I: IntoIterator<Item = &'a PluginOptionDef>,
+{
     let mut values = HashMap::new();
 
-    for option in &command.options {
+    for option in options {
         if option.is_flag {
             if matches.get_flag(option.name.as_str()) {
                 values.insert(option.name.clone(), "true".to_string());
@@ -727,7 +978,24 @@ fn plugin_option_values_from_matches(
     values
 }
 
-fn common_sign_args_from_matches(matches: &ArgMatches) -> Result<CommonSignArgs, String> {
+fn plugin_option_values_from_matches(
+    matches: &ArgMatches,
+    command: &PluginCommandDef,
+) -> HashMap<String, String> {
+    option_values_from_matches(matches, command.options.iter())
+}
+
+pub fn transparency_option_values_from_matches(
+    matches: &ArgMatches,
+    plugin_infos: &[PluginInfo],
+) -> HashMap<String, String> {
+    option_values_from_matches(matches, collect_transparency_plugin_options(plugin_infos))
+}
+
+fn common_sign_args_from_matches(
+    matches: &ArgMatches,
+    plugin_infos: &[PluginInfo],
+) -> Result<CommonSignArgs, String> {
     Ok(CommonSignArgs {
         payload: required_string_arg(matches, "payload")?,
         output: required_string_arg(matches, "output")?,
@@ -749,6 +1017,7 @@ fn common_sign_args_from_matches(matches: &ArgMatches) -> Result<CommonSignArgs,
             .get_many::<String>("mst_endpoints")
             .map(|values| values.cloned().collect())
             .unwrap_or_default(),
+        transparency_options: transparency_option_values_from_matches(matches, plugin_infos),
     })
 }
 

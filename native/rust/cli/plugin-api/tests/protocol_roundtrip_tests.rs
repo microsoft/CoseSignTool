@@ -127,6 +127,7 @@ fn plugin_info_response_roundtrips_through_framed_cbor() {
         description: "Provides local signing".to_string(),
         capabilities: vec![PluginCapability::Signing, PluginCapability::Verification],
         commands: sample_plugin_commands(),
+        transparency_options: sample_transparency_options(),
     }));
     let mut buffer = Vec::new();
 
@@ -155,6 +156,8 @@ fn plugin_info_response_roundtrips_through_framed_cbor() {
                 info.commands[0].options[1].default_value,
                 Some("default-profile".to_string())
             );
+            assert_eq!(info.transparency_options.len(), 1);
+            assert_eq!(info.transparency_options[0].name, "scitt-rekor-endpoint");
         }
         other => panic!("unexpected result: {:?}", other),
     }
@@ -297,5 +300,17 @@ fn sample_plugin_commands() -> Vec<PluginCommandDef> {
             },
         ],
         capability: PluginCapability::Signing,
+    }]
+}
+
+fn sample_transparency_options() -> Vec<PluginOptionDef> {
+    vec![PluginOptionDef {
+        name: "scitt-rekor-endpoint".to_string(),
+        value_name: "scitt-rekor-endpoint".to_string(),
+        description: "Rekor transparency log endpoint".to_string(),
+        required: false,
+        default_value: None,
+        short: None,
+        is_flag: false,
     }]
 }

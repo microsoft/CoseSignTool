@@ -230,6 +230,7 @@ impl PluginRegistry {
                 description: String::new(),
                 capabilities: Vec::new(),
                 commands: Vec::new(),
+                transparency_options: Vec::new(),
             },
             child,
             client,

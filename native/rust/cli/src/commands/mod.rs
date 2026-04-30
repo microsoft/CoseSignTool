@@ -162,7 +162,22 @@ where
         }));
     }
 
-    Ok(ParsedCli::BuiltIn(Cli::from_arg_matches(&matches)?))
+    let mut cli = Cli::from_arg_matches(&matches)?;
+    if let Some(("sign", sign_matches)) = matches.subcommand() {
+        if let Some(("x509", x509_matches)) = sign_matches.subcommand() {
+            if let Some((provider_name, provider_matches)) = x509_matches.subcommand() {
+                if sign::is_builtin_provider_name(provider_name) {
+                    let transparency_options =
+                        sign::transparency_option_values_from_matches(provider_matches, plugin_infos);
+                    if let Command::Sign { method } = &mut cli.command {
+                        sign::set_builtin_transparency_options(method, transparency_options);
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(ParsedCli::BuiltIn(cli))
 }
 
 /// Dispatch the parsed CLI command to the appropriate handler.

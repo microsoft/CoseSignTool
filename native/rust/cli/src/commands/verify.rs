@@ -19,6 +19,7 @@ use cose_sign1_validation::fluent::{
     CoseSign1TrustPack, CoseSign1Validator, Payload, TrustPlanBuilder,
 };
 use std::fs;
+use std::io::Read;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -56,8 +57,7 @@ pub fn execute(method: VerifyMethod, format: OutputFormat) -> Result<i32> {
 }
 
 fn execute_x509(args: VerifyX509Args, format: OutputFormat) -> Result<i32> {
-    let sig_bytes = fs::read(&args.signature)
-        .with_context(|| format!("Failed to read signature file: {}", args.signature))?;
+    let (sig_bytes, signature_display) = read_signature_bytes(&args.signature)?;
 
     let message = Arc::new(
         cose_sign1_primitives::CoseSign1Message::parse(&sig_bytes)
@@ -94,7 +94,7 @@ fn execute_x509(args: VerifyX509Args, format: OutputFormat) -> Result<i32> {
     if !matches!(format, OutputFormat::Quiet) {
         let stdout = &mut std::io::stdout();
         output::write_section(stdout, "Verification Operation")?;
-        output::write_field(stdout, "Signature", &args.signature)?;
+        output::write_field(stdout, "Signature", &signature_display)?;
 
         if let Some(ref payload_path) = args.payload {
             output::write_field(stdout, "Payload", payload_path)?;
@@ -146,6 +146,20 @@ fn build_validator(
         Ok(CoseSign1Validator::new(trust_plan))
     } else {
         Ok(CoseSign1Validator::new(trust_packs))
+    }
+}
+
+fn read_signature_bytes(signature_path: &str) -> Result<(Vec<u8>, String)> {
+    if signature_path == "-" {
+        let mut signature = Vec::new();
+        std::io::stdin()
+            .read_to_end(&mut signature)
+            .context("Failed to read signature from stdin")?;
+        Ok((signature, "stdin".to_string()))
+    } else {
+        let signature = fs::read(signature_path)
+            .with_context(|| format!("Failed to read signature file: {signature_path}"))?;
+        Ok((signature, signature_path.to_string()))
     }
 }
 

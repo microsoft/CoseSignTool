@@ -17,6 +17,7 @@ use cose_sign1_headers::{CwtClaims, CwtClaimsHeaderContributor};
 use cose_sign1_primitives::CoseSign1Message;
 use cose_sign1_signing::SigningService;
 use std::fs;
+use std::io::{IsTerminal, Read, Write};
 use std::sync::Arc;
 
 /// Signing method (currently x509 only, extensible).
@@ -42,6 +43,23 @@ pub enum X509Provider {
     #[cfg(feature = "ats")]
     Ats(AtsArgs),
     // AKV provider would go here behind #[cfg(feature = "akv")]
+}
+
+#[derive(Debug)]
+struct ProviderDisplayInfo {
+    certificate_source: String,
+    account_name: Option<String>,
+    certificate_profile: Option<String>,
+}
+
+impl ProviderDisplayInfo {
+    fn new(certificate_source: &str) -> Self {
+        Self {
+            certificate_source: certificate_source.to_string(),
+            account_name: None,
+            certificate_profile: None,
+        }
+    }
 }
 
 // ============================================================================
@@ -171,99 +189,140 @@ pub fn execute(method: SignMethod, format: OutputFormat) -> Result<i32> {
 }
 
 fn execute_x509(provider: X509Provider, format: OutputFormat) -> Result<i32> {
-    let (service, common, provider_name): (Arc<dyn SigningService>, &CommonSignArgs, &str) =
-        match &provider {
-            X509Provider::Pfx(args) => {
-                let svc =
-                    providers::local::create_pfx_service(&args.pfx, args.pfx_password.as_deref())?;
-                (Arc::new(svc), &args.common, "PFX")
-            }
-            X509Provider::Pem(args) => {
-                let svc = providers::local::create_pem_service(&args.cert_file, &args.key_file)?;
-                (Arc::new(svc), &args.common, "PEM")
-            }
-            X509Provider::Ephemeral(args) => {
-                let svc = providers::local::create_ephemeral_service(&args.subject)?;
-                (Arc::new(svc), &args.common, "Ephemeral")
-            }
-            #[cfg(feature = "ats")]
-            X509Provider::Ats(args) => {
-                let svc = providers::ats::create_ats_service(
-                    &args.ats_endpoint,
-                    &args.ats_account_name,
-                    &args.ats_cert_profile_name,
-                )?;
-                (Arc::new(svc), &args.common, "Azure Artifact Signing")
-            }
-        };
+    let (service, common, provider_info): (
+        Arc<dyn SigningService>,
+        CommonSignArgs,
+        ProviderDisplayInfo,
+    ) = match provider {
+        X509Provider::Pfx(args) => {
+            let service =
+                providers::local::create_pfx_service(&args.pfx, args.pfx_password.as_deref())?;
+            (
+                Arc::new(service),
+                args.common,
+                ProviderDisplayInfo::new("PFX"),
+            )
+        }
+        X509Provider::Pem(args) => {
+            let service = providers::local::create_pem_service(&args.cert_file, &args.key_file)?;
+            (
+                Arc::new(service),
+                args.common,
+                ProviderDisplayInfo::new("PEM"),
+            )
+        }
+        X509Provider::Ephemeral(args) => {
+            let service = providers::local::create_ephemeral_service(&args.subject)?;
+            (
+                Arc::new(service),
+                args.common,
+                ProviderDisplayInfo::new("Ephemeral"),
+            )
+        }
+        #[cfg(feature = "ats")]
+        X509Provider::Ats(args) => {
+            let service = providers::ats::create_ats_service(
+                &args.ats_endpoint,
+                &args.ats_account_name,
+                &args.ats_cert_profile_name,
+            )?;
+            (
+                Arc::new(service),
+                args.common,
+                ProviderDisplayInfo {
+                    certificate_source: "Azure Artifact Signing".to_string(),
+                    account_name: Some(args.ats_account_name),
+                    certificate_profile: Some(args.ats_cert_profile_name),
+                },
+            )
+        }
+    };
 
-    // Read payload
-    let payload = fs::read(&common.payload)
-        .with_context(|| format!("Failed to read payload file: {}", common.payload))?;
+    let (payload, payload_display) = read_payload_bytes(&common)?;
+    let direct_factory = build_direct_factory(service, &common)?;
 
-    // Sign using the appropriate factory
-    let direct_factory = build_direct_factory(service, common)?;
     let signed_bytes = match common.format {
         SignatureFormat::Direct => {
-            let options = build_direct_signature_options(common)?;
+            let options = build_direct_signature_options(&common)?;
             direct_factory
                 .create_bytes(&payload, &common.content_type, Some(options))
                 .map_err(|e| anyhow::anyhow!("Signing failed: {e}"))?
         }
         SignatureFormat::Indirect => {
             let factory = IndirectSignatureFactory::new(direct_factory);
-            let options = build_indirect_signature_options(common)?;
+            let options = build_indirect_signature_options(&common)?;
             factory
                 .create_bytes(&payload, &common.content_type, Some(options))
                 .map_err(|e| anyhow::anyhow!("Signing failed: {e}"))?
         }
     };
 
-    // Write output
-    fs::write(&common.output, &signed_bytes)
-        .with_context(|| format!("Failed to write output: {}", common.output))?;
+    let writes_to_stdout = write_output_bytes(&common.output, &signed_bytes)?;
+    let certificate_subject =
+        extract_certificate_subject(&signed_bytes)?.unwrap_or_else(|| "Unavailable".to_string());
 
     if !matches!(format, OutputFormat::Quiet) {
-        let certificate_subject = extract_certificate_subject(&signed_bytes)?
-            .unwrap_or_else(|| "Unavailable".to_string());
-        let account_name = match &provider {
-            #[cfg(feature = "ats")]
-            X509Provider::Ats(args) => Some(args.ats_account_name.as_str()),
-            _ => None,
-        };
-        let certificate_profile = match &provider {
-            #[cfg(feature = "ats")]
-            X509Provider::Ats(args) => Some(args.ats_cert_profile_name.as_str()),
-            _ => None,
+        let mut writer: Box<dyn Write> = if writes_to_stdout {
+            Box::new(std::io::stderr())
+        } else {
+            Box::new(std::io::stdout())
         };
 
-        let stdout = &mut std::io::stdout();
-        output::write_section(stdout, "Signing Operation")?;
-        output::write_field(stdout, "Payload", &common.payload)?;
-        output::write_field(stdout, "Output", &common.output)?;
+        output::write_section(writer.as_mut(), "Signing Operation")?;
+        output::write_field(writer.as_mut(), "Payload", &payload_display)?;
         output::write_field(
-            stdout,
+            writer.as_mut(),
+            "Output",
+            if writes_to_stdout {
+                "stdout"
+            } else {
+                &common.output
+            },
+        )?;
+        output::write_field(
+            writer.as_mut(),
             "Signature Type",
             match common.format {
                 SignatureFormat::Direct => "direct",
                 SignatureFormat::Indirect => "indirect",
             },
         )?;
-        output::write_field(stdout, "Content Type", &common.content_type)?;
-        output::write_field(stdout, "Certificate Source", provider_name)?;
-        output::write_field(stdout, "Account Name", account_name.unwrap_or("N/A"))?;
+        output::write_field(writer.as_mut(), "Content Type", &common.content_type)?;
         output::write_field(
-            stdout,
-            "Certificate Profile",
-            certificate_profile.unwrap_or("N/A"),
+            writer.as_mut(),
+            "Certificate Source",
+            &provider_info.certificate_source,
         )?;
-        output::write_field(stdout, "Certificate Subject", &certificate_subject)?;
         output::write_field(
-            stdout,
+            writer.as_mut(),
+            "Account Name",
+            provider_info.account_name.as_deref().unwrap_or("N/A"),
+        )?;
+        output::write_field(
+            writer.as_mut(),
+            "Certificate Profile",
+            provider_info
+                .certificate_profile
+                .as_deref()
+                .unwrap_or("N/A"),
+        )?;
+        output::write_field(writer.as_mut(), "Certificate Subject", &certificate_subject)?;
+        #[cfg(feature = "mst")]
+        output::write_field(
+            writer.as_mut(),
+            "MST Receipt",
+            if common.add_mst_receipt {
+                "Enabled"
+            } else {
+                "Disabled"
+            },
+        )?;
+        output::write_field(
+            writer.as_mut(),
             "Signature Size",
             &format!("{} bytes", signed_bytes.len()),
         )?;
-        println!("\n[OK] Successfully signed payload");
+        writeln!(writer, "\n[OK] Successfully signed payload")?;
     }
 
     Ok(0)
@@ -296,6 +355,41 @@ fn build_indirect_signature_options(common: &CommonSignArgs) -> Result<IndirectS
         .with_base_options(build_direct_signature_options(common)?))
 }
 
+fn read_payload_bytes(common: &CommonSignArgs) -> Result<(Vec<u8>, String)> {
+    if common.payload == "-" || !std::io::stdin().is_terminal() {
+        let mut payload = Vec::new();
+        std::io::stdin()
+            .read_to_end(&mut payload)
+            .context("Failed to read payload from stdin")?;
+        Ok((payload, "stdin".to_string()))
+    } else {
+        let payload = fs::read(&common.payload)
+            .with_context(|| format!("Failed to read payload file: {}", common.payload))?;
+        Ok((payload, common.payload.clone()))
+    }
+}
+
+fn write_output_bytes(output_path: &str, signed_bytes: &[u8]) -> Result<bool> {
+    if output_path == "-" {
+        let mut stdout = std::io::stdout();
+        stdout
+            .write_all(signed_bytes)
+            .context("Failed to write signature to stdout")?;
+        stdout.flush().context("Failed to flush stdout")?;
+        Ok(true)
+    } else {
+        fs::write(output_path, signed_bytes)
+            .with_context(|| format!("Failed to write output: {output_path}"))?;
+        Ok(false)
+    }
+}
+
+fn extract_certificate_subject(signed_bytes: &[u8]) -> Result<Option<String>> {
+    let message = CoseSign1Message::parse(signed_bytes)
+        .map_err(|e| anyhow::anyhow!("Failed to parse COSE_Sign1 output: {e}"))?;
+    Ok(output::extract_signing_certificate_details(&message)?.map(|details| details.subject))
+}
+
 #[cfg(feature = "mst")]
 fn build_direct_factory(
     service: Arc<dyn SigningService>,
@@ -321,10 +415,4 @@ fn build_direct_factory(
     _common: &CommonSignArgs,
 ) -> Result<DirectSignatureFactory> {
     Ok(DirectSignatureFactory::new(service))
-}
-
-fn extract_certificate_subject(signed_bytes: &[u8]) -> Result<Option<String>> {
-    let message = CoseSign1Message::parse(signed_bytes)
-        .map_err(|e| anyhow::anyhow!("Failed to parse COSE_Sign1 output: {e}"))?;
-    Ok(output::extract_signing_certificate_details(&message)?.map(|details| details.subject))
 }

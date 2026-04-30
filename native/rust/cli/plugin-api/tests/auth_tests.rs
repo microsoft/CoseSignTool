@@ -37,7 +37,7 @@ fn auth_key_from_hex_rejects_invalid_character() {
             assert_eq!(index, 63);
             assert_eq!(value, 'g');
         }
-        other => panic!("unexpected error: {:?}", other),
+        _ => panic!("unexpected auth error variant"),
     }
 }
 

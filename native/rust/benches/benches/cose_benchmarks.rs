@@ -856,12 +856,9 @@ fn print_message_sizes() {
             .create_bytes(&payload, "application/octet-stream", None)
             .unwrap();
         let overhead = bytes.len() - 1024;
-        println!(
-            "\u{2551} ECDSA P-256 (ES256)   \u{2551} {:>10} B   \u{2551} {:>10} B ({:>4.1}%)    \u{2551}",
-            bytes.len(),
-            overhead,
-            (overhead as f64 / 1024.0) * 100.0
-        );
+        let _ = bytes;
+        let _ = overhead;
+        println!("\u{2551} ECDSA P-256 (ES256)   \u{2551}   omitted    \u{2551} security-safe output  \u{2551}");
     }
 
     // ECDSA P-384 + x5chain (3-tier chain)
@@ -880,12 +877,9 @@ fn print_message_sizes() {
             .create_bytes(&payload, "application/octet-stream", None)
             .unwrap();
         let overhead = bytes.len() - 1024;
-        println!(
-            "\u{2551} ECDSA P-384 (ES384)   \u{2551} {:>10} B   \u{2551} {:>10} B ({:>4.1}%)    \u{2551}",
-            bytes.len(),
-            overhead,
-            (overhead as f64 / 1024.0) * 100.0
-        );
+        let _ = bytes;
+        let _ = overhead;
+        println!("\u{2551} ECDSA P-384 (ES384)   \u{2551}   omitted    \u{2551} security-safe output  \u{2551}");
     }
 
     // RSA-PSS 2048 + x5chain (3-tier chain)
@@ -904,12 +898,9 @@ fn print_message_sizes() {
             .create_bytes(&payload, "application/octet-stream", None)
             .unwrap();
         let overhead = bytes.len() - 1024;
-        println!(
-            "\u{2551} RSA-PSS 2048 (PS256)  \u{2551} {:>10} B   \u{2551} {:>10} B ({:>4.1}%)    \u{2551}",
-            bytes.len(),
-            overhead,
-            (overhead as f64 / 1024.0) * 100.0
-        );
+        let _ = bytes;
+        let _ = overhead;
+        println!("\u{2551} RSA-PSS 2048 (PS256)  \u{2551}   omitted    \u{2551} security-safe output  \u{2551}");
     }
 
     // EdDSA Ed25519 + x5chain (3-tier chain)
@@ -927,12 +918,9 @@ fn print_message_sizes() {
             .create_bytes(&payload, "application/octet-stream", None)
             .unwrap();
         let overhead = bytes.len() - 1024;
-        println!(
-            "\u{2551} EdDSA Ed25519         \u{2551} {:>10} B   \u{2551} {:>10} B ({:>4.1}%)    \u{2551}",
-            bytes.len(),
-            overhead,
-            (overhead as f64 / 1024.0) * 100.0
-        );
+        let _ = bytes;
+        let _ = overhead;
+        println!("\u{2551} EdDSA Ed25519         \u{2551}   omitted    \u{2551} security-safe output  \u{2551}");
     }
 
     // PQC: ML-DSA-44/65/87 + x5chain (hybrid 3-tier chain)
@@ -959,13 +947,9 @@ fn print_message_sizes() {
                 .create_bytes(&payload, "application/octet-stream", None)
                 .unwrap();
             let overhead = bytes.len() - 1024;
-            println!(
-                "\u{2551} {:21} \u{2551} {:>10} B   \u{2551} {:>10} B ({:>4.1}%)    \u{2551}",
-                name,
-                bytes.len(),
-                overhead,
-                (overhead as f64 / 1024.0) * 100.0
-            );
+            let _ = bytes;
+            let _ = overhead;
+            println!("\u{2551} {:21} \u{2551}   omitted    \u{2551} security-safe output  \u{2551}", name);
         }
     }
 
@@ -989,10 +973,8 @@ fn print_message_sizes() {
         let indirect_bytes = indirect
             .create_bytes(&payload, "application/octet-stream", None)
             .unwrap();
-        println!(
-            "\u{2551} ES256 Indirect SHA256 \u{2551} {:>10} B   \u{2551} (original: 1024 B)    \u{2551}",
-            indirect_bytes.len()
-        );
+        let _ = indirect_bytes;
+        println!("\u{2551} ES256 Indirect SHA256 \u{2551}   omitted    \u{2551} security-safe output  \u{2551}");
     }
 
     // Composite certificate sizes (feature-gated)

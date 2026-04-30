@@ -33,7 +33,7 @@ fn sign_request_roundtrips_through_framed_cbor() {
             assert_eq!(params.data, vec![0x01, 0x02, 0x03]);
             assert_eq!(params.algorithm, -7);
         }
-        other => panic!("unexpected params: {:?}", other),
+        _ => panic!("unexpected request params variant"),
     }
 }
 
@@ -58,7 +58,7 @@ fn create_service_request_roundtrips_string_options_map() {
             assert_eq!(config.options.get("tenant"), Some(&"contoso".to_string()));
             assert_eq!(config.options.get("slot"), Some(&"blue".to_string()));
         }
-        other => panic!("unexpected params: {:?}", other),
+        _ => panic!("unexpected request params variant"),
     }
 }
 
@@ -97,7 +97,7 @@ fn verify_request_roundtrips_through_framed_cbor() {
             assert_eq!(options.allowed_thumbprints[1], "DEF456");
             assert!(!options.signature_only);
         }
-        other => panic!("unexpected params: {:?}", other),
+        _ => panic!("unexpected request params variant"),
     }
 }
 
@@ -114,7 +114,7 @@ fn acknowledgement_response_roundtrips_through_framed_cbor() {
     assert!(decoded.error.is_none());
     match decoded.result {
         ResponseResult::Acknowledged => {}
-        other => panic!("unexpected result: {:?}", other),
+        _ => panic!("unexpected response result variant"),
     }
 }
 
@@ -159,7 +159,7 @@ fn plugin_info_response_roundtrips_through_framed_cbor() {
             assert_eq!(info.transparency_options.len(), 1);
             assert_eq!(info.transparency_options[0].name, "scitt-rekor-endpoint");
         }
-        other => panic!("unexpected result: {:?}", other),
+        _ => panic!("unexpected response result variant"),
     }
 }
 
@@ -183,7 +183,7 @@ fn trust_policy_info_response_roundtrips_through_framed_cbor() {
             assert_eq!(info.description, "Validates X.509 chains and issuer policy");
             assert_eq!(info.supported_modes, vec!["embedded", "os_store"]);
         }
-        other => panic!("unexpected trust policy result: {:?}", other),
+        _ => panic!("unexpected trust policy result variant"),
     }
 }
 
@@ -210,7 +210,7 @@ fn binary_response_payloads_roundtrip_without_base64() {
                 vec![vec![0x30, 0x82, 0x01], vec![0x30, 0x82, 0x02]]
             );
         }
-        other => panic!("unexpected certificate result: {:?}", other),
+        _ => panic!("unexpected certificate result variant"),
     }
 
     let mut algorithm_buffer = Vec::new();
@@ -223,7 +223,7 @@ fn binary_response_payloads_roundtrip_without_base64() {
         ResponseResult::Algorithm(result) => {
             assert_eq!(result.algorithm, -37);
         }
-        other => panic!("unexpected algorithm result: {:?}", other),
+        _ => panic!("unexpected algorithm result variant"),
     }
 
     let mut verification_buffer = Vec::new();
@@ -249,7 +249,7 @@ fn binary_response_payloads_roundtrip_without_base64() {
                 Some(&"embedded".to_string())
             );
         }
-        other => panic!("unexpected verification result: {:?}", other),
+        _ => panic!("unexpected verification result variant"),
     }
 }
 

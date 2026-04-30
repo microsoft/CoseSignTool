@@ -73,17 +73,17 @@ pub struct VerifyScittArgs {
     #[arg(short = 'p', long = "payload", value_name = "payload")]
     pub payload: Option<String>,
 
-    /// SCITT issuer(s) to trust. The receipt's issuer field is matched against this list.
+    /// Issuer(s) to trust. The receipt's issuer field is matched against this list.
     /// Can be specified multiple times. If omitted, all issuers are accepted.
-    #[arg(long = "scitt-issuer", value_name = "url", action = clap::ArgAction::Append)]
-    pub scitt_issuer: Vec<String>,
+    #[arg(long = "issuer", value_name = "url", action = clap::ArgAction::Append)]
+    pub issuer: Vec<String>,
 
     /// Offline JWKS keys for a specific issuer, in the format issuer=path.
     /// Skips online key discovery for that issuer. Can be specified multiple times.
     /// Specifying offline keys for an issuer implicitly trusts that issuer.
-    /// Example: --scitt-issuer-offline-keys https://eus.mst.azure.net=keys.jwks
-    #[arg(long = "scitt-issuer-offline-keys", value_name = "issuer=path", action = clap::ArgAction::Append)]
-    pub scitt_issuer_offline_keys: Vec<String>,
+    /// Example: --issuer-offline-keys https://eus.mst.azure.net=keys.jwks
+    #[arg(long = "issuer-offline-keys", value_name = "issuer=path", action = clap::ArgAction::Append)]
+    pub issuer_offline_keys: Vec<String>,
 }
 
 /// Execute the verify command.
@@ -170,12 +170,12 @@ fn execute_x509(args: VerifyX509Args, format: OutputFormat) -> Result<i32> {
 fn execute_scitt(args: VerifyScittArgs, format: OutputFormat) -> Result<i32> {
     // Parse offline keys: each is "issuer=path"
     let mut offline_keys: std::collections::HashMap<String, String> = std::collections::HashMap::new();
-    let mut trusted_issuers: Vec<String> = args.scitt_issuer.clone();
+    let mut trusted_issuers: Vec<String> = args.issuer.clone();
 
-    for entry in &args.scitt_issuer_offline_keys {
+    for entry in &args.issuer_offline_keys {
         let (issuer, path) = entry.split_once('=')
             .ok_or_else(|| anyhow::anyhow!(
-                "Invalid --scitt-issuer-offline-keys format: '{}'. Expected issuer=path (e.g., https://eus.mst.azure.net=keys.jwks)",
+                "Invalid --issuer-offline-keys format: '{}'. Expected issuer=path (e.g., https://eus.mst.azure.net=keys.jwks)",
                 entry
             ))?;
         offline_keys.insert(issuer.to_string(), path.to_string());

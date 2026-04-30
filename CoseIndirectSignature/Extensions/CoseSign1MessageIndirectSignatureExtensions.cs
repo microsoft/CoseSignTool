@@ -19,61 +19,28 @@ public static class CoseSign1MessageIndirectSignatureExtensions
     private static readonly Regex HashMimeTypeExtension = new(@$"(?<extension>\+hash-(?<{AlgorithmGroupName}>[\w_]+))", RegexOptions.Compiled);
 
     /// <summary>
-    /// Lazy populate all known hash algorithms from System.Security.Cryptography into a runtime cache
+    /// Creates an allowed <see cref="HashAlgorithm"/> instance.
     /// </summary>
-    /// <remarks>This was done as <see cref="HashAlgorithm.Create"/> is obsolete and instead it's recommended to call the Create method on each type directly.</remarks>
-    internal static readonly Lazy<Dictionary<string, Type>> HashAlgorithmLookup = new(() =>
-    {
-        Dictionary<string, Type> hashLookup = [];
-
-        foreach (Type hashAlgorithm in FindAllDerivedHashAlgorithms())
-        {
-            if (hashLookup.ContainsKey(hashAlgorithm.BaseType.Name))
-            {
-                // ignore derived types of derived types for now.
-                continue;
-            }
-
-            hashLookup.Add(hashAlgorithm.Name.ToUpperInvariant(), hashAlgorithm);
-        }
-
-        return hashLookup;
-    });
-
-    /// <summary>
-    /// Finds all <see cref="HashAlgorithm"/> derived types within <see cref="System.Security.Cryptography"/> assembly.
-    /// </summary>
-    /// <returns>An enumerable to types which are derived from <see cref="HashAlgorithm"/></returns>
-    private static IEnumerable<Type> FindAllDerivedHashAlgorithms()
-    {
-        // The type to find all derived implementations from.
-        Type baseType = typeof(HashAlgorithm);
-
-        // loop through each type in the assembly containing System.Security.Cryptography.SHA256 and grab any type that are derived from the base type
-        foreach (Type derivedType in Assembly.GetAssembly(typeof(SHA256))!.GetTypes().Where(t => t != baseType && baseType.IsAssignableFrom(t)))
-        {
-            // return this algorithm.
-            yield return derivedType;
-        }
-    }
-
-    /// <summary>
-    /// Method which will create a <see cref="HashAlgorithm"/>
-    /// </summary>
-    /// <param name="hashAlgorithmName">The name of the intended HashAlgorithm to create.  See Derived Types from https://learn.microsoft.com/en-us/dotnet/api/system.security.cryptography.hashalgorithm?view=netstandard-2.0
-    /// for examples names.  I.E. SHA1|SHA256|SHA512|SHA3_256</param>
-    /// <returns>A HashAlgorithm which is created from the specified HashAlgorithmName or Null if none matched.</returns>
+    /// <param name="hashAlgorithmName">The intended hash algorithm name.</param>
+    /// <returns>A SHA-2 hash algorithm instance when allowed; otherwise, null.</returns>
     public static HashAlgorithm? CreateHashAlgorithmFromName(HashAlgorithmName hashAlgorithmName)
     {
-        if (!HashAlgorithmLookup.Value.TryGetValue(hashAlgorithmName.Name.ToUpperInvariant(), out Type hashAlgorithmType))
+        if (string.Equals(hashAlgorithmName.Name, HashAlgorithmName.SHA256.Name, StringComparison.OrdinalIgnoreCase))
         {
-            return null;
+            return SHA256.Create();
         }
 
-        MethodInfo? methodInfo = hashAlgorithmType.GetMethod("Create", []);
-        return methodInfo != null
-               ? (HashAlgorithm)methodInfo.Invoke(null, null)
-               : null;
+        if (string.Equals(hashAlgorithmName.Name, HashAlgorithmName.SHA384.Name, StringComparison.OrdinalIgnoreCase))
+        {
+            return SHA384.Create();
+        }
+
+        if (string.Equals(hashAlgorithmName.Name, HashAlgorithmName.SHA512.Name, StringComparison.OrdinalIgnoreCase))
+        {
+            return SHA512.Create();
+        }
+
+        return null;
     }
 
     /// <summary>

@@ -14,6 +14,7 @@ use cose_sign1_factories::{
     indirect::{IndirectSignatureFactory, IndirectSignatureOptions},
 };
 use cose_sign1_headers::{CwtClaims, CwtClaimsHeaderContributor};
+use cose_sign1_primitives::CoseSign1Message;
 use cose_sign1_signing::SigningService;
 use std::fs;
 use std::sync::Arc;
@@ -223,6 +224,19 @@ fn execute_x509(provider: X509Provider, format: OutputFormat) -> Result<i32> {
         .with_context(|| format!("Failed to write output: {}", common.output))?;
 
     if !matches!(format, OutputFormat::Quiet) {
+        let certificate_subject = extract_certificate_subject(&signed_bytes)?
+            .unwrap_or_else(|| "Unavailable".to_string());
+        let account_name = match &provider {
+            #[cfg(feature = "ats")]
+            X509Provider::Ats(args) => Some(args.ats_account_name.as_str()),
+            _ => None,
+        };
+        let certificate_profile = match &provider {
+            #[cfg(feature = "ats")]
+            X509Provider::Ats(args) => Some(args.ats_cert_profile_name.as_str()),
+            _ => None,
+        };
+
         let stdout = &mut std::io::stdout();
         output::write_section(stdout, "Signing Operation")?;
         output::write_field(stdout, "Payload", &common.payload)?;
@@ -236,7 +250,14 @@ fn execute_x509(provider: X509Provider, format: OutputFormat) -> Result<i32> {
             },
         )?;
         output::write_field(stdout, "Content Type", &common.content_type)?;
-        output::write_field(stdout, "Provider", provider_name)?;
+        output::write_field(stdout, "Certificate Source", provider_name)?;
+        output::write_field(stdout, "Account Name", account_name.unwrap_or("N/A"))?;
+        output::write_field(
+            stdout,
+            "Certificate Profile",
+            certificate_profile.unwrap_or("N/A"),
+        )?;
+        output::write_field(stdout, "Certificate Subject", &certificate_subject)?;
         output::write_field(
             stdout,
             "Signature Size",
@@ -300,4 +321,10 @@ fn build_direct_factory(
     _common: &CommonSignArgs,
 ) -> Result<DirectSignatureFactory> {
     Ok(DirectSignatureFactory::new(service))
+}
+
+fn extract_certificate_subject(signed_bytes: &[u8]) -> Result<Option<String>> {
+    let message = CoseSign1Message::parse(signed_bytes)
+        .map_err(|e| anyhow::anyhow!("Failed to parse COSE_Sign1 output: {e}"))?;
+    Ok(output::extract_signing_certificate_details(&message)?.map(|details| details.subject))
 }

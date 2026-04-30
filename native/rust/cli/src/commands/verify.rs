@@ -6,11 +6,15 @@
 use crate::output::{self, OutputFormat};
 use anyhow::{Context, Result};
 use clap::{Args, Subcommand};
-use cose_sign1_certificates::validation::facts::{X509ChainTrustedFact, X509SigningCertificateIdentityFact};
+use cose_sign1_certificates::validation::facts::{
+    X509ChainTrustedFact, X509SigningCertificateIdentityFact,
+};
 use cose_sign1_certificates::validation::fluent_ext::{
     X509ChainTrustedWhereExt, X509SigningCertificateIdentityWhereExt,
 };
-use cose_sign1_certificates::validation::pack::{CertificateTrustOptions, X509CertificateTrustPack};
+use cose_sign1_certificates::validation::pack::{
+    CertificateTrustOptions, X509CertificateTrustPack,
+};
 use cose_sign1_validation::fluent::{
     CoseSign1TrustPack, CoseSign1Validator, Payload, TrustPlanBuilder,
 };
@@ -62,9 +66,11 @@ fn execute_x509(args: VerifyX509Args, format: OutputFormat) -> Result<i32> {
     let raw_arc: Arc<[u8]> = Arc::from(sig_bytes);
 
     let detached_payload = match &args.payload {
-        Some(path) => Some(Payload::from(
-            fs::read(path).with_context(|| format!("Failed to read payload file: {path}"))?,
-        )),
+        Some(path) => {
+            Some(Payload::from(fs::read(path).with_context(|| {
+                format!("Failed to read payload file: {path}")
+            })?))
+        }
         None => None,
     };
 
@@ -72,10 +78,12 @@ fn execute_x509(args: VerifyX509Args, format: OutputFormat) -> Result<i32> {
         trust_embedded_chain_as_trusted: args.trust_embedded,
         ..Default::default()
     };
-    let cert_pack: Arc<dyn CoseSign1TrustPack> = Arc::new(X509CertificateTrustPack::new(trust_options));
-    let validator = build_validator(cert_pack, args.allow_thumbprint.as_deref())?.with_options(|options| {
-        options.detached_payload = detached_payload;
-    });
+    let cert_pack: Arc<dyn CoseSign1TrustPack> =
+        Arc::new(X509CertificateTrustPack::new(trust_options));
+    let validator =
+        build_validator(cert_pack, args.allow_thumbprint.as_deref())?.with_options(|options| {
+            options.detached_payload = detached_payload;
+        });
 
     let result = validator
         .validate_arc(message, raw_arc)
@@ -92,13 +100,19 @@ fn execute_x509(args: VerifyX509Args, format: OutputFormat) -> Result<i32> {
             output::write_field(stdout, "Payload", payload_path)?;
         }
 
+        output::write_field(stdout, "Trust Mode", &describe_trust_mode(&args))?;
+        output::write_field(stdout, "Revocation Check Mode", "none")?;
+
+        output::write_section(stdout, "Verification Stages")?;
+        output::write_validation_stage(stdout, "Resolution", &result.resolution)?;
+        output::write_validation_stage(stdout, "Trust", &result.trust)?;
+        output::write_validation_stage(stdout, "Signature", &result.signature)?;
+        output::write_validation_stage(stdout, "Post-Signature", &result.post_signature_policy)?;
+
         if is_valid {
             println!("\n[OK] Signature verified successfully");
         } else {
             println!("\n[ERROR] Signature verification failed");
-            for failure in &result.overall.failures {
-                eprintln!("[ERROR]   {:?}", failure);
-            }
         }
     }
 
@@ -133,4 +147,18 @@ fn build_validator(
     } else {
         Ok(CoseSign1Validator::new(trust_packs))
     }
+}
+
+fn describe_trust_mode(args: &VerifyX509Args) -> String {
+    let mut mode = if args.trust_embedded {
+        "Embedded certificate chain".to_string()
+    } else {
+        "System trust store".to_string()
+    };
+
+    if args.allow_thumbprint.is_some() {
+        mode.push_str(" + thumbprint pin");
+    }
+
+    mode
 }

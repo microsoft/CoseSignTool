@@ -6,7 +6,7 @@
 //! This crate defines the contract between the CoseSignTool host process and
 //! external plugin binaries. Plugins are subprocess-isolated: they run in their
 //! own OS process and communicate with the host via named pipes using a
-//! JSON-framed request/response protocol.
+//! CBOR-framed request/response protocol.
 //!
 //! # Security Model
 //!
@@ -18,10 +18,11 @@
 //! # Plugin Binary Contract
 //!
 //! A plugin binary must:
-//! 1. Accept `--pipe-name <name>` argument (or create its own and print to stdout)
-//! 2. Listen on the named pipe for JSON-framed requests
-//! 3. Respond to each request with a JSON-framed response
-//! 4. Exit cleanly on `shutdown` request or when the pipe closes
+//! 1. Accept `--mode pipe --pipe-name <name>` arguments
+//! 2. Create and listen on the named pipe identified by `<name>`
+//! 3. Read 4-byte big-endian length-prefixed CBOR requests from the pipe
+//! 4. Write 4-byte big-endian length-prefixed CBOR responses to the pipe
+//! 5. Exit cleanly on `shutdown` request or when the pipe closes
 
 pub mod protocol;
 pub mod traits;

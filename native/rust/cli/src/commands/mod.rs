@@ -12,13 +12,22 @@ use clap::{Parser, Subcommand};
 
 /// Modern CLI tool for COSE Sign1 signing and verification.
 #[derive(Parser, Debug)]
-#[command(name = "CoseSignTool", version, about = "Sign, verify, and inspect COSE_Sign1 messages")]
+#[command(
+    name = "CoseSignTool",
+    version,
+    about = "Sign, verify, and inspect COSE_Sign1 messages"
+)]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Command,
 
     /// Output format for command results.
-    #[arg(short = 'f', long = "output-format", default_value = "text", global = true)]
+    #[arg(
+        short = 'f',
+        long = "output-format",
+        default_value = "text",
+        global = true
+    )]
     pub output_format: OutputFormat,
 
     /// Set logging verbosity (0=quiet, 1=normal, 2=verbose, 3=debug, 4=trace).

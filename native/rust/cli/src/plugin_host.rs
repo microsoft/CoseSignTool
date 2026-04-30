@@ -3,133 +3,176 @@
 
 //! Plugin host — discovers, launches, and communicates with subprocess plugins.
 //!
-//! # Discovery
-//!
-//! Scans the `plugins/` directory (next to the CoseSignTool binary) for
-//! executables matching `cosesigntool-plugin-*` (or `cosesigntool-plugin-*.exe`
-//! on Windows). Each discovered binary is launched as a subprocess.
-//!
-//! # Lifecycle
-//!
-//! 1. Host spawns plugin binary with `--mode stdio` (uses stdin/stdout for IPC)
-//! 2. Host sends `capabilities` request → plugin responds with `PluginInfo`
-//! 3. Host sends `create_service` with config → plugin returns `service_id`
-//! 4. Host sends `sign` / `get_cert_chain` requests as needed
-//! 5. Host sends `shutdown` → plugin exits
+//! The host spawns each plugin as a subprocess, passes a named-pipe endpoint via
+//! `--mode pipe --pipe-name <name>`, and then exchanges 4-byte length-prefixed
+//! CBOR request/response frames over that pipe.
 
-use anyhow::{Context, Result};
-use cosesigntool_plugin_api::protocol::{self, methods, Request, Response};
+use anyhow::{anyhow, Context, Result};
+use cosesigntool_plugin_api::protocol::{self, methods, Request, Response, ResponseResult};
 use cosesigntool_plugin_api::traits::*;
 use std::collections::HashMap;
-use std::io::{BufRead, BufReader, Write};
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
+use std::thread;
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+
+#[cfg(unix)]
+use std::os::unix::net::UnixStream;
+
+trait PluginTransport: Read + Write + Send {}
+
+impl<T> PluginTransport for T where T: Read + Write + Send {}
+
+#[derive(Debug, Clone)]
+struct PluginEndpoint {
+    pipe_name: String,
+    #[cfg(unix)]
+    socket_path: PathBuf,
+}
+
+impl PluginEndpoint {
+    fn new() -> Result<Self> {
+        let suffix = unique_pipe_suffix();
+
+        #[cfg(windows)]
+        {
+            Ok(Self {
+                pipe_name: format!(r"\\.\pipe\cosesigntool-plugin-{}", suffix),
+            })
+        }
+
+        #[cfg(unix)]
+        {
+            let socket_path = std::env::current_dir()
+                .context("Failed to determine current directory for plugin socket path")?
+                .join(format!(".cosesigntool-plugin-{}.sock", suffix));
+            let pipe_name = socket_path.to_string_lossy().into_owned();
+            Ok(Self {
+                pipe_name,
+                socket_path,
+            })
+        }
+    }
+
+    fn cleanup(&self) {
+        #[cfg(unix)]
+        {
+            let _ = std::fs::remove_file(&self.socket_path);
+        }
+    }
+}
 
 /// A running plugin subprocess.
 pub struct PluginProcess {
     pub info: PluginInfo,
     child: Child,
-    stdin: std::process::ChildStdin,
-    stdout: BufReader<std::process::ChildStdout>,
+    stream: Box<dyn PluginTransport>,
+    endpoint: PluginEndpoint,
 }
 
 impl PluginProcess {
     /// Send a request and read the response.
-    fn call(&mut self, method: &str, params: Option<serde_json::Value>) -> Result<Response> {
-        let request = Request {
-            method: method.to_string(),
-            params,
-        };
-        protocol::write_request(&mut self.stdin, &request)
-            .with_context(|| format!("Failed to send '{}' to plugin '{}'", method, self.info.id))?;
+    fn call(&mut self, request: &Request) -> Result<Response> {
+        let method = request.method.clone();
+        protocol::write_request(&mut self.stream, request).with_context(|| {
+            format!("Failed to send '{}' to plugin '{}'", method, self.info.id)
+        })?;
 
-        let response = protocol::read_response(&mut self.stdout)
-            .with_context(|| format!("Failed to read response for '{}' from plugin '{}'", method, self.info.id))?;
+        let response = protocol::read_response(&mut self.stream).with_context(|| {
+            format!("Failed to read response for '{}' from plugin '{}'", method, self.info.id)
+        })?;
 
-        if let Some(ref err) = response.error {
-            anyhow::bail!("Plugin '{}' error on '{}': [{}] {}", self.info.id, method, err.code, err.message);
+        if let Some(error) = response.error.as_ref() {
+            anyhow::bail!(
+                "Plugin '{}' error on '{}': [{}] {}",
+                self.info.id,
+                method,
+                error.code,
+                error.message
+            );
         }
 
         Ok(response)
     }
 
+    fn unexpected_result(&self, method: &str, result: ResponseResult) -> anyhow::Error {
+        anyhow!(
+            "Plugin '{}' returned an unexpected result for '{}': {:?}",
+            self.info.id,
+            method,
+            result
+        )
+    }
+
     /// Get the certificate chain from the plugin.
     pub fn get_cert_chain(&mut self, service_id: &str) -> Result<Vec<Vec<u8>>> {
-        let response = self.call(
-            methods::GET_CERT_CHAIN,
-            Some(serde_json::json!({"service_id": service_id})),
-        )?;
-        let chain_resp: CertificateChainResponse = serde_json::from_value(
-            response.result.ok_or_else(|| anyhow::anyhow!("Missing result"))?,
-        )?;
-        Ok(chain_resp.certificates.into_iter().map(|b| b.0).collect())
+        let response = self.call(&Request::get_cert_chain(service_id))?;
+        match response.result {
+            ResponseResult::CertificateChain(chain) => Ok(chain.certificates),
+            result => Err(self.unexpected_result(methods::GET_CERT_CHAIN, result)),
+        }
     }
 
     /// Get the signing algorithm from the plugin.
     pub fn get_algorithm(&mut self, service_id: &str) -> Result<i64> {
-        let response = self.call(
-            methods::GET_ALGORITHM,
-            Some(serde_json::json!({"service_id": service_id})),
-        )?;
-        let result = response.result.ok_or_else(|| anyhow::anyhow!("Missing result"))?;
-        let algorithm = result
-            .get("algorithm")
-            .and_then(|v| v.as_i64())
-            .ok_or_else(|| anyhow::anyhow!("Missing algorithm in response"))?;
-        Ok(algorithm)
+        let response = self.call(&Request::get_algorithm(service_id))?;
+        match response.result {
+            ResponseResult::Algorithm(result) => Ok(result.algorithm),
+            result => Err(self.unexpected_result(methods::GET_ALGORITHM, result)),
+        }
     }
 
     /// Sign data using the plugin.
     pub fn sign(&mut self, service_id: &str, data: &[u8], algorithm: i64) -> Result<Vec<u8>> {
-        use base64::Engine;
-        let data_b64 = base64::engine::general_purpose::STANDARD.encode(data);
-        let response = self.call(
-            methods::SIGN,
-            Some(serde_json::json!({
-                "service_id": service_id,
-                "data": data_b64,
-                "algorithm": algorithm,
-            })),
-        )?;
-        let sign_resp: SignResponse = serde_json::from_value(
-            response.result.ok_or_else(|| anyhow::anyhow!("Missing result"))?,
-        )?;
-        Ok(sign_resp.signature)
+        let response = self.call(&Request::sign(service_id, data.to_vec(), algorithm))?;
+        match response.result {
+            ResponseResult::Sign(result) => Ok(result.signature),
+            result => Err(self.unexpected_result(methods::SIGN, result)),
+        }
     }
 
     /// Create a signing service in the plugin.
     pub fn create_service(&mut self, config: &PluginConfig) -> Result<String> {
-        let response = self.call(
-            methods::CREATE_SERVICE,
-            Some(serde_json::to_value(config)?),
-        )?;
-        let result = response.result.ok_or_else(|| anyhow::anyhow!("Missing result"))?;
-        let service_id = result
-            .get("service_id")
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| anyhow::anyhow!("Missing service_id in response"))?;
-        Ok(service_id.to_string())
+        let response = self.call(&Request::create_service(config.clone()))?;
+        match response.result {
+            ResponseResult::CreateService { service_id } => Ok(service_id),
+            result => Err(self.unexpected_result(methods::CREATE_SERVICE, result)),
+        }
     }
 
     /// Send shutdown and wait for the process to exit.
     pub fn shutdown(mut self) -> Result<()> {
-        let _ = self.call(methods::SHUTDOWN, None);
-        let _ = self.child.wait();
+        let _ = self.call(&Request::shutdown());
+        wait_for_child_exit(&mut self.child, Duration::from_secs(2))?;
+        self.endpoint.cleanup();
         Ok(())
+    }
+
+    fn abort(&mut self) {
+        let _ = self.child.kill();
+        let _ = self.child.wait();
+        self.endpoint.cleanup();
     }
 }
 
 impl Drop for PluginProcess {
     fn drop(&mut self) {
-        // Best-effort shutdown
-        let _ = protocol::write_request(
-            &mut self.stdin,
-            &Request {
-                method: methods::SHUTDOWN.to_string(),
-                params: None,
-            },
-        );
-        let _ = self.child.wait();
+        match self.child.try_wait() {
+            Ok(Some(_)) => {
+                self.endpoint.cleanup();
+                return;
+            }
+            Ok(None) => {}
+            Err(_) => {
+                self.endpoint.cleanup();
+                return;
+            }
+        }
+
+        let _ = protocol::write_request(&mut self.stream, &Request::shutdown());
+        let _ = wait_for_child_exit(&mut self.child, Duration::from_millis(500));
+        self.endpoint.cleanup();
     }
 }
 
@@ -156,23 +199,18 @@ impl PluginRegistry {
 
         tracing::info!("Discovering plugins in {}", plugins_dir.display());
 
-        let pattern = if cfg!(windows) {
-            "cosesigntool-plugin-*.exe"
-        } else {
-            "cosesigntool-plugin-*"
-        };
-
         for entry in std::fs::read_dir(&plugins_dir)? {
             let entry = entry?;
             let path = entry.path();
             if !path.is_file() {
                 continue;
             }
-            let filename = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+
+            let filename = path.file_name().and_then(|name| name.to_str()).unwrap_or("");
             if !filename.starts_with("cosesigntool-plugin-") {
                 continue;
             }
-            // Skip non-executables on Unix
+
             #[cfg(unix)]
             {
                 use std::os::unix::fs::PermissionsExt;
@@ -184,7 +222,7 @@ impl PluginRegistry {
 
             match self.launch_plugin(&path) {
                 Ok(()) => tracing::info!("Loaded plugin: {}", filename),
-                Err(e) => tracing::warn!("Failed to load plugin {}: {}", filename, e),
+                Err(error) => tracing::warn!("Failed to load plugin {}: {}", filename, error),
             }
         }
 
@@ -193,17 +231,31 @@ impl PluginRegistry {
 
     /// Launch a plugin binary and query its capabilities.
     fn launch_plugin(&mut self, path: &Path) -> Result<()> {
+        let endpoint = PluginEndpoint::new()?;
+        endpoint.cleanup();
+
         let mut child = Command::new(path)
             .arg("--mode")
-            .arg("stdio")
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
+            .arg("pipe")
+            .arg("--pipe-name")
+            .arg(endpoint.pipe_name.as_str())
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
             .stderr(Stdio::inherit())
             .spawn()
             .with_context(|| format!("Failed to spawn plugin: {}", path.display()))?;
 
-        let stdin = child.stdin.take().ok_or_else(|| anyhow::anyhow!("No stdin"))?;
-        let stdout = child.stdout.take().ok_or_else(|| anyhow::anyhow!("No stdout"))?;
+        let stream = match connect_to_plugin(&mut child, &endpoint) {
+            Ok(stream) => stream,
+            Err(error) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                endpoint.cleanup();
+                return Err(error).with_context(|| {
+                    format!("Failed to connect to plugin pipe '{}'", endpoint.pipe_name)
+                });
+            }
+        };
 
         let mut plugin = PluginProcess {
             info: PluginInfo {
@@ -211,23 +263,33 @@ impl PluginRegistry {
                 name: String::new(),
                 version: String::new(),
                 description: String::new(),
-                capabilities: vec![],
+                capabilities: Vec::new(),
             },
             child,
-            stdin,
-            stdout: BufReader::new(stdout),
+            stream,
+            endpoint,
         };
 
-        // Query capabilities
-        let response = plugin.call(methods::CAPABILITIES, None)?;
-        let info: PluginInfo = serde_json::from_value(
-            response.result.ok_or_else(|| anyhow::anyhow!("No capabilities result"))?,
-        )?;
+        let response = match plugin.call(&Request::capabilities()) {
+            Ok(response) => response,
+            Err(error) => {
+                plugin.abort();
+                return Err(error);
+            }
+        };
+
+        let info = match response.result {
+            ResponseResult::PluginInfo(info) => info,
+            result => {
+                let error = plugin.unexpected_result(methods::CAPABILITIES, result);
+                plugin.abort();
+                return Err(error);
+            }
+        };
 
         let plugin_id = info.id.clone();
         plugin.info = info;
         self.plugins.insert(plugin_id, plugin);
-
         Ok(())
     }
 
@@ -238,15 +300,15 @@ impl PluginRegistry {
 
     /// List all discovered plugins.
     pub fn list(&self) -> Vec<&PluginInfo> {
-        self.plugins.values().map(|p| &p.info).collect()
+        self.plugins.values().map(|plugin| &plugin.info).collect()
     }
 
     /// Find plugins that provide a specific capability.
     pub fn find_by_capability(&self, capability: PluginCapability) -> Vec<&PluginInfo> {
         self.plugins
             .values()
-            .filter(|p| p.info.capabilities.contains(&capability))
-            .map(|p| &p.info)
+            .filter(|plugin| plugin.info.capabilities.contains(&capability))
+            .map(|plugin| &plugin.info)
             .collect()
     }
 
@@ -262,8 +324,93 @@ impl PluginRegistry {
         let exe_dir = std::env::current_exe()
             .context("Failed to determine executable path")?
             .parent()
-            .ok_or_else(|| anyhow::anyhow!("Executable has no parent directory"))?
+            .ok_or_else(|| anyhow!("Executable has no parent directory"))?
             .to_path_buf();
         Ok(exe_dir.join("plugins"))
     }
+}
+
+fn unique_pipe_suffix() -> String {
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_else(|_| Duration::from_secs(0))
+        .as_nanos();
+    format!("{}-{}", std::process::id(), timestamp)
+}
+
+fn wait_for_child_exit(child: &mut Child, timeout: Duration) -> Result<()> {
+    let start = Instant::now();
+    loop {
+        if child.try_wait()?.is_some() {
+            return Ok(());
+        }
+
+        if start.elapsed() >= timeout {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Ok(());
+        }
+
+        thread::sleep(Duration::from_millis(50));
+    }
+}
+
+fn connect_to_plugin(
+    child: &mut Child,
+    endpoint: &PluginEndpoint,
+) -> Result<Box<dyn PluginTransport>> {
+    let start = Instant::now();
+    let timeout = Duration::from_secs(10);
+    let mut last_error: Option<std::io::Error>;
+
+    loop {
+        match try_connect_transport(endpoint) {
+            Ok(stream) => return Ok(stream),
+            Err(error) => {
+                last_error = Some(error);
+            }
+        }
+
+        if let Some(status) = child.try_wait()? {
+            let reason = last_error
+                .as_ref()
+                .map(|error| error.to_string())
+                .unwrap_or_else(|| "plugin exited before the pipe accepted connections".into());
+            return Err(anyhow!(
+                "Plugin exited with status {} before pipe connection completed: {}",
+                status,
+                reason
+            ));
+        }
+
+        if start.elapsed() >= timeout {
+            if let Some(error) = last_error {
+                return Err(error).with_context(|| {
+                    format!("Timed out waiting for pipe '{}'", endpoint.pipe_name)
+                });
+            }
+
+            return Err(anyhow!(
+                "Timed out waiting for pipe '{}'",
+                endpoint.pipe_name
+            ));
+        }
+
+        thread::sleep(Duration::from_millis(50));
+    }
+}
+
+#[cfg(windows)]
+fn try_connect_transport(endpoint: &PluginEndpoint) -> std::io::Result<Box<dyn PluginTransport>> {
+    let file = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(endpoint.pipe_name.as_str())?;
+    Ok(Box::new(file))
+}
+
+#[cfg(unix)]
+fn try_connect_transport(endpoint: &PluginEndpoint) -> std::io::Result<Box<dyn PluginTransport>> {
+    let stream = UnixStream::connect(&endpoint.socket_path)?;
+    Ok(Box::new(stream))
 }

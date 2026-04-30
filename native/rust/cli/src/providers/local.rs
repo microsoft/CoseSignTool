@@ -14,9 +14,9 @@ use cose_sign1_certificates::signing::certificate_signing_service::CertificateSi
 use cose_sign1_certificates::signing::signing_key_provider::SigningKeyProvider;
 use cose_sign1_certificates::signing::source::CertificateSource;
 use cose_sign1_certificates_local::{
+    loaders::{pem, pfx},
     Certificate, CertificateFactory, CertificateOptions, EphemeralCertificateFactory,
     SoftwareKeyProvider,
-    loaders::{pfx, pem},
 };
 use cose_sign1_crypto_openssl::OpenSslCryptoProvider;
 use crypto_primitives::{CryptoError, CryptoProvider, CryptoSigner, SigningContext};
@@ -37,7 +37,10 @@ impl LocalCertificateSource {
         let mut chain_ders = vec![cert.cert_der.clone()];
         chain_ders.extend(cert.chain.iter().cloned());
         let chain_builder = ExplicitCertificateChainBuilder::new(chain_ders);
-        Self { cert, chain_builder }
+        Self {
+            cert,
+            chain_builder,
+        }
     }
 }
 
@@ -124,10 +127,7 @@ pub fn create_pfx_service(
 }
 
 /// Create a `CertificateSigningService` from PEM files.
-pub fn create_pem_service(
-    cert_path: &str,
-    key_path: &str,
-) -> Result<CertificateSigningService> {
+pub fn create_pem_service(cert_path: &str, key_path: &str) -> Result<CertificateSigningService> {
     let mut cert = pem::load_cert_from_pem(cert_path)
         .with_context(|| format!("Failed to load PEM certificate: {cert_path}"))?;
 
@@ -135,8 +135,8 @@ pub fn create_pem_service(
     if cert.private_key_der.is_none() {
         let key_pem = std::fs::read(key_path)
             .with_context(|| format!("Failed to read PEM key file: {key_path}"))?;
-        let key_cert = pem::load_cert_from_pem_bytes(&key_pem)
-            .context("Failed to parse PEM private key")?;
+        let key_cert =
+            pem::load_cert_from_pem_bytes(&key_pem).context("Failed to parse PEM private key")?;
         cert.private_key_der = key_cert.private_key_der;
     }
 

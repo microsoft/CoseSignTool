@@ -352,7 +352,7 @@ function Get-ProductionCrates {
     $content = Get-Content $cargoToml -Raw
     $memberPaths = [regex]::Matches($content, '"([^"]+)"') |
         ForEach-Object { $_.Groups[1].Value } |
-        Where-Object { $_ -notmatch '(demo|test_utils|cose_openssl)' }
+        Where-Object { $_ -notmatch '(demo|test_utils|cose_openssl|benches|cli)' }
 
     $crates = @()
     foreach ($mp in $memberPaths) {

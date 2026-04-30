@@ -67,7 +67,10 @@ fn test_certificate_profile_client_options_auth_scope_edge_cases() {
 
     for endpoint in test_cases {
         let options = CertificateProfileClientOptions::new(endpoint, "acc", "prof");
-        assert_eq!(options.auth_scope(), "https://codesigning.azure.net/.default");
+        assert_eq!(
+            options.auth_scope(),
+            "https://codesigning.azure.net/.default"
+        );
     }
 }
 

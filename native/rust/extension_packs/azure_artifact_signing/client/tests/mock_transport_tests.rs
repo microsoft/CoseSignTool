@@ -225,8 +225,7 @@ fn test_options_auth_scope_with_port() {
     );
 
     let auth_scope = options.auth_scope();
-    assert!(auth_scope.contains("443"));
-    assert!(auth_scope.ends_with("/.default"));
+    assert_eq!(auth_scope, "https://codesigning.azure.net/.default");
 }
 
 // ========== API version constant tests ==========

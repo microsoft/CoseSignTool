@@ -78,3 +78,16 @@ impl SigningServiceMetadata {
         }
     }
 }
+
+/// Describes a transparency service endpoint compatible with a signing service.
+#[derive(Debug, Clone)]
+pub struct TransparencyEndpointInfo {
+    /// Transparency service type identifier (e.g., "mst", "rekor", "sigstore").
+    pub service_type: String,
+    /// Endpoint URL for the transparency service.
+    pub endpoint: String,
+    /// Human-readable display name.
+    pub display_name: String,
+    /// Whether auto-submission is recommended for this signing profile.
+    pub auto_submit: bool,
+}

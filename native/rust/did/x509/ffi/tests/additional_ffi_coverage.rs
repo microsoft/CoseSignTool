@@ -32,35 +32,41 @@ fn error_message(err: *const DidX509ErrorHandle) -> Option<String> {
 /// Generate a certificate for testing
 fn generate_test_cert() -> Vec<u8> {
     let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
-    let cert = factory.create_certificate(
-        CertificateOptions::new()
-            .with_subject_name("CN=Test Certificate")
-            .with_enhanced_key_usages(vec!["1.3.6.1.5.5.7.3.3".to_string()])
-    ).unwrap();
+    let cert = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=Test Certificate")
+                .with_enhanced_key_usages(vec!["1.3.6.1.5.5.7.3.3".to_string()]),
+        )
+        .unwrap();
     cert.cert_der
 }
 
 /// Generate certificate with specific subject attributes
 fn generate_cert_with_subject() -> Vec<u8> {
     let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
-    let cert = factory.create_certificate(
-        CertificateOptions::new()
-            .with_subject_name("CN=Test Subject CN,O=Test Org,C=US")
-            .with_enhanced_key_usages(vec!["1.3.6.1.5.5.7.3.3".to_string()])
-    ).unwrap();
+    let cert = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=Test Subject CN,O=Test Org,C=US")
+                .with_enhanced_key_usages(vec!["1.3.6.1.5.5.7.3.3".to_string()]),
+        )
+        .unwrap();
     cert.cert_der
 }
 
 /// Generate certificate with SAN
 fn generate_cert_with_san() -> Vec<u8> {
     let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
-    let cert = factory.create_certificate(
-        CertificateOptions::new()
-            .with_subject_name("CN=SAN Test Certificate")
-            .with_enhanced_key_usages(vec!["1.3.6.1.5.5.7.3.3".to_string()])
-            .add_subject_alternative_name("example.com")
-            .add_subject_alternative_name("email:test@example.com")
-    ).unwrap();
+    let cert = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=SAN Test Certificate")
+                .with_enhanced_key_usages(vec!["1.3.6.1.5.5.7.3.3".to_string()])
+                .add_subject_alternative_name("example.com")
+                .add_subject_alternative_name("email:test@example.com"),
+        )
+        .unwrap();
     cert.cert_der
 }
 

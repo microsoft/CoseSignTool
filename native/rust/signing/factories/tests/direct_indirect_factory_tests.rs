@@ -301,8 +301,8 @@ fn test_indirect_signature_options_default() {
     assert_eq!(options.payload_hash_algorithm, HashAlgorithm::Sha256);
     assert_eq!(options.payload_location, None);
 
-    // Base options should have reasonable defaults
-    assert_eq!(options.base.embed_payload, false);
+    // Base options should inherit the direct signature defaults.
+    assert_eq!(options.base.embed_payload, true);
 }
 
 #[test]

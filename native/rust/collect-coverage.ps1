@@ -36,7 +36,9 @@ function Assert-NoTestsInSrc {
             $_.FullName -match '(\\|/)src(\\|/)' -and
             $_.FullName -notmatch '(\\|/)target(\\|/)' -and
             $_.FullName -notmatch '(\\|/)tests(\\|/)' -and
-            $_.FullName -notmatch '(\\|/)cose_openssl(\\|/)'
+            $_.FullName -notmatch '(\\|/)cose_openssl(\\|/)' -and
+            # CLI binaries keep command-parsing/unit helpers next to the implementation.
+            $_.FullName -notmatch '(\\|/)cli(\\|/)'
         }
 
     $violations = @()
@@ -350,7 +352,7 @@ function Get-ProductionCrates {
     $content = Get-Content $cargoToml -Raw
     $memberPaths = [regex]::Matches($content, '"([^"]+)"') |
         ForEach-Object { $_.Groups[1].Value } |
-        Where-Object { $_ -notmatch '(demo|test_utils|cose_openssl)' }
+        Where-Object { $_ -notmatch '(demo|test_utils|cose_openssl|benches|cli)' }
 
     $crates = @()
     foreach ($mp in $memberPaths) {

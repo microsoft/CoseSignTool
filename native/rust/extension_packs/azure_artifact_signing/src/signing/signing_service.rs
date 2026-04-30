@@ -22,6 +22,7 @@ use cose_sign1_certificates::signing::source::CertificateSource;
 use cose_sign1_headers::CwtClaims;
 use cose_sign1_signing::{
     CoseSigner, SigningContext, SigningError, SigningService, SigningServiceMetadata,
+    TransparencyEndpointInfo,
 };
 use crypto_primitives::{CryptoError, CryptoSigner};
 use std::sync::Arc;
@@ -269,6 +270,15 @@ impl SigningService for AzureArtifactSigningService {
 
     fn service_metadata(&self) -> &SigningServiceMetadata {
         self.inner.service_metadata()
+    }
+
+    fn transparency_endpoints(&self) -> Vec<TransparencyEndpointInfo> {
+        vec![TransparencyEndpointInfo {
+            service_type: "mst".to_string(),
+            endpoint: "https://signing.transparency.azure.net".to_string(),
+            display_name: "Microsoft Signing Transparency".to_string(),
+            auto_submit: false,
+        }]
     }
 
     fn verify_signature(

@@ -8,7 +8,7 @@ use crypto_primitives::CryptoSigner;
 
 use crate::{
     CoseSigner, HeaderMergeStrategy, SigningContext, SigningError, SigningKeyMetadata,
-    SigningServiceMetadata,
+    SigningServiceMetadata, TransparencyEndpointInfo,
 };
 
 /// Signing service trait.
@@ -25,6 +25,15 @@ pub trait SigningService: Send + Sync {
 
     /// Returns metadata about this signing service.
     fn service_metadata(&self) -> &SigningServiceMetadata;
+
+    /// Returns transparency service endpoints compatible with this signing service.
+    /// Enables auto-discovery: the CLI can automatically submit to transparency
+    /// services without the user specifying endpoints explicitly.
+    ///
+    /// Default: empty (no auto-discovery).
+    fn transparency_endpoints(&self) -> Vec<TransparencyEndpointInfo> {
+        vec![]
+    }
 
     /// Verifies a signature on a message.
     ///

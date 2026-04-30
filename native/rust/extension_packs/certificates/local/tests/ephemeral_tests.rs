@@ -98,7 +98,10 @@ fn test_create_certificate_rsa_4096() {
     assert!(!cert.cert_der.is_empty());
     assert!(cert.has_private_key());
     let subject = cert.subject().unwrap();
-    assert!(subject.contains("RSA 4096 Certificate"), "subject: {subject}");
+    assert!(
+        subject.contains("RSA 4096 Certificate"),
+        "subject: {subject}"
+    );
 }
 
 #[test]

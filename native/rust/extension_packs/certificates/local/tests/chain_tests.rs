@@ -259,7 +259,11 @@ fn test_chain_with_rsa_4096() {
 
     // RSA is now supported via OpenSSL
     let result = chain_factory.create_chain_with_options(options);
-    assert!(result.is_ok(), "RSA 4096 chain should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "RSA 4096 chain should succeed: {:?}",
+        result.err()
+    );
 
     let chain = result.unwrap();
     assert!(chain.len() >= 2, "Expected at least root + leaf");

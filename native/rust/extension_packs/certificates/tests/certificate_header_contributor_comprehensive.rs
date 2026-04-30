@@ -5,14 +5,14 @@
 
 use cose_sign1_certificates::error::CertificateError;
 use cose_sign1_certificates::signing::certificate_header_contributor::CertificateHeaderContributor;
+use cose_sign1_certificates_local::{
+    CertificateFactory, CertificateOptions, EphemeralCertificateFactory, SoftwareKeyProvider,
+};
 use cose_sign1_primitives::{CoseHeaderLabel, CoseHeaderMap, CoseHeaderValue};
 use cose_sign1_signing::{
     HeaderContributor, HeaderContributorContext, HeaderMergeStrategy, SigningContext,
 };
 use crypto_primitives::{CryptoError, CryptoSigner};
-use cose_sign1_certificates_local::{
-    CertificateFactory, CertificateOptions, EphemeralCertificateFactory, SoftwareKeyProvider,
-};
 
 fn generate_test_cert() -> Vec<u8> {
     let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));

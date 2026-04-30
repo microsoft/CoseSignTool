@@ -65,10 +65,8 @@ pub fn load_cert_from_pem_bytes(bytes: &[u8]) -> Result<Certificate, CertLocalEr
                     chain.push(block.data);
                 }
             }
-            "PRIVATE KEY" | "EC PRIVATE KEY" | "RSA PRIVATE KEY" => {
-                if key_der.is_none() {
-                    key_der = Some(block.data);
-                }
+            "PRIVATE KEY" | "EC PRIVATE KEY" | "RSA PRIVATE KEY" if key_der.is_none() => {
+                key_der = Some(block.data);
             }
             _ => {}
         }

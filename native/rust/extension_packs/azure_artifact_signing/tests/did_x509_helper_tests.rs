@@ -71,11 +71,7 @@ fn test_build_did_x509_from_ats_chain_single_valid_cert() {
 #[test]
 fn test_build_did_x509_from_ats_chain_multiple_ekus() {
     // Generate a certificate with multiple EKUs
-    let cert_der = generate_cert_with_eku(vec![
-        EKU_CODE_SIGNING,
-        EKU_SERVER_AUTH,
-        EKU_CLIENT_AUTH,
-    ]);
+    let cert_der = generate_cert_with_eku(vec![EKU_CODE_SIGNING, EKU_SERVER_AUTH, EKU_CLIENT_AUTH]);
     let chain = vec![cert_der.as_slice()];
 
     let result = build_did_x509_from_ats_chain(&chain);

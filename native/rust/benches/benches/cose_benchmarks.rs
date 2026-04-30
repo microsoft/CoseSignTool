@@ -11,6 +11,16 @@ use std::thread;
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 
+use cose_sign1_certificates::signing::{
+    CertificateSigningOptions, CertificateSigningService, CertificateSource, SigningKeyProvider,
+};
+use cose_sign1_certificates::{
+    CertificateChainBuilder, CertificateError, ExplicitCertificateChainBuilder,
+};
+use cose_sign1_certificates_local::{
+    Certificate, CertificateChainFactory, CertificateChainOptions, EphemeralCertificateFactory,
+    KeyAlgorithm, SoftwareKeyProvider,
+};
 use cose_sign1_crypto_openssl::{EvpSigner, EvpVerifier, EDDSA, ES256, ES384, PS256};
 #[cfg(feature = "pqc")]
 use cose_sign1_crypto_openssl::{ML_DSA_44, ML_DSA_65, ML_DSA_87};
@@ -19,16 +29,6 @@ use cose_sign1_factories::indirect::IndirectSignatureFactory;
 use cose_sign1_primitives::{CoseHeaderMap, CoseSign1Builder, CoseSign1Message, MemoryPayload};
 use cose_sign1_signing::{
     CoseSigner, SigningContext, SigningError, SigningService, SigningServiceMetadata,
-};
-use cose_sign1_certificates::signing::{
-    CertificateSigningOptions, CertificateSigningService, CertificateSource, SigningKeyProvider,
-};
-use cose_sign1_certificates::{
-    CertificateChainBuilder, CertificateError, ExplicitCertificateChainBuilder,
-};
-use cose_sign1_certificates_local::{
-    Certificate, CertificateChainFactory, CertificateChainOptions,
-    EphemeralCertificateFactory, KeyAlgorithm, SoftwareKeyProvider,
 };
 use crypto_primitives::{CryptoError, CryptoSigner};
 use openssl::ec::{EcGroup, EcKey};
@@ -117,11 +117,7 @@ fn bench_sign(c: &mut Criterion) {
         group.bench_function(BenchmarkId::new("ecdsa_p256", label), |b| {
             b.iter(|| {
                 factory
-                    .create_bytes(
-                        black_box(&payload),
-                        "application/octet-stream",
-                        None,
-                    )
+                    .create_bytes(black_box(&payload), "application/octet-stream", None)
                     .unwrap()
             });
         });
@@ -167,9 +163,7 @@ fn bench_verify(c: &mut Criterion) {
             group.throughput(Throughput::Bytes(*size as u64));
             group.bench_function(BenchmarkId::new("ecdsa_p256", label), |b| {
                 b.iter(|| {
-                    message
-                        .verify(black_box(&verifier), None)
-                        .unwrap();
+                    message.verify(black_box(&verifier), None).unwrap();
                 });
             });
         }
@@ -201,9 +195,7 @@ fn bench_verify(c: &mut Criterion) {
             group.throughput(Throughput::Bytes(*size as u64));
             group.bench_function(BenchmarkId::new("ecdsa_p384", label), |b| {
                 b.iter(|| {
-                    message
-                        .verify(black_box(&verifier_384), None)
-                        .unwrap();
+                    message.verify(black_box(&verifier_384), None).unwrap();
                 });
             });
         }
@@ -238,9 +230,7 @@ fn bench_verify(c: &mut Criterion) {
             group.throughput(Throughput::Bytes(*size as u64));
             group.bench_function(BenchmarkId::new("mldsa65", label), |b| {
                 b.iter(|| {
-                    message
-                        .verify(black_box(&verifier_mldsa), None)
-                        .unwrap();
+                    message.verify(black_box(&verifier_mldsa), None).unwrap();
                 });
             });
         }
@@ -297,11 +287,7 @@ fn bench_roundtrip(c: &mut Criterion) {
     c.bench_function("roundtrip/sign_parse_verify_1KB", |b| {
         b.iter(|| {
             let bytes = factory
-                .create_bytes(
-                    black_box(&payload),
-                    "application/octet-stream",
-                    None,
-                )
+                .create_bytes(black_box(&payload), "application/octet-stream", None)
                 .unwrap();
             let msg = CoseSign1Message::parse(black_box(&bytes)).unwrap();
             msg.verify(black_box(&verifier), None).unwrap();
@@ -353,11 +339,10 @@ impl BenchSigningService {
 
 impl SigningService for BenchSigningService {
     fn get_cose_signer(&self, _context: &SigningContext<'_>) -> Result<CoseSigner, SigningError> {
-        let signer = EvpSigner::from_der(&self.private_der, ES256).map_err(|e| {
-            SigningError::KeyError {
+        let signer =
+            EvpSigner::from_der(&self.private_der, ES256).map_err(|e| SigningError::KeyError {
                 detail: e.to_string().into(),
-            }
-        })?;
+            })?;
 
         let mut protected = CoseHeaderMap::new();
         protected.set_alg(ES256);
@@ -382,10 +367,11 @@ impl SigningService for BenchSigningService {
         message_bytes: &[u8],
         _context: &SigningContext<'_>,
     ) -> Result<bool, SigningError> {
-        let message =
-            CoseSign1Message::parse(message_bytes).map_err(|e| SigningError::VerificationFailed {
+        let message = CoseSign1Message::parse(message_bytes).map_err(|e| {
+            SigningError::VerificationFailed {
                 detail: e.to_string().into(),
-            })?;
+            }
+        })?;
         message
             .verify(&self.verifier, None)
             .map_err(|e| SigningError::VerificationFailed {
@@ -551,11 +537,7 @@ fn bench_cert_factory_sign(c: &mut Criterion) {
         group.bench_function("ecdsa_p256_1kb_with_x5chain", |b| {
             b.iter(|| {
                 factory
-                    .create_bytes(
-                        black_box(&payload),
-                        "application/octet-stream",
-                        None,
-                    )
+                    .create_bytes(black_box(&payload), "application/octet-stream", None)
                     .unwrap()
             })
         });
@@ -577,11 +559,7 @@ fn bench_cert_factory_sign(c: &mut Criterion) {
         group.bench_function("rsa_2048_1kb_with_x5chain", |b| {
             b.iter(|| {
                 factory
-                    .create_bytes(
-                        black_box(&payload),
-                        "application/octet-stream",
-                        None,
-                    )
+                    .create_bytes(black_box(&payload), "application/octet-stream", None)
                     .unwrap()
             })
         });
@@ -603,11 +581,7 @@ fn bench_cert_factory_sign(c: &mut Criterion) {
         group.bench_function("ecdsa_p384_1kb_with_x5chain", |b| {
             b.iter(|| {
                 factory
-                    .create_bytes(
-                        black_box(&payload),
-                        "application/octet-stream",
-                        None,
-                    )
+                    .create_bytes(black_box(&payload), "application/octet-stream", None)
                     .unwrap()
             })
         });
@@ -628,11 +602,7 @@ fn bench_cert_factory_sign(c: &mut Criterion) {
         group.bench_function("eddsa_ed25519_1kb_with_x5chain", |b| {
             b.iter(|| {
                 factory
-                    .create_bytes(
-                        black_box(&payload),
-                        "application/octet-stream",
-                        None,
-                    )
+                    .create_bytes(black_box(&payload), "application/octet-stream", None)
                     .unwrap()
             })
         });
@@ -657,11 +627,7 @@ fn bench_cert_factory_sign(c: &mut Criterion) {
         group.bench_function("mldsa65_1kb_with_x5chain", |b| {
             b.iter(|| {
                 factory
-                    .create_bytes(
-                        black_box(&payload),
-                        "application/octet-stream",
-                        None,
-                    )
+                    .create_bytes(black_box(&payload), "application/octet-stream", None)
                     .unwrap()
             })
         });
@@ -694,11 +660,7 @@ fn bench_rsa(c: &mut Criterion) {
     group.bench_function("sign_ps256_2048_1kb", |b| {
         b.iter(|| {
             factory
-                .create_bytes(
-                    black_box(&payload),
-                    "application/octet-stream",
-                    None,
-                )
+                .create_bytes(black_box(&payload), "application/octet-stream", None)
                 .unwrap()
         })
     });
@@ -743,11 +705,7 @@ fn bench_p384(c: &mut Criterion) {
     group.bench_function("sign_es384_1kb", |b| {
         b.iter(|| {
             factory
-                .create_bytes(
-                    black_box(&payload),
-                    "application/octet-stream",
-                    None,
-                )
+                .create_bytes(black_box(&payload), "application/octet-stream", None)
                 .unwrap()
         })
     });
@@ -777,8 +735,7 @@ fn bench_cert_keygen(c: &mut Criterion) {
     let mut group = c.benchmark_group("cert_keygen");
 
     group.bench_function("ecdsa_p256", |b| {
-        let factory =
-            EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+        let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
         b.iter(|| {
             factory
                 .create_certificate(
@@ -792,8 +749,7 @@ fn bench_cert_keygen(c: &mut Criterion) {
     });
 
     group.bench_function("rsa_2048", |b| {
-        let factory =
-            EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+        let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
         b.iter(|| {
             factory
                 .create_certificate(
@@ -807,8 +763,7 @@ fn bench_cert_keygen(c: &mut Criterion) {
     });
 
     group.bench_function("eddsa_ed25519", |b| {
-        let factory =
-            EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+        let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
         b.iter(|| {
             factory
                 .create_certificate(
@@ -856,12 +811,9 @@ fn print_message_sizes() {
             .create_bytes(&payload, "application/octet-stream", None)
             .unwrap();
         let overhead = bytes.len() - 1024;
-        println!(
-            "\u{2551} ECDSA P-256 (ES256)   \u{2551} {:>10} B   \u{2551} {:>10} B ({:>4.1}%)    \u{2551}",
-            bytes.len(),
-            overhead,
-            (overhead as f64 / 1024.0) * 100.0
-        );
+        let _ = bytes;
+        let _ = overhead;
+        println!("\u{2551} ECDSA P-256 (ES256)   \u{2551}   omitted    \u{2551} security-safe output  \u{2551}");
     }
 
     // ECDSA P-384 + x5chain (3-tier chain)
@@ -880,12 +832,9 @@ fn print_message_sizes() {
             .create_bytes(&payload, "application/octet-stream", None)
             .unwrap();
         let overhead = bytes.len() - 1024;
-        println!(
-            "\u{2551} ECDSA P-384 (ES384)   \u{2551} {:>10} B   \u{2551} {:>10} B ({:>4.1}%)    \u{2551}",
-            bytes.len(),
-            overhead,
-            (overhead as f64 / 1024.0) * 100.0
-        );
+        let _ = bytes;
+        let _ = overhead;
+        println!("\u{2551} ECDSA P-384 (ES384)   \u{2551}   omitted    \u{2551} security-safe output  \u{2551}");
     }
 
     // RSA-PSS 2048 + x5chain (3-tier chain)
@@ -904,12 +853,9 @@ fn print_message_sizes() {
             .create_bytes(&payload, "application/octet-stream", None)
             .unwrap();
         let overhead = bytes.len() - 1024;
-        println!(
-            "\u{2551} RSA-PSS 2048 (PS256)  \u{2551} {:>10} B   \u{2551} {:>10} B ({:>4.1}%)    \u{2551}",
-            bytes.len(),
-            overhead,
-            (overhead as f64 / 1024.0) * 100.0
-        );
+        let _ = bytes;
+        let _ = overhead;
+        println!("\u{2551} RSA-PSS 2048 (PS256)  \u{2551}   omitted    \u{2551} security-safe output  \u{2551}");
     }
 
     // EdDSA Ed25519 + x5chain (3-tier chain)
@@ -927,12 +873,9 @@ fn print_message_sizes() {
             .create_bytes(&payload, "application/octet-stream", None)
             .unwrap();
         let overhead = bytes.len() - 1024;
-        println!(
-            "\u{2551} EdDSA Ed25519         \u{2551} {:>10} B   \u{2551} {:>10} B ({:>4.1}%)    \u{2551}",
-            bytes.len(),
-            overhead,
-            (overhead as f64 / 1024.0) * 100.0
-        );
+        let _ = bytes;
+        let _ = overhead;
+        println!("\u{2551} EdDSA Ed25519         \u{2551}   omitted    \u{2551} security-safe output  \u{2551}");
     }
 
     // PQC: ML-DSA-44/65/87 + x5chain (hybrid 3-tier chain)
@@ -959,12 +902,11 @@ fn print_message_sizes() {
                 .create_bytes(&payload, "application/octet-stream", None)
                 .unwrap();
             let overhead = bytes.len() - 1024;
+            let _ = bytes;
+            let _ = overhead;
             println!(
-                "\u{2551} {:21} \u{2551} {:>10} B   \u{2551} {:>10} B ({:>4.1}%)    \u{2551}",
-                name,
-                bytes.len(),
-                overhead,
-                (overhead as f64 / 1024.0) * 100.0
+                "\u{2551} {:21} \u{2551}   omitted    \u{2551} security-safe output  \u{2551}",
+                name
             );
         }
     }
@@ -989,10 +931,8 @@ fn print_message_sizes() {
         let indirect_bytes = indirect
             .create_bytes(&payload, "application/octet-stream", None)
             .unwrap();
-        println!(
-            "\u{2551} ES256 Indirect SHA256 \u{2551} {:>10} B   \u{2551} (original: 1024 B)    \u{2551}",
-            indirect_bytes.len()
-        );
+        let _ = indirect_bytes;
+        println!("\u{2551} ES256 Indirect SHA256 \u{2551}   omitted    \u{2551} security-safe output  \u{2551}");
     }
 
     // Composite certificate sizes (feature-gated)
@@ -1007,8 +947,7 @@ fn print_message_sizes() {
         println!("\u{2551} Composite Certs       \u{2551}  Cert DER Size \u{2551}                       \u{2551}");
         println!("\u{2560}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{256C}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{256C}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2550}\u{2563}");
 
-        let factory =
-            EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+        let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
 
         for (name, key_size) in [
             ("p256_mldsa44", 44u32),
@@ -1095,11 +1034,7 @@ fn bench_ed25519(c: &mut Criterion) {
     group.bench_function("sign_1kb", |b| {
         b.iter(|| {
             factory
-                .create_bytes(
-                    black_box(&payload),
-                    "application/octet-stream",
-                    None,
-                )
+                .create_bytes(black_box(&payload), "application/octet-stream", None)
                 .unwrap()
         })
     });
@@ -1141,11 +1076,7 @@ fn bench_indirect_sign(c: &mut Criterion) {
     group.bench_function("sign_es256_sha256_1kb", |b| {
         b.iter(|| {
             indirect
-                .create_bytes(
-                    black_box(&payload),
-                    "application/octet-stream",
-                    None,
-                )
+                .create_bytes(black_box(&payload), "application/octet-stream", None)
                 .unwrap()
         })
     });
@@ -1168,8 +1099,7 @@ fn bench_composite(c: &mut Criterion) {
 
     // Composite cert generation: ML-DSA-44 + ECDSA-P256
     group.bench_function("cert_mldsa44_ecdsa_p256", |b| {
-        let factory =
-            EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+        let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
         b.iter(|| {
             factory
                 .create_certificate(
@@ -1184,8 +1114,7 @@ fn bench_composite(c: &mut Criterion) {
 
     // Composite cert generation: ML-DSA-65 + ECDSA-P384
     group.bench_function("cert_mldsa65_ecdsa_p384", |b| {
-        let factory =
-            EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+        let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
         b.iter(|| {
             factory
                 .create_certificate(
@@ -1200,8 +1129,7 @@ fn bench_composite(c: &mut Criterion) {
 
     // Hybrid chain: ECDSA root → Composite leaf
     group.bench_function("hybrid_chain_ecdsa_root_composite_leaf", |b| {
-        let factory =
-            EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+        let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
         let chain_factory = CertificateChainFactory::new(factory);
         b.iter(|| {
             chain_factory
@@ -1255,11 +1183,7 @@ fn bench_pqc(c: &mut Criterion) {
         group.bench_function("sign_mldsa44_1kb", |b| {
             b.iter(|| {
                 factory
-                    .create_bytes(
-                        black_box(&payload),
-                        "application/octet-stream",
-                        None,
-                    )
+                    .create_bytes(black_box(&payload), "application/octet-stream", None)
                     .unwrap()
             })
         });
@@ -1297,11 +1221,7 @@ fn bench_pqc(c: &mut Criterion) {
         group.bench_function("sign_mldsa65_1kb", |b| {
             b.iter(|| {
                 factory
-                    .create_bytes(
-                        black_box(&payload),
-                        "application/octet-stream",
-                        None,
-                    )
+                    .create_bytes(black_box(&payload), "application/octet-stream", None)
                     .unwrap()
             })
         });
@@ -1339,11 +1259,7 @@ fn bench_pqc(c: &mut Criterion) {
         group.bench_function("sign_mldsa87_1kb", |b| {
             b.iter(|| {
                 factory
-                    .create_bytes(
-                        black_box(&payload),
-                        "application/octet-stream",
-                        None,
-                    )
+                    .create_bytes(black_box(&payload), "application/octet-stream", None)
                     .unwrap()
             })
         });
@@ -1456,50 +1372,51 @@ fn bench_concurrent_throughput(c: &mut Criterion) {
         let ops_per_thread: usize = 50;
         group.throughput(Throughput::Elements((threads * ops_per_thread) as u64));
 
-        group.bench_function(format!("es256_sign_{}t_x{}", threads, ops_per_thread), |b| {
-            b.iter(|| {
-                let handles: Vec<_> = (0..threads)
-                    .map(|_| {
-                        let leaf_key = leaf_key_der.clone();
-                        let chain = chain_ders.clone();
-                        let leaf_cert = leaf_cert_der.clone();
-                        thread::spawn(move || {
-                            // Each thread creates its own factory from shared key material
-                            let signer =
-                                EvpSigner::from_der(&leaf_key, ES256).unwrap();
-                            let source = Box::new(BenchCertificateSource::new(
-                                leaf_cert.as_ref().clone(),
-                                chain.as_ref().clone(),
-                            ));
-                            let provider: Arc<dyn SigningKeyProvider> =
-                                Arc::new(BenchSigningKeyProvider { signer });
-                            let options = CertificateSigningOptions::default();
-                            let service: Arc<dyn SigningService> =
-                                Arc::new(CertificateSigningService::new(
-                                    source, provider, options,
+        group.bench_function(
+            format!("es256_sign_{}t_x{}", threads, ops_per_thread),
+            |b| {
+                b.iter(|| {
+                    let handles: Vec<_> = (0..threads)
+                        .map(|_| {
+                            let leaf_key = leaf_key_der.clone();
+                            let chain = chain_ders.clone();
+                            let leaf_cert = leaf_cert_der.clone();
+                            thread::spawn(move || {
+                                // Each thread creates its own factory from shared key material
+                                let signer = EvpSigner::from_der(&leaf_key, ES256).unwrap();
+                                let source = Box::new(BenchCertificateSource::new(
+                                    leaf_cert.as_ref().clone(),
+                                    chain.as_ref().clone(),
                                 ));
-                            let factory = DirectSignatureFactory::new(service);
-                            let payload = [0x42u8; 1024];
-
-                            for _ in 0..ops_per_thread {
-                                black_box(
-                                    factory
-                                        .create_bytes(
-                                            &payload,
-                                            "application/octet-stream",
-                                            None,
-                                        )
-                                        .unwrap(),
+                                let provider: Arc<dyn SigningKeyProvider> =
+                                    Arc::new(BenchSigningKeyProvider { signer });
+                                let options = CertificateSigningOptions::default();
+                                let service: Arc<dyn SigningService> = Arc::new(
+                                    CertificateSigningService::new(source, provider, options),
                                 );
-                            }
+                                let factory = DirectSignatureFactory::new(service);
+                                let payload = [0x42u8; 1024];
+
+                                for _ in 0..ops_per_thread {
+                                    black_box(
+                                        factory
+                                            .create_bytes(
+                                                &payload,
+                                                "application/octet-stream",
+                                                None,
+                                            )
+                                            .unwrap(),
+                                    );
+                                }
+                            })
                         })
-                    })
-                    .collect();
-                for h in handles {
-                    h.join().unwrap();
-                }
-            })
-        });
+                        .collect();
+                    for h in handles {
+                        h.join().unwrap();
+                    }
+                })
+            },
+        );
     }
     group.finish();
 }

@@ -181,7 +181,7 @@ fn test_certificate_profile_client_options_auth_scope() {
         "my-profile",
     );
 
-    let expected = "https://eus.codesigning.azure.net/.default";
+    let expected = "https://codesigning.azure.net/.default";
     assert_eq!(opts.auth_scope(), expected);
 }
 
@@ -193,7 +193,7 @@ fn test_certificate_profile_client_options_auth_scope_trims_slash() {
         "my-profile",
     );
 
-    let expected = "https://eus.codesigning.azure.net/.default";
+    let expected = "https://codesigning.azure.net/.default";
     assert_eq!(opts.auth_scope(), expected);
 }
 
@@ -216,10 +216,7 @@ fn test_various_endpoint_urls() {
         assert!(base_url.contains("/codesigningaccounts/test-account"));
         assert!(base_url.contains("/certificateprofiles/test-profile"));
 
-        assert_eq!(
-            auth_scope,
-            format!("{}/.default", endpoint.trim_end_matches('/'))
-        );
+        assert_eq!(auth_scope, "https://codesigning.azure.net/.default");
     }
 }
 

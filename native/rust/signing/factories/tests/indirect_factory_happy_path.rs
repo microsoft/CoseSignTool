@@ -140,11 +140,11 @@ fn test_indirect_factory_create_bytes_none_options() {
     let bytes = result.unwrap();
     assert!(!bytes.is_empty(), "Result bytes should not be empty");
 
-    // Parse the message and verify it's detached by default
+    // Parse the message and verify the default hash envelope is embedded.
     let message = CoseSign1Message::parse(&bytes).expect("Should parse successfully");
     assert!(
-        message.payload().is_none(),
-        "Default indirect should be detached (no embedded payload)"
+        message.payload().is_some(),
+        "Default indirect should embed the payload hash envelope"
     );
 }
 
@@ -163,10 +163,12 @@ fn test_indirect_factory_create_bytes_sha256() {
     let bytes = result.unwrap();
     assert!(!bytes.is_empty(), "Result bytes should not be empty");
 
-    // Parse and verify the message contains hash envelope headers
+    // Parse and verify the message contains hash envelope headers.
     let message = CoseSign1Message::parse(&bytes).expect("Should parse successfully");
-    // The payload should be the hash (detached by default), so no payload in parsed message
-    assert!(message.payload().is_none(), "Should be detached signature");
+    assert!(
+        message.payload().is_some(),
+        "Default indirect signatures should embed the payload hash envelope"
+    );
 }
 
 #[test]
@@ -301,10 +303,12 @@ fn test_indirect_factory_create_streaming_bytes() {
     let bytes = result.unwrap();
     assert!(!bytes.is_empty(), "Result bytes should not be empty");
 
-    // Parse and verify
+    // Parse and verify.
     let message = CoseSign1Message::parse(&bytes).expect("Should parse successfully");
-    // Should be detached by default
-    assert!(message.payload().is_none(), "Should be detached by default");
+    assert!(
+        message.payload().is_some(),
+        "Default indirect streaming signatures should embed the payload hash envelope"
+    );
 }
 
 #[test]

@@ -74,16 +74,19 @@ impl AzureKeyVaultSigningService {
         let curve = self.signing_key.crypto_client().curve_name();
 
         // Verify the algorithm can be determined from the key metadata
-        let _algorithm = match key_type {
+        match key_type {
             "EC" => {
                 let curve_name = curve.ok_or_else(|| {
-                    AkvError::InvalidKeyType("EC key missing curve name during initialization".into())
+                    AkvError::InvalidKeyType(
+                        "EC key missing curve name during initialization".into(),
+                    )
                 })?;
                 match curve_name {
                     "P-256" | "P-384" | "P-521" => {}
                     other => {
                         return Err(AkvError::InvalidKeyType(format!(
-                            "Unsupported EC curve during initialization: {}", other
+                            "Unsupported EC curve during initialization: {}",
+                            other
                         )));
                     }
                 }
@@ -91,17 +94,22 @@ impl AzureKeyVaultSigningService {
             "RSA" => {}
             other => {
                 return Err(AkvError::InvalidKeyType(format!(
-                    "Unsupported key type during initialization: {}", other
+                    "Unsupported key type during initialization: {}",
+                    other
                 )));
             }
         };
 
         // Verify public key bytes are accessible (validates key material readability)
-        self.signing_key.crypto_client().public_key_bytes().map_err(|e| {
-            AkvError::General(format!(
-                "Failed to read public key during initialization: {}", e
-            ))
-        })?;
+        self.signing_key
+            .crypto_client()
+            .public_key_bytes()
+            .map_err(|e| {
+                AkvError::General(format!(
+                    "Failed to read public key during initialization: {}",
+                    e
+                ))
+            })?;
 
         self.initialized = true;
         Ok(())

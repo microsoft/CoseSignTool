@@ -33,12 +33,14 @@ fn error_message(err: *const DidX509ErrorHandle) -> Option<String> {
 /// Generate a self-signed X.509 certificate with code signing EKU.
 fn generate_code_signing_cert() -> Vec<u8> {
     let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
-    let cert = factory.create_certificate(
-        CertificateOptions::new()
-            .with_subject_name("CN=Test Certificate")
-            .with_enhanced_key_usages(vec!["1.3.6.1.5.5.7.3.3".to_string()])
-            .add_subject_alternative_name("email:test@example.com")
-    ).unwrap();
+    let cert = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=Test Certificate")
+                .with_enhanced_key_usages(vec!["1.3.6.1.5.5.7.3.3".to_string()])
+                .add_subject_alternative_name("email:test@example.com"),
+        )
+        .unwrap();
     cert.cert_der
 }
 

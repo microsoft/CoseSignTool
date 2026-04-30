@@ -16,8 +16,8 @@ use cbor_primitives::{CborEncoder, CborProvider};
 use cbor_primitives_everparse::EverParseCborProvider;
 use cose_sign1_certificates::validation::signing_key_resolver::X509CertificateCoseKeyResolver;
 use cose_sign1_certificates_local::{
-    Certificate, CertificateFactory, CertificateOptions, EphemeralCertificateFactory,
-    KeyAlgorithm, SoftwareKeyProvider,
+    Certificate, CertificateFactory, CertificateOptions, EphemeralCertificateFactory, KeyAlgorithm,
+    SoftwareKeyProvider,
 };
 use cose_sign1_validation::fluent::*;
 use cose_sign1_validation_primitives::CoseHeaderLocation;

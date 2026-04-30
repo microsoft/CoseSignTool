@@ -4,10 +4,10 @@
 //! Additional coverage tests for SCITT CWT claims functionality
 
 use cose_sign1_certificates::signing::scitt::{build_scitt_cwt_claims, create_scitt_contributor};
-use cose_sign1_headers::CwtClaims;
 use cose_sign1_certificates_local::{
     CertificateFactory, CertificateOptions, EphemeralCertificateFactory, SoftwareKeyProvider,
 };
+use cose_sign1_headers::CwtClaims;
 
 fn generate_test_certificate() -> Vec<u8> {
     let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));

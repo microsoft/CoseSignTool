@@ -52,11 +52,13 @@ fn get_test_cert_bytes() -> Vec<u8> {
 // Generate a valid certificate for tests requiring valid certs
 fn generate_valid_cert() -> Vec<u8> {
     let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
-    let cert = factory.create_certificate(
-        CertificateOptions::new()
-            .with_subject_name("CN=FFI Test Cert")
-            .with_enhanced_key_usages(vec!["1.3.6.1.5.5.7.3.3".to_string()])
-    ).unwrap();
+    let cert = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=FFI Test Cert")
+                .with_enhanced_key_usages(vec!["1.3.6.1.5.5.7.3.3".to_string()]),
+        )
+        .unwrap();
     cert.cert_der
 }
 

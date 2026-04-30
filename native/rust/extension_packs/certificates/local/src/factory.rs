@@ -16,8 +16,8 @@ use openssl::nid::Nid;
 use openssl::pkey::PKey;
 use openssl::rsa::Rsa;
 use openssl::x509::extension::{
-    AuthorityKeyIdentifier, BasicConstraints, ExtendedKeyUsage, KeyUsage,
-    SubjectAlternativeName, SubjectKeyIdentifier,
+    AuthorityKeyIdentifier, BasicConstraints, ExtendedKeyUsage, KeyUsage, SubjectAlternativeName,
+    SubjectKeyIdentifier,
 };
 use openssl::x509::{X509Builder, X509Extension, X509NameBuilder, X509};
 use std::collections::HashMap;
@@ -64,7 +64,7 @@ impl EphemeralCertificateFactory {
     }
 }
 
-type EcKeyResult = Result<(PKey<openssl::pkey::Private>, Vec<u8>, Vec<u8>), CertLocalError>;
+type KeyGenerationResult = Result<(PKey<openssl::pkey::Private>, Vec<u8>, Vec<u8>), CertLocalError>;
 
 /// Helper: generate an ECDSA key pair for the given curve size.
 ///
@@ -74,7 +74,7 @@ type EcKeyResult = Result<(PKey<openssl::pkey::Private>, Vec<u8>, Vec<u8>), Cert
 /// - 521 → P-521 (secp521r1)
 ///
 /// Returns (PKey, private_key_der, public_key_der).
-fn generate_ec_key(key_size: Option<u32>) -> EcKeyResult {
+fn generate_ec_key(key_size: Option<u32>) -> KeyGenerationResult {
     let nid = match key_size.unwrap_or(256) {
         384 => Nid::SECP384R1,
         521 => Nid::SECP521R1,
@@ -103,14 +103,12 @@ fn generate_ec_key(key_size: Option<u32>) -> EcKeyResult {
 /// - 4096 → RSA-4096
 ///
 /// Returns (PKey, private_key_der, public_key_der).
-fn generate_rsa_key(
-    key_size: Option<u32>,
-) -> Result<(PKey<openssl::pkey::Private>, Vec<u8>, Vec<u8>), CertLocalError> {
+fn generate_rsa_key(key_size: Option<u32>) -> KeyGenerationResult {
     let bits = key_size.unwrap_or(2048);
-    let rsa = Rsa::generate(bits)
-        .map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
-    let pkey = PKey::from_rsa(rsa)
-        .map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
+    let rsa =
+        Rsa::generate(bits).map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
+    let pkey =
+        PKey::from_rsa(rsa).map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
     let private_key_der = pkey
         .private_key_to_der()
         .map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
@@ -125,9 +123,7 @@ fn generate_rsa_key(
 /// Maps key_size: 448 → Ed448, anything else → Ed25519 (default).
 ///
 /// Returns (PKey, private_key_der, public_key_der).
-fn generate_eddsa_key(
-    key_size: Option<u32>,
-) -> Result<(PKey<openssl::pkey::Private>, Vec<u8>, Vec<u8>), CertLocalError> {
+fn generate_eddsa_key(key_size: Option<u32>) -> KeyGenerationResult {
     let pkey = match key_size.unwrap_or(255) {
         448 => PKey::generate_ed448(),
         _ => PKey::generate_ed25519(),
@@ -144,9 +140,7 @@ fn generate_eddsa_key(
 
 /// Helper: generate an ML-DSA key pair, returning (PKey, private_key_der, public_key_der).
 #[cfg(feature = "pqc")]
-fn generate_mldsa_key(
-    key_size: &Option<u32>,
-) -> Result<(PKey<openssl::pkey::Private>, Vec<u8>, Vec<u8>), CertLocalError> {
+fn generate_mldsa_key(key_size: &Option<u32>) -> KeyGenerationResult {
     use cose_sign1_crypto_openssl::{generate_mldsa_key_der, MlDsaVariant};
 
     let variant = match key_size.unwrap_or(65) {
@@ -176,9 +170,7 @@ fn generate_mldsa_key(
 ///
 /// Returns (PKey, private_key_der, public_key_der).
 #[cfg(feature = "composite")]
-fn generate_composite_key(
-    key_size: Option<u32>,
-) -> Result<(PKey<openssl::pkey::Private>, Vec<u8>, Vec<u8>), CertLocalError> {
+fn generate_composite_key(key_size: Option<u32>) -> KeyGenerationResult {
     use foreign_types::ForeignType;
 
     // OQS provider hybrid naming convention (null-terminated C strings).
@@ -313,13 +305,7 @@ fn sign_x509_null_digest(
         ) -> std::os::raw::c_int;
     }
 
-    let rc = unsafe {
-        X509_sign(
-            x509.as_ptr() as *mut openssl_sys::X509,
-            pkey.as_ptr() as *mut openssl_sys::EVP_PKEY,
-            std::ptr::null(),
-        )
-    };
+    let rc = unsafe { X509_sign(x509.as_ptr(), pkey.as_ptr(), std::ptr::null()) };
     if rc <= 0 {
         return Err(CertLocalError::CertificateCreationFailed(
             "X509_sign with null digest failed (pure signature algorithm)".into(),
@@ -396,7 +382,7 @@ fn sign_x509_rsa_pss(
             ));
         }
 
-        let rc = X509_sign_ctx(x509.as_ptr() as *mut openssl_sys::X509, ctx);
+        let rc = X509_sign_ctx(x509.as_ptr(), ctx);
         openssl_sys::EVP_MD_CTX_free(ctx);
 
         if rc <= 0 {
@@ -543,12 +529,24 @@ impl CertificateFactory for EphemeralCertificateFactory {
             let mut eku = ExtendedKeyUsage::new();
             for oid in &options.enhanced_key_usages {
                 match oid.as_str() {
-                    "1.3.6.1.5.5.7.3.1" => { eku.server_auth(); }
-                    "1.3.6.1.5.5.7.3.2" => { eku.client_auth(); }
-                    "1.3.6.1.5.5.7.3.3" => { eku.code_signing(); }
-                    "1.3.6.1.5.5.7.3.4" => { eku.email_protection(); }
-                    "1.3.6.1.5.5.7.3.8" => { eku.time_stamping(); }
-                    other => { eku.other(other); }
+                    "1.3.6.1.5.5.7.3.1" => {
+                        eku.server_auth();
+                    }
+                    "1.3.6.1.5.5.7.3.2" => {
+                        eku.client_auth();
+                    }
+                    "1.3.6.1.5.5.7.3.3" => {
+                        eku.code_signing();
+                    }
+                    "1.3.6.1.5.5.7.3.4" => {
+                        eku.email_protection();
+                    }
+                    "1.3.6.1.5.5.7.3.8" => {
+                        eku.time_stamping();
+                    }
+                    other => {
+                        eku.other(other);
+                    }
                 }
             }
             builder
@@ -591,18 +589,23 @@ impl CertificateFactory for EphemeralCertificateFactory {
 
         // Custom X.509v3 extensions
         for ext in &options.custom_extensions {
-            let oid = openssl::asn1::Asn1Object::from_str(&ext.oid)
-                .map_err(|e| CertLocalError::CertificateCreationFailed(format!(
-                    "invalid OID {}: {}", ext.oid, e
-                )))?;
-            let octet_string = openssl::asn1::Asn1OctetString::new_from_bytes(&ext.value)
-                .map_err(|e| CertLocalError::CertificateCreationFailed(format!(
-                    "failed to create octet string for extension {}: {}", ext.oid, e
-                )))?;
+            let oid = openssl::asn1::Asn1Object::from_str(&ext.oid).map_err(|e| {
+                CertLocalError::CertificateCreationFailed(format!("invalid OID {}: {}", ext.oid, e))
+            })?;
+            let octet_string =
+                openssl::asn1::Asn1OctetString::new_from_bytes(&ext.value).map_err(|e| {
+                    CertLocalError::CertificateCreationFailed(format!(
+                        "failed to create octet string for extension {}: {}",
+                        ext.oid, e
+                    ))
+                })?;
             let extension = X509Extension::new_from_der(&oid, ext.critical, &octet_string)
-                .map_err(|e| CertLocalError::CertificateCreationFailed(format!(
-                    "failed to create custom extension {}: {}", ext.oid, e
-                )))?;
+                .map_err(|e| {
+                    CertLocalError::CertificateCreationFailed(format!(
+                        "failed to create custom extension {}: {}",
+                        ext.oid, e
+                    ))
+                })?;
             builder
                 .append_extension(extension)
                 .map_err(|e| CertLocalError::CertificateCreationFailed(e.to_string()))?;
@@ -613,12 +616,14 @@ impl CertificateFactory for EphemeralCertificateFactory {
             if let Some(issuer_key_der) = &issuer.private_key_der {
                 let issuer_pkey = PKey::private_key_from_der(issuer_key_der).map_err(|e| {
                     CertLocalError::CertificateCreationFailed(format!(
-                        "failed to load issuer key: {}", e
+                        "failed to load issuer key: {}",
+                        e
                     ))
                 })?;
                 let issuer_cert = X509::from_der(&issuer.cert_der).map_err(|e| {
                     CertLocalError::CertificateCreationFailed(format!(
-                        "failed to parse issuer cert: {}", e
+                        "failed to parse issuer cert: {}",
+                        e
                     ))
                 })?;
                 builder

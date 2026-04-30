@@ -6,38 +6,43 @@
 use cose_sign1_certificates::error::CertificateError;
 use cose_sign1_certificates::signing::scitt::{build_scitt_cwt_claims, create_scitt_contributor};
 use cose_sign1_certificates_local::{
-    CertificateOptions, EphemeralCertificateFactory, SoftwareKeyProvider,
-    CertificateFactory,
+    CertificateFactory, CertificateOptions, EphemeralCertificateFactory, SoftwareKeyProvider,
 };
 use cose_sign1_headers::CwtClaims;
 use cose_sign1_signing::{HeaderContributor, HeaderMergeStrategy};
 
 fn make_cert_with_eku() -> Vec<u8> {
     let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
-    let cert = factory.create_certificate(
-        CertificateOptions::new()
-            .with_subject_name("CN=test.example.com")
-            .add_subject_alternative_name("test.example.com")
-            .with_enhanced_key_usages(vec!["1.3.6.1.5.5.7.3.3".to_string()])
-    ).unwrap();
+    let cert = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=test.example.com")
+                .add_subject_alternative_name("test.example.com")
+                .with_enhanced_key_usages(vec!["1.3.6.1.5.5.7.3.3".to_string()]),
+        )
+        .unwrap();
     cert.cert_der.clone()
 }
 
 fn make_two_cert_chain() -> Vec<Vec<u8>> {
     let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
-    let root = factory.create_certificate(
-        CertificateOptions::new()
-            .with_subject_name("CN=root.example.com")
-            .add_subject_alternative_name("root.example.com")
-            .as_ca(u32::MAX)
-    ).unwrap();
-    let leaf = factory.create_certificate(
-        CertificateOptions::new()
-            .with_subject_name("CN=leaf.example.com")
-            .add_subject_alternative_name("leaf.example.com")
-            .with_enhanced_key_usages(vec!["1.3.6.1.5.5.7.3.3".to_string()])
-            .signed_by(root.clone())
-    ).unwrap();
+    let root = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=root.example.com")
+                .add_subject_alternative_name("root.example.com")
+                .as_ca(u32::MAX),
+        )
+        .unwrap();
+    let leaf = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=leaf.example.com")
+                .add_subject_alternative_name("leaf.example.com")
+                .with_enhanced_key_usages(vec!["1.3.6.1.5.5.7.3.3".to_string()])
+                .signed_by(root.clone()),
+        )
+        .unwrap();
     vec![leaf.cert_der.clone(), root.cert_der.clone()]
 }
 

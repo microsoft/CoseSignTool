@@ -665,7 +665,10 @@ impl CoseHeaderMap {
         }
     }
 
-    fn decode_value<'a, D: CborDecoder<'a>>(decoder: &mut D, depth: usize) -> Result<CoseHeaderValue, CoseError> {
+    fn decode_value<'a, D: CborDecoder<'a>>(
+        decoder: &mut D,
+        depth: usize,
+    ) -> Result<CoseHeaderValue, CoseError> {
         if depth >= MAX_CBOR_DEPTH {
             return Err(CoseError::InvalidMessage(
                 "CBOR nesting depth exceeds maximum allowed depth".into(),

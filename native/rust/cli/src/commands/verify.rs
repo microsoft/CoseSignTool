@@ -455,8 +455,8 @@ fn describe_trust_mode(args: &VerifyX509Args) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        describe_trust_mode, ensure_supported_scitt_type, push_unique,
-        read_detached_payload, resolve_scitt_trust_inputs, VerifyScittArgs, VerifyX509Args,
+        describe_trust_mode, ensure_supported_scitt_type, push_unique, read_detached_payload,
+        resolve_scitt_trust_inputs, VerifyScittArgs, VerifyX509Args,
     };
 
     #[test]
@@ -521,8 +521,8 @@ mod tests {
             issuer_offline_keys: vec!["missing-separator".to_string()],
         };
 
-        let error = resolve_scitt_trust_inputs(&args)
-            .expect_err("invalid offline key entries should fail");
+        let error =
+            resolve_scitt_trust_inputs(&args).expect_err("invalid offline key entries should fail");
         assert!(error.to_string().contains("Expected issuer=path"));
     }
 
@@ -634,13 +634,11 @@ mod tests {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let path = std::env::current_dir()
-            .unwrap()
-            .join(format!(
-                ".test-detached-payload-{}-{}.bin",
-                std::process::id(),
-                timestamp
-            ));
+        let path = std::env::current_dir().unwrap().join(format!(
+            ".test-detached-payload-{}-{}.bin",
+            std::process::id(),
+            timestamp
+        ));
         std::fs::write(&path, b"test payload data").unwrap();
         let payload = read_detached_payload(Some(path.to_str().unwrap()))
             .unwrap()

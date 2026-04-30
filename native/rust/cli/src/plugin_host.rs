@@ -271,8 +271,7 @@ impl PluginRegistry {
 
         let plugin_id = info.id.clone();
         plugin.info = info;
-        self.plugins
-            .insert(plugin_id, Arc::new(Mutex::new(plugin)));
+        self.plugins.insert(plugin_id, Arc::new(Mutex::new(plugin)));
         Ok(())
     }
 

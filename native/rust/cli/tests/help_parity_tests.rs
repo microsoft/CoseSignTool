@@ -16,7 +16,8 @@ fn aas_help_includes_exact_v2_option_strings() {
     );
 
     assert!(help.contains("--aas-endpoint <aas-endpoint>"));
-    assert!(help.contains("Azure Artifact Signing endpoint URL (e.g., https://xxx.codesigning.azure.net)"));
+    assert!(help
+        .contains("Azure Artifact Signing endpoint URL (e.g., https://xxx.codesigning.azure.net)"));
     assert!(help.contains("--aas-account-name <aas-account-name>"));
     assert!(help.contains("Azure Artifact Signing account name"));
     assert!(help.contains("--aas-cert-profile-name <aas-cert-profile-name>"));
@@ -31,9 +32,12 @@ fn pfx_help_includes_exact_v2_option_strings() {
     );
 
     assert!(help.contains("--pfx <pfx>"));
-    assert!(help.contains("Path to PFX/PKCS#12 file containing the signing certificate and private key"));
+    assert!(help
+        .contains("Path to PFX/PKCS#12 file containing the signing certificate and private key"));
     assert!(help.contains("--pfx-password-file <pfx-password-file>"));
-    assert!(help.contains("Path to a file containing the PFX password (more secure than command line)"));
+    assert!(
+        help.contains("Path to a file containing the PFX password (more secure than command line)")
+    );
     assert!(help.contains("--pfx-password-env <pfx-password-env>"));
     assert!(help.contains("Name of environment variable containing the PFX password"));
     assert!(help.contains("-o, --output <output>"));
@@ -161,9 +165,10 @@ fn transparency_plugin_options_are_added_to_builtin_sign_subcommands() {
     match parsed {
         ParsedCli::BuiltIn(cli) => match cli.command {
             Command::Sign {
-                method: commands::sign::SignMethod::X509 {
-                    provider: commands::sign::X509Provider::Ephemeral(args),
-                },
+                method:
+                    commands::sign::SignMethod::X509 {
+                        provider: commands::sign::X509Provider::Ephemeral(args),
+                    },
             } => {
                 assert_eq!(
                     args.common.transparency_options.get("scitt-rekor-endpoint"),

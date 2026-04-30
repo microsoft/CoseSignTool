@@ -2,8 +2,8 @@
 // Licensed under the MIT License.
 
 use cose_sign1_certificates_local::{
-    Certificate, CertificateFactory, CertificateOptions, EphemeralCertificateFactory,
-    KeyAlgorithm, SoftwareKeyProvider,
+    Certificate, CertificateFactory, CertificateOptions, EphemeralCertificateFactory, KeyAlgorithm,
+    SoftwareKeyProvider,
 };
 use did_x509::*;
 use sha2::{Digest, Sha256};

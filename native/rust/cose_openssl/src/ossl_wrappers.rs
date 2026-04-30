@@ -191,7 +191,8 @@ impl EvpKey {
     pub fn from_der_private(der: &[u8]) -> Result<Self, String> {
         let key = unsafe {
             let mut ptr = der.as_ptr();
-            let key = ossl::d2i_AutoPrivateKey(ptr::null_mut(), &mut ptr, der.len() as std::ffi::c_long);
+            let key =
+                ossl::d2i_AutoPrivateKey(ptr::null_mut(), &mut ptr, der.len() as std::ffi::c_long);
             if key.is_null() {
                 return Err(format!("d2i_AutoPrivateKey failed: {}", ossl_err_string()));
             }

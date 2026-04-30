@@ -5,14 +5,14 @@ use cbor_primitives::{CborEncoder, CborProvider};
 use cbor_primitives_everparse::EverParseCborProvider;
 use cose_sign1_certificates::validation::facts::X509SigningCertificateIdentityFact;
 use cose_sign1_certificates::validation::pack::X509CertificateTrustPack;
+use cose_sign1_certificates_local::{
+    CertificateFactory, CertificateOptions, EphemeralCertificateFactory, SoftwareKeyProvider,
+};
 use cose_sign1_primitives::CoseSign1Message;
 use cose_sign1_validation::fluent::*;
 use cose_sign1_validation_primitives::facts::{TrustFactEngine, TrustFactSet};
 use cose_sign1_validation_primitives::subject::TrustSubject;
 use crypto_primitives::{CryptoError, CryptoVerifier};
-use cose_sign1_certificates_local::{
-    CertificateFactory, CertificateOptions, EphemeralCertificateFactory, SoftwareKeyProvider,
-};
 use std::sync::Arc;
 
 fn wrap_as_cbor_bstr(inner: &[u8]) -> Vec<u8> {

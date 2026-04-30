@@ -38,9 +38,9 @@ pub fn execute(args: InspectArgs, format: OutputFormat) -> Result<i32> {
         .map_err(|e| anyhow::anyhow!("Failed to parse COSE_Sign1: {e}"))?;
 
     if let Some(extract_path) = &args.extract_payload {
-        let payload = message
-            .payload()
-            .ok_or_else(|| anyhow::anyhow!("COSE_Sign1 message does not contain an embedded payload"))?;
+        let payload = message.payload().ok_or_else(|| {
+            anyhow::anyhow!("COSE_Sign1 message does not contain an embedded payload")
+        })?;
         fs::write(extract_path, payload)
             .with_context(|| format!("Failed to write extracted payload: {extract_path}"))?;
     }

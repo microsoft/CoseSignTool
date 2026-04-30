@@ -9,9 +9,9 @@ use cosesigntool_plugin_api::auth::{auth_key_to_hex, generate_auth_key, AUTH_KEY
 use cosesigntool_plugin_api::client::PluginClient;
 use cosesigntool_plugin_api::server;
 use cosesigntool_plugin_api::traits::{
-    PluginCapability, PluginCommandDef, PluginConfig, PluginInfo, PluginOptionDef,
-    PluginProvider, TrustPolicyInfo, VerificationOptions, VerificationResult,
-    VerificationStageKind, VerificationStageResult,
+    PluginCapability, PluginCommandDef, PluginConfig, PluginInfo, PluginOptionDef, PluginProvider,
+    TrustPolicyInfo, VerificationOptions, VerificationResult, VerificationStageKind,
+    VerificationStageResult,
 };
 
 #[test]

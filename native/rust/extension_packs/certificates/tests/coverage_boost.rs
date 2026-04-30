@@ -24,6 +24,10 @@ use cose_sign1_certificates::validation::pack::{
     CertificateTrustOptions, X509CertificateTrustPack,
 };
 use cose_sign1_certificates::validation::signing_key_resolver::X509CertificateCoseKeyResolver;
+use cose_sign1_certificates_local::{
+    Certificate, CertificateFactory, CertificateOptions, EphemeralCertificateFactory,
+    SoftwareKeyProvider,
+};
 use cose_sign1_primitives::{CoseHeaderLabel, CoseHeaderMap, CoseSign1Message};
 use cose_sign1_signing::{
     HeaderContributor, HeaderContributorContext, HeaderMergeStrategy, SigningContext,
@@ -32,21 +36,13 @@ use cose_sign1_validation::fluent::*;
 use cose_sign1_validation_primitives::facts::{TrustFactEngine, TrustFactSet};
 use cose_sign1_validation_primitives::subject::TrustSubject;
 use crypto_primitives::{CryptoError, CryptoSigner};
-use cose_sign1_certificates_local::{
-    Certificate, CertificateFactory, CertificateOptions, EphemeralCertificateFactory,
-    SoftwareKeyProvider,
-};
 
 // ===========================================================================
 // Helpers
 // ===========================================================================
 
 /// Generate a self-signed DER certificate with configurable extensions.
-fn gen_cert(
-    cn: &str,
-    is_ca: Option<u8>,
-    ekus: &[&str],
-) -> Certificate {
+fn gen_cert(cn: &str, is_ca: Option<u8>, ekus: &[&str]) -> Certificate {
     let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
     let mut opts = CertificateOptions::new()
         .with_subject_name(format!("CN={}", cn))
@@ -61,17 +57,16 @@ fn gen_cert(
 }
 
 /// Generate a certificate signed by the given issuer.
-fn gen_issued_cert(
-    cn: &str,
-    issuer: &Certificate,
-) -> Certificate {
+fn gen_issued_cert(cn: &str, issuer: &Certificate) -> Certificate {
     let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
-    factory.create_certificate(
-        CertificateOptions::new()
-            .with_subject_name(format!("CN={}", cn))
-            .add_subject_alternative_name(format!("{cn}.example"))
-            .signed_by(issuer.clone())
-    ).unwrap()
+    factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name(format!("CN={}", cn))
+                .add_subject_alternative_name(format!("{cn}.example"))
+                .signed_by(issuer.clone()),
+        )
+        .unwrap()
 }
 
 /// Simple leaf cert.
@@ -440,12 +435,12 @@ fn produce_signing_cert_facts_with_any_eku() {
         "multi-eku",
         None,
         &[
-            "1.3.6.1.5.5.7.3.1",  // server_auth
-            "1.3.6.1.5.5.7.3.2",  // client_auth
-            "1.3.6.1.5.5.7.3.3",  // code_signing
-            "1.3.6.1.5.5.7.3.4",  // email_protection
-            "1.3.6.1.5.5.7.3.8",  // time_stamping
-            "1.3.6.1.5.5.7.3.9",  // ocsp_signing
+            "1.3.6.1.5.5.7.3.1", // server_auth
+            "1.3.6.1.5.5.7.3.2", // client_auth
+            "1.3.6.1.5.5.7.3.3", // code_signing
+            "1.3.6.1.5.5.7.3.4", // email_protection
+            "1.3.6.1.5.5.7.3.8", // time_stamping
+            "1.3.6.1.5.5.7.3.9", // ocsp_signing
         ],
     );
     let cose = build_cose(&[&cert.cert_der]);
@@ -656,13 +651,15 @@ fn chain_identity_with_three_element_chain() {
     let root_der = root_cert.cert_der.clone();
     let mid_cert = {
         let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
-        factory.create_certificate(
-            CertificateOptions::new()
-                .with_subject_name("CN=mid3")
-                .add_subject_alternative_name("mid3.example")
-                .as_ca(0)
-                .signed_by(root_cert.clone())
-        ).unwrap()
+        factory
+            .create_certificate(
+                CertificateOptions::new()
+                    .with_subject_name("CN=mid3")
+                    .add_subject_alternative_name("mid3.example")
+                    .as_ca(0)
+                    .signed_by(root_cert.clone()),
+            )
+            .unwrap()
     };
     let mid_der = mid_cert.cert_der.clone();
     let leaf_cert = gen_issued_cert("leaf3", &mid_cert);

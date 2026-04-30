@@ -363,8 +363,11 @@ fn test_error_display_coverage() {
 
 #[test]
 fn test_policy_validation_edge_cases() {
-    let cert_der =
-        generate_cert_with_subject(vec![("CN", "Edge Case Test"), ("O", "Test Corp"), ("C", "US")]);
+    let cert_der = generate_cert_with_subject(vec![
+        ("CN", "Edge Case Test"),
+        ("O", "Test Corp"),
+        ("C", "US"),
+    ]);
     let (_, cert) = X509Certificate::from_der(&cert_der).unwrap();
 
     // Test with less common DN attributes

@@ -421,7 +421,7 @@ mod tests {
     fn sha256_thumbprint_produces_expected_hex() {
         let result = sha256_thumbprint(b"test data");
         assert_eq!(result.len(), 64); // SHA-256 is 32 bytes = 64 hex chars
-        // Verify it's valid uppercase hex
+                                      // Verify it's valid uppercase hex
         assert!(result.chars().all(|c| c.is_ascii_hexdigit()));
     }
 
@@ -509,10 +509,7 @@ mod tests {
             format_cwt_claim_value(&CwtClaimValue::Bytes(vec![0xCA, 0xFE])),
             "CAFE"
         );
-        assert_eq!(
-            format_cwt_claim_value(&CwtClaimValue::Bool(false)),
-            "false"
-        );
+        assert_eq!(format_cwt_claim_value(&CwtClaimValue::Bool(false)), "false");
         assert_eq!(format_cwt_claim_value(&CwtClaimValue::Float(1.5)), "1.5");
     }
 
@@ -539,10 +536,7 @@ mod tests {
         assert_eq!(entries[4].0, "nbf");
         assert_eq!(entries[5].0, "iat");
         assert_eq!(entries[6], ("cti".to_string(), "ABCD".to_string()));
-        assert_eq!(
-            entries[7],
-            ("claim[100]".to_string(), "custom".to_string())
-        );
+        assert_eq!(entries[7], ("claim[100]".to_string(), "custom".to_string()));
     }
 
     #[test]
@@ -631,6 +625,8 @@ mod tests {
     #[test]
     fn extract_signing_certificate_details_coverage_via_formatter() {
         let message = CoseSign1Message::parse(&[0xD2, 0x84, 0x40, 0xA0, 0x40, 0x40]).unwrap();
-        assert!(extract_signing_certificate_details(&message).unwrap().is_none());
+        assert!(extract_signing_certificate_details(&message)
+            .unwrap()
+            .is_none());
     }
 }

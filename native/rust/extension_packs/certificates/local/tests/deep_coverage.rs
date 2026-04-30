@@ -103,7 +103,9 @@ fn software_key_provider_generate_rsa_succeeds() {
 #[test]
 fn software_key_provider_generate_rsa_with_size_succeeds() {
     let provider = SoftwareKeyProvider::new();
-    let key = provider.generate_key(KeyAlgorithm::Rsa, Some(2048)).unwrap();
+    let key = provider
+        .generate_key(KeyAlgorithm::Rsa, Some(2048))
+        .unwrap();
 
     assert_eq!(key.algorithm, KeyAlgorithm::Rsa);
     assert_eq!(key.key_size, 2048);
@@ -245,7 +247,8 @@ fn certificate_options_add_subject_alternative_name() {
 #[test]
 fn certificate_options_add_custom_extension_der() {
     let ext_bytes = vec![0x30, 0x03, 0x01, 0x01, 0xFF];
-    let opts = CertificateOptions::new().add_custom_extension_der("1.2.3.4.5", false, ext_bytes.clone());
+    let opts =
+        CertificateOptions::new().add_custom_extension_der("1.2.3.4.5", false, ext_bytes.clone());
 
     assert_eq!(opts.custom_extensions.len(), 1);
     assert_eq!(opts.custom_extensions[0].oid, "1.2.3.4.5");

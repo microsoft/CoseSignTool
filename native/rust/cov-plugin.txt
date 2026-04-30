@@ -1,0 +1,347 @@
+info: cargo-llvm-cov currently setting cfg(coverage) and cfg(coverage_nightly); you can opt-out it by passing --no-cfg-coverage and --no-cfg-coverage-nightly
+warning: skipping duplicate packages `cborrs v0.1.0 (https://github.com/project-everest/everparse?tag=v2026.02.04#a17b4739)`:
+  C:\Users\jstatia\.cargo\git\checkouts\everparse-0f3b9759962bde6d\a17b473\src\cbor\pulse\nondet\rust\Cargo.toml
+  C:\Users\jstatia\.cargo\git\checkouts\everparse-0f3b9759962bde6d\a17b473\src\cddl\tests\rust\Cargo.toml
+in favor of C:\Users\jstatia\.cargo\git\checkouts\everparse-0f3b9759962bde6d\a17b473\src\cbor\pulse\det\rust\Cargo.toml
+
+   Compiling cbor_primitives v0.1.0 (C:\src\repos\CoseSignTool\native\rust\primitives\cbor)
+   Compiling crypto_primitives v0.1.0 (C:\src\repos\CoseSignTool\native\rust\primitives\crypto)
+   Compiling did_x509 v0.1.0 (C:\src\repos\CoseSignTool\native\rust\did\x509)
+   Compiling azure_artifact_signing_client v0.1.0 (C:\src\repos\CoseSignTool\native\rust\extension_packs\azure_artifact_signing\client)
+   Compiling cbor_primitives_everparse v0.1.0 (C:\src\repos\CoseSignTool\native\rust\primitives\cbor\everparse)
+   Compiling cosesigntool_plugin_api v0.1.0 (C:\src\repos\CoseSignTool\native\rust\cli\plugin-api)
+   Compiling cose_primitives v0.1.0 (C:\src\repos\CoseSignTool\native\rust\primitives\cose)
+   Compiling cose_sign1_primitives v0.1.0 (C:\src\repos\CoseSignTool\native\rust\primitives\cose\sign1)
+   Compiling cose_sign1_crypto_openssl v0.1.0 (C:\src\repos\CoseSignTool\native\rust\primitives\crypto\openssl)
+   Compiling cose_sign1_signing v0.1.0 (C:\src\repos\CoseSignTool\native\rust\signing\core)
+   Compiling cose_sign1_validation_primitives v0.1.0 (C:\src\repos\CoseSignTool\native\rust\validation\primitives)
+   Compiling cose_sign1_certificates_local v0.1.0 (C:\src\repos\CoseSignTool\native\rust\extension_packs\certificates\local)
+   Compiling cose_sign1_headers v0.1.0 (C:\src\repos\CoseSignTool\native\rust\signing\headers)
+   Compiling cose_sign1_factories v0.1.0 (C:\src\repos\CoseSignTool\native\rust\signing\factories)
+warning: unused imports: `Response` and `self`
+  --> cli\plugin-api\tests\server_auth_tests.rs:11:5
+   |
+11 |     self, methods, write_request, Request, RequestParams, Response, ResponseResult,
+   |     ^^^^                                                  ^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `auth_key`
+  --> cli\plugin-api\tests\server_auth_tests.rs:65:9
+   |
+65 |     let auth_key = [0xAA; AUTH_KEY_LENGTH];
+   |         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_auth_key`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+   Compiling cose_sign1_validation v0.1.0 (C:\src\repos\CoseSignTool\native\rust\validation\core)
+   Compiling cose_sign1_certificates v0.1.0 (C:\src\repos\CoseSignTool\native\rust\extension_packs\certificates)
+warning: `cosesigntool_plugin_api` (test "server_auth_tests") generated 2 warnings (run `cargo fix --test "server_auth_tests" -p cosesigntool_plugin_api` to apply 2 suggestions)
+   Compiling cose_sign1_azure_artifact_signing v0.1.0 (C:\src\repos\CoseSignTool\native\rust\extension_packs\azure_artifact_signing)
+   Compiling cose_sign1_azure_key_vault v0.1.0 (C:\src\repos\CoseSignTool\native\rust\extension_packs\azure_key_vault)
+   Compiling cosesigntool_plugin_loader v0.1.0 (C:\src\repos\CoseSignTool\native\rust\cli\plugin-loader)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 17.75s
+     Running unittests src\lib.rs (target\llvm-cov-target\debug\deps\cosesigntool_plugin_api-f628e8f5f6a60895.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\auth_additional_tests.rs (target\llvm-cov-target\debug\deps\auth_additional_tests-b4a297e7474c941e.exe)
+
+running 4 tests
+test auth_key_from_hex_accepts_uppercase_hex ... ok
+test auth_key_from_hex_rejects_odd_length_input ... ok
+test auth_key_from_hex_rejects_wrong_length_input ... ok
+test generate_auth_key_returns_a_non_zero_32_byte_key ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\auth_tests.rs (target\llvm-cov-target\debug\deps\auth_tests-8f3f90e78a1390c3.exe)
+
+running 4 tests
+test auth_key_from_hex_rejects_invalid_character ... ok
+test auth_key_hex_roundtrips ... ok
+test constant_time_eq_returns_expected_results ... ok
+test read_and_clear_auth_key_reads_then_removes_environment_variable ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\client_mock_tests.rs (target\llvm-cov-target\debug\deps\client_mock_tests-10880ff83adcb095.exe)
+
+running 4 tests
+test connect_with_stream_returns_plugin_error_when_authentication_fails ... ok
+test rpc_errors_are_returned_as_client_errors ... ok
+test unexpected_response_shapes_are_reported ... ok
+test connect_with_stream_and_rpc_methods_send_expected_requests ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\client_server_integration_tests.rs (target\llvm-cov-target\debug\deps\client_server_integration_tests-08c99346b59e47e1.exe)
+
+running 2 tests
+test client_and_server_roundtrip_all_supported_methods ... ok
+test verification_methods_return_none_when_capability_is_not_advertised ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running tests\error_display_tests.rs (target\llvm-cov-target\debug\deps\error_display_tests-19c3a077e94954d3.exe)
+
+running 27 tests
+test auth_error_display_environment_variable ... ok
+test auth_error_display_invalid_hex_character ... ok
+test auth_error_display_invalid_hex_length ... ok
+test auth_error_display_io ... ok
+test auth_key_from_hex_rejects_invalid_char ... ok
+test auth_error_from_io_error ... ok
+test client_error_display_connection_timeout ... ok
+test client_error_display_io ... ok
+test client_error_from_io_error ... ok
+test constant_time_eq_different_lengths ... ok
+test auth_key_to_hex_all_zeros ... ok
+test client_error_display_plugin ... ok
+test auth_key_hex_roundtrip ... ok
+test constant_time_eq_equal_slices ... ok
+test constant_time_eq_empty_slices ... ok
+test constant_time_eq_different_slices ... ok
+test client_error_display_unexpected_response ... ok
+test protocol_codec_error_display_cbor ... ok
+test protocol_codec_error_display_invalid_message ... ok
+test protocol_codec_error_display_io ... ok
+test protocol_codec_error_from_io_error ... ok
+test server_error_display_auth ... ok
+test server_error_display_authentication_failed ... ok
+test server_error_display_io ... ok
+test server_error_display_missing_argument ... ok
+test server_error_from_auth_error ... ok
+test server_error_from_io_error ... ok
+
+test result: ok. 27 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\protocol_additional_tests.rs (target\llvm-cov-target\debug\deps\protocol_additional_tests-ed51325df6ad60d0.exe)
+
+running 9 tests
+test frame_length_prefix_rejects_sizes_larger_than_u32 ... ok
+test authenticate_request_roundtrips_through_framed_cbor ... ok
+test none_request_roundtrips_through_framed_cbor ... ok
+test write_frame_and_read_frame_roundtrip_various_sizes ... ok
+test read_frame_reports_eof_for_missing_or_truncated_frames ... ok
+test none_create_service_sign_and_raw_cbor_responses_roundtrip ... ok
+test service_id_request_roundtrips_through_framed_cbor ... ok
+test raw_cbor_request_roundtrips_for_unknown_methods ... ok
+test read_request_returns_none_on_clean_eof ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\protocol_frame_tests.rs (target\llvm-cov-target\debug\deps\protocol_frame_tests-5d3e3525c7f13284.exe)
+
+running 16 tests
+test frame_length_prefix_max_u32 ... ok
+test frame_length_prefix_zero_length ... ok
+test frame_length_prefix_small_length ... ok
+test write_frame_read_frame_roundtrip ... ok
+test frame_length_prefix_exceeds_u32_returns_error ... ok
+test write_request_read_request_roundtrip_authenticate ... ok
+test write_request_read_request_roundtrip_shutdown ... ok
+test write_request_read_request_roundtrip_get_cert_chain ... ok
+test write_request_read_request_roundtrip_trust_policy_info ... ok
+test write_request_read_request_roundtrip_get_algorithm ... ok
+test write_response_read_response_roundtrip_none ... ok
+test write_request_read_request_roundtrip_capabilities ... ok
+test read_request_returns_none_on_clean_eof ... ok
+test read_frame_empty_stream_returns_eof_error ... ok
+test write_response_read_response_roundtrip_acknowledged ... ok
+test write_response_read_response_roundtrip_error ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\protocol_roundtrip_tests.rs (target\llvm-cov-target\debug\deps\protocol_roundtrip_tests-5b2084ad74521a7b.exe)
+
+running 7 tests
+test acknowledgement_response_roundtrips_through_framed_cbor ... ok
+test sign_request_roundtrips_through_framed_cbor ... ok
+test create_service_request_roundtrips_string_options_map ... ok
+test verify_request_roundtrips_through_framed_cbor ... ok
+test trust_policy_info_response_roundtrips_through_framed_cbor ... ok
+test plugin_info_response_roundtrips_through_framed_cbor ... ok
+test binary_response_payloads_roundtrip_without_base64 ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\server_auth_tests.rs (target\llvm-cov-target\debug\deps\server_auth_tests-9c451483fa809c31.exe)
+
+running 14 tests
+test dispatch_request_get_algorithm_with_wrong_params ... ok
+test dispatch_request_create_service_with_wrong_params ... ok
+test dispatch_request_get_trust_policy_info_without_capability_returns_none ... ok
+test dispatch_request_get_trust_policy_info_with_wrong_params ... ok
+test serve_connection_rejects_auth_with_wrong_params ... ok
+test dispatch_request_sign_with_wrong_params ... ok
+test dispatch_request_unknown_method_returns_error ... ok
+test dispatch_request_verify_with_wrong_params ... ok
+test serve_connection_handles_eof_after_auth ... ok
+test serve_connection_processes_shutdown ... ok
+test dispatch_request_get_cert_chain_with_wrong_params ... ok
+test serve_connection_rejects_non_auth_first_message ... ok
+test dispatch_request_verify_without_capability_returns_none ... ok
+test serve_connection_rejects_wrong_auth_key ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\server_dispatch_tests.rs (target\llvm-cov-target\debug\deps\server_dispatch_tests-cf6137f5c2232f27.exe)
+
+running 4 tests
+test dispatch_request_handles_invalid_params_unknown_methods_and_capability_gating ... ok
+test dispatch_request_routes_supported_methods ... ok
+test serve_connection_rejects_incorrect_auth_key ... ok
+test serve_connection_stops_processing_after_shutdown ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\traits_tests.rs (target\llvm-cov-target\debug\deps\traits_tests-3271e7826b65ad36.exe)
+
+running 2 tests
+test default_plugin_provider_verification_methods_return_none ... ok
+test plugin_capability_roundtrips_to_and_from_strings ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\main.rs (target\llvm-cov-target\debug\deps\cosesigntool_plugin_loader-e264ae133bdae039.exe)
+
+running 8 tests
+test tests::available_plugins_returns_a_vec ... ok
+test tests::create_provider_empty_name_returns_error ... ok
+test tests::find_arg_returns_none_when_flag_is_last_element ... ok
+test tests::create_provider_unknown_name_returns_error ... ok
+test tests::find_arg_returns_none_for_empty_args ... ok
+test tests::print_help_does_not_panic ... ok
+test tests::find_arg_returns_the_value_following_a_flag ... ok
+test tests::plugin_loader_binary_exists_and_help_succeeds ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 43.36s
+
+Filename                                                                       Regions    Missed Regions     Cover   Functions  Missed Functions  Executed       Lines      Missed Lines     Cover    Branches   Missed Branches     Cover
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+cli\plugin-api\src\auth.rs                                                         141                14    90.07%          12                 2    83.33%         101                18    82.18%           0                 0         -
+cli\plugin-api\src\client.rs                                                       250                66    73.60%          20                 1    95.00%         211                71    66.35%           0                 0         -
+cli\plugin-api\src\protocol.rs                                                    2968               764    74.26%         135                46    65.93%        1635               354    78.35%           0                 0         -
+cli\plugin-api\src\server.rs                                                       319                69    78.37%          18                 3    83.33%         219                47    78.54%           0                 0         -
+cli\plugin-api\src\traits.rs                                                        79                54    31.65%          13                 9    30.77%          79                52    34.18%           0                 0         -
+cli\plugin-loader\src\main.rs                                                      197                44    77.66%          17                 3    82.35%         118                26    77.97%           0                 0         -
+cli\plugin-loader\src\providers.rs                                                 977               952     2.56%         105               103     1.90%         640               621     2.97%           0                 0         -
+did\x509\src\builder.rs                                                            190               190     0.00%          11                11     0.00%         125               125     0.00%           0                 0         -
+did\x509\src\did_document.rs                                                         1                 1     0.00%           1                 1     0.00%           1                 1     0.00%           0                 0         -
+did\x509\src\error.rs                                                               76                76     0.00%           1                 1     0.00%          45                45     0.00%           0                 0         -
+did\x509\src\models\parsed_identifier.rs                                            16                16     0.00%           6                 6     0.00%          14                14     0.00%           0                 0         -
+did\x509\src\models\policy.rs                                                       19                19     0.00%           2                 2     0.00%          15                15     0.00%           0                 0         -
+did\x509\src\models\x509_name.rs                                                     5                 5     0.00%           2                 2     0.00%           2                 2     0.00%           0                 0         -
+did\x509\src\parsing\parser.rs                                                      18                18     0.00%           6                 6     0.00%           9                 9     0.00%           0                 0         -
+did\x509\src\parsing\percent_encoding.rs                                           122               122     0.00%           7                 7     0.00%          67                67     0.00%           0                 0         -
+did\x509\src\policy_validators.rs                                                   19                19     0.00%           7                 7     0.00%          16                16     0.00%           0                 0         -
+did\x509\src\resolver.rs                                                             2                 2     0.00%           1                 1     0.00%           1                 1     0.00%           0                 0         -
+did\x509\src\validator.rs                                                            2                 2     0.00%           1                 1     0.00%           1                 1     0.00%           0                 0         -
+did\x509\src\x509_extensions.rs                                                     69                69     0.00%           4                 4     0.00%          52                52     0.00%           0                 0         -
+extension_packs\azure_artifact_signing\client\src\client.rs                        506               506     0.00%          31                31     0.00%         320               320     0.00%           0                 0         -
+extension_packs\azure_artifact_signing\client\src\models.rs                         28                28     0.00%           5                 5     0.00%          30                30     0.00%           0                 0         -
+extension_packs\azure_artifact_signing\src\error.rs                                 15                15     0.00%           1                 1     0.00%           7                 7     0.00%           0                 0         -
+extension_packs\azure_artifact_signing\src\signing\aas_crypto_signer.rs             58                58     0.00%           5                 5     0.00%          40                40     0.00%           0                 0         -
+extension_packs\azure_artifact_signing\src\signing\certificate_source.rs            87                87     0.00%          18                18     0.00%          73                73     0.00%           0                 0         -
+extension_packs\azure_artifact_signing\src\signing\did_x509_helper.rs              129               129     0.00%          10                10     0.00%          77                77     0.00%           0                 0         -
+extension_packs\azure_artifact_signing\src\signing\signing_service.rs              264               264     0.00%          28                28     0.00%         200               200     0.00%           0                 0         -
+extension_packs\azure_artifact_signing\src\validation\facts.rs                      19                19     0.00%           3                 3     0.00%          16                16     0.00%           0                 0         -
+extension_packs\azure_artifact_signing\src\validation\fluent_ext.rs                 28                28     0.00%           8                 8     0.00%          20                20     0.00%           0                 0         -
+extension_packs\azure_artifact_signing\src\validation\mod.rs                         5                 5     0.00%           1                 1     0.00%           5                 5     0.00%           0                 0         -
+extension_packs\azure_key_vault\src\common\akv_key_client.rs                       284               284     0.00%          30                30     0.00%         191               191     0.00%           0                 0         -
+extension_packs\azure_key_vault\src\common\error.rs                                 27                27     0.00%           1                 1     0.00%          11                11     0.00%           0                 0         -
+extension_packs\azure_key_vault\src\signing\akv_certificate_source.rs                4                 4     0.00%           2                 2     0.00%           2                 2     0.00%           0                 0         -
+extension_packs\azure_key_vault\src\signing\akv_signing_key.rs                     326               326     0.00%          42                42     0.00%         235               235     0.00%           0                 0         -
+extension_packs\azure_key_vault\src\signing\akv_signing_service.rs                 213               213     0.00%          15                15     0.00%         167               167     0.00%           0                 0         -
+extension_packs\azure_key_vault\src\signing\cose_key_header_contributor.rs          35                35     0.00%           4                 4     0.00%          33                33     0.00%           0                 0         -
+extension_packs\azure_key_vault\src\signing\key_id_header_contributor.rs            21                21     0.00%           4                 4     0.00%          24                24     0.00%           0                 0         -
+extension_packs\azure_key_vault\src\validation\facts.rs                             12                12     0.00%           2                 2     0.00%          10                10     0.00%           0                 0         -
+extension_packs\azure_key_vault\src\validation\fluent_ext.rs                        28                28     0.00%           8                 8     0.00%          20                20     0.00%           0                 0         -
+extension_packs\azure_key_vault\src\validation\pack.rs                              20                20     0.00%           8                 8     0.00%          17                17     0.00%           0                 0         -
+extension_packs\certificates\local\src\certificate.rs                               50                50     0.00%           8                 8     0.00%          39                39     0.00%           0                 0         -
+extension_packs\certificates\local\src\chain_factory.rs                              8                 8     0.00%           2                 2     0.00%           6                 6     0.00%           0                 0         -
+extension_packs\certificates\local\src\error.rs                                     24                24     0.00%           2                 2     0.00%          13                13     0.00%           0                 0         -
+extension_packs\certificates\local\src\factory.rs                                  652               652     0.00%          71                71     0.00%         446               446     0.00%           0                 0         -
+extension_packs\certificates\local\src\key_algorithm.rs                             11                11     0.00%           2                 2     0.00%          11                11     0.00%           0                 0         -
+extension_packs\certificates\local\src\loaders\der.rs                                1                 1     0.00%           1                 1     0.00%           1                 1     0.00%           0                 0         -
+extension_packs\certificates\local\src\loaders\pem.rs                              192               192     0.00%          12                12     0.00%         115               115     0.00%           0                 0         -
+extension_packs\certificates\local\src\loaders\pfx.rs                               12                12     0.00%           4                 4     0.00%          25                25     0.00%           0                 0         -
+extension_packs\certificates\local\src\loaders\windows_store.rs                      9                 9     0.00%           3                 3     0.00%           6                 6     0.00%           0                 0         -
+extension_packs\certificates\local\src\options.rs                                   78                78     0.00%          15                15     0.00%          73                73     0.00%           0                 0         -
+extension_packs\certificates\local\src\software_key.rs                             116               116     0.00%          18                18     0.00%          90                90     0.00%           0                 0         -
+extension_packs\certificates\src\chain_builder.rs                                    7                 7     0.00%           2                 2     0.00%           8                 8     0.00%           0                 0         -
+extension_packs\certificates\src\cose_key_factory.rs                                12                12     0.00%           4                 4     0.00%          15                15     0.00%           0                 0         -
+extension_packs\certificates\src\error.rs                                           16                16     0.00%           1                 1     0.00%           8                 8     0.00%           0                 0         -
+extension_packs\certificates\src\signing\certificate_header_contributor.rs          91                91     0.00%          11                11     0.00%          71                71     0.00%           0                 0         -
+extension_packs\certificates\src\signing\certificate_signing_options.rs              6                 6     0.00%           2                 2     0.00%           9                 9     0.00%           0                 0         -
+extension_packs\certificates\src\signing\certificate_signing_service.rs            199               199     0.00%          22                22     0.00%         154               154     0.00%           0                 0         -
+extension_packs\certificates\src\signing\scitt.rs                                   69                69     0.00%           4                 4     0.00%          52                52     0.00%           0                 0         -
+extension_packs\certificates\src\thumbprint.rs                                      30                30     0.00%          10                10     0.00%          30                30     0.00%           0                 0         -
+extension_packs\certificates\src\validation\facts.rs                                70                70     0.00%           7                 7     0.00%          53                53     0.00%           0                 0         -
+extension_packs\certificates\src\validation\fluent_ext.rs                          202               202     0.00%          37                37     0.00%         164               164     0.00%           0                 0         -
+extension_packs\certificates\src\validation\pack.rs                                859               859     0.00%          43                43     0.00%         537               537     0.00%           0                 0         -
+extension_packs\certificates\src\validation\signing_key_resolver.rs                202               202     0.00%          17                17     0.00%         146               146     0.00%           0                 0         -
+primitives\cbor\everparse\src\decoder.rs                                           725               510    29.66%          40                23    42.50%         514               366    28.79%           0                 0         -
+primitives\cbor\everparse\src\encoder.rs                                           535               460    14.02%          71                60    15.49%         381               329    13.65%           0                 0         -
+primitives\cbor\everparse\src\lib.rs                                                39                32    17.95%           4                 2    50.00%          23                17    26.09%           0                 0         -
+primitives\cbor\src\lib.rs                                                         196               189     3.57%          17                15    11.76%          98                94     4.08%           0                 0         -
+primitives\cose\sign1\src\builder.rs                                               365               365     0.00%          34                34     0.00%         228               228     0.00%           0                 0         -
+primitives\cose\sign1\src\error.rs                                                  80                80     0.00%           8                 8     0.00%          49                49     0.00%           0                 0         -
+primitives\cose\sign1\src\message.rs                                              1030              1030     0.00%          94                94     0.00%         669               669     0.00%           0                 0         -
+primitives\cose\sign1\src\payload.rs                                                20                20     0.00%           4                 4     0.00%          16                16     0.00%           0                 0         -
+primitives\cose\sign1\src\sig_structure.rs                                         323               323     0.00%          50                50     0.00%         288               288     0.00%           0                 0         -
+primitives\cose\src\arc_types.rs                                                   133               133     0.00%          25                25     0.00%          99                99     0.00%           0                 0         -
+primitives\cose\src\data.rs                                                        292               292     0.00%          29                29     0.00%         196               196     0.00%           0                 0         -
+primitives\cose\src\error.rs                                                        12                12     0.00%           1                 1     0.00%           6                 6     0.00%           0                 0         -
+primitives\cose\src\headers.rs                                                    1087              1087     0.00%         113               113     0.00%         662               662     0.00%           0                 0         -
+primitives\cose\src\lazy_headers.rs                                                 88                88     0.00%          13                13     0.00%          73                73     0.00%           0                 0         -
+primitives\cose\src\provider.rs                                                     12                12     0.00%           3                 3     0.00%           9                 9     0.00%           0                 0         -
+primitives\crypto\openssl\src\ecdsa_format.rs                                      226               226     0.00%           5                 5     0.00%         130               130     0.00%           0                 0         -
+primitives\crypto\openssl\src\evp_key.rs                                           101               101     0.00%          19                19     0.00%          85                85     0.00%           0                 0         -
+primitives\crypto\openssl\src\evp_signer.rs                                        275               275     0.00%          37                37     0.00%         191               191     0.00%           0                 0         -
+primitives\crypto\openssl\src\evp_verifier.rs                                      277               277     0.00%          37                37     0.00%         207               207     0.00%           0                 0         -
+primitives\crypto\openssl\src\jwk_verifier.rs                                        5                 5     0.00%           5                 5     0.00%           5                 5     0.00%           0                 0         -
+primitives\crypto\openssl\src\key_conversion.rs                                      6                 6     0.00%           6                 6     0.00%           6                 6     0.00%           0                 0         -
+primitives\crypto\openssl\src\provider.rs                                          136               136     0.00%          18                18     0.00%         113               113     0.00%           0                 0         -
+primitives\crypto\src\error.rs                                                      18                18     0.00%           1                 1     0.00%           8                 8     0.00%           0                 0         -
+primitives\crypto\src\signer.rs                                                      9                 9     0.00%           3                 3     0.00%          11                11     0.00%           0                 0         -
+signing\core\src\context.rs                                                         24                24     0.00%           5                 5     0.00%          30                30     0.00%           0                 0         -
+signing\core\src\error.rs                                                           18                18     0.00%           1                 1     0.00%          10                10     0.00%           0                 0         -
+signing\core\src\metadata.rs                                                        10                10     0.00%           2                 2     0.00%          21                21     0.00%           0                 0         -
+signing\core\src\signer.rs                                                          43                43     0.00%           9                 9     0.00%          52                52     0.00%           0                 0         -
+signing\core\src\traits.rs                                                           3                 3     0.00%           1                 1     0.00%           3                 3     0.00%           0                 0         -
+signing\core\src\transparency.rs                                                   108               108     0.00%           7                 7     0.00%          63                63     0.00%           0                 0         -
+signing\factories\src\direct\content_type_contributor.rs                            17                17     0.00%           4                 4     0.00%          24                24     0.00%           0                 0         -
+signing\factories\src\direct\factory.rs                                            254               254     0.00%          11                11     0.00%         162               162     0.00%           0                 0         -
+signing\factories\src\direct\options.rs                                             57                57     0.00%           9                 9     0.00%          61                61     0.00%           0                 0         -
+signing\factories\src\error.rs                                                      33                33     0.00%           3                 3     0.00%          26                26     0.00%           0                 0         -
+signing\factories\src\factory.rs                                                    23                23     0.00%           3                 3     0.00%          20                20     0.00%           0                 0         -
+signing\factories\src\indirect\factory.rs                                          178               178     0.00%          13                13     0.00%         126               126     0.00%           0                 0         -
+signing\factories\src\indirect\hash_envelope_contributor.rs                         35                35     0.00%           4                 4     0.00%          40                40     0.00%           0                 0         -
+signing\factories\src\indirect\options.rs                                           29                29     0.00%           6                 6     0.00%          27                27     0.00%           0                 0         -
+signing\headers\src\cwt_claims.rs                                                  498               498     0.00%          56                56     0.00%         307               307     0.00%           0                 0         -
+signing\headers\src\cwt_claims_contributor.rs                                       22                22     0.00%           5                 5     0.00%          26                26     0.00%           0                 0         -
+signing\headers\src\error.rs                                                        23                23     0.00%           1                 1     0.00%          13                13     0.00%           0                 0         -
+validation\core\src\indirect_signature.rs                                          364               364     0.00%          25                25     0.00%         232               232     0.00%           0                 0         -
+validation\core\src\message_fact_producer.rs                                       853               853     0.00%          40                40     0.00%         447               447     0.00%           0                 0         -
+validation\core\src\message_facts.rs                                               161               161     0.00%          36                36     0.00%         123               123     0.00%           0                 0         -
+validation\core\src\trust_packs.rs                                                   6                 6     0.00%           2                 2     0.00%           6                 6     0.00%           0                 0         -
+validation\core\src\trust_plan_builder.rs                                          101               101     0.00%          14                14     0.00%          89                89     0.00%           0                 0         -
+validation\core\src\validator.rs                                                   826               826     0.00%          47                47     0.00%         760               760     0.00%           0                 0         -
+validation\primitives\src\audit.rs                                                  11                11     0.00%           3                 3     0.00%           9                 9     0.00%           0                 0         -
+validation\primitives\src\decision.rs                                               19                19     0.00%           4                 4     0.00%          24                24     0.00%           0                 0         -
+validation\primitives\src\error.rs                                                  11                11     0.00%           1                 1     0.00%           6                 6     0.00%           0                 0         -
+validation\primitives\src\evaluation_options.rs                                      3                 3     0.00%           1                 1     0.00%           3                 3     0.00%           0                 0         -
+validation\primitives\src\fact_properties.rs                                        13                13     0.00%           1                 1     0.00%           8                 8     0.00%           0                 0         -
+validation\primitives\src\facts.rs                                                 334               334     0.00%          41                41     0.00%         223               223     0.00%           0                 0         -
+validation\primitives\src\field.rs                                                   3                 3     0.00%           1                 1     0.00%           3                 3     0.00%           0                 0         -
+validation\primitives\src\fluent.rs                                                269               269     0.00%          31                31     0.00%         222               222     0.00%           0                 0         -
+validation\primitives\src\ids.rs                                                    79                79     0.00%           6                 6     0.00%          45                45     0.00%           0                 0         -
+validation\primitives\src\plan.rs                                                  100               100     0.00%           6                 6     0.00%          76                76     0.00%           0                 0         -
+validation\primitives\src\rules.rs                                                 429               429     0.00%          40                40     0.00%         363               363     0.00%           0                 0         -
+validation\primitives\src\subject.rs                                                32                32     0.00%           6                 6     0.00%          40                40     0.00%           0                 0         -
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+TOTAL                                                                            21474             18202    15.24%        1975              1790     9.37%       14678             12654    13.79%           0                 0         -

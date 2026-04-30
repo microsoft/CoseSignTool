@@ -12,7 +12,10 @@ fn plugin_capability_roundtrips_to_and_from_strings() {
         PluginCapability::Verification,
         PluginCapability::Transparency,
     ] {
-        assert_eq!(PluginCapability::from_str(capability.as_str()), Some(capability.clone()));
+        assert_eq!(
+            PluginCapability::from_str(capability.as_str()),
+            Some(capability.clone())
+        );
     }
 
     assert_eq!(PluginCapability::from_str("unknown"), None);
@@ -23,7 +26,11 @@ fn default_plugin_provider_verification_methods_return_none() {
     let mut provider = MinimalProvider;
 
     let verification = provider
-        .verify(b"signed-message", Some(b"payload"), VerificationOptions::default())
+        .verify(
+            b"signed-message",
+            Some(b"payload"),
+            VerificationOptions::default(),
+        )
         .expect("default verify implementation should succeed");
     assert!(verification.is_none());
     assert!(provider.trust_policy_info().is_none());

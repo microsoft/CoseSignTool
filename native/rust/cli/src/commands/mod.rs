@@ -167,8 +167,10 @@ where
         if let Some(("x509", x509_matches)) = sign_matches.subcommand() {
             if let Some((provider_name, provider_matches)) = x509_matches.subcommand() {
                 if sign::is_builtin_provider_name(provider_name) {
-                    let transparency_options =
-                        sign::transparency_option_values_from_matches(provider_matches, plugin_infos);
+                    let transparency_options = sign::transparency_option_values_from_matches(
+                        provider_matches,
+                        plugin_infos,
+                    );
                     if let Command::Sign { method } = &mut cli.command {
                         sign::set_builtin_transparency_options(method, transparency_options);
                     }
@@ -318,15 +320,7 @@ mod tests {
 
     #[test]
     fn parse_from_verify_x509_subcommand() {
-        let result = parse_from(
-            [
-                "CoseSignTool",
-                "verify",
-                "x509",
-                "signature.cose",
-            ],
-            &[],
-        );
+        let result = parse_from(["CoseSignTool", "verify", "x509", "signature.cose"], &[]);
         let cli = result.expect("verify x509 should parse");
         assert!(!cli.quiet());
         match cli {
@@ -339,10 +333,7 @@ mod tests {
 
     #[test]
     fn parse_from_inspect_subcommand() {
-        let result = parse_from(
-            ["CoseSignTool", "inspect", "signature.cose"],
-            &[],
-        );
+        let result = parse_from(["CoseSignTool", "inspect", "signature.cose"], &[]);
         let cli = result.expect("inspect should parse");
         match cli {
             ParsedCli::BuiltIn(cli) => {
@@ -376,13 +367,7 @@ mod tests {
     #[test]
     fn parse_from_with_output_format_quiet() {
         let result = parse_from(
-            [
-                "CoseSignTool",
-                "-f",
-                "quiet",
-                "inspect",
-                "signature.cose",
-            ],
+            ["CoseSignTool", "-f", "quiet", "inspect", "signature.cose"],
             &[],
         );
         let cli = result.expect("inspect with quiet format should parse");
@@ -397,10 +382,7 @@ mod tests {
     #[test]
     fn build_command_includes_all_subcommands() {
         let cmd = build_command(&[]);
-        let subcommands: Vec<&str> = cmd
-            .get_subcommands()
-            .map(|sub| sub.get_name())
-            .collect();
+        let subcommands: Vec<&str> = cmd.get_subcommands().map(|sub| sub.get_name()).collect();
         assert!(subcommands.contains(&"sign"));
         assert!(subcommands.contains(&"verify"));
         assert!(subcommands.contains(&"inspect"));

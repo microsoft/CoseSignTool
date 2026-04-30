@@ -24,7 +24,11 @@ fn test_supports_algorithms() {
 fn test_key_generation_rsa_supported() {
     let provider = SoftwareKeyProvider::new();
     let result = provider.generate_key(KeyAlgorithm::Rsa, Some(2048));
-    assert!(result.is_ok(), "RSA key generation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "RSA key generation should succeed: {:?}",
+        result.err()
+    );
     let key = result.unwrap();
     assert_eq!(key.algorithm, KeyAlgorithm::Rsa);
     assert_eq!(key.key_size, 2048);

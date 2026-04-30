@@ -8,12 +8,12 @@ use cose_sign1_certificates::validation::facts::{
     X509X5ChainCertificateIdentityFact,
 };
 use cose_sign1_certificates::validation::pack::X509CertificateTrustPack;
-use cose_sign1_primitives::CoseSign1Message;
-use cose_sign1_validation_primitives::facts::{TrustFactEngine, TrustFactSet};
-use cose_sign1_validation_primitives::subject::TrustSubject;
 use cose_sign1_certificates_local::{
     CertificateFactory, CertificateOptions, EphemeralCertificateFactory, SoftwareKeyProvider,
 };
+use cose_sign1_primitives::CoseSign1Message;
+use cose_sign1_validation_primitives::facts::{TrustFactEngine, TrustFactSet};
+use cose_sign1_validation_primitives::subject::TrustSubject;
 use std::sync::Arc;
 
 fn build_protected_map_with_alg_only() -> Vec<u8> {
@@ -192,14 +192,10 @@ fn chain_trust_reports_not_well_formed_when_trusting_embedded_chain_but_chain_is
     // Two unrelated self-signed certs with explicit DNs => issuer/subject chain won't match.
     let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
     let c1_cert = factory
-        .create_certificate(
-            CertificateOptions::new().with_subject_name("CN=c1.example"),
-        )
+        .create_certificate(CertificateOptions::new().with_subject_name("CN=c1.example"))
         .unwrap();
     let c2_cert = factory
-        .create_certificate(
-            CertificateOptions::new().with_subject_name("CN=c2.example"),
-        )
+        .create_certificate(CertificateOptions::new().with_subject_name("CN=c2.example"))
         .unwrap();
 
     // Two unrelated self-signed certs => issuer/subject chain won't match.

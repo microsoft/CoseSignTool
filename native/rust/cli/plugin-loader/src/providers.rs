@@ -134,7 +134,13 @@ impl PluginProvider for LocalPfxProvider {
         format: &str,
         options: &PluginConfig,
     ) -> Result<Vec<u8>, String> {
-        sign_payload_with_service(&self.store.get(service_id)?, payload, content_type, format, options)
+        sign_payload_with_service(
+            &self.store.get(service_id)?,
+            payload,
+            content_type,
+            format,
+            options,
+        )
     }
 }
 
@@ -182,7 +188,13 @@ impl PluginProvider for LocalPemProvider {
         format: &str,
         options: &PluginConfig,
     ) -> Result<Vec<u8>, String> {
-        sign_payload_with_service(&self.store.get(service_id)?, payload, content_type, format, options)
+        sign_payload_with_service(
+            &self.store.get(service_id)?,
+            payload,
+            content_type,
+            format,
+            options,
+        )
     }
 }
 
@@ -215,7 +227,9 @@ impl PluginProvider for LocalEphemeralProvider {
 
     fn create_service(&mut self, config: PluginConfig) -> Result<String, String> {
         let service = create_local_ephemeral_service(&config).map_err(|error| error.to_string())?;
-        Ok(self.store.insert("local-ephemeral-service", Arc::new(service)))
+        Ok(self
+            .store
+            .insert("local-ephemeral-service", Arc::new(service)))
     }
 
     fn get_cert_chain(&mut self, service_id: &str) -> Result<Vec<Vec<u8>>, String> {
@@ -238,7 +252,13 @@ impl PluginProvider for LocalEphemeralProvider {
         format: &str,
         options: &PluginConfig,
     ) -> Result<Vec<u8>, String> {
-        sign_payload_with_service(&self.store.get(service_id)?, payload, content_type, format, options)
+        sign_payload_with_service(
+            &self.store.get(service_id)?,
+            payload,
+            content_type,
+            format,
+            options,
+        )
     }
 }
 
@@ -288,7 +308,13 @@ impl PluginProvider for AasProvider {
         format: &str,
         options: &PluginConfig,
     ) -> Result<Vec<u8>, String> {
-        sign_payload_with_service(&self.store.get(service_id)?, payload, content_type, format, options)
+        sign_payload_with_service(
+            &self.store.get(service_id)?,
+            payload,
+            content_type,
+            format,
+            options,
+        )
     }
 }
 
@@ -377,11 +403,22 @@ impl PluginProvider for AkvProvider {
         format: &str,
         options: &PluginConfig,
     ) -> Result<Vec<u8>, String> {
-        sign_payload_with_service(&self.store.get(service_id)?, payload, content_type, format, options)
+        sign_payload_with_service(
+            &self.store.get(service_id)?,
+            payload,
+            content_type,
+            format,
+            options,
+        )
     }
 }
 
-fn plugin_info(id: &str, name: &str, description: &str, commands: &[PluginCommandDef]) -> PluginInfo {
+fn plugin_info(
+    id: &str,
+    name: &str,
+    description: &str,
+    commands: &[PluginCommandDef],
+) -> PluginInfo {
     PluginInfo {
         id: id.to_string(),
         name: name.to_string(),
@@ -393,7 +430,11 @@ fn plugin_info(id: &str, name: &str, description: &str, commands: &[PluginComman
     }
 }
 
-fn plugin_command(name: &str, description: &str, options: Vec<PluginOptionDef>) -> PluginCommandDef {
+fn plugin_command(
+    name: &str,
+    description: &str,
+    options: Vec<PluginOptionDef>,
+) -> PluginCommandDef {
     PluginCommandDef {
         name: name.to_string(),
         description: description.to_string(),
@@ -492,7 +533,12 @@ fn akv_key_options() -> Vec<PluginOptionDef> {
             "Azure Key Vault URL (e.g., https://my-vault.vault.azure.net).",
             true,
         ),
-        option_definition("akv-key-name", "akv-key-name", "Key name in Azure Key Vault.", true),
+        option_definition(
+            "akv-key-name",
+            "akv-key-name",
+            "Key name in Azure Key Vault.",
+            true,
+        ),
         option_definition(
             "akv-key-version",
             "akv-key-version",
@@ -555,8 +601,8 @@ fn create_local_pem_service(config: &PluginConfig) -> Result<CertificateSigningS
     if certificate.private_key_der.is_none() {
         let key_pem = std::fs::read(key_path)
             .with_context(|| format!("Failed to read PEM key file: {key_path}"))?;
-        let key_certificate = pem::load_cert_from_pem_bytes(&key_pem)
-            .context("Failed to parse PEM private key")?;
+        let key_certificate =
+            pem::load_cert_from_pem_bytes(&key_pem).context("Failed to parse PEM private key")?;
         certificate.private_key_der = key_certificate.private_key_der;
     }
 
@@ -657,8 +703,9 @@ fn resolve_pfx_password(
     }
 
     if let Some(password_env) = password_env {
-        let password = std::env::var(password_env)
-            .with_context(|| format!("Environment variable '{password_env}' does not contain a PFX password"))?;
+        let password = std::env::var(password_env).with_context(|| {
+            format!("Environment variable '{password_env}' does not contain a PFX password")
+        })?;
         return Ok(Some(password));
     }
 
@@ -677,7 +724,8 @@ fn build_service_from_cert(certificate: Certificate) -> Result<CertificateSignin
         .map_err(|error| anyhow!("Failed to create signer from private key: {error}"))?;
 
     let signing_key: Arc<dyn SigningKeyProvider> = Arc::new(LocalSigningKeyProvider { signer });
-    let certificate_source: Box<dyn CertificateSource> = Box::new(LocalCertificateSource::new(certificate));
+    let certificate_source: Box<dyn CertificateSource> =
+        Box::new(LocalCertificateSource::new(certificate));
     let options = CertificateSigningOptions {
         enable_scitt_compliance: true,
         ..Default::default()
@@ -701,7 +749,8 @@ fn sign_payload_with_service(
     match format.as_str() {
         "direct" => {
             let factory = DirectSignatureFactory::new(Arc::clone(service));
-            let direct_options = build_direct_signature_options(options).map_err(|error| error.to_string())?;
+            let direct_options =
+                build_direct_signature_options(options).map_err(|error| error.to_string())?;
             factory
                 .create_bytes(payload, content_type, Some(direct_options))
                 .map_err(|error| error.to_string())
@@ -709,7 +758,8 @@ fn sign_payload_with_service(
         "indirect" => {
             let direct_factory = DirectSignatureFactory::new(Arc::clone(service));
             let factory = IndirectSignatureFactory::new(direct_factory);
-            let indirect_options = build_indirect_signature_options(options).map_err(|error| error.to_string())?;
+            let indirect_options =
+                build_indirect_signature_options(options).map_err(|error| error.to_string())?;
             factory
                 .create_bytes(payload, content_type, Some(indirect_options))
                 .map_err(|error| error.to_string())
@@ -751,7 +801,8 @@ fn build_direct_signature_options(options: &PluginConfig) -> Result<DirectSignat
 }
 
 fn build_indirect_signature_options(options: &PluginConfig) -> Result<IndirectSignatureOptions> {
-    Ok(IndirectSignatureOptions::default().with_base_options(build_direct_signature_options(options)?))
+    Ok(IndirectSignatureOptions::default()
+        .with_base_options(build_direct_signature_options(options)?))
 }
 
 fn ensure_supported_scitt_type(scitt_type: Option<&str>) -> Result<()> {
@@ -793,7 +844,10 @@ fn service_sign(
             "Ignoring mismatched sign algorithm override for plugin service"
         );
     }
-    signer.signer().sign(data).map_err(|error| error.to_string())
+    signer
+        .signer()
+        .sign(data)
+        .map_err(|error| error.to_string())
 }
 
 fn service_algorithm(service: &Arc<dyn SigningService>) -> Result<i64, String> {
@@ -813,7 +867,11 @@ fn service_cert_chain(service: &Arc<dyn SigningService>) -> Result<Vec<Vec<u8>>,
     Ok(signer
         .protected_headers()
         .get_bytes_one_or_many(&x5chain_label)
-        .or_else(|| signer.unprotected_headers().get_bytes_one_or_many(&x5chain_label))
+        .or_else(|| {
+            signer
+                .unprotected_headers()
+                .get_bytes_one_or_many(&x5chain_label)
+        })
         .unwrap_or_default())
 }
 

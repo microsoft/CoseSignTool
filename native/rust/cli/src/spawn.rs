@@ -130,7 +130,10 @@ pub fn spawn_provider(provider_name: &str) -> Result<SpawnedProvider> {
             let _ = child.wait();
             endpoint.cleanup();
             return Err(anyhow!(error)).with_context(|| {
-                format!("Failed to connect to plugin loader pipe '{}'", endpoint.pipe_name)
+                format!(
+                    "Failed to connect to plugin loader pipe '{}'",
+                    endpoint.pipe_name
+                )
             });
         }
     };

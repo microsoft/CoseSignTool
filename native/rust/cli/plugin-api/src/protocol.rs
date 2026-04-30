@@ -473,10 +473,7 @@ pub fn read_frame(reader: &mut (impl Read + ?Sized)) -> std::io::Result<Vec<u8>>
 }
 
 /// Writes a framed CBOR request.
-pub fn write_request(
-    writer: &mut (impl Write + ?Sized),
-    request: &Request,
-) -> std::io::Result<()> {
+pub fn write_request(writer: &mut (impl Write + ?Sized), request: &Request) -> std::io::Result<()> {
     let provider = EverParseCborProvider;
     let mut encoder = provider.encoder();
     encode_request(&mut encoder, request).map_err(protocol_to_io_error)?;
@@ -625,7 +622,9 @@ where
                 .encode_tstr(request.content_type.as_str())
                 .map_err(cbor_error)?;
             encoder.encode_tstr("format").map_err(cbor_error)?;
-            encoder.encode_tstr(request.format.as_str()).map_err(cbor_error)?;
+            encoder
+                .encode_tstr(request.format.as_str())
+                .map_err(cbor_error)?;
             encoder.encode_tstr("options").map_err(cbor_error)?;
             encode_plugin_config(encoder, &request.options)
         }
@@ -799,7 +798,9 @@ where
 {
     encoder.encode_map(7).map_err(cbor_error)?;
     encoder.encode_tstr("name").map_err(cbor_error)?;
-    encoder.encode_tstr(option.name.as_str()).map_err(cbor_error)?;
+    encoder
+        .encode_tstr(option.name.as_str())
+        .map_err(cbor_error)?;
     encoder.encode_tstr("value_name").map_err(cbor_error)?;
     encoder
         .encode_tstr(option.value_name.as_str())
@@ -1026,7 +1027,9 @@ fn decode_request_params(method: &str, raw_params: Option<&[u8]>) -> ProtocolRes
         }
         methods::SIGN_PAYLOAD => {
             let raw = require_params(method, raw_params)?;
-            Ok(RequestParams::SignPayload(decode_sign_payload_request_from_bytes(raw)?))
+            Ok(RequestParams::SignPayload(
+                decode_sign_payload_request_from_bytes(raw)?,
+            ))
         }
         methods::VERIFY => {
             let raw = require_params(method, raw_params)?;
@@ -1940,14 +1943,14 @@ where
             }
             "capability" => {
                 let capability_name = decode_tstr_owned(decoder)?;
-                capability = Some(PluginCapability::from_str(capability_name.as_str()).ok_or_else(
-                    || {
+                capability = Some(
+                    PluginCapability::from_str(capability_name.as_str()).ok_or_else(|| {
                         ProtocolCodecError::InvalidMessage(format!(
                             "unknown plugin capability '{}'",
                             capability_name
                         ))
-                    },
-                )?);
+                    })?,
+                );
             }
             _ => {
                 decoder.skip().map_err(cbor_error)?;
@@ -2068,7 +2071,6 @@ where
         is_flag,
     })
 }
-
 
 fn decode_capabilities_array<'a, D>(decoder: &mut D) -> ProtocolResult<Vec<PluginCapability>>
 where

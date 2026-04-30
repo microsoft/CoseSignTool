@@ -358,7 +358,12 @@ pub fn execute_plugin(
 ) -> Result<i32> {
     let (plugin_id, _) = registry
         .find_signing_command(invocation.command_name.as_str())
-        .ok_or_else(|| anyhow!("No signing plugin command named '{}' is available", invocation.command_name))?;
+        .ok_or_else(|| {
+            anyhow!(
+                "No signing plugin command named '{}' is available",
+                invocation.command_name
+            )
+        })?;
     let process = registry
         .get(plugin_id.as_str())
         .ok_or_else(|| anyhow!("Signing plugin '{}' is no longer available", plugin_id))?;
@@ -427,7 +432,10 @@ fn execute_x509(provider: X509Provider, format: OutputFormat) -> Result<i32> {
         X509Provider::Aas(args) => {
             let mut provider_options = HashMap::new();
             provider_options.insert("aas-endpoint".to_string(), args.aas_endpoint);
-            provider_options.insert("aas-account-name".to_string(), args.aas_account_name.clone());
+            provider_options.insert(
+                "aas-account-name".to_string(),
+                args.aas_account_name.clone(),
+            );
             provider_options.insert(
                 "aas-cert-profile-name".to_string(),
                 args.aas_cert_profile_name.clone(),
@@ -509,7 +517,8 @@ fn execute_signing_with_plugin(
     format: OutputFormat,
 ) -> Result<i32> {
     ensure_supported_scitt_type(common.scitt_type.as_deref())?;
-    let transparency_plan = build_transparency_plan(provider_info.discovered_endpoints.as_slice(), &common);
+    let transparency_plan =
+        build_transparency_plan(provider_info.discovered_endpoints.as_slice(), &common);
     let (payload, payload_display) = read_payload_bytes(&common)?;
     let service_id = plugin.create_service(PluginConfig {
         options: provider_options,
@@ -790,7 +799,9 @@ fn push_transparency_submission_target(
     }
 }
 
-fn format_discovered_transparency_endpoints(endpoints: &[DiscoveredTransparencyEndpoint]) -> String {
+fn format_discovered_transparency_endpoints(
+    endpoints: &[DiscoveredTransparencyEndpoint],
+) -> String {
     if endpoints.is_empty() {
         return "N/A".to_string();
     }
@@ -873,13 +884,13 @@ fn apply_transparency_submission_target(
     #[cfg(feature = "mst")]
     if target.service_type.eq_ignore_ascii_case("mst") {
         let provider = providers::mst::create_mst_transparency_provider(target.endpoint.as_str())?;
-        return provider
-            .add_transparency_proof(&signed_bytes)
-            .map_err(|e| anyhow::anyhow!(
+        return provider.add_transparency_proof(&signed_bytes).map_err(|e| {
+            anyhow::anyhow!(
                 "SCITT submission failed for {} ({}): {e}",
                 target.endpoint,
                 target.display_name
-            ));
+            )
+        });
     }
 
     if target.service_type.eq_ignore_ascii_case("mst") {
@@ -1043,7 +1054,11 @@ fn collect_plugin_signing_commands(plugin_infos: &[PluginInfo]) -> Vec<&PluginCo
 fn collect_transparency_plugin_options(plugin_infos: &[PluginInfo]) -> Vec<&PluginOptionDef> {
     let mut options: Vec<&PluginOptionDef> = plugin_infos
         .iter()
-        .filter(|plugin| plugin.capabilities.contains(&PluginCapability::Transparency))
+        .filter(|plugin| {
+            plugin
+                .capabilities
+                .contains(&PluginCapability::Transparency)
+        })
         .flat_map(|plugin| plugin.transparency_options.iter())
         .collect();
     options.sort_by(|left, right| left.name.cmp(&right.name));
@@ -1274,10 +1289,7 @@ mod tests {
     fn resolve_pfx_password_both_sources_returns_error() {
         let result = resolve_pfx_password(Some("file.txt"), Some("ENV_VAR"));
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("not both"));
+        assert!(result.unwrap_err().to_string().contains("not both"));
     }
 
     #[test]
@@ -1288,10 +1300,7 @@ mod tests {
 
     #[test]
     fn resolve_pfx_password_from_env_var() {
-        let env_var = format!(
-            "COSESIGNTOOL_TEST_PFX_PW_{}",
-            std::process::id()
-        );
+        let env_var = format!("COSESIGNTOOL_TEST_PFX_PW_{}", std::process::id());
         std::env::set_var(&env_var, "my-secret");
         let result = resolve_pfx_password(None, Some(env_var.as_str())).unwrap();
         std::env::remove_var(&env_var);
@@ -1310,9 +1319,11 @@ mod tests {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let path = std::env::current_dir()
-            .unwrap()
-            .join(format!(".test-pfx-pw-{}-{}.txt", std::process::id(), timestamp));
+        let path = std::env::current_dir().unwrap().join(format!(
+            ".test-pfx-pw-{}-{}.txt",
+            std::process::id(),
+            timestamp
+        ));
         std::fs::write(&path, "file-password\r\n").unwrap();
         let result = resolve_pfx_password(Some(path.to_str().unwrap()), None).unwrap();
         std::fs::remove_file(&path).unwrap();
@@ -1440,10 +1451,7 @@ mod tests {
 
     #[test]
     fn format_discovered_transparency_endpoints_empty() {
-        assert_eq!(
-            format_discovered_transparency_endpoints(&[]),
-            "N/A"
-        );
+        assert_eq!(format_discovered_transparency_endpoints(&[]), "N/A");
     }
 
     #[test]
@@ -1492,7 +1500,10 @@ mod tests {
 
     #[test]
     fn format_transparency_suggestions_joins_entries() {
-        let suggestions = vec!["--scitt-mst-endpoint A".to_string(), "--scitt-custom-endpoint B".to_string()];
+        let suggestions = vec![
+            "--scitt-mst-endpoint A".to_string(),
+            "--scitt-custom-endpoint B".to_string(),
+        ];
         let result = format_transparency_suggestions(&suggestions);
         assert!(result.contains("--scitt-mst-endpoint A"));
         assert!(result.contains(", "));
@@ -1519,10 +1530,7 @@ mod tests {
             auto_submit: false,
         };
         let suggestion = format_transparency_suggestion(&endpoint);
-        assert_eq!(
-            suggestion,
-            "--scitt-custom-endpoint https://custom.example"
-        );
+        assert_eq!(suggestion, "--scitt-custom-endpoint https://custom.example");
     }
 
     // --- is_builtin_provider_name tests ---
@@ -1554,10 +1562,7 @@ mod tests {
         }];
         let result = apply_scitt_transparency(vec![1, 2, 3], &targets);
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("not supported"));
+        assert!(result.unwrap_err().to_string().contains("not supported"));
     }
 
     // --- push_transparency_submission_target tests ---
@@ -1676,7 +1681,8 @@ mod tests {
     }
 
     fn parse_ephemeral_common(args: &[&str]) -> CommonSignArgs {
-        let parsed = commands::parse_from(args.iter().copied(), &[]).expect("CLI arguments should parse");
+        let parsed =
+            commands::parse_from(args.iter().copied(), &[]).expect("CLI arguments should parse");
         match parsed {
             ParsedCli::BuiltIn(cli) => match cli.command {
                 Command::Sign { method } => match method {

@@ -17,6 +17,9 @@ use cose_sign1_certificates::validation::pack::{
     CertificateTrustOptions, X509CertificateTrustPack,
 };
 use cose_sign1_certificates::validation::signing_key_resolver::X509CertificateCoseKeyResolver;
+use cose_sign1_certificates_local::{
+    CertificateFactory, CertificateOptions, EphemeralCertificateFactory, SoftwareKeyProvider,
+};
 use cose_sign1_primitives::{CoseHeaderLabel, CoseHeaderMap, CoseSign1Message};
 use cose_sign1_signing::{
     HeaderContributor, HeaderContributorContext, HeaderMergeStrategy, SigningContext,
@@ -26,10 +29,6 @@ use cose_sign1_validation_primitives::facts::{TrustFactEngine, TrustFactSet};
 use cose_sign1_validation_primitives::subject::TrustSubject;
 use cose_sign1_validation_primitives::CoseHeaderLocation;
 use crypto_primitives::{CryptoError, CryptoSigner};
-use cose_sign1_certificates_local::{
-    CertificateFactory, CertificateOptions, EphemeralCertificateFactory,
-    SoftwareKeyProvider,
-};
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -65,11 +64,13 @@ fn make_engine(
 
 fn generate_test_cert_der() -> Vec<u8> {
     let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
-    let cert = factory.create_certificate(
-        CertificateOptions::new()
-            .with_subject_name("CN=test.example.com")
-            .add_subject_alternative_name("test.example.com")
-    ).unwrap();
+    let cert = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=test.example.com")
+                .add_subject_alternative_name("test.example.com"),
+        )
+        .unwrap();
     cert.cert_der.clone()
 }
 
@@ -77,19 +78,23 @@ fn generate_ca_and_leaf() -> (Vec<u8>, Vec<u8>) {
     let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
 
     // Create CA
-    let ca_cert = factory.create_certificate(
-        CertificateOptions::new()
-            .with_subject_name("CN=Test Root CA")
-            .as_ca(u32::MAX)
-    ).unwrap();
+    let ca_cert = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=Test Root CA")
+                .as_ca(u32::MAX),
+        )
+        .unwrap();
 
     // Create leaf signed by CA
-    let leaf_cert = factory.create_certificate(
-        CertificateOptions::new()
-            .with_subject_name("CN=Test Leaf")
-            .add_subject_alternative_name("leaf.test.com")
-            .signed_by(ca_cert.clone())
-    ).unwrap();
+    let leaf_cert = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=Test Leaf")
+                .add_subject_alternative_name("leaf.test.com")
+                .signed_by(ca_cert.clone()),
+        )
+        .unwrap();
 
     (ca_cert.cert_der.clone(), leaf_cert.cert_der.clone())
 }
@@ -133,11 +138,13 @@ fn protected_x5chain_and_alg(cert_der: &[u8], alg: i64) -> Vec<u8> {
 /// Generate a self-signed EC P-256 certificate DER.
 fn gen_p256_cert_der() -> Vec<u8> {
     let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
-    let cert = factory.create_certificate(
-        CertificateOptions::new()
-            .with_subject_name("CN=test.example.com")
-            .add_subject_alternative_name("test.example.com")
-    ).unwrap();
+    let cert = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=test.example.com")
+                .add_subject_alternative_name("test.example.com"),
+        )
+        .unwrap();
     cert.cert_der.clone()
 }
 

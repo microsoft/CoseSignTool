@@ -73,7 +73,10 @@ mod tests {
         ];
 
         assert_eq!(find_arg(&args, "--plugin"), Some("local".to_string()));
-        assert_eq!(find_arg(&args, "--pipe-name"), Some("pipe-name".to_string()));
+        assert_eq!(
+            find_arg(&args, "--pipe-name"),
+            Some("pipe-name".to_string())
+        );
         assert_eq!(find_arg(&args, "--missing"), None);
     }
 
@@ -145,7 +148,11 @@ mod tests {
         );
 
         let binary_path = loader_binary_path();
-        assert!(binary_path.exists(), "binary should exist at {}", binary_path.display());
+        assert!(
+            binary_path.exists(),
+            "binary should exist at {}",
+            binary_path.display()
+        );
 
         let output = Command::new(&binary_path)
             .arg("--help")
@@ -161,11 +168,14 @@ mod tests {
     }
 
     fn loader_binary_path() -> PathBuf {
-        workspace_root().join("target").join("debug").join(if cfg!(windows) {
-            "cosesigntool-plugin-loader.exe"
-        } else {
-            "cosesigntool-plugin-loader"
-        })
+        workspace_root()
+            .join("target")
+            .join("debug")
+            .join(if cfg!(windows) {
+                "cosesigntool-plugin-loader.exe"
+            } else {
+                "cosesigntool-plugin-loader"
+            })
     }
 
     fn workspace_root() -> PathBuf {

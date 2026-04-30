@@ -16,8 +16,8 @@ use openssl::nid::Nid;
 use openssl::pkey::PKey;
 use openssl::rsa::Rsa;
 use openssl::x509::extension::{
-    AuthorityKeyIdentifier, BasicConstraints, ExtendedKeyUsage, KeyUsage,
-    SubjectAlternativeName, SubjectKeyIdentifier,
+    AuthorityKeyIdentifier, BasicConstraints, ExtendedKeyUsage, KeyUsage, SubjectAlternativeName,
+    SubjectKeyIdentifier,
 };
 use openssl::x509::{X509Builder, X509Extension, X509NameBuilder, X509};
 use std::collections::HashMap;
@@ -107,10 +107,10 @@ fn generate_rsa_key(
     key_size: Option<u32>,
 ) -> Result<(PKey<openssl::pkey::Private>, Vec<u8>, Vec<u8>), CertLocalError> {
     let bits = key_size.unwrap_or(2048);
-    let rsa = Rsa::generate(bits)
-        .map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
-    let pkey = PKey::from_rsa(rsa)
-        .map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
+    let rsa =
+        Rsa::generate(bits).map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
+    let pkey =
+        PKey::from_rsa(rsa).map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
     let private_key_der = pkey
         .private_key_to_der()
         .map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
@@ -543,12 +543,24 @@ impl CertificateFactory for EphemeralCertificateFactory {
             let mut eku = ExtendedKeyUsage::new();
             for oid in &options.enhanced_key_usages {
                 match oid.as_str() {
-                    "1.3.6.1.5.5.7.3.1" => { eku.server_auth(); }
-                    "1.3.6.1.5.5.7.3.2" => { eku.client_auth(); }
-                    "1.3.6.1.5.5.7.3.3" => { eku.code_signing(); }
-                    "1.3.6.1.5.5.7.3.4" => { eku.email_protection(); }
-                    "1.3.6.1.5.5.7.3.8" => { eku.time_stamping(); }
-                    other => { eku.other(other); }
+                    "1.3.6.1.5.5.7.3.1" => {
+                        eku.server_auth();
+                    }
+                    "1.3.6.1.5.5.7.3.2" => {
+                        eku.client_auth();
+                    }
+                    "1.3.6.1.5.5.7.3.3" => {
+                        eku.code_signing();
+                    }
+                    "1.3.6.1.5.5.7.3.4" => {
+                        eku.email_protection();
+                    }
+                    "1.3.6.1.5.5.7.3.8" => {
+                        eku.time_stamping();
+                    }
+                    other => {
+                        eku.other(other);
+                    }
                 }
             }
             builder
@@ -591,18 +603,23 @@ impl CertificateFactory for EphemeralCertificateFactory {
 
         // Custom X.509v3 extensions
         for ext in &options.custom_extensions {
-            let oid = openssl::asn1::Asn1Object::from_str(&ext.oid)
-                .map_err(|e| CertLocalError::CertificateCreationFailed(format!(
-                    "invalid OID {}: {}", ext.oid, e
-                )))?;
-            let octet_string = openssl::asn1::Asn1OctetString::new_from_bytes(&ext.value)
-                .map_err(|e| CertLocalError::CertificateCreationFailed(format!(
-                    "failed to create octet string for extension {}: {}", ext.oid, e
-                )))?;
+            let oid = openssl::asn1::Asn1Object::from_str(&ext.oid).map_err(|e| {
+                CertLocalError::CertificateCreationFailed(format!("invalid OID {}: {}", ext.oid, e))
+            })?;
+            let octet_string =
+                openssl::asn1::Asn1OctetString::new_from_bytes(&ext.value).map_err(|e| {
+                    CertLocalError::CertificateCreationFailed(format!(
+                        "failed to create octet string for extension {}: {}",
+                        ext.oid, e
+                    ))
+                })?;
             let extension = X509Extension::new_from_der(&oid, ext.critical, &octet_string)
-                .map_err(|e| CertLocalError::CertificateCreationFailed(format!(
-                    "failed to create custom extension {}: {}", ext.oid, e
-                )))?;
+                .map_err(|e| {
+                    CertLocalError::CertificateCreationFailed(format!(
+                        "failed to create custom extension {}: {}",
+                        ext.oid, e
+                    ))
+                })?;
             builder
                 .append_extension(extension)
                 .map_err(|e| CertLocalError::CertificateCreationFailed(e.to_string()))?;
@@ -613,12 +630,14 @@ impl CertificateFactory for EphemeralCertificateFactory {
             if let Some(issuer_key_der) = &issuer.private_key_der {
                 let issuer_pkey = PKey::private_key_from_der(issuer_key_der).map_err(|e| {
                     CertLocalError::CertificateCreationFailed(format!(
-                        "failed to load issuer key: {}", e
+                        "failed to load issuer key: {}",
+                        e
                     ))
                 })?;
                 let issuer_cert = X509::from_der(&issuer.cert_der).map_err(|e| {
                     CertLocalError::CertificateCreationFailed(format!(
-                        "failed to parse issuer cert: {}", e
+                        "failed to parse issuer cert: {}",
+                        e
                     ))
                 })?;
                 builder

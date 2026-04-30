@@ -218,7 +218,8 @@ impl CertificateOptions {
         critical: bool,
         value: Vec<u8>,
     ) -> Self {
-        self.custom_extensions.push(CustomExtension::new(oid, critical, value));
+        self.custom_extensions
+            .push(CustomExtension::new(oid, critical, value));
         self
     }
 }

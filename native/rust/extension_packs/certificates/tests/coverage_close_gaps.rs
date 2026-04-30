@@ -21,14 +21,14 @@ use cose_sign1_certificates::validation::facts::*;
 use cose_sign1_certificates::validation::pack::{
     CertificateTrustOptions, X509CertificateTrustPack,
 };
-use cose_sign1_primitives::CoseSign1Message;
-use cose_sign1_validation::fluent::CoseSign1TrustPack;
-use cose_sign1_validation_primitives::facts::{FactKey, TrustFactEngine, TrustFactSet};
-use cose_sign1_validation_primitives::subject::TrustSubject;
 use cose_sign1_certificates_local::{
     Certificate, CertificateFactory, CertificateOptions, EphemeralCertificateFactory,
     SoftwareKeyProvider,
 };
+use cose_sign1_primitives::CoseSign1Message;
+use cose_sign1_validation::fluent::CoseSign1TrustPack;
+use cose_sign1_validation_primitives::facts::{FactKey, TrustFactEngine, TrustFactSet};
+use cose_sign1_validation_primitives::subject::TrustSubject;
 use std::sync::Arc;
 
 fn _init() -> EverParseCborProvider {
@@ -39,23 +39,27 @@ fn _init() -> EverParseCborProvider {
 
 fn make_self_signed_cert(cn: &str) -> Vec<u8> {
     let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
-    let cert = factory.create_certificate(
-        CertificateOptions::new()
-            .with_subject_name(format!("CN={}", cn))
-            .add_subject_alternative_name(cn.to_string())
-            .with_enhanced_key_usages(vec!["1.3.6.1.5.5.7.3.3".to_string()])
-    ).unwrap();
+    let cert = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name(format!("CN={}", cn))
+                .add_subject_alternative_name(cn.to_string())
+                .with_enhanced_key_usages(vec!["1.3.6.1.5.5.7.3.3".to_string()]),
+        )
+        .unwrap();
     cert.cert_der.clone()
 }
 
 fn make_self_signed_ca(cn: &str) -> Certificate {
     let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
-    factory.create_certificate(
-        CertificateOptions::new()
-            .with_subject_name(format!("CN={}", cn))
-            .add_subject_alternative_name(cn.to_string())
-            .as_ca(u32::MAX)
-    ).unwrap()
+    factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name(format!("CN={}", cn))
+                .add_subject_alternative_name(cn.to_string())
+                .as_ca(u32::MAX),
+        )
+        .unwrap()
 }
 
 fn make_cert_with_all_ku() -> Vec<u8> {
@@ -63,19 +67,21 @@ fn make_cert_with_all_ku() -> Vec<u8> {
     // For a leaf cert, it sets DigitalSignature.
     // We create a leaf with all standard EKUs to test EKU extraction.
     let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
-    let cert = factory.create_certificate(
-        CertificateOptions::new()
-            .with_subject_name("CN=ku-test.example")
-            .add_subject_alternative_name("ku-test.example")
-            .with_enhanced_key_usages(vec![
-                "1.3.6.1.5.5.7.3.1".to_string(), // server_auth
-                "1.3.6.1.5.5.7.3.2".to_string(), // client_auth
-                "1.3.6.1.5.5.7.3.3".to_string(), // code_signing
-                "1.3.6.1.5.5.7.3.4".to_string(), // email_protection
-                "1.3.6.1.5.5.7.3.8".to_string(), // time_stamping
-                "1.3.6.1.5.5.7.3.9".to_string(), // ocsp_signing
-            ])
-    ).unwrap();
+    let cert = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=ku-test.example")
+                .add_subject_alternative_name("ku-test.example")
+                .with_enhanced_key_usages(vec![
+                    "1.3.6.1.5.5.7.3.1".to_string(), // server_auth
+                    "1.3.6.1.5.5.7.3.2".to_string(), // client_auth
+                    "1.3.6.1.5.5.7.3.3".to_string(), // code_signing
+                    "1.3.6.1.5.5.7.3.4".to_string(), // email_protection
+                    "1.3.6.1.5.5.7.3.8".to_string(), // time_stamping
+                    "1.3.6.1.5.5.7.3.9".to_string(), // ocsp_signing
+                ]),
+        )
+        .unwrap();
     cert.cert_der.clone()
 }
 

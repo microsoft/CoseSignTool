@@ -1,0 +1,35 @@
+info: cargo-llvm-cov currently setting cfg(coverage) and cfg(coverage_nightly); you can opt-out it by passing --no-cfg-coverage and --no-cfg-coverage-nightly
+warning: skipping duplicate packages `cborrs v0.1.0 (https://github.com/project-everest/everparse?tag=v2026.02.04#a17b4739)`:
+  C:\Users\jstatia\.cargo\git\checkouts\everparse-0f3b9759962bde6d\a17b473\src\cbor\pulse\nondet\rust\Cargo.toml
+  C:\Users\jstatia\.cargo\git\checkouts\everparse-0f3b9759962bde6d\a17b473\src\cddl\tests\rust\Cargo.toml
+in favor of C:\Users\jstatia\.cargo\git\checkouts\everparse-0f3b9759962bde6d\a17b473\src\cbor\pulse\det\rust\Cargo.toml
+
+   Compiling cbor_primitives v0.1.0 (C:\src\repos\CoseSignTool\native\rust\primitives\cbor)
+   Compiling crypto_primitives v0.1.0 (C:\src\repos\CoseSignTool\native\rust\primitives\crypto)
+   Compiling tower-http v0.6.8
+   Compiling did_x509 v0.1.0 (C:\src\repos\CoseSignTool\native\rust\did\x509)
+   Compiling tracing-subscriber v0.3.23
+   Compiling cbor_primitives_everparse v0.1.0 (C:\src\repos\CoseSignTool\native\rust\primitives\cbor\everparse)
+   Compiling reqwest v0.13.2
+   Compiling cose_primitives v0.1.0 (C:\src\repos\CoseSignTool\native\rust\primitives\cose)
+   Compiling cosesigntool_plugin_api v0.1.0 (C:\src\repos\CoseSignTool\native\rust\cli\plugin-api)
+   Compiling cose_sign1_primitives v0.1.0 (C:\src\repos\CoseSignTool\native\rust\primitives\cose\sign1)
+   Compiling cose_sign1_crypto_openssl v0.1.0 (C:\src\repos\CoseSignTool\native\rust\primitives\crypto\openssl)
+   Compiling cose_sign1_validation_primitives v0.1.0 (C:\src\repos\CoseSignTool\native\rust\validation\primitives)
+   Compiling cose_sign1_signing v0.1.0 (C:\src\repos\CoseSignTool\native\rust\signing\core)
+   Compiling typespec_client_core v0.12.0
+   Compiling cose_sign1_headers v0.1.0 (C:\src\repos\CoseSignTool\native\rust\signing\headers)
+   Compiling cose_sign1_validation v0.1.0 (C:\src\repos\CoseSignTool\native\rust\validation\core)
+   Compiling cose_sign1_certificates v0.1.0 (C:\src\repos\CoseSignTool\native\rust\extension_packs\certificates)
+   Compiling azure_core v0.33.0
+   Compiling code_transparency_client v0.1.0 (C:\src\repos\CoseSignTool\native\rust\extension_packs\mst\client)
+   Compiling cose_sign1_transparent_mst v0.1.0 (C:\src\repos\CoseSignTool\native\rust\extension_packs\mst)
+   Compiling cose_sign1_cli v0.1.0 (C:\src\repos\CoseSignTool\native\rust\cli)
+warning: function `resolve_pfx_password` is never used
+    --> cli\src\commands\sign.rs:1165:4
+     |
+1165 | fn resolve_pfx_password(
+     |    ^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+

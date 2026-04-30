@@ -7,7 +7,9 @@
 //! All tests are parallel-safe (no shared mutable state).
 
 use cose_sign1_certificates_local::certificate::Certificate;
-use cose_sign1_certificates_local::chain_factory::{CertificateChainFactory, CertificateChainOptions};
+use cose_sign1_certificates_local::chain_factory::{
+    CertificateChainFactory, CertificateChainOptions,
+};
 use cose_sign1_certificates_local::factory::EphemeralCertificateFactory;
 use cose_sign1_certificates_local::key_algorithm::KeyAlgorithm;
 use cose_sign1_certificates_local::options::{
@@ -445,10 +447,15 @@ fn custom_extension_via_add_custom_extension() {
         .expect("Cert with custom extension should succeed");
 
     let (_, parsed) = parse_cert(&cert.cert_der);
-    let found = parsed.extensions().iter().any(|ext| {
-        ext.oid.to_string() == custom_oid
-    });
-    assert!(found, "Custom extension with OID {} should be present", custom_oid);
+    let found = parsed
+        .extensions()
+        .iter()
+        .any(|ext| ext.oid.to_string() == custom_oid);
+    assert!(
+        found,
+        "Custom extension with OID {} should be present",
+        custom_oid
+    );
 }
 
 #[test]
@@ -467,11 +474,15 @@ fn custom_extension_via_add_custom_extension_der() {
         .expect("Cert with custom DER extension should succeed");
 
     let (_, parsed) = parse_cert(&cert.cert_der);
-    let ext = parsed.extensions().iter().find(|ext| {
-        ext.oid.to_string() == custom_oid
-    });
+    let ext = parsed
+        .extensions()
+        .iter()
+        .find(|ext| ext.oid.to_string() == custom_oid);
     assert!(ext.is_some(), "Custom DER extension should be present");
-    assert!(ext.unwrap().critical, "Custom DER extension should be critical");
+    assert!(
+        ext.unwrap().critical,
+        "Custom DER extension should be critical"
+    );
 }
 
 #[test]
@@ -489,7 +500,11 @@ fn multiple_custom_extensions() {
         .expect("Cert with multiple custom extensions should succeed");
 
     let (_, parsed) = parse_cert(&cert.cert_der);
-    let oids: Vec<String> = parsed.extensions().iter().map(|e| e.oid.to_string()).collect();
+    let oids: Vec<String> = parsed
+        .extensions()
+        .iter()
+        .map(|e| e.oid.to_string())
+        .collect();
     assert!(oids.contains(&"1.2.3.4.5.100".to_string()));
     assert!(oids.contains(&"1.2.3.4.5.101".to_string()));
 }
@@ -643,14 +658,26 @@ fn get_and_release_generated_key() {
 
     // Should be able to retrieve the generated key
     let key = factory.get_generated_key(&serial_hex);
-    assert!(key.is_some(), "Generated key should be retrievable by serial hex");
+    assert!(
+        key.is_some(),
+        "Generated key should be retrievable by serial hex"
+    );
     let key = key.unwrap();
     assert_eq!(key.algorithm, KeyAlgorithm::Ecdsa);
 
     // Release the key
-    assert!(factory.release_key(&serial_hex), "Release should return true for existing key");
-    assert!(!factory.release_key(&serial_hex), "Second release should return false");
-    assert!(factory.get_generated_key(&serial_hex).is_none(), "Key should be gone after release");
+    assert!(
+        factory.release_key(&serial_hex),
+        "Release should return true for existing key"
+    );
+    assert!(
+        !factory.release_key(&serial_hex),
+        "Second release should return false"
+    );
+    assert!(
+        factory.get_generated_key(&serial_hex).is_none(),
+        "Key should be gone after release"
+    );
 }
 
 // ===========================================================================
@@ -710,7 +737,10 @@ fn issuer_without_private_key_fails() {
             .signed_by(stripped_ca),
     );
 
-    assert!(result.is_err(), "Signing with issuer that has no private key should fail");
+    assert!(
+        result.is_err(),
+        "Signing with issuer that has no private key should fail"
+    );
 }
 
 // ===========================================================================
@@ -1136,7 +1166,11 @@ fn hybrid_chain_ecdsa_root_eddsa_leaf_with_intermediate() {
         .create_chain_with_options(options)
         .expect("3-tier hybrid chain should succeed");
 
-    assert_eq!(chain.len(), 3, "Chain should have root + intermediate + leaf");
+    assert_eq!(
+        chain.len(),
+        3,
+        "Chain should have root + intermediate + leaf"
+    );
 }
 
 // ===========================================================================
@@ -1182,8 +1216,7 @@ fn chain_with_root_and_leaf_key_sizes_no_intermediate() {
 #[test]
 fn chain_default_algorithm_used_when_no_override() {
     let chain_factory = make_chain_factory();
-    let options = CertificateChainOptions::new()
-        .with_key_algorithm(KeyAlgorithm::Ecdsa);
+    let options = CertificateChainOptions::new().with_key_algorithm(KeyAlgorithm::Ecdsa);
     // No per-tier overrides → all use Ecdsa
 
     let chain = chain_factory
@@ -1245,7 +1278,10 @@ fn chain_root_first_ordering() {
 
     let (_, first) = parse_cert(&chain[0].cert_der);
     assert!(
-        first.subject().to_string().contains("Root for Root-First Test"),
+        first
+            .subject()
+            .to_string()
+            .contains("Root for Root-First Test"),
         "First cert in root-first order should be the root"
     );
 }
@@ -1257,16 +1293,21 @@ fn chain_root_first_ordering() {
 #[test]
 fn chain_leaf_only_private_key() {
     let chain_factory = make_chain_factory();
-    let options = CertificateChainOptions::new()
-        .with_leaf_only_private_key(true);
+    let options = CertificateChainOptions::new().with_leaf_only_private_key(true);
 
     let chain = chain_factory
         .create_chain_with_options(options)
         .expect("Leaf-only private key chain should succeed");
 
     // root-first order: root, intermediate, leaf
-    assert!(!chain[0].has_private_key(), "Root should not have private key");
-    assert!(!chain[1].has_private_key(), "Intermediate should not have private key");
+    assert!(
+        !chain[0].has_private_key(),
+        "Root should not have private key"
+    );
+    assert!(
+        !chain[1].has_private_key(),
+        "Intermediate should not have private key"
+    );
     assert!(chain[2].has_private_key(), "Leaf should have private key");
 }
 
@@ -1277,10 +1318,9 @@ fn chain_leaf_only_private_key() {
 #[test]
 fn chain_with_custom_leaf_ekus() {
     let chain_factory = make_chain_factory();
-    let options = CertificateChainOptions::new()
-        .with_leaf_enhanced_key_usages(vec![
-            "1.3.6.1.5.5.7.3.1".to_string(), // server auth
-        ]);
+    let options = CertificateChainOptions::new().with_leaf_enhanced_key_usages(vec![
+        "1.3.6.1.5.5.7.3.1".to_string(), // server auth
+    ]);
 
     let chain = chain_factory
         .create_chain_with_options(options)
@@ -1296,8 +1336,7 @@ fn chain_with_custom_leaf_ekus() {
 #[test]
 fn two_tier_chain() {
     let chain_factory = make_chain_factory();
-    let options = CertificateChainOptions::new()
-        .with_intermediate_name(None::<String>);
+    let options = CertificateChainOptions::new().with_intermediate_name(None::<String>);
 
     let chain = chain_factory
         .create_chain_with_options(options)
@@ -1317,7 +1356,11 @@ fn default_chain_creation() {
         .create_chain()
         .expect("Default chain should succeed");
 
-    assert_eq!(chain.len(), 3, "Default chain should have root + intermediate + leaf");
+    assert_eq!(
+        chain.len(),
+        3,
+        "Default chain should have root + intermediate + leaf"
+    );
 }
 
 // ===========================================================================
@@ -1355,9 +1398,18 @@ fn chain_leaf_first_with_leaf_only_key() {
         .expect("Leaf-first + leaf-only-key chain should succeed");
 
     // leaf-first: [leaf, intermediate, root]
-    assert!(chain[0].has_private_key(), "First (leaf) should have private key");
-    assert!(!chain[1].has_private_key(), "Second (intermediate) should not have private key");
-    assert!(!chain[2].has_private_key(), "Third (root) should not have private key");
+    assert!(
+        chain[0].has_private_key(),
+        "First (leaf) should have private key"
+    );
+    assert!(
+        !chain[1].has_private_key(),
+        "Second (intermediate) should not have private key"
+    );
+    assert!(
+        !chain[2].has_private_key(),
+        "Third (root) should not have private key"
+    );
 }
 
 // ===========================================================================
@@ -1378,7 +1430,10 @@ fn two_tier_leaf_first_leaf_only_key() {
 
     assert_eq!(chain.len(), 2);
     assert!(chain[0].has_private_key(), "First (leaf) should have key");
-    assert!(!chain[1].has_private_key(), "Second (root) should not have key");
+    assert!(
+        !chain[1].has_private_key(),
+        "Second (root) should not have key"
+    );
 }
 
 // ===========================================================================

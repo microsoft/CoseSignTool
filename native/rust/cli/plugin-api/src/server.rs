@@ -230,9 +230,9 @@ pub fn dispatch_request(plugin: &mut dyn PluginProvider, request: &Request) -> R
                 sign_request.format.as_str(),
                 &sign_request.options,
             ) {
-                Ok(cose_bytes) => {
-                    Response::ok(ResponseResult::SignPayload(SignPayloadResponse { cose_bytes }))
-                }
+                Ok(cose_bytes) => Response::ok(ResponseResult::SignPayload(SignPayloadResponse {
+                    cose_bytes,
+                })),
                 Err(error) => Response::err("SIGN_PAYLOAD_FAILED", error),
             }
         }

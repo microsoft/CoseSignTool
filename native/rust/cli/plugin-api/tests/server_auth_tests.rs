@@ -200,11 +200,7 @@ fn dispatch_request_verify_without_capability_returns_none() {
     use cosesigntool_plugin_api::server::dispatch_request;
 
     // TestPlugin without verification capability
-    let request = Request::verify(
-        vec![0xD2, 0x84],
-        None,
-        VerificationOptions::default(),
-    );
+    let request = Request::verify(vec![0xD2, 0x84], None, VerificationOptions::default());
     let response = dispatch_request(&mut TestPlugin::new(), &request);
     assert!(response.error.is_none());
     assert!(matches!(response.result, ResponseResult::None));
@@ -277,11 +273,7 @@ impl PluginProvider for TestPlugin {
     fn create_service(&mut self, config: PluginConfig) -> Result<String, String> {
         Ok(format!(
             "svc-{}",
-            config
-                .options
-                .get("profile")
-                .cloned()
-                .unwrap_or_default()
+            config.options.get("profile").cloned().unwrap_or_default()
         ))
     }
 

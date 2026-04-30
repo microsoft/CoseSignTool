@@ -325,9 +325,9 @@ fn test_get_cose_signer_certificate_source_failure() {
 #[test]
 fn test_verify_signature_returns_true() {
     // Generate a real EC P-256 key pair and self-signed certificate
-    let factory = cose_sign1_certificates_local::EphemeralCertificateFactory::new(
-        Box::new(cose_sign1_certificates_local::SoftwareKeyProvider::new()),
-    );
+    let factory = cose_sign1_certificates_local::EphemeralCertificateFactory::new(Box::new(
+        cose_sign1_certificates_local::SoftwareKeyProvider::new(),
+    ));
     let test_cert = factory
         .create_certificate(
             cose_sign1_certificates_local::CertificateOptions::new()
@@ -365,9 +365,9 @@ fn test_verify_signature_returns_true() {
 #[test]
 fn test_verify_signature_rejects_tampered_message() {
     // Generate a real EC P-256 key pair and self-signed certificate
-    let factory = cose_sign1_certificates_local::EphemeralCertificateFactory::new(
-        Box::new(cose_sign1_certificates_local::SoftwareKeyProvider::new()),
-    );
+    let factory = cose_sign1_certificates_local::EphemeralCertificateFactory::new(Box::new(
+        cose_sign1_certificates_local::SoftwareKeyProvider::new(),
+    ));
     let test_cert = factory
         .create_certificate(
             cose_sign1_certificates_local::CertificateOptions::new()

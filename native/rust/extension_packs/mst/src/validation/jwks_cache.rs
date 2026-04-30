@@ -242,14 +242,10 @@ impl JwksCache {
 
         // Evict expired entries
         let ttl = self.refresh_interval;
-        inner
-            .entries
-            .retain(|_, v| v.fetched_at.elapsed() <= ttl);
+        inner.entries.retain(|_, v| v.fetched_at.elapsed() <= ttl);
 
         // Enforce size limit (skip if updating an existing key)
-        if !inner.entries.contains_key(issuer)
-            && inner.entries.len() >= MAX_CACHE_ENTRIES
-        {
+        if !inner.entries.contains_key(issuer) && inner.entries.len() >= MAX_CACHE_ENTRIES {
             if let Some(oldest_key) = inner
                 .entries
                 .iter()

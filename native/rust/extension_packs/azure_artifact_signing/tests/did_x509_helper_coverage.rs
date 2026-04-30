@@ -48,10 +48,7 @@ fn generate_cert_without_eku() -> Vec<u8> {
 fn generate_minimal_cert() -> Vec<u8> {
     let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
     factory
-        .create_certificate(
-            CertificateOptions::new()
-                .with_subject_name("CN=Minimal"),
-        )
+        .create_certificate(CertificateOptions::new().with_subject_name("CN=Minimal"))
         .unwrap()
         .cert_der
 }
@@ -89,10 +86,7 @@ fn test_single_certificate_chain() {
 #[test]
 fn test_multi_certificate_chain() {
     // Create a chain with leaf + intermediate + root
-    let leaf_cert = generate_cert_with_eku(vec![
-        EKU_CODE_SIGNING,
-        EKU_TIME_STAMPING,
-    ]);
+    let leaf_cert = generate_cert_with_eku(vec![EKU_CODE_SIGNING, EKU_TIME_STAMPING]);
     let intermediate_cert = generate_cert_with_eku(vec![EKU_ANY]);
     let root_cert = generate_cert_with_eku(vec![EKU_ANY]);
 
@@ -339,10 +333,7 @@ fn test_error_propagation_from_did_builder() {
 fn test_microsoft_eku_detection_fallback() {
     // This test covers the fallback path when no Microsoft EKU is found
     // Most standard certificates won't have Microsoft-specific EKUs
-    let standard_cert = generate_cert_with_eku(vec![
-        EKU_SERVER_AUTH,
-        EKU_CLIENT_AUTH,
-    ]);
+    let standard_cert = generate_cert_with_eku(vec![EKU_SERVER_AUTH, EKU_CLIENT_AUTH]);
 
     let chain = vec![standard_cert.as_slice()];
     let result = build_did_x509_from_ats_chain(&chain);
@@ -367,11 +358,7 @@ fn test_eku_extraction_edge_cases() {
         vec![EKU_SERVER_AUTH],
         vec![EKU_EMAIL_PROTECTION],
         vec![EKU_TIME_STAMPING],
-        vec![
-            EKU_CODE_SIGNING,
-            EKU_SERVER_AUTH,
-            EKU_TIME_STAMPING,
-        ],
+        vec![EKU_CODE_SIGNING, EKU_SERVER_AUTH, EKU_TIME_STAMPING],
         vec![], // No EKU
     ];
 

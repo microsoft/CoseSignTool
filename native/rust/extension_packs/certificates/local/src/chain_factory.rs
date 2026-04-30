@@ -282,29 +282,30 @@ impl CertificateChainFactory {
         )?;
 
         // Determine the issuer for the leaf
-        let (leaf_issuer, intermediate) =
-            if let Some(intermediate_name) = &options.intermediate_name {
-                let inter_algo = options.resolve_algorithm(options.intermediate_key_algorithm);
-                let inter_size = options.resolve_key_size(options.intermediate_key_size, inter_algo);
+        let (leaf_issuer, intermediate) = if let Some(intermediate_name) =
+            &options.intermediate_name
+        {
+            let inter_algo = options.resolve_algorithm(options.intermediate_key_algorithm);
+            let inter_size = options.resolve_key_size(options.intermediate_key_size, inter_algo);
 
-                // Create intermediate CA
-                let intermediate = self.certificate_factory.create_certificate(
-                    CertificateOptions::new()
-                        .with_subject_name(intermediate_name)
-                        .with_key_algorithm(inter_algo)
-                        .with_key_size(inter_size)
-                        .with_validity(options.intermediate_validity)
-                        .as_ca(0)
-                        .with_key_usage(KeyUsageFlags {
-                            flags: KeyUsageFlags::KEY_CERT_SIGN.flags
-                                | KeyUsageFlags::DIGITAL_SIGNATURE.flags,
-                        })
-                        .signed_by(root.clone()),
-                )?;
-                (intermediate.clone(), Some(intermediate))
-            } else {
-                (root.clone(), None)
-            };
+            // Create intermediate CA
+            let intermediate = self.certificate_factory.create_certificate(
+                CertificateOptions::new()
+                    .with_subject_name(intermediate_name)
+                    .with_key_algorithm(inter_algo)
+                    .with_key_size(inter_size)
+                    .with_validity(options.intermediate_validity)
+                    .as_ca(0)
+                    .with_key_usage(KeyUsageFlags {
+                        flags: KeyUsageFlags::KEY_CERT_SIGN.flags
+                            | KeyUsageFlags::DIGITAL_SIGNATURE.flags,
+                    })
+                    .signed_by(root.clone()),
+            )?;
+            (intermediate.clone(), Some(intermediate))
+        } else {
+            (root.clone(), None)
+        };
 
         // Create leaf certificate
         let leaf_algo = options.resolve_algorithm(options.leaf_key_algorithm);

@@ -116,10 +116,7 @@ fn from_client_transparency_endpoints_exposes_mst_discovery() {
         endpoints[0].endpoint,
         "https://signing.transparency.azure.net"
     );
-    assert_eq!(
-        endpoints[0].display_name,
-        "Microsoft Signing Transparency"
-    );
+    assert_eq!(endpoints[0].display_name, "Microsoft Signing Transparency");
     assert!(!endpoints[0].auto_submit);
 }
 

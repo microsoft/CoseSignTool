@@ -43,9 +43,13 @@ fn generate_cert_with_subject_edge_cases() -> Vec<u8> {
     let pkey = PKey::from_ec_key(ec_key).unwrap();
 
     let mut name_builder = X509NameBuilder::new().unwrap();
-    name_builder.append_entry_by_text("CN", "Test Subject").unwrap();
+    name_builder
+        .append_entry_by_text("CN", "Test Subject")
+        .unwrap();
     name_builder.append_entry_by_text("O", "Test Org").unwrap();
-    name_builder.append_entry_by_text("OU", "Test Unit").unwrap();
+    name_builder
+        .append_entry_by_text("OU", "Test Unit")
+        .unwrap();
     name_builder.append_entry_by_text("C", "US").unwrap();
     let subject_name = name_builder.build();
 

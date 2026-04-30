@@ -44,7 +44,7 @@ fn client_and_server_roundtrip_all_supported_methods() {
         ]
     );
     assert_eq!(info.commands.len(), 1);
-    assert_eq!(info.commands[0].name, "ats");
+    assert_eq!(info.commands[0].name, "aas");
     assert_eq!(info.commands[0].options.len(), 2);
     assert_eq!(info.transparency_options.len(), 1);
     assert_eq!(info.transparency_options[0].name, "scitt-rekor-endpoint");
@@ -305,12 +305,12 @@ impl PluginProvider for SigningOnlyPlugin {
 
 fn sample_plugin_commands() -> Vec<PluginCommandDef> {
     vec![PluginCommandDef {
-        name: "ats".to_string(),
+        name: "aas".to_string(),
         description: "Azure Artifact Signing provider".to_string(),
         options: vec![
             PluginOptionDef {
-                name: "ats-endpoint".to_string(),
-                value_name: "ats-endpoint".to_string(),
+                name: "aas-endpoint".to_string(),
+                value_name: "aas-endpoint".to_string(),
                 description: "Azure Artifact Signing endpoint URL".to_string(),
                 required: true,
                 default_value: None,

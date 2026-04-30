@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-//! `CoseSignTool sign x509 {pfx|pem|ats|ephemeral} <payload> [options]`
+//! `CoseSignTool sign x509 {pfx|pem|aas|ephemeral} <payload> [options]`
 //!
 //! Mirrors V2 .NET sign command structure exactly.
 
@@ -45,8 +45,8 @@ pub enum X509Provider {
     /// Sign with an ephemeral in-memory certificate (testing).
     Ephemeral(EphemeralArgs),
     /// Sign with Azure Artifact Signing cloud service.
-    #[cfg(feature = "ats")]
-    Ats(AtsArgs),
+    #[cfg(feature = "aas")]
+    Aas(AasArgs),
     /// Sign using Azure Key Vault key (no certificate chain).
     #[cfg(feature = "akv")]
     Akv(AkvArgs),
@@ -225,23 +225,23 @@ pub struct EphemeralArgs {
     pub subject: String,
 }
 
-#[cfg(feature = "ats")]
+#[cfg(feature = "aas")]
 #[derive(Args, Debug)]
-pub struct AtsArgs {
+pub struct AasArgs {
     #[command(flatten)]
     pub common: CommonSignArgs,
 
     /// Azure Artifact Signing endpoint URL (e.g., https://xxx.codesigning.azure.net)
-    #[arg(long = "ats-endpoint", value_name = "ats-endpoint")]
-    pub ats_endpoint: String,
+    #[arg(long = "aas-endpoint", value_name = "aas-endpoint")]
+    pub aas_endpoint: String,
 
     /// Azure Artifact Signing account name
-    #[arg(long = "ats-account-name", value_name = "ats-account-name")]
-    pub ats_account_name: String,
+    #[arg(long = "aas-account-name", value_name = "aas-account-name")]
+    pub aas_account_name: String,
 
     /// Certificate profile name in Azure Artifact Signing
-    #[arg(long = "ats-cert-profile-name", value_name = "ats-cert-profile-name")]
-    pub ats_cert_profile_name: String,
+    #[arg(long = "aas-cert-profile-name", value_name = "aas-cert-profile-name")]
+    pub aas_cert_profile_name: String,
 }
 
 #[cfg(feature = "akv")]
@@ -341,20 +341,20 @@ fn execute_x509(provider: X509Provider, format: OutputFormat) -> Result<i32> {
                 ProviderDisplayInfo::new("Ephemeral"),
             )
         }
-        #[cfg(feature = "ats")]
-        X509Provider::Ats(args) => {
-            let service = providers::ats::create_ats_service(
-                &args.ats_endpoint,
-                &args.ats_account_name,
-                &args.ats_cert_profile_name,
+        #[cfg(feature = "aas")]
+        X509Provider::Aas(args) => {
+            let service = providers::aas::create_aas_service(
+                &args.aas_endpoint,
+                &args.aas_account_name,
+                &args.aas_cert_profile_name,
             )?;
             (
                 Arc::new(service),
                 args.common,
                 ProviderDisplayInfo {
                     certificate_source: "Azure Artifact Signing".to_string(),
-                    account_name: Some(args.ats_account_name),
-                    certificate_profile: Some(args.ats_cert_profile_name),
+                    account_name: Some(args.aas_account_name),
+                    certificate_profile: Some(args.aas_cert_profile_name),
                 },
             )
         }
@@ -849,8 +849,8 @@ pub fn try_parse_plugin_invocation(
 pub fn is_builtin_provider_name(name: &str) -> bool {
     match name {
         "pfx" | "pem" | "ephemeral" => true,
-        #[cfg(feature = "ats")]
-        "ats" => true,
+        #[cfg(feature = "aas")]
+        "aas" => true,
         #[cfg(feature = "akv")]
         "akv" | "akv-cert" => true,
         _ => false,
@@ -870,8 +870,8 @@ fn common_sign_args_mut(method: &mut SignMethod) -> &mut CommonSignArgs {
             X509Provider::Pfx(args) => &mut args.common,
             X509Provider::Pem(args) => &mut args.common,
             X509Provider::Ephemeral(args) => &mut args.common,
-            #[cfg(feature = "ats")]
-            X509Provider::Ats(args) => &mut args.common,
+            #[cfg(feature = "aas")]
+            X509Provider::Aas(args) => &mut args.common,
             #[cfg(feature = "akv")]
             X509Provider::Akv(args) => &mut args.common,
             #[cfg(feature = "akv")]

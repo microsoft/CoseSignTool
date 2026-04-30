@@ -7,19 +7,19 @@ use cosesigntool_plugin_api::traits::{
     PluginCapability, PluginCommandDef, PluginInfo, PluginOptionDef,
 };
 
-#[cfg(feature = "ats")]
+#[cfg(feature = "aas")]
 #[test]
-fn ats_help_includes_exact_v2_option_strings() {
+fn aas_help_includes_exact_v2_option_strings() {
     let help = help_text(
         commands::build_command(&[]),
-        ["CoseSignTool", "sign", "x509", "ats", "--help"],
+        ["CoseSignTool", "sign", "x509", "aas", "--help"],
     );
 
-    assert!(help.contains("--ats-endpoint <ats-endpoint>"));
+    assert!(help.contains("--aas-endpoint <aas-endpoint>"));
     assert!(help.contains("Azure Artifact Signing endpoint URL (e.g., https://xxx.codesigning.azure.net)"));
-    assert!(help.contains("--ats-account-name <ats-account-name>"));
+    assert!(help.contains("--aas-account-name <aas-account-name>"));
     assert!(help.contains("Azure Artifact Signing account name"));
-    assert!(help.contains("--ats-cert-profile-name <ats-cert-profile-name>"));
+    assert!(help.contains("--aas-cert-profile-name <aas-cert-profile-name>"));
     assert!(help.contains("Certificate profile name in Azure Artifact Signing"));
 }
 

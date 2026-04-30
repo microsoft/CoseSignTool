@@ -6,8 +6,8 @@
 pub mod local;
 pub mod plugin;
 
-#[cfg(feature = "ats")]
-pub mod ats;
+#[cfg(feature = "aas")]
+pub mod aas;
 
 #[cfg(feature = "akv")]
 pub mod akv;

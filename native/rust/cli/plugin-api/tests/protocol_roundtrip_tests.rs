@@ -147,10 +147,10 @@ fn plugin_info_response_roundtrips_through_framed_cbor() {
             assert_eq!(info.capabilities[0], PluginCapability::Signing);
             assert_eq!(info.capabilities[1], PluginCapability::Verification);
             assert_eq!(info.commands.len(), 1);
-            assert_eq!(info.commands[0].name, "ats");
+            assert_eq!(info.commands[0].name, "aas");
             assert_eq!(info.commands[0].capability, PluginCapability::Signing);
             assert_eq!(info.commands[0].options.len(), 2);
-            assert_eq!(info.commands[0].options[0].name, "ats-endpoint");
+            assert_eq!(info.commands[0].options[0].name, "aas-endpoint");
             assert_eq!(info.commands[0].options[0].short, Some('e'));
             assert_eq!(
                 info.commands[0].options[1].default_value,
@@ -277,12 +277,12 @@ fn sample_verification_result() -> VerificationResult {
 
 fn sample_plugin_commands() -> Vec<PluginCommandDef> {
     vec![PluginCommandDef {
-        name: "ats".to_string(),
+        name: "aas".to_string(),
         description: "Azure Artifact Signing provider".to_string(),
         options: vec![
             PluginOptionDef {
-                name: "ats-endpoint".to_string(),
-                value_name: "ats-endpoint".to_string(),
+                name: "aas-endpoint".to_string(),
+                value_name: "aas-endpoint".to_string(),
                 description: "Azure Artifact Signing endpoint URL".to_string(),
                 required: true,
                 default_value: None,

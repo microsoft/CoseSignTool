@@ -14,9 +14,9 @@ use std::collections::HashMap;
 /// Definition of a CLI option exposed by a plugin command.
 #[derive(Debug, Clone)]
 pub struct PluginOptionDef {
-    /// Long option name without dashes (e.g., "ats-endpoint").
+    /// Long option name without dashes (e.g., "aas-endpoint").
     pub name: String,
-    /// Value placeholder (e.g., "ats-endpoint", "URL").
+    /// Value placeholder (e.g., "aas-endpoint", "URL").
     pub value_name: String,
     /// Help description text.
     pub description: String,
@@ -33,7 +33,7 @@ pub struct PluginOptionDef {
 /// Definition of a CLI subcommand exposed by a plugin.
 #[derive(Debug, Clone)]
 pub struct PluginCommandDef {
-    /// Subcommand name (e.g., "ats", "pfx", "akv-cert").
+    /// Subcommand name (e.g., "aas", "pfx", "akv-cert").
     pub name: String,
     /// Short description for help output.
     pub description: String,

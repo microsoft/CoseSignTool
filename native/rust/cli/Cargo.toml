@@ -51,17 +51,17 @@ sha2 = { workspace = true }
 x509-parser = { workspace = true }
 url = { workspace = true }
 
-# Azure auth (for ats/akv)
+# Azure auth (for aas/akv)
 azure_identity = { workspace = true, optional = true }
 azure_core = { workspace = true, optional = true }
 
 [features]
 default = ["local"]
 local = []
-ats = ["dep:cose_sign1_azure_artifact_signing", "dep:azure_identity", "dep:azure_core"]
+aas = ["dep:cose_sign1_azure_artifact_signing", "dep:azure_identity", "dep:azure_core"]
 akv = ["dep:cose_sign1_azure_key_vault", "dep:azure_identity", "dep:azure_core"]
 mst = ["dep:cose_sign1_transparent_mst"]
-all = ["local", "ats", "akv", "mst"]
+all = ["local", "aas", "akv", "mst"]
 
 [dev-dependencies]
 tempfile = { workspace = true }

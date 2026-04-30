@@ -1,17 +1,17 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-//! Azure Artifact Signing (ATS) provider.
+//! Azure Artifact Signing (AAS) provider.
 //!
 //! Creates an `AzureArtifactSigningService` from CLI arguments.
-//! Behind the `ats` feature flag.
+//! Behind the `aas` feature flag.
 
 use anyhow::{Context, Result};
 use cose_sign1_azure_artifact_signing::options::AzureArtifactSigningOptions;
 use cose_sign1_azure_artifact_signing::signing::signing_service::AzureArtifactSigningService;
 
 /// Create an AAS signing service from CLI arguments.
-pub fn create_ats_service(
+pub fn create_aas_service(
     endpoint: &str,
     account_name: &str,
     cert_profile_name: &str,

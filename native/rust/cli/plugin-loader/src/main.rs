@@ -22,7 +22,7 @@ fn main() {
 fn run() -> Result<()> {
     let args: Vec<String> = std::env::args().collect();
     let plugin_name =
-        find_arg(&args, "--plugin").context("--plugin is required (e.g., ats, akv)")?;
+        find_arg(&args, "--plugin").context("--plugin is required (e.g., aas, akv)")?;
     let plugin = create_provider(plugin_name.as_str())?;
     server::run(plugin)?;
     Ok(())

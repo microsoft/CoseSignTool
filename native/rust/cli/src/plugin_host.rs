@@ -2,27 +2,16 @@
 // Licensed under the MIT License.
 
 //! Plugin host — discovers, launches, and communicates with subprocess plugins.
-//!
-//! The host spawns each plugin as a subprocess, passes a named-pipe endpoint via
-//! `--mode pipe --pipe-name <name>`, and then exchanges 4-byte length-prefixed
-//! CBOR request/response frames over that pipe.
 
 use anyhow::{anyhow, Context, Result};
-use cosesigntool_plugin_api::protocol::{self, methods, Request, Response, ResponseResult};
+use cosesigntool_plugin_api::auth::{auth_key_to_hex, generate_auth_key, AUTH_KEY_ENV_VAR};
+use cosesigntool_plugin_api::client::PluginClient;
 use cosesigntool_plugin_api::traits::*;
 use std::collections::HashMap;
-use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
-
-#[cfg(unix)]
-use std::os::unix::net::UnixStream;
-
-trait PluginTransport: Read + Write + Send {}
-
-impl<T> PluginTransport for T where T: Read + Write + Send {}
 
 #[derive(Debug, Clone)]
 struct PluginEndpoint {
@@ -67,83 +56,53 @@ impl PluginEndpoint {
 pub struct PluginProcess {
     pub info: PluginInfo,
     child: Child,
-    stream: Box<dyn PluginTransport>,
+    client: PluginClient,
     endpoint: PluginEndpoint,
 }
 
 impl PluginProcess {
-    /// Send a request and read the response.
-    fn call(&mut self, request: &Request) -> Result<Response> {
-        let method = request.method.clone();
-        protocol::write_request(&mut self.stream, request).with_context(|| {
-            format!("Failed to send '{}' to plugin '{}'", method, self.info.id)
-        })?;
-
-        let response = protocol::read_response(&mut self.stream).with_context(|| {
-            format!("Failed to read response for '{}' from plugin '{}'", method, self.info.id)
-        })?;
-
-        if let Some(error) = response.error.as_ref() {
-            anyhow::bail!(
-                "Plugin '{}' error on '{}': [{}] {}",
-                self.info.id,
-                method,
-                error.code,
-                error.message
-            );
-        }
-
-        Ok(response)
-    }
-
-    fn unexpected_result(&self, method: &str, result: ResponseResult) -> anyhow::Error {
-        anyhow!(
-            "Plugin '{}' returned an unexpected result for '{}': {:?}",
-            self.info.id,
-            method,
-            result
-        )
-    }
-
     /// Get the certificate chain from the plugin.
     pub fn get_cert_chain(&mut self, service_id: &str) -> Result<Vec<Vec<u8>>> {
-        let response = self.call(&Request::get_cert_chain(service_id))?;
-        match response.result {
-            ResponseResult::CertificateChain(chain) => Ok(chain.certificates),
-            result => Err(self.unexpected_result(methods::GET_CERT_CHAIN, result)),
-        }
+        self.client.get_cert_chain(service_id).with_context(|| {
+            format!(
+                "Failed to get the certificate chain from plugin '{}' for service '{}'",
+                self.info.id, service_id
+            )
+        })
     }
 
     /// Get the signing algorithm from the plugin.
     pub fn get_algorithm(&mut self, service_id: &str) -> Result<i64> {
-        let response = self.call(&Request::get_algorithm(service_id))?;
-        match response.result {
-            ResponseResult::Algorithm(result) => Ok(result.algorithm),
-            result => Err(self.unexpected_result(methods::GET_ALGORITHM, result)),
-        }
+        self.client.get_algorithm(service_id).with_context(|| {
+            format!(
+                "Failed to get the signing algorithm from plugin '{}' for service '{}'",
+                self.info.id, service_id
+            )
+        })
     }
 
     /// Sign data using the plugin.
     pub fn sign(&mut self, service_id: &str, data: &[u8], algorithm: i64) -> Result<Vec<u8>> {
-        let response = self.call(&Request::sign(service_id, data.to_vec(), algorithm))?;
-        match response.result {
-            ResponseResult::Sign(result) => Ok(result.signature),
-            result => Err(self.unexpected_result(methods::SIGN, result)),
-        }
+        self.client
+            .sign(service_id, data, algorithm)
+            .with_context(|| {
+                format!(
+                    "Failed to sign with plugin '{}' for service '{}'",
+                    self.info.id, service_id
+                )
+            })
     }
 
     /// Create a signing service in the plugin.
     pub fn create_service(&mut self, config: &PluginConfig) -> Result<String> {
-        let response = self.call(&Request::create_service(config.clone()))?;
-        match response.result {
-            ResponseResult::CreateService { service_id } => Ok(service_id),
-            result => Err(self.unexpected_result(methods::CREATE_SERVICE, result)),
-        }
+        self.client
+            .create_service(config.clone())
+            .with_context(|| format!("Failed to create a service in plugin '{}'", self.info.id))
     }
 
     /// Send shutdown and wait for the process to exit.
     pub fn shutdown(mut self) -> Result<()> {
-        let _ = self.call(&Request::shutdown());
+        let _ = self.client.send_shutdown();
         wait_for_child_exit(&mut self.child, Duration::from_secs(2))?;
         self.endpoint.cleanup();
         Ok(())
@@ -170,7 +129,7 @@ impl Drop for PluginProcess {
             }
         }
 
-        let _ = protocol::write_request(&mut self.stream, &Request::shutdown());
+        let _ = self.client.send_shutdown();
         let _ = wait_for_child_exit(&mut self.child, Duration::from_millis(500));
         self.endpoint.cleanup();
     }
@@ -206,7 +165,10 @@ impl PluginRegistry {
                 continue;
             }
 
-            let filename = path.file_name().and_then(|name| name.to_str()).unwrap_or("");
+            let filename = path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or("");
             if !filename.starts_with("cosesigntool-plugin-") {
                 continue;
             }
@@ -232,6 +194,7 @@ impl PluginRegistry {
     /// Launch a plugin binary and query its capabilities.
     fn launch_plugin(&mut self, path: &Path) -> Result<()> {
         let endpoint = PluginEndpoint::new()?;
+        let auth_key = generate_auth_key();
         endpoint.cleanup();
 
         let mut child = Command::new(path)
@@ -239,14 +202,15 @@ impl PluginRegistry {
             .arg("pipe")
             .arg("--pipe-name")
             .arg(endpoint.pipe_name.as_str())
+            .env(AUTH_KEY_ENV_VAR, auth_key_to_hex(&auth_key))
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::inherit())
             .spawn()
             .with_context(|| format!("Failed to spawn plugin: {}", path.display()))?;
 
-        let stream = match connect_to_plugin(&mut child, &endpoint) {
-            Ok(stream) => stream,
+        let client = match PluginClient::connect(endpoint.pipe_name.as_str(), &auth_key) {
+            Ok(client) => client,
             Err(error) => {
                 let _ = child.kill();
                 let _ = child.wait();
@@ -266,24 +230,20 @@ impl PluginRegistry {
                 capabilities: Vec::new(),
             },
             child,
-            stream,
+            client,
             endpoint,
         };
 
-        let response = match plugin.call(&Request::capabilities()) {
-            Ok(response) => response,
+        let info = match plugin.client.capabilities() {
+            Ok(info) => info,
             Err(error) => {
                 plugin.abort();
-                return Err(error);
-            }
-        };
-
-        let info = match response.result {
-            ResponseResult::PluginInfo(info) => info,
-            result => {
-                let error = plugin.unexpected_result(methods::CAPABILITIES, result);
-                plugin.abort();
-                return Err(error);
+                return Err(error).with_context(|| {
+                    format!(
+                        "Failed to query capabilities from plugin {}",
+                        path.display()
+                    )
+                });
             }
         };
 
@@ -353,64 +313,4 @@ fn wait_for_child_exit(child: &mut Child, timeout: Duration) -> Result<()> {
 
         thread::sleep(Duration::from_millis(50));
     }
-}
-
-fn connect_to_plugin(
-    child: &mut Child,
-    endpoint: &PluginEndpoint,
-) -> Result<Box<dyn PluginTransport>> {
-    let start = Instant::now();
-    let timeout = Duration::from_secs(10);
-    let mut last_error: Option<std::io::Error>;
-
-    loop {
-        match try_connect_transport(endpoint) {
-            Ok(stream) => return Ok(stream),
-            Err(error) => {
-                last_error = Some(error);
-            }
-        }
-
-        if let Some(status) = child.try_wait()? {
-            let reason = last_error
-                .as_ref()
-                .map(|error| error.to_string())
-                .unwrap_or_else(|| "plugin exited before the pipe accepted connections".into());
-            return Err(anyhow!(
-                "Plugin exited with status {} before pipe connection completed: {}",
-                status,
-                reason
-            ));
-        }
-
-        if start.elapsed() >= timeout {
-            if let Some(error) = last_error {
-                return Err(error).with_context(|| {
-                    format!("Timed out waiting for pipe '{}'", endpoint.pipe_name)
-                });
-            }
-
-            return Err(anyhow!(
-                "Timed out waiting for pipe '{}'",
-                endpoint.pipe_name
-            ));
-        }
-
-        thread::sleep(Duration::from_millis(50));
-    }
-}
-
-#[cfg(windows)]
-fn try_connect_transport(endpoint: &PluginEndpoint) -> std::io::Result<Box<dyn PluginTransport>> {
-    let file = std::fs::OpenOptions::new()
-        .read(true)
-        .write(true)
-        .open(endpoint.pipe_name.as_str())?;
-    Ok(Box::new(file))
-}
-
-#[cfg(unix)]
-fn try_connect_transport(endpoint: &PluginEndpoint) -> std::io::Result<Box<dyn PluginTransport>> {
-    let stream = UnixStream::connect(&endpoint.socket_path)?;
-    Ok(Box::new(stream))
 }

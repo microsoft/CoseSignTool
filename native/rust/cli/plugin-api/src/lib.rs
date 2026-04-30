@@ -24,5 +24,8 @@
 //! 4. Write 4-byte big-endian length-prefixed CBOR responses to the pipe
 //! 5. Exit cleanly on `shutdown` request or when the pipe closes
 
+pub mod auth;
+pub mod client;
 pub mod protocol;
+pub mod server;
 pub mod traits;

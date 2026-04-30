@@ -4,8 +4,13 @@
 use std::collections::HashMap;
 use std::io::Cursor;
 
-use cosesigntool_plugin_api::protocol::{read_request, read_response, write_request, write_response, Request, RequestParams, Response, ResponseResult};
-use cosesigntool_plugin_api::traits::{AlgorithmResponse, CertificateChainResponse, PluginCapability, PluginConfig, PluginInfo};
+use cosesigntool_plugin_api::protocol::{
+    read_request, read_response, write_request, write_response, Request, RequestParams, Response,
+    ResponseResult,
+};
+use cosesigntool_plugin_api::traits::{
+    AlgorithmResponse, CertificateChainResponse, PluginCapability, PluginConfig, PluginInfo,
+};
 
 #[test]
 fn sign_request_roundtrips_through_framed_cbor() {
@@ -56,6 +61,23 @@ fn create_service_request_roundtrips_string_options_map() {
 }
 
 #[test]
+fn acknowledgement_response_roundtrips_through_framed_cbor() {
+    let response = Response::ok(ResponseResult::Acknowledged);
+    let mut buffer = Vec::new();
+
+    write_response(&mut buffer, &response).expect("acknowledgement response should encode");
+
+    let mut cursor = Cursor::new(buffer);
+    let decoded = read_response(&mut cursor).expect("acknowledgement response should decode");
+
+    assert!(decoded.error.is_none());
+    match decoded.result {
+        ResponseResult::Acknowledged => {}
+        other => panic!("unexpected result: {:?}", other),
+    }
+}
+
+#[test]
 fn plugin_info_response_roundtrips_through_framed_cbor() {
     let response = Response::ok(ResponseResult::PluginInfo(PluginInfo {
         id: "local".to_string(),
@@ -91,23 +113,31 @@ fn binary_response_payloads_roundtrip_without_base64() {
     let certs_response = Response::ok(ResponseResult::CertificateChain(CertificateChainResponse {
         certificates: vec![vec![0x30, 0x82, 0x01], vec![0x30, 0x82, 0x02]],
     }));
-    let algorithm_response = Response::ok(ResponseResult::Algorithm(AlgorithmResponse { algorithm: -37 }));
+    let algorithm_response = Response::ok(ResponseResult::Algorithm(AlgorithmResponse {
+        algorithm: -37,
+    }));
 
     let mut certs_buffer = Vec::new();
     write_response(&mut certs_buffer, &certs_response).expect("certificate response should encode");
     let mut certs_cursor = Cursor::new(certs_buffer);
-    let decoded_certs = read_response(&mut certs_cursor).expect("certificate response should decode");
+    let decoded_certs =
+        read_response(&mut certs_cursor).expect("certificate response should decode");
     match decoded_certs.result {
         ResponseResult::CertificateChain(chain) => {
-            assert_eq!(chain.certificates, vec![vec![0x30, 0x82, 0x01], vec![0x30, 0x82, 0x02]]);
+            assert_eq!(
+                chain.certificates,
+                vec![vec![0x30, 0x82, 0x01], vec![0x30, 0x82, 0x02]]
+            );
         }
         other => panic!("unexpected certificate result: {:?}", other),
     }
 
     let mut algorithm_buffer = Vec::new();
-    write_response(&mut algorithm_buffer, &algorithm_response).expect("algorithm response should encode");
+    write_response(&mut algorithm_buffer, &algorithm_response)
+        .expect("algorithm response should encode");
     let mut algorithm_cursor = Cursor::new(algorithm_buffer);
-    let decoded_algorithm = read_response(&mut algorithm_cursor).expect("algorithm response should decode");
+    let decoded_algorithm =
+        read_response(&mut algorithm_cursor).expect("algorithm response should decode");
     match decoded_algorithm.result {
         ResponseResult::Algorithm(result) => {
             assert_eq!(result.algorithm, -37);

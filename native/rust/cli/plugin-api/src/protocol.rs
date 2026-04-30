@@ -19,6 +19,8 @@ use cbor_primitives_everparse::EverParseCborProvider;
 
 use crate::traits::*;
 
+pub use crate::auth::{AUTH_KEY_ENV_VAR, AUTH_KEY_LENGTH};
+
 const REQUEST_FIELD_COUNT: usize = 2;
 const RESPONSE_FIELD_COUNT: usize = 2;
 
@@ -47,7 +49,10 @@ impl Request {
 
     /// Creates a `create_service` request.
     pub fn create_service(config: PluginConfig) -> Self {
-        Self::new(methods::CREATE_SERVICE, RequestParams::CreateService(config))
+        Self::new(
+            methods::CREATE_SERVICE,
+            RequestParams::CreateService(config),
+        )
     }
 
     /// Creates a `get_cert_chain` request.
@@ -89,7 +94,10 @@ impl Request {
 
     /// Creates an `authenticate` request with the given auth key.
     pub fn authenticate(auth_key: Vec<u8>) -> Self {
-        Self::new(methods::AUTHENTICATE, RequestParams::Authenticate { auth_key })
+        Self::new(
+            methods::AUTHENTICATE,
+            RequestParams::Authenticate { auth_key },
+        )
     }
 }
 
@@ -233,12 +241,6 @@ pub mod methods {
     pub const SHUTDOWN: &str = "shutdown";
 }
 
-/// Environment variable name for the auth key passed from host to plugin.
-pub const AUTH_KEY_ENV_VAR: &str = "COSESIGNTOOL_PLUGIN_AUTH_KEY";
-
-/// Length of the auth key in bytes.
-pub const AUTH_KEY_LENGTH: usize = 32;
-
 /// Encodes a request body into CBOR.
 pub fn encode_request<E>(encoder: &mut E, request: &Request) -> ProtocolResult<()>
 where
@@ -246,9 +248,13 @@ where
     E::Error: std::fmt::Display,
 {
     validate_request(request)?;
-    encoder.encode_map(REQUEST_FIELD_COUNT).map_err(cbor_error)?;
+    encoder
+        .encode_map(REQUEST_FIELD_COUNT)
+        .map_err(cbor_error)?;
     encoder.encode_tstr("method").map_err(cbor_error)?;
-    encoder.encode_tstr(request.method.as_str()).map_err(cbor_error)?;
+    encoder
+        .encode_tstr(request.method.as_str())
+        .map_err(cbor_error)?;
     encoder.encode_tstr("params").map_err(cbor_error)?;
     encode_request_params(encoder, &request.params)
 }
@@ -304,7 +310,9 @@ where
     E: CborEncoder,
     E::Error: std::fmt::Display,
 {
-    encoder.encode_map(RESPONSE_FIELD_COUNT).map_err(cbor_error)?;
+    encoder
+        .encode_map(RESPONSE_FIELD_COUNT)
+        .map_err(cbor_error)?;
     encoder.encode_tstr("result").map_err(cbor_error)?;
     encode_response_result(encoder, &response.result)?;
     encoder.encode_tstr("error").map_err(cbor_error)?;
@@ -503,9 +511,13 @@ where
         RequestParams::Sign(request) => {
             encoder.encode_map(3).map_err(cbor_error)?;
             encoder.encode_tstr("service_id").map_err(cbor_error)?;
-            encoder.encode_tstr(request.service_id.as_str()).map_err(cbor_error)?;
+            encoder
+                .encode_tstr(request.service_id.as_str())
+                .map_err(cbor_error)?;
             encoder.encode_tstr("data").map_err(cbor_error)?;
-            encoder.encode_bstr(request.data.as_slice()).map_err(cbor_error)?;
+            encoder
+                .encode_bstr(request.data.as_slice())
+                .map_err(cbor_error)?;
             encoder.encode_tstr("algorithm").map_err(cbor_error)?;
             encoder.encode_i64(request.algorithm).map_err(cbor_error)
         }
@@ -530,9 +542,13 @@ where
         ResponseResult::CertificateChain(chain) => {
             encoder.encode_map(1).map_err(cbor_error)?;
             encoder.encode_tstr("certificates").map_err(cbor_error)?;
-            encoder.encode_array(chain.certificates.len()).map_err(cbor_error)?;
+            encoder
+                .encode_array(chain.certificates.len())
+                .map_err(cbor_error)?;
             for certificate in &chain.certificates {
-                encoder.encode_bstr(certificate.as_slice()).map_err(cbor_error)?;
+                encoder
+                    .encode_bstr(certificate.as_slice())
+                    .map_err(cbor_error)?;
             }
             Ok(())
         }
@@ -544,7 +560,9 @@ where
         ResponseResult::Sign(result) => {
             encoder.encode_map(1).map_err(cbor_error)?;
             encoder.encode_tstr("signature").map_err(cbor_error)?;
-            encoder.encode_bstr(result.signature.as_slice()).map_err(cbor_error)
+            encoder
+                .encode_bstr(result.signature.as_slice())
+                .map_err(cbor_error)
         }
         ResponseResult::RawCbor(raw) => encoder.encode_raw(raw.as_slice()).map_err(cbor_error),
     }
@@ -559,15 +577,25 @@ where
     encoder.encode_tstr("id").map_err(cbor_error)?;
     encoder.encode_tstr(info.id.as_str()).map_err(cbor_error)?;
     encoder.encode_tstr("name").map_err(cbor_error)?;
-    encoder.encode_tstr(info.name.as_str()).map_err(cbor_error)?;
+    encoder
+        .encode_tstr(info.name.as_str())
+        .map_err(cbor_error)?;
     encoder.encode_tstr("version").map_err(cbor_error)?;
-    encoder.encode_tstr(info.version.as_str()).map_err(cbor_error)?;
+    encoder
+        .encode_tstr(info.version.as_str())
+        .map_err(cbor_error)?;
     encoder.encode_tstr("description").map_err(cbor_error)?;
-    encoder.encode_tstr(info.description.as_str()).map_err(cbor_error)?;
+    encoder
+        .encode_tstr(info.description.as_str())
+        .map_err(cbor_error)?;
     encoder.encode_tstr("capabilities").map_err(cbor_error)?;
-    encoder.encode_array(info.capabilities.len()).map_err(cbor_error)?;
+    encoder
+        .encode_array(info.capabilities.len())
+        .map_err(cbor_error)?;
     for capability in &info.capabilities {
-        encoder.encode_tstr(capability.as_str()).map_err(cbor_error)?;
+        encoder
+            .encode_tstr(capability.as_str())
+            .map_err(cbor_error)?;
     }
     Ok(())
 }
@@ -597,9 +625,13 @@ where
 {
     encoder.encode_map(2).map_err(cbor_error)?;
     encoder.encode_tstr("code").map_err(cbor_error)?;
-    encoder.encode_tstr(error.code.as_str()).map_err(cbor_error)?;
+    encoder
+        .encode_tstr(error.code.as_str())
+        .map_err(cbor_error)?;
     encoder.encode_tstr("message").map_err(cbor_error)?;
-    encoder.encode_tstr(error.message.as_str()).map_err(cbor_error)?;
+    encoder
+        .encode_tstr(error.message.as_str())
+        .map_err(cbor_error)?;
     Ok(())
 }
 
@@ -621,7 +653,9 @@ fn decode_request_params(method: &str, raw_params: Option<&[u8]>) -> ProtocolRes
         }
         methods::CREATE_SERVICE => {
             let raw = require_params(method, raw_params)?;
-            Ok(RequestParams::CreateService(decode_plugin_config_from_bytes(raw)?))
+            Ok(RequestParams::CreateService(
+                decode_plugin_config_from_bytes(raw)?,
+            ))
         }
         methods::GET_CERT_CHAIN | methods::GET_ALGORITHM => {
             let raw = require_params(method, raw_params)?;
@@ -640,6 +674,10 @@ fn decode_request_params(method: &str, raw_params: Option<&[u8]>) -> ProtocolRes
 }
 
 fn decode_response_result(raw_result: &[u8]) -> ProtocolResult<ResponseResult> {
+    if try_decode_acknowledged_from_bytes(raw_result)? {
+        return Ok(ResponseResult::Acknowledged);
+    }
+
     if let Some(info) = try_decode_plugin_info_from_bytes(raw_result)? {
         return Ok(ResponseResult::PluginInfo(info));
     }
@@ -783,6 +821,18 @@ fn decode_auth_key_from_bytes(data: &[u8]) -> ProtocolResult<Vec<u8>> {
     })
 }
 
+fn try_decode_acknowledged_from_bytes(data: &[u8]) -> ProtocolResult<bool> {
+    let provider = EverParseCborProvider;
+    let mut decoder = provider.decoder(data);
+    if decoder.peek_type().map_err(cbor_error)? != CborType::Bool {
+        return Ok(false);
+    }
+
+    let acknowledged = decoder.decode_bool().map_err(cbor_error)?;
+    ensure_no_trailing(&decoder, "acknowledgement result")?;
+    Ok(acknowledged)
+}
+
 fn try_decode_plugin_info_from_bytes(data: &[u8]) -> ProtocolResult<Option<PluginInfo>> {
     let provider = EverParseCborProvider;
     let mut decoder = provider.decoder(data);
@@ -914,7 +964,9 @@ fn try_decode_certificate_chain_response_from_bytes(
     }
 }
 
-fn try_decode_algorithm_response_from_bytes(data: &[u8]) -> ProtocolResult<Option<AlgorithmResponse>> {
+fn try_decode_algorithm_response_from_bytes(
+    data: &[u8],
+) -> ProtocolResult<Option<AlgorithmResponse>> {
     let provider = EverParseCborProvider;
     let mut decoder = provider.decoder(data);
     if decoder.peek_type().map_err(cbor_error)? != CborType::Map {

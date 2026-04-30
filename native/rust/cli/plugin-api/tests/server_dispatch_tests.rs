@@ -50,7 +50,12 @@ fn dispatch_request_routes_supported_methods() {
         _ => panic!("unexpected algorithm result variant"),
     }
 
-    match dispatch_request(&mut plugin, &Request::sign("service:contoso", vec![1, 2, 3], -37)).result {
+    match dispatch_request(
+        &mut plugin,
+        &Request::sign("service:contoso", vec![1, 2, 3], -37),
+    )
+    .result
+    {
         ResponseResult::Sign(result) => assert_eq!(result.signature, vec![1, 2, 3, 0x7f]),
         _ => panic!("unexpected sign result variant"),
     }
@@ -85,16 +90,31 @@ fn dispatch_request_routes_supported_methods() {
         dispatch_request(&mut plugin, &Request::shutdown()).result,
         ResponseResult::Acknowledged
     ));
-    let auth_response = dispatch_request(&mut plugin, &Request::authenticate(vec![0x11; AUTH_KEY_LENGTH]));
-    assert_eq!(auth_response.error.expect("auth error should be present").code, "AUTH_ALREADY_COMPLETED");
+    let auth_response = dispatch_request(
+        &mut plugin,
+        &Request::authenticate(vec![0x11; AUTH_KEY_LENGTH]),
+    );
+    assert_eq!(
+        auth_response
+            .error
+            .expect("auth error should be present")
+            .code,
+        "AUTH_ALREADY_COMPLETED"
+    );
 }
 
 #[test]
 fn dispatch_request_handles_invalid_params_unknown_methods_and_capability_gating() {
     let mut plugin = TestPlugin::signing_only();
 
-    let invalid = dispatch_request(&mut plugin, &Request::new(methods::CREATE_SERVICE, RequestParams::None));
-    assert_eq!(invalid.error.expect("invalid params should fail").code, "INVALID_PARAMS");
+    let invalid = dispatch_request(
+        &mut plugin,
+        &Request::new(methods::CREATE_SERVICE, RequestParams::None),
+    );
+    assert_eq!(
+        invalid.error.expect("invalid params should fail").code,
+        "INVALID_PARAMS"
+    );
 
     assert!(matches!(
         dispatch_request(&mut plugin, &Request::trust_policy_info()).result,
@@ -110,12 +130,17 @@ fn dispatch_request_handles_invalid_params_unknown_methods_and_capability_gating
     ));
 
     let unknown = dispatch_request(&mut plugin, &Request::new("unknown", RequestParams::None));
-    assert_eq!(unknown.error.expect("unknown methods should fail").code, "UNKNOWN_METHOD");
+    assert_eq!(
+        unknown.error.expect("unknown methods should fail").code,
+        "UNKNOWN_METHOD"
+    );
 }
 
 #[test]
 fn serve_connection_rejects_incorrect_auth_key() {
-    let mut pipe = MockPipe::new(encode_requests(&[Request::authenticate(vec![0x22; AUTH_KEY_LENGTH])]));
+    let mut pipe = MockPipe::new(encode_requests(&[Request::authenticate(
+        vec![0x22; AUTH_KEY_LENGTH],
+    )]));
 
     let error = serve_connection(
         &mut TestPlugin::with_verification(),
@@ -133,7 +158,14 @@ fn serve_connection_rejects_incorrect_auth_key() {
 
     let responses = decode_responses(pipe.write_buf.as_slice());
     assert_eq!(responses.len(), 1);
-    assert_eq!(responses[0].error.as_ref().expect("auth error should be present").code, "AUTH_FAILED");
+    assert_eq!(
+        responses[0]
+            .error
+            .as_ref()
+            .expect("auth error should be present")
+            .code,
+        "AUTH_FAILED"
+    );
 }
 
 #[test]

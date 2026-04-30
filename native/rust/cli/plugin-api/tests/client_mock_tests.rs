@@ -7,7 +7,9 @@ use std::sync::{Arc, Mutex};
 
 use cosesigntool_plugin_api::auth::AUTH_KEY_LENGTH;
 use cosesigntool_plugin_api::client::{ClientError, PluginClient};
-use cosesigntool_plugin_api::protocol::{read_request, write_response, Request, RequestParams, Response, ResponseResult};
+use cosesigntool_plugin_api::protocol::{
+    read_request, write_response, Request, RequestParams, Response, ResponseResult,
+};
 use cosesigntool_plugin_api::traits::{
     AlgorithmResponse, CertificateChainResponse, PluginCapability, PluginCommandDef, PluginConfig,
     PluginInfo, PluginOptionDef, SignResponse, TrustPolicyInfo, VerificationFailure,
@@ -26,7 +28,9 @@ fn connect_with_stream_and_rpc_methods_send_expected_requests() {
         Response::ok(ResponseResult::CertificateChain(CertificateChainResponse {
             certificates: vec![vec![0x30, 0x82, 0x01, 0x0a]],
         })),
-        Response::ok(ResponseResult::Algorithm(AlgorithmResponse { algorithm: -37 })),
+        Response::ok(ResponseResult::Algorithm(AlgorithmResponse {
+            algorithm: -37,
+        })),
         Response::ok(ResponseResult::Sign(SignResponse {
             signature: vec![0xde, 0xad, 0xbe, 0xef],
         })),
@@ -92,7 +96,10 @@ fn connect_with_stream_and_rpc_methods_send_expected_requests() {
 
     client.shutdown().expect("shutdown should succeed");
 
-    let written = write_buffer.lock().expect("buffer lock should succeed").clone();
+    let written = write_buffer
+        .lock()
+        .expect("buffer lock should succeed")
+        .clone();
     let requests = decode_requests(written.as_slice());
     assert_eq!(requests.len(), 9);
 

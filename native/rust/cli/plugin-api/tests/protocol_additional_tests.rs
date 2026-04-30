@@ -25,7 +25,9 @@ fn authenticate_request_roundtrips_through_framed_cbor() {
     let decoded = roundtrip_request(&request);
 
     match decoded.params {
-        RequestParams::Authenticate { auth_key } => assert_eq!(auth_key, vec![0x55; AUTH_KEY_LENGTH]),
+        RequestParams::Authenticate { auth_key } => {
+            assert_eq!(auth_key, vec![0x55; AUTH_KEY_LENGTH])
+        }
         _ => panic!("unexpected request params variant"),
     }
 }
@@ -55,7 +57,10 @@ fn raw_cbor_request_roundtrips_for_unknown_methods() {
 
 #[test]
 fn none_create_service_sign_and_raw_cbor_responses_roundtrip() {
-    assert!(matches!(roundtrip_response(&Response::ok(ResponseResult::None)).result, ResponseResult::None));
+    assert!(matches!(
+        roundtrip_response(&Response::ok(ResponseResult::None)).result,
+        ResponseResult::None
+    ));
 
     match roundtrip_response(&Response::ok(ResponseResult::CreateService {
         service_id: "service-123".to_string(),
@@ -120,7 +125,8 @@ fn read_frame_reports_eof_for_missing_or_truncated_frames() {
 
 #[test]
 fn read_request_returns_none_on_clean_eof() {
-    let request = read_request(&mut Cursor::new(Vec::<u8>::new())).expect("clean EOF should succeed");
+    let request =
+        read_request(&mut Cursor::new(Vec::<u8>::new())).expect("clean EOF should succeed");
     assert!(request.is_none());
 }
 

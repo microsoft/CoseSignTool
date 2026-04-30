@@ -57,7 +57,11 @@ pub struct CommonSignArgs {
     pub output: String,
 
     /// Content type (e.g., "application/spdx+json").
-    #[arg(short = 'c', long = "content-type", default_value = "application/octet-stream")]
+    #[arg(
+        short = 'c',
+        long = "content-type",
+        default_value = "application/octet-stream"
+    )]
     pub content_type: String,
 
     /// Signature format: direct or indirect.
@@ -169,7 +173,8 @@ fn execute_x509(provider: X509Provider, format: OutputFormat) -> Result<i32> {
     let (service, common, provider_name): (Arc<dyn SigningService>, &CommonSignArgs, &str) =
         match &provider {
             X509Provider::Pfx(args) => {
-                let svc = providers::local::create_pfx_service(&args.pfx, args.pfx_password.as_deref())?;
+                let svc =
+                    providers::local::create_pfx_service(&args.pfx, args.pfx_password.as_deref())?;
                 (Arc::new(svc), &args.common, "PFX")
             }
             X509Provider::Pem(args) => {
@@ -196,16 +201,16 @@ fn execute_x509(provider: X509Provider, format: OutputFormat) -> Result<i32> {
         .with_context(|| format!("Failed to read payload file: {}", common.payload))?;
 
     // Sign using the appropriate factory
+    let direct_factory = build_direct_factory(service, common)?;
     let signed_bytes = match common.format {
         SignatureFormat::Direct => {
-            let factory = DirectSignatureFactory::new(service);
             let options = build_direct_signature_options(common)?;
-            factory
+            direct_factory
                 .create_bytes(&payload, &common.content_type, Some(options))
                 .map_err(|e| anyhow::anyhow!("Signing failed: {e}"))?
         }
         SignatureFormat::Indirect => {
-            let factory = IndirectSignatureFactory::from_signing_service(service);
+            let factory = IndirectSignatureFactory::new(direct_factory);
             let options = build_indirect_signature_options(common)?;
             factory
                 .create_bytes(&payload, &common.content_type, Some(options))
@@ -232,7 +237,11 @@ fn execute_x509(provider: X509Provider, format: OutputFormat) -> Result<i32> {
         )?;
         output::write_field(stdout, "Content Type", &common.content_type)?;
         output::write_field(stdout, "Provider", provider_name)?;
-        output::write_field(stdout, "Signature Size", &format!("{} bytes", signed_bytes.len()))?;
+        output::write_field(
+            stdout,
+            "Signature Size",
+            &format!("{} bytes", signed_bytes.len()),
+        )?;
         println!("\n[OK] Successfully signed payload");
     }
 
@@ -264,4 +273,31 @@ fn build_direct_signature_options(common: &CommonSignArgs) -> Result<DirectSigna
 fn build_indirect_signature_options(common: &CommonSignArgs) -> Result<IndirectSignatureOptions> {
     Ok(IndirectSignatureOptions::default()
         .with_base_options(build_direct_signature_options(common)?))
+}
+
+#[cfg(feature = "mst")]
+fn build_direct_factory(
+    service: Arc<dyn SigningService>,
+    common: &CommonSignArgs,
+) -> Result<DirectSignatureFactory> {
+    if common.add_mst_receipt {
+        let endpoint = common.mst_endpoint.as_deref().ok_or_else(|| {
+            anyhow::anyhow!("--mst-endpoint is required when --add-mst-receipt is set")
+        })?;
+        let provider = providers::mst::create_mst_transparency_provider(endpoint)?;
+        Ok(DirectSignatureFactory::with_transparency_providers(
+            service,
+            vec![provider],
+        ))
+    } else {
+        Ok(DirectSignatureFactory::new(service))
+    }
+}
+
+#[cfg(not(feature = "mst"))]
+fn build_direct_factory(
+    service: Arc<dyn SigningService>,
+    _common: &CommonSignArgs,
+) -> Result<DirectSignatureFactory> {
+    Ok(DirectSignatureFactory::new(service))
 }

@@ -7,3 +7,6 @@ pub mod local;
 
 #[cfg(feature = "ats")]
 pub mod ats;
+
+#[cfg(feature = "mst")]
+pub mod mst;

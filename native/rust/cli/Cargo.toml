@@ -48,6 +48,7 @@ tracing-subscriber = { workspace = true }
 openssl = { workspace = true }
 sha2 = { workspace = true }
 x509-parser = { workspace = true }
+url = { workspace = true }
 
 # Azure auth (for ats/akv)
 azure_identity = { workspace = true, optional = true }

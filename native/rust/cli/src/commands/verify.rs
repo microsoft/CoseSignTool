@@ -3,7 +3,6 @@
 
 //! `CoseSignTool verify {x509|scitt} <signature> [--payload <file>]`
 
-use super::ScittType;
 use crate::output::{self, OutputFormat};
 use anyhow::{Context, Result};
 use clap::{ArgAction, Args, Command as ClapCommand, Subcommand};
@@ -20,17 +19,11 @@ use cose_sign1_validation::fluent::{
     CoseSign1TrustPack, CoseSign1Validator, Payload, TrustPlanBuilder,
 };
 #[cfg(feature = "mst")]
-use cose_sign1_transparent_mst::code_transparency_client::{
-    CodeTransparencyClient, CodeTransparencyClientConfig,
-};
-#[cfg(feature = "mst")]
 use cose_sign1_transparent_mst::validation::MstTrustPack;
 use std::fs;
 use std::io::Read;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
-#[cfg(feature = "mst")]
-use url::Url;
 
 /// Verification method.
 #[derive(Subcommand, Debug)]
@@ -80,14 +73,17 @@ pub struct VerifyScittArgs {
     #[arg(short = 'p', long = "payload", value_name = "payload")]
     pub payload: Option<String>,
 
-    /// SCITT implementation type.
-    #[arg(long = "scitt-type", value_enum, default_value = "mst")]
-    pub scitt_type: ScittType,
+    /// SCITT issuer(s) to trust. The receipt's issuer field is matched against this list.
+    /// Can be specified multiple times. If omitted, all issuers are accepted.
+    #[arg(long = "scitt-issuer", value_name = "url", action = clap::ArgAction::Append)]
+    pub scitt_issuer: Vec<String>,
 
-    /// MST service endpoint URL (for online JWKS key fetch).
-    #[cfg(feature = "mst")]
-    #[arg(long = "mst-endpoint", value_name = "mst-endpoint")]
-    pub mst_endpoint: Option<String>,
+    /// Offline JWKS keys for a specific issuer, in the format issuer=path.
+    /// Skips online key discovery for that issuer. Can be specified multiple times.
+    /// Specifying offline keys for an issuer implicitly trusts that issuer.
+    /// Example: --scitt-issuer-offline-keys https://eus.mst.azure.net=keys.jwks
+    #[arg(long = "scitt-issuer-offline-keys", value_name = "issuer=path", action = clap::ArgAction::Append)]
+    pub scitt_issuer_offline_keys: Vec<String>,
 }
 
 /// Execute the verify command.
@@ -172,13 +168,33 @@ fn execute_x509(args: VerifyX509Args, format: OutputFormat) -> Result<i32> {
 }
 
 fn execute_scitt(args: VerifyScittArgs, format: OutputFormat) -> Result<i32> {
-    match args.scitt_type {
-        ScittType::Mst => execute_mst_scitt(args, format),
+    // Parse offline keys: each is "issuer=path"
+    let mut offline_keys: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+    let mut trusted_issuers: Vec<String> = args.scitt_issuer.clone();
+
+    for entry in &args.scitt_issuer_offline_keys {
+        let (issuer, path) = entry.split_once('=')
+            .ok_or_else(|| anyhow::anyhow!(
+                "Invalid --scitt-issuer-offline-keys format: '{}'. Expected issuer=path (e.g., https://eus.mst.azure.net=keys.jwks)",
+                entry
+            ))?;
+        offline_keys.insert(issuer.to_string(), path.to_string());
+        // Specifying offline keys implicitly trusts that issuer
+        if !trusted_issuers.iter().any(|i| i == issuer) {
+            trusted_issuers.push(issuer.to_string());
+        }
     }
+
+    execute_scitt_inner(args, trusted_issuers, offline_keys, format)
 }
 
 #[cfg(feature = "mst")]
-fn execute_mst_scitt(args: VerifyScittArgs, format: OutputFormat) -> Result<i32> {
+fn execute_scitt_inner(
+    args: VerifyScittArgs,
+    trusted_issuers: Vec<String>,
+    offline_keys: std::collections::HashMap<String, String>,
+    format: OutputFormat,
+) -> Result<i32> {
     let (sig_bytes, signature_display) = read_signature_bytes(&args.signature)?;
 
     let message = Arc::new(
@@ -188,10 +204,23 @@ fn execute_mst_scitt(args: VerifyScittArgs, format: OutputFormat) -> Result<i32>
     let raw_arc: Arc<[u8]> = Arc::from(sig_bytes);
     let detached_payload = read_detached_payload(args.payload.as_deref())?;
 
-    let mst_pack: Arc<dyn CoseSign1TrustPack> = match args.mst_endpoint.as_deref() {
-        Some(endpoint) => Arc::new(MstTrustPack::new(false, Some(fetch_mst_jwks(endpoint)?), None)),
-        None => Arc::new(MstTrustPack::online()),
+    // Build MST trust pack with issuer-specific key configuration
+    let mst_pack: Arc<dyn CoseSign1TrustPack> = if offline_keys.is_empty() {
+        // Online mode: fetch keys from issuer endpoints
+        Arc::new(MstTrustPack::online())
+    } else {
+        // Offline mode: use provided JWKS for specific issuers
+        let mut combined_jwks = String::new();
+        for (_issuer, jwks_path) in &offline_keys {
+            let jwks = std::fs::read_to_string(jwks_path)
+                .with_context(|| format!("Failed to read offline JWKS: {jwks_path}"))?;
+            if combined_jwks.is_empty() {
+                combined_jwks = jwks;
+            }
+        }
+        Arc::new(MstTrustPack::new(false, Some(combined_jwks), None))
     };
+
     let validator = CoseSign1Validator::new(vec![mst_pack]).with_options(|options| {
         options.detached_payload = detached_payload;
     });
@@ -211,9 +240,15 @@ fn execute_mst_scitt(args: VerifyScittArgs, format: OutputFormat) -> Result<i32>
             output::write_field(stdout, "Payload", payload_path)?;
         }
 
-        output::write_field(stdout, "SCITT Type", describe_scitt_type(args.scitt_type))?;
-        output::write_field(stdout, "Trust Mode", &describe_scitt_trust_mode(&args))?;
-        output::write_field(stdout, "Revocation Check Mode", "none")?;
+        output::write_field(stdout, "Trust Model", "SCITT Transparency Receipt")?;
+        if trusted_issuers.is_empty() {
+            output::write_field(stdout, "Trusted Issuers", "all (no restriction)")?;
+        } else {
+            for issuer in &trusted_issuers {
+                let mode = if offline_keys.contains_key(issuer) { "offline keys" } else { "online" };
+                output::write_field(stdout, "Trusted Issuer", &format!("{issuer} ({mode})"))?;
+            }
+        }
 
         output::write_section(stdout, "Verification Stages")?;
         output::write_validation_stage(stdout, "Resolution", &result.resolution)?;
@@ -222,9 +257,9 @@ fn execute_mst_scitt(args: VerifyScittArgs, format: OutputFormat) -> Result<i32>
         output::write_validation_stage(stdout, "Post-Signature", &result.post_signature_policy)?;
 
         if is_valid {
-            println!("\n[OK] Signature verified successfully");
+            println!("\n[OK] Signature verified successfully via SCITT receipt");
         } else {
-            println!("\n[ERROR] Signature verification failed");
+            println!("\n[ERROR] SCITT receipt verification failed");
         }
     }
 
@@ -232,9 +267,14 @@ fn execute_mst_scitt(args: VerifyScittArgs, format: OutputFormat) -> Result<i32>
 }
 
 #[cfg(not(feature = "mst"))]
-fn execute_mst_scitt(_args: VerifyScittArgs, _format: OutputFormat) -> Result<i32> {
+fn execute_scitt_inner(
+    _args: VerifyScittArgs,
+    _trusted_issuers: Vec<String>,
+    _offline_keys: std::collections::HashMap<String, String>,
+    _format: OutputFormat,
+) -> Result<i32> {
     Err(anyhow::anyhow!(
-        "MST SCITT verification support is not enabled in this build"
+        "SCITT verification requires the 'mst' feature. Rebuild with --features mst"
     ))
 }
 
@@ -277,16 +317,6 @@ fn read_detached_payload(payload_path: Option<&str>) -> Result<Option<Payload>> 
     }
 }
 
-#[cfg(feature = "mst")]
-fn fetch_mst_jwks(mst_endpoint: &str) -> Result<String> {
-    let endpoint =
-        Url::parse(mst_endpoint).with_context(|| format!("Invalid MST endpoint URL: {mst_endpoint}"))?;
-    let client = CodeTransparencyClient::new(endpoint, CodeTransparencyClientConfig::default());
-    client
-        .get_public_keys()
-        .map_err(|e| anyhow::anyhow!("Failed to fetch MST JWKS from {mst_endpoint}: {e}"))
-}
-
 fn read_signature_bytes(signature_path: &str) -> Result<(Vec<u8>, String)> {
     if signature_path == "-" {
         let mut signature = Vec::new();
@@ -315,25 +345,4 @@ fn describe_trust_mode(args: &VerifyX509Args) -> String {
     }
 
     mode
-}
-
-fn describe_scitt_type(scitt_type: ScittType) -> &'static str {
-    match scitt_type {
-        ScittType::Mst => "mst",
-    }
-}
-
-fn describe_scitt_trust_mode(args: &VerifyScittArgs) -> String {
-    match args.scitt_type {
-        ScittType::Mst => {
-            #[cfg(feature = "mst")]
-            {
-                if args.mst_endpoint.is_some() {
-                    return "SCITT receipt trust (mst, explicit JWKS endpoint)".to_string();
-                }
-            }
-
-            "SCITT receipt trust (mst)".to_string()
-        }
-    }
 }

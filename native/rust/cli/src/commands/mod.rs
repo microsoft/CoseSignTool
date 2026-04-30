@@ -52,13 +52,6 @@ impl Cli {
     }
 }
 
-/// SCITT implementation type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
-pub enum ScittType {
-    /// Microsoft Signing Transparency
-    Mst,
-}
-
 #[derive(Subcommand, Debug)]
 pub enum Command {
     /// Sign a payload and produce a COSE_Sign1 message.

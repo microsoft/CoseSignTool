@@ -5,7 +5,6 @@
 //!
 //! Mirrors V2 .NET sign command structure exactly.
 
-use super::ScittType;
 use crate::output::{self, OutputFormat};
 use crate::plugin_host::PluginRegistry;
 use crate::providers;
@@ -113,30 +112,25 @@ pub struct CommonSignArgs {
     #[arg(long = "embed", conflicts_with = "detached")]
     pub embed: bool,
 
-    /// CWT Claims issuer (iss).
+    /// CWT Claims issuer (iss) — identifies who created the signature.
     #[arg(long = "issuer", value_name = "issuer")]
     pub issuer: Option<String>,
 
-    /// CWT Claims subject (sub).
-    #[arg(long = "cwt-subject", value_name = "cwt-subject")]
-    pub cwt_subject: Option<String>,
-
-    /// Enable SCITT transparency ledger submission after signing.
-    #[arg(long = "enable-scitt")]
-    pub enable_scitt: bool,
-
-    /// Subject identifier for the SCITT transparency ledger entry.
-    #[arg(long = "scitt-subject")]
+    /// SCITT subject — CWT Claims subject (sub) field. Identifies what is being signed.
+    /// SCITT compliance is enabled by default; this sets the subject registered in the ledger.
+    #[arg(long = "scitt-subject", value_name = "subject")]
     pub scitt_subject: Option<String>,
 
-    /// SCITT implementation type.
-    #[arg(long = "scitt-type", value_enum)]
-    pub scitt_type: Option<ScittType>,
+    /// Disable SCITT compliance (omit default CWT claims from signature).
+    #[arg(long = "no-scitt")]
+    pub no_scitt: bool,
 
-    /// MST service endpoint URL (when --scitt-type mst).
+    /// MST transparency service endpoint. Can be specified multiple times for multi-ledger submission.
+    /// When specified, the signed output is submitted to each MST endpoint and the receipt-enhanced
+    /// COSE_Sign1 is written as output.
     #[cfg(feature = "mst")]
-    #[arg(long = "mst-endpoint", value_name = "mst-endpoint")]
-    pub mst_endpoint: Option<String>,
+    #[arg(long = "scitt-mst-endpoint", value_name = "url", action = clap::ArgAction::Append)]
+    pub scitt_mst_endpoints: Vec<String>,
 }
 
 #[derive(Debug, Clone, clap::ValueEnum)]
@@ -392,6 +386,12 @@ fn execute_signing_service(
     let writes_to_stdout = write_output_bytes(&common.output, &output_bytes)?;
     let certificate_subject =
         extract_certificate_subject(&output_bytes)?.unwrap_or_else(|| "Unavailable".to_string());
+    #[cfg(feature = "mst")]
+    let scitt_mst_endpoints_display: String = if common.scitt_mst_endpoints.is_empty() {
+        "N/A".to_string()
+    } else {
+        common.scitt_mst_endpoints.join(", ")
+    };
 
     if !matches!(format, OutputFormat::Quiet) {
         let mut writer: Box<dyn Write> = if writes_to_stdout {
@@ -441,17 +441,18 @@ fn execute_signing_service(
         output::write_field(writer.as_mut(), "Certificate Subject", &certificate_subject)?;
         output::write_field(
             writer.as_mut(),
-            "SCITT Submission",
-            if common.enable_scitt {
-                "Enabled"
-            } else {
+            "SCITT Compliance",
+            if common.no_scitt {
                 "Disabled"
+            } else {
+                "Enabled"
             },
         )?;
+        #[cfg(feature = "mst")]
         output::write_field(
             writer.as_mut(),
-            "SCITT Type",
-            describe_scitt_type(common.scitt_type),
+            "SCITT MST Endpoints",
+            &scitt_mst_endpoints_display,
         )?;
         output::write_field(
             writer.as_mut(),
@@ -473,14 +474,14 @@ fn build_direct_signature_options(common: &CommonSignArgs) -> Result<DirectSigna
     let embed_payload = common.embed || !common.detached;
     let mut options = DirectSignatureOptions::default().with_embed_payload(embed_payload);
 
-    if common.issuer.is_some() || common.cwt_subject.is_some() {
+    if common.issuer.is_some() || common.scitt_subject.is_some() {
         let mut claims = CwtClaims::new();
 
         if let Some(issuer) = &common.issuer {
             claims = claims.with_issuer(issuer.clone());
         }
 
-        if let Some(subject) = &common.cwt_subject {
+        if let Some(subject) = &common.scitt_subject {
             claims = claims.with_subject(subject.clone());
         }
 
@@ -533,16 +534,19 @@ fn extract_certificate_subject(signed_bytes: &[u8]) -> Result<Option<String>> {
 }
 
 fn apply_scitt_transparency(signed_bytes: Vec<u8>, common: &CommonSignArgs) -> Result<Vec<u8>> {
-    if !common.enable_scitt {
-        return Ok(signed_bytes);
+    #[cfg(feature = "mst")]
+    {
+        if common.scitt_mst_endpoints.is_empty() {
+            return Ok(signed_bytes);
+        }
+
+        return apply_mst_scitt_transparency(signed_bytes, common);
     }
 
-    let scitt_type = common.scitt_type.ok_or_else(|| {
-        anyhow::anyhow!("--scitt-type is required when --enable-scitt is set")
-    })?;
-
-    match scitt_type {
-        ScittType::Mst => apply_mst_scitt_transparency(signed_bytes, common),
+    #[cfg(not(feature = "mst"))]
+    {
+        let _ = common;
+        Ok(signed_bytes)
     }
 }
 
@@ -551,30 +555,16 @@ fn apply_mst_scitt_transparency(
     signed_bytes: Vec<u8>,
     common: &CommonSignArgs,
 ) -> Result<Vec<u8>> {
-    let endpoint = common.mst_endpoint.as_deref().ok_or_else(|| {
-        anyhow::anyhow!("--mst-endpoint is required when --scitt-type mst is set")
-    })?;
-    let provider = providers::mst::create_mst_transparency_provider(endpoint)?;
-    provider
-        .add_transparency_proof(&signed_bytes)
-        .map_err(|e| anyhow::anyhow!("SCITT submission failed: {e}"))
-}
+    let mut receipt_bytes = signed_bytes;
 
-#[cfg(not(feature = "mst"))]
-fn apply_mst_scitt_transparency(
-    _signed_bytes: Vec<u8>,
-    _common: &CommonSignArgs,
-) -> Result<Vec<u8>> {
-    Err(anyhow::anyhow!(
-        "MST SCITT support is not enabled in this build"
-    ))
-}
-
-fn describe_scitt_type(scitt_type: Option<ScittType>) -> &'static str {
-    match scitt_type {
-        Some(ScittType::Mst) => "mst",
-        None => "N/A",
+    for endpoint in &common.scitt_mst_endpoints {
+        let provider = providers::mst::create_mst_transparency_provider(endpoint)?;
+        receipt_bytes = provider
+            .add_transparency_proof(&receipt_bytes)
+            .map_err(|e| anyhow::anyhow!("SCITT submission failed for {endpoint}: {e}"))?;
     }
+
+    Ok(receipt_bytes)
 }
 
 pub fn build_sign_command(plugin_infos: &[PluginInfo]) -> ClapCommand {
@@ -731,12 +721,13 @@ fn common_sign_args_from_matches(matches: &ArgMatches) -> Result<CommonSignArgs,
         detached: matches.get_flag("detached"),
         embed: matches.get_flag("embed"),
         issuer: optional_string_arg(matches, "issuer"),
-        cwt_subject: optional_string_arg(matches, "cwt_subject"),
-        enable_scitt: matches.get_flag("enable_scitt"),
         scitt_subject: optional_string_arg(matches, "scitt_subject"),
-        scitt_type: matches.get_one::<ScittType>("scitt_type").copied(),
+        no_scitt: matches.get_flag("no_scitt"),
         #[cfg(feature = "mst")]
-        mst_endpoint: optional_string_arg(matches, "mst_endpoint"),
+        scitt_mst_endpoints: matches
+            .get_many::<String>("scitt_mst_endpoints")
+            .map(|values| values.cloned().collect())
+            .unwrap_or_default(),
     })
 }
 

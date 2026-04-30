@@ -36,6 +36,7 @@ members = [
   "extension_packs/azure_artifact_signing/ffi",
   "cose_openssl",
   "cli",
+  "cli/plugin-api",
   "benches",
 ]
 

@@ -5,6 +5,7 @@ use clap::Parser;
 
 mod commands;
 mod output;
+mod plugin_host;
 mod providers;
 
 use commands::Cli;

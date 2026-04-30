@@ -11,6 +11,7 @@ path = "src/main.rs"
 
 [dependencies]
 # Workspace crates — always available
+cosesigntool_plugin_api = { path = "plugin-api" }
 cose_sign1_primitives = { path = "../primitives/cose/sign1" }
 cose_primitives = { path = "../primitives/cose" }
 cbor_primitives = { path = "../primitives/cbor" }
@@ -39,6 +40,7 @@ anyhow = { workspace = true }
 hex = { workspace = true }
 serde_json = { workspace = true }
 serde = { workspace = true }
+base64 = { workspace = true }
 
 # Logging
 tracing = { workspace = true }

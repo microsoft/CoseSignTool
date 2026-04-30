@@ -292,4 +292,39 @@ public class CoseSign1MessageExtensionsTests
         // Assert
         Assert.That(result, Is.False, "Expected verification to fail when no signing certificate or public key is present.");
     }
+
+    [Test]
+    public void GetCacheEntry_UsesStableDigestPerMessage()
+    {
+        X509Certificate2 firstCertificate = TestCertificateUtils.CreateCertificate("GetCacheEntry_UsesStableDigestPerMessage-first");
+        X509Certificate2 secondCertificate = TestCertificateUtils.CreateCertificate("GetCacheEntry_UsesStableDigestPerMessage-second");
+        byte[] content = new byte[] { 9, 8, 7, 6 };
+        CoseSign1Message firstMessage = CreateValidCoseSign1Message(content, firstCertificate, out _);
+        CoseSign1Message secondMessage = CreateValidCoseSign1Message(content, secondCertificate, out _);
+        System.Reflection.MethodInfo cacheEntryMethod = typeof(CoseSign1MessageExtensions).GetMethod("GetCacheEntry", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
+
+        string firstEntry = (string)cacheEntryMethod.Invoke(null, new object[] { firstMessage, nameof(CoseSign1MessageExtensions.TryGetSigningCertificate) })!;
+        string secondEntry = (string)cacheEntryMethod.Invoke(null, new object[] { secondMessage, nameof(CoseSign1MessageExtensions.TryGetSigningCertificate) })!;
+
+        Assert.That(firstEntry, Is.Not.EqualTo(secondEntry), "Distinct COSE messages should not share a cache entry key.");
+    }
+
+    [Test]
+    public void TryGetSigningCertificate_KeepsCachedResultsScopedToEachMessage()
+    {
+        X509Certificate2 firstCertificate = TestCertificateUtils.CreateCertificate("TryGetSigningCertificate_KeepsCachedResultsScopedToEachMessage-first");
+        X509Certificate2 secondCertificate = TestCertificateUtils.CreateCertificate("TryGetSigningCertificate_KeepsCachedResultsScopedToEachMessage-second");
+        byte[] content = new byte[] { 4, 3, 2, 1 };
+        CoseSign1Message firstMessage = CreateValidCoseSign1Message(content, firstCertificate, out _);
+        CoseSign1Message secondMessage = CreateValidCoseSign1Message(content, secondCertificate, out _);
+
+        Assert.That(firstMessage.TryGetSigningCertificate(out X509Certificate2? firstResolved), Is.True);
+        Assert.That(secondMessage.TryGetSigningCertificate(out X509Certificate2? secondResolved), Is.True);
+        Assert.That(firstMessage.TryGetSigningCertificate(out X509Certificate2? firstResolvedCached), Is.True);
+        Assert.That(secondMessage.TryGetSigningCertificate(out X509Certificate2? secondResolvedCached), Is.True);
+        Assert.That(firstResolved?.Thumbprint, Is.EqualTo(firstCertificate.Thumbprint));
+        Assert.That(secondResolved?.Thumbprint, Is.EqualTo(secondCertificate.Thumbprint));
+        Assert.That(firstResolvedCached?.Thumbprint, Is.EqualTo(firstCertificate.Thumbprint));
+        Assert.That(secondResolvedCached?.Thumbprint, Is.EqualTo(secondCertificate.Thumbprint));
+    }
 }

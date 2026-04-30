@@ -358,3 +358,279 @@ fn format_cwt_claim_value(value: &CwtClaimValue) -> String {
         CwtClaimValue::Float(value) => value.to_string(),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn print_banner_does_not_panic() {
+        print_banner();
+    }
+
+    #[test]
+    fn write_field_and_section_emit_expected_output() {
+        let mut buffer = Vec::new();
+        write_field(&mut buffer, "Issuer", "Contoso").expect("field should be written");
+        write_section(&mut buffer, "Summary").expect("section should be written");
+
+        let text = String::from_utf8(buffer).expect("output should be valid UTF-8");
+        assert_eq!(text, "  Issuer: Contoso\n\nSummary\n-------\n");
+    }
+
+    #[test]
+    fn output_format_default_is_text() {
+        let format = OutputFormat::default();
+        assert!(matches!(format, OutputFormat::Text));
+    }
+
+    #[test]
+    fn format_algorithm_known_algorithms() {
+        assert_eq!(format_algorithm(-7), "-7 (ES256)");
+        assert_eq!(format_algorithm(-35), "-35 (ES384)");
+        assert_eq!(format_algorithm(-36), "-36 (ES512)");
+        assert_eq!(format_algorithm(-37), "-37 (PS256)");
+        assert_eq!(format_algorithm(-38), "-38 (PS384)");
+        assert_eq!(format_algorithm(-39), "-39 (PS512)");
+        assert_eq!(format_algorithm(-257), "-257 (RS256)");
+        assert_eq!(format_algorithm(-258), "-258 (RS384)");
+        assert_eq!(format_algorithm(-259), "-259 (RS512)");
+        assert_eq!(format_algorithm(-8), "-8 (EdDSA)");
+    }
+
+    #[test]
+    fn format_algorithm_unknown_id() {
+        assert_eq!(format_algorithm(999), "999 (Unknown)");
+    }
+
+    #[test]
+    fn algorithm_name_returns_expected_names() {
+        assert_eq!(algorithm_name(-7), "ES256");
+        assert_eq!(algorithm_name(-8), "EdDSA");
+        assert_eq!(algorithm_name(42), "Unknown");
+    }
+
+    #[test]
+    fn format_hex_produces_uppercase_hex() {
+        assert_eq!(format_hex(&[0xDE, 0xAD, 0xBE, 0xEF]), "DEADBEEF");
+        assert_eq!(format_hex(&[]), "");
+        assert_eq!(format_hex(&[0x00, 0xFF]), "00FF");
+    }
+
+    #[test]
+    fn sha256_thumbprint_produces_expected_hex() {
+        let result = sha256_thumbprint(b"test data");
+        assert_eq!(result.len(), 64); // SHA-256 is 32 bytes = 64 hex chars
+        // Verify it's valid uppercase hex
+        assert!(result.chars().all(|c| c.is_ascii_hexdigit()));
+    }
+
+    #[test]
+    fn find_header_value_checks_protected_then_unprotected() {
+        let protected = CoseHeaderMap::new();
+        let unprotected = CoseHeaderMap::new();
+
+        // When neither has the label, returns None
+        assert!(find_header_value(&protected, &unprotected, 999).is_none());
+    }
+
+    #[test]
+    fn header_value_to_i64_handles_int_and_uint() {
+        let int_val = CoseHeaderValue::Int(-7);
+        assert_eq!(header_value_to_i64(&int_val).unwrap(), -7);
+
+        let uint_val = CoseHeaderValue::Uint(42);
+        assert_eq!(header_value_to_i64(&uint_val).unwrap(), 42);
+
+        let text_val = CoseHeaderValue::Text("nope".into());
+        assert!(header_value_to_i64(&text_val).is_err());
+    }
+
+    #[test]
+    fn header_value_to_string_handles_text_only() {
+        let text_val = CoseHeaderValue::Text("hello".into());
+        assert_eq!(header_value_to_string(&text_val, "test").unwrap(), "hello");
+
+        let int_val = CoseHeaderValue::Int(42);
+        let err = header_value_to_string(&int_val, "iss").unwrap_err();
+        assert!(err.to_string().contains("iss"));
+    }
+
+    #[test]
+    fn header_value_to_claim_value_converts_all_types() {
+        let text = CoseHeaderValue::Text("hello".into());
+        assert!(matches!(
+            header_value_to_claim_value(&text).unwrap(),
+            CwtClaimValue::Text(ref s) if s == "hello"
+        ));
+
+        let int = CoseHeaderValue::Int(-7);
+        assert!(matches!(
+            header_value_to_claim_value(&int).unwrap(),
+            CwtClaimValue::Integer(-7)
+        ));
+
+        let uint = CoseHeaderValue::Uint(42);
+        assert!(matches!(
+            header_value_to_claim_value(&uint).unwrap(),
+            CwtClaimValue::Integer(42)
+        ));
+
+        let bytes = CoseHeaderValue::Bytes(vec![1, 2, 3].into());
+        assert!(matches!(
+            header_value_to_claim_value(&bytes).unwrap(),
+            CwtClaimValue::Bytes(ref b) if b == &[1, 2, 3]
+        ));
+
+        let bool_val = CoseHeaderValue::Bool(true);
+        assert!(matches!(
+            header_value_to_claim_value(&bool_val).unwrap(),
+            CwtClaimValue::Bool(true)
+        ));
+
+        let float_val = CoseHeaderValue::Float(3.14);
+        assert!(matches!(
+            header_value_to_claim_value(&float_val).unwrap(),
+            CwtClaimValue::Float(f) if (f - 3.14).abs() < f64::EPSILON
+        ));
+
+        let array_val = CoseHeaderValue::Array(vec![]);
+        assert!(header_value_to_claim_value(&array_val).is_err());
+    }
+
+    #[test]
+    fn format_cwt_claim_value_all_types() {
+        assert_eq!(
+            format_cwt_claim_value(&CwtClaimValue::Text("hello".into())),
+            "hello"
+        );
+        assert_eq!(format_cwt_claim_value(&CwtClaimValue::Integer(42)), "42");
+        assert_eq!(
+            format_cwt_claim_value(&CwtClaimValue::Bytes(vec![0xCA, 0xFE])),
+            "CAFE"
+        );
+        assert_eq!(
+            format_cwt_claim_value(&CwtClaimValue::Bool(false)),
+            "false"
+        );
+        assert_eq!(format_cwt_claim_value(&CwtClaimValue::Float(1.5)), "1.5");
+    }
+
+    #[test]
+    fn cwt_claim_entries_extracts_standard_and_custom_claims() {
+        let mut claims = CwtClaims::new();
+        claims.issuer = Some("test-issuer".into());
+        claims.subject = Some("test-sub".into());
+        claims.audience = Some("test-aud".into());
+        claims.expiration_time = Some(1700000000);
+        claims.not_before = Some(1699000000);
+        claims.issued_at = Some(1699500000);
+        claims.cwt_id = Some(vec![0xAB, 0xCD]);
+        claims
+            .custom_claims
+            .insert(100, CwtClaimValue::Text("custom".into()));
+
+        let entries = cwt_claim_entries(&claims);
+        assert_eq!(entries.len(), 8);
+        assert_eq!(entries[0], ("iss".to_string(), "test-issuer".to_string()));
+        assert_eq!(entries[1], ("sub".to_string(), "test-sub".to_string()));
+        assert_eq!(entries[2], ("aud".to_string(), "test-aud".to_string()));
+        assert_eq!(entries[3].0, "exp");
+        assert_eq!(entries[4].0, "nbf");
+        assert_eq!(entries[5].0, "iat");
+        assert_eq!(entries[6], ("cti".to_string(), "ABCD".to_string()));
+        assert_eq!(
+            entries[7],
+            ("claim[100]".to_string(), "custom".to_string())
+        );
+    }
+
+    #[test]
+    fn cwt_claim_entries_empty_claims() {
+        let claims = CwtClaims::new();
+        let entries = cwt_claim_entries(&claims);
+        assert!(entries.is_empty());
+    }
+
+    #[test]
+    fn write_validation_stage_success() {
+        let result = ValidationResult {
+            kind: ValidationResultKind::Success,
+            validator_name: "Signature".into(),
+            failures: vec![],
+            metadata: std::collections::BTreeMap::new(),
+        };
+        let mut buffer = Vec::new();
+        write_validation_stage(&mut buffer, "Signature", &result).unwrap();
+        let text = String::from_utf8(buffer).unwrap();
+        assert!(text.contains("Succeeded"));
+    }
+
+    #[test]
+    fn write_validation_stage_failure_with_details() {
+        use cose_sign1_validation::fluent::ValidationFailure;
+        let result = ValidationResult {
+            kind: ValidationResultKind::Failure,
+            validator_name: "Trust".into(),
+            failures: vec![ValidationFailure {
+                message: "chain not trusted".into(),
+                error_code: None,
+                property_name: None,
+                attempted_value: None,
+                exception: None,
+            }],
+            metadata: std::collections::BTreeMap::new(),
+        };
+        let mut buffer = Vec::new();
+        write_validation_stage(&mut buffer, "Trust", &result).unwrap();
+        let text = String::from_utf8(buffer).unwrap();
+        assert!(text.contains("Failed"));
+        assert!(text.contains("chain not trusted"));
+    }
+
+    #[test]
+    fn write_validation_stage_not_applicable_with_reason() {
+        let mut metadata = std::collections::BTreeMap::new();
+        metadata.insert(
+            ValidationResult::METADATA_REASON_KEY.to_string(),
+            "no post-signature validators".to_string(),
+        );
+        let result = ValidationResult {
+            kind: ValidationResultKind::NotApplicable,
+            validator_name: "Post-Sig".into(),
+            failures: vec![],
+            metadata,
+        };
+        let mut buffer = Vec::new();
+        write_validation_stage(&mut buffer, "Post-Sig", &result).unwrap();
+        let text = String::from_utf8(buffer).unwrap();
+        assert!(text.contains("Not applicable"));
+        assert!(text.contains("no post-signature validators"));
+    }
+
+    #[test]
+    fn write_validation_stage_not_applicable_without_reason() {
+        let result = ValidationResult {
+            kind: ValidationResultKind::NotApplicable,
+            validator_name: "Post-Sig".into(),
+            failures: vec![],
+            metadata: std::collections::BTreeMap::new(),
+        };
+        let mut buffer = Vec::new();
+        write_validation_stage(&mut buffer, "Post-Sig", &result).unwrap();
+        let text = String::from_utf8(buffer).unwrap();
+        assert!(text.contains("Not applicable"));
+    }
+
+    #[test]
+    fn extract_x5chain_returns_none_for_message_without_chain() {
+        let message = CoseSign1Message::parse(&[0xD2, 0x84, 0x40, 0xA0, 0x40, 0x40]).unwrap();
+        assert!(extract_x5chain(&message).is_none());
+    }
+
+    #[test]
+    fn extract_signing_certificate_details_coverage_via_formatter() {
+        let message = CoseSign1Message::parse(&[0xD2, 0x84, 0x40, 0xA0, 0x40, 0x40]).unwrap();
+        assert!(extract_signing_certificate_details(&message).unwrap().is_none());
+    }
+}

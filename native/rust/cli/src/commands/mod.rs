@@ -191,3 +191,276 @@ pub fn dispatch(cli: ParsedCli, registry: &PluginRegistry) -> anyhow::Result<i32
         ParsedCli::Plugin(cli) => sign::execute_plugin(cli.invocation, cli.output_format, registry),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cli_quiet_when_verbosity_zero() {
+        let cli = Cli {
+            command: Command::Inspect(inspect::InspectArgs {
+                signature: "sig.cose".into(),
+                extract_payload: None,
+            }),
+            output_format: OutputFormat::Text,
+            verbosity: 0,
+            debug: false,
+            trace: false,
+        };
+        assert!(cli.quiet());
+    }
+
+    #[test]
+    fn cli_quiet_when_output_format_quiet() {
+        let cli = Cli {
+            command: Command::Inspect(inspect::InspectArgs {
+                signature: "sig.cose".into(),
+                extract_payload: None,
+            }),
+            output_format: OutputFormat::Quiet,
+            verbosity: 1,
+            debug: false,
+            trace: false,
+        };
+        assert!(cli.quiet());
+    }
+
+    #[test]
+    fn cli_not_quiet_with_normal_verbosity() {
+        let cli = Cli {
+            command: Command::Inspect(inspect::InspectArgs {
+                signature: "sig.cose".into(),
+                extract_payload: None,
+            }),
+            output_format: OutputFormat::Text,
+            verbosity: 1,
+            debug: false,
+            trace: false,
+        };
+        assert!(!cli.quiet());
+    }
+
+    #[test]
+    fn parsed_cli_quiet_builtin_delegates_to_cli() {
+        let cli = ParsedCli::BuiltIn(Cli {
+            command: Command::Inspect(inspect::InspectArgs {
+                signature: "sig.cose".into(),
+                extract_payload: None,
+            }),
+            output_format: OutputFormat::Text,
+            verbosity: 0,
+            debug: false,
+            trace: false,
+        });
+        assert!(cli.quiet());
+    }
+
+    #[test]
+    fn parsed_cli_quiet_plugin_with_verbosity_zero() {
+        let cli = ParsedCli::Plugin(PluginCli {
+            output_format: OutputFormat::Text,
+            verbosity: 0,
+            invocation: sign::PluginSignInvocation {
+                command_name: "test".into(),
+                common: sign::CommonSignArgs {
+                    payload: String::new(),
+                    output: String::new(),
+                    content_type: String::new(),
+                    format: sign::SignatureFormat::Indirect,
+                    detached: false,
+                    embed: false,
+                    issuer: None,
+                    cwt_subject: None,
+                    scitt_subject: None,
+                    enable_scitt: false,
+                    no_scitt: false,
+                    scitt_type: None,
+                    #[cfg(feature = "mst")]
+                    mst_endpoints: Vec::new(),
+                    transparency_options: std::collections::HashMap::new(),
+                },
+                provider_options: std::collections::HashMap::new(),
+            },
+        });
+        assert!(cli.quiet());
+    }
+
+    #[test]
+    fn parsed_cli_quiet_plugin_with_quiet_format() {
+        let cli = ParsedCli::Plugin(PluginCli {
+            output_format: OutputFormat::Quiet,
+            verbosity: 1,
+            invocation: sign::PluginSignInvocation {
+                command_name: "test".into(),
+                common: sign::CommonSignArgs {
+                    payload: String::new(),
+                    output: String::new(),
+                    content_type: String::new(),
+                    format: sign::SignatureFormat::Indirect,
+                    detached: false,
+                    embed: false,
+                    issuer: None,
+                    cwt_subject: None,
+                    scitt_subject: None,
+                    enable_scitt: false,
+                    no_scitt: false,
+                    scitt_type: None,
+                    #[cfg(feature = "mst")]
+                    mst_endpoints: Vec::new(),
+                    transparency_options: std::collections::HashMap::new(),
+                },
+                provider_options: std::collections::HashMap::new(),
+            },
+        });
+        assert!(cli.quiet());
+    }
+
+    #[test]
+    fn parse_from_verify_x509_subcommand() {
+        let result = parse_from(
+            [
+                "CoseSignTool",
+                "verify",
+                "x509",
+                "signature.cose",
+            ],
+            &[],
+        );
+        let cli = result.expect("verify x509 should parse");
+        assert!(!cli.quiet());
+        match cli {
+            ParsedCli::BuiltIn(cli) => {
+                assert!(matches!(cli.command, Command::Verify { .. }));
+            }
+            _ => panic!("expected builtin CLI"),
+        }
+    }
+
+    #[test]
+    fn parse_from_inspect_subcommand() {
+        let result = parse_from(
+            ["CoseSignTool", "inspect", "signature.cose"],
+            &[],
+        );
+        let cli = result.expect("inspect should parse");
+        match cli {
+            ParsedCli::BuiltIn(cli) => {
+                assert!(matches!(cli.command, Command::Inspect(_)));
+            }
+            _ => panic!("expected builtin CLI"),
+        }
+    }
+
+    #[test]
+    fn parse_from_with_output_format_json() {
+        let result = parse_from(
+            [
+                "CoseSignTool",
+                "--output-format",
+                "json",
+                "inspect",
+                "signature.cose",
+            ],
+            &[],
+        );
+        let cli = result.expect("inspect with json format should parse");
+        match cli {
+            ParsedCli::BuiltIn(cli) => {
+                assert!(matches!(cli.output_format, OutputFormat::Json));
+            }
+            _ => panic!("expected builtin CLI"),
+        }
+    }
+
+    #[test]
+    fn parse_from_with_output_format_quiet() {
+        let result = parse_from(
+            [
+                "CoseSignTool",
+                "-f",
+                "quiet",
+                "inspect",
+                "signature.cose",
+            ],
+            &[],
+        );
+        let cli = result.expect("inspect with quiet format should parse");
+        match cli {
+            ParsedCli::BuiltIn(cli) => {
+                assert!(matches!(cli.output_format, OutputFormat::Quiet));
+            }
+            _ => panic!("expected builtin CLI"),
+        }
+    }
+
+    #[test]
+    fn build_command_includes_all_subcommands() {
+        let cmd = build_command(&[]);
+        let subcommands: Vec<&str> = cmd
+            .get_subcommands()
+            .map(|sub| sub.get_name())
+            .collect();
+        assert!(subcommands.contains(&"sign"));
+        assert!(subcommands.contains(&"verify"));
+        assert!(subcommands.contains(&"inspect"));
+    }
+
+    #[test]
+    fn parse_from_missing_subcommand_returns_error() {
+        let result = parse_from(["CoseSignTool"].iter().copied(), &[]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_from_plugin_sign_command_recognized() {
+        use cosesigntool_plugin_api::traits::*;
+        let plugin = PluginInfo {
+            id: "test-plugin".into(),
+            name: "Test Plugin".into(),
+            version: "1.0".into(),
+            description: "A test plugin".into(),
+            capabilities: vec![PluginCapability::Signing],
+            commands: vec![PluginCommandDef {
+                name: "test-provider".into(),
+                description: "Test provider".into(),
+                options: vec![PluginOptionDef {
+                    name: "test-key".into(),
+                    value_name: "KEY".into(),
+                    description: "A test key".into(),
+                    required: true,
+                    default_value: None,
+                    short: None,
+                    is_flag: false,
+                }],
+                capability: PluginCapability::Signing,
+            }],
+            transparency_options: vec![],
+        };
+        let result = parse_from(
+            [
+                "CoseSignTool",
+                "sign",
+                "x509",
+                "test-provider",
+                "payload.bin",
+                "--output",
+                "out.cose",
+                "--test-key",
+                "my-value",
+            ],
+            &[plugin],
+        );
+        let cli = result.expect("plugin sign should parse");
+        match cli {
+            ParsedCli::Plugin(plugin_cli) => {
+                assert_eq!(plugin_cli.invocation.command_name, "test-provider");
+                assert_eq!(
+                    plugin_cli.invocation.provider_options.get("test-key"),
+                    Some(&"my-value".to_string())
+                );
+            }
+            _ => panic!("expected plugin CLI"),
+        }
+    }
+}

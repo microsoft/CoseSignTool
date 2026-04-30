@@ -14,3 +14,4 @@ pub mod commands;
 pub mod output;
 pub mod plugin_host;
 pub mod providers;
+pub mod spawn;

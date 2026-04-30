@@ -101,6 +101,25 @@ impl PluginProcess {
             .with_context(|| format!("Failed to create a service in plugin '{}'", self.info.id))
     }
 
+    /// Sign a payload end-to-end using the plugin.
+    pub fn sign_payload(
+        &mut self,
+        service_id: &str,
+        payload: &[u8],
+        content_type: &str,
+        format: &str,
+        options: PluginConfig,
+    ) -> Result<Vec<u8>> {
+        self.client
+            .sign_payload(service_id, payload, content_type, format, options)
+            .with_context(|| {
+                format!(
+                    "Failed to sign payload with plugin '{}' for service '{}'",
+                    self.info.id, service_id
+                )
+            })
+    }
+
     /// Send shutdown and wait for the process to exit.
     pub fn shutdown(mut self) -> Result<()> {
         let _ = self.client.send_shutdown();

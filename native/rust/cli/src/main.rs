@@ -5,6 +5,7 @@ mod commands;
 mod output;
 mod plugin_host;
 mod providers;
+mod spawn;
 
 fn main() {
     // Initialize logging (respects --verbosity / -vv / -vvv)

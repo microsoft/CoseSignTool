@@ -184,3 +184,95 @@ fn build_service_from_cert(cert: Certificate) -> Result<CertificateSigningServic
         options,
     ))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        create_ephemeral_service, create_pem_service, create_pfx_service, CertificateFactory,
+        CertificateOptions, EphemeralCertificateFactory, SoftwareKeyProvider,
+    };
+    use cose_sign1_signing::{SigningContext, SigningService};
+    use std::time::{Duration, SystemTime, UNIX_EPOCH};
+    use tempfile::NamedTempFile;
+
+    #[test]
+    fn create_ephemeral_service_returns_valid_signing_service() {
+        let service = create_ephemeral_service("CN=Unit Test").expect("service should be created");
+        assert!(!service.is_remote());
+
+        let context = SigningContext::from_slice(b"payload");
+        let signer = service
+            .get_cose_signer(&context)
+            .expect("service should produce a signer");
+        let signature = signer
+            .sign_payload(b"payload", None)
+            .expect("signer should sign payloads");
+
+        assert_ne!(signer.signer().algorithm(), 0);
+        assert!(!signature.is_empty());
+    }
+
+    #[test]
+    fn create_pfx_service_with_invalid_path_returns_error() {
+        let path = unique_missing_path("pfx");
+        let error = create_pfx_service(path.as_str(), None)
+            .err()
+            .expect("missing PFX should fail");
+
+        assert!(error.to_string().contains("Failed to load PFX certificate"));
+        assert!(error.to_string().contains(path.as_str()));
+    }
+
+    #[test]
+    fn create_pem_service_with_invalid_certificate_path_returns_error() {
+        let cert_path = unique_missing_path("pem");
+        let key_path = unique_missing_path("key");
+        let error = create_pem_service(cert_path.as_str(), key_path.as_str())
+            .err()
+            .expect("missing certificate should fail");
+
+        assert!(error.to_string().contains("Failed to load PEM certificate"));
+        assert!(error.to_string().contains(cert_path.as_str()));
+    }
+
+    #[test]
+    fn create_pem_service_with_invalid_key_path_returns_error() {
+        let cert_file = NamedTempFile::new().expect("temp certificate file should be created");
+        let certificate = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()))
+            .create_certificate(CertificateOptions::default().with_subject_name("CN=PEM Test"))
+            .expect("ephemeral certificate should be created");
+        let cert_pem = openssl::x509::X509::from_der(&certificate.cert_der)
+            .expect("certificate DER should parse")
+            .to_pem()
+            .expect("certificate should convert to PEM");
+        std::fs::write(cert_file.path(), cert_pem).expect("certificate PEM should be written");
+
+        let key_path = unique_missing_path("key");
+        let error = create_pem_service(
+            cert_file.path().to_str().expect("path should be UTF-8"),
+            key_path.as_str(),
+        )
+        .err()
+        .expect("missing key should fail");
+
+        assert!(error.to_string().contains("Failed to read PEM key file"));
+        assert!(error.to_string().contains(key_path.as_str()));
+    }
+
+    fn unique_missing_path(extension: &str) -> String {
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or(Duration::from_secs(0))
+            .as_nanos();
+        std::env::current_dir()
+            .expect("current directory should resolve")
+            .join(format!(
+                ".cosesigntool-local-provider-test-{}-{}.{}",
+                std::process::id(),
+                timestamp,
+                extension
+            ))
+            .to_string_lossy()
+            .into_owned()
+    }
+}

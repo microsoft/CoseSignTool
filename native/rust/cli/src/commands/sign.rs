@@ -6,24 +6,18 @@
 //! Mirrors V2 .NET sign command structure exactly.
 
 use crate::output::{self, OutputFormat};
-use crate::plugin_host::PluginRegistry;
+use crate::plugin_host::{PluginProcess, PluginRegistry};
 use crate::providers;
-use anyhow::{Context, Result};
+use crate::spawn::{spawn_provider, SpawnedProvider};
+use anyhow::{anyhow, Context, Result};
 use clap::{Arg, ArgAction, ArgMatches, Args, Command as ClapCommand, Subcommand};
-use cose_sign1_factories::{
-    direct::{DirectSignatureFactory, DirectSignatureOptions},
-    indirect::{IndirectSignatureFactory, IndirectSignatureOptions},
-};
-use cose_sign1_headers::{CwtClaims, CwtClaimsHeaderContributor};
 use cose_sign1_primitives::CoseSign1Message;
-use cose_sign1_signing::{SigningService, TransparencyEndpointInfo};
 use cosesigntool_plugin_api::traits::{
-    PluginCapability, PluginCommandDef, PluginInfo, PluginOptionDef,
+    PluginCapability, PluginCommandDef, PluginConfig, PluginInfo, PluginOptionDef,
 };
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::io::{Read, Write};
-use std::sync::Arc;
 
 /// Signing method (currently x509 only, extensible).
 #[derive(Subcommand, Debug)]
@@ -61,6 +55,7 @@ struct ProviderDisplayInfo {
     certificate_source: String,
     account_name: Option<String>,
     certificate_profile: Option<String>,
+    discovered_endpoints: Vec<DiscoveredTransparencyEndpoint>,
 }
 
 impl ProviderDisplayInfo {
@@ -69,8 +64,17 @@ impl ProviderDisplayInfo {
             certificate_source: certificate_source.into(),
             account_name: None,
             certificate_profile: None,
+            discovered_endpoints: Vec::new(),
         }
     }
+}
+
+#[derive(Debug, Clone)]
+struct DiscoveredTransparencyEndpoint {
+    service_type: String,
+    endpoint: String,
+    display_name: String,
+    auto_submit: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -82,7 +86,7 @@ pub struct PluginSignInvocation {
 
 #[derive(Debug, Clone)]
 struct TransparencyCommandPlan {
-    discovered_endpoints: Vec<TransparencyEndpointInfo>,
+    discovered_endpoints: Vec<DiscoveredTransparencyEndpoint>,
     submission_targets: Vec<TransparencySubmissionTarget>,
     suggestions: Vec<String>,
 }
@@ -173,7 +177,7 @@ pub struct CommonSignArgs {
     pub transparency_options: HashMap<String, String>,
 }
 
-#[derive(Debug, Clone, clap::ValueEnum)]
+#[derive(Debug, Clone, Copy, clap::ValueEnum)]
 pub enum SignatureFormat {
     Direct,
     Indirect,
@@ -193,11 +197,19 @@ pub struct PfxArgs {
     pub pfx: String,
 
     /// Path to a file containing the PFX password (more secure than command line)
-    #[arg(long = "pfx-password-file", value_name = "pfx-password-file")]
+    #[arg(
+        long = "pfx-password-file",
+        value_name = "pfx-password-file",
+        conflicts_with = "pfx_password_env"
+    )]
     pub pfx_password_file: Option<String>,
 
     /// Name of environment variable containing the PFX password
-    #[arg(long = "pfx-password-env", value_name = "pfx-password-env")]
+    #[arg(
+        long = "pfx-password-env",
+        value_name = "pfx-password-env",
+        conflicts_with = "pfx_password_file"
+    )]
     pub pfx_password_env: Option<String>,
 }
 
@@ -293,135 +305,225 @@ pub fn execute(method: SignMethod, format: OutputFormat) -> Result<i32> {
     }
 }
 
+trait RemoteSigningPlugin {
+    fn create_service(&mut self, config: PluginConfig) -> Result<String>;
+    fn sign_payload(
+        &mut self,
+        service_id: &str,
+        payload: &[u8],
+        content_type: &str,
+        format: &str,
+        options: PluginConfig,
+    ) -> Result<Vec<u8>>;
+}
+
+impl RemoteSigningPlugin for PluginProcess {
+    fn create_service(&mut self, config: PluginConfig) -> Result<String> {
+        PluginProcess::create_service(self, &config)
+    }
+
+    fn sign_payload(
+        &mut self,
+        service_id: &str,
+        payload: &[u8],
+        content_type: &str,
+        format: &str,
+        options: PluginConfig,
+    ) -> Result<Vec<u8>> {
+        PluginProcess::sign_payload(self, service_id, payload, content_type, format, options)
+    }
+}
+
+impl RemoteSigningPlugin for SpawnedProvider {
+    fn create_service(&mut self, config: PluginConfig) -> Result<String> {
+        SpawnedProvider::create_service(self, config)
+    }
+
+    fn sign_payload(
+        &mut self,
+        service_id: &str,
+        payload: &[u8],
+        content_type: &str,
+        format: &str,
+        options: PluginConfig,
+    ) -> Result<Vec<u8>> {
+        SpawnedProvider::sign_payload(self, service_id, payload, content_type, format, options)
+    }
+}
+
 pub fn execute_plugin(
     invocation: PluginSignInvocation,
     format: OutputFormat,
     registry: &PluginRegistry,
 ) -> Result<i32> {
-    let service = providers::plugin::create_plugin_service(
-        registry,
-        invocation.command_name.as_str(),
-        &invocation.provider_options,
-    )?;
+    let (plugin_id, _) = registry
+        .find_signing_command(invocation.command_name.as_str())
+        .ok_or_else(|| anyhow!("No signing plugin command named '{}' is available", invocation.command_name))?;
+    let process = registry
+        .get(plugin_id.as_str())
+        .ok_or_else(|| anyhow!("Signing plugin '{}' is no longer available", plugin_id))?;
+    let mut process_guard = process
+        .lock()
+        .map_err(|_| anyhow!("Signing plugin '{}' is unavailable", plugin_id))?;
     let provider_info = ProviderDisplayInfo::new(format!("Plugin ({})", invocation.command_name));
-    execute_signing_service(Arc::new(service), invocation.common, provider_info, format)
+    execute_signing_with_plugin(
+        &mut *process_guard,
+        invocation.common,
+        invocation.provider_options,
+        provider_info,
+        format,
+    )
 }
 
 fn execute_x509(provider: X509Provider, format: OutputFormat) -> Result<i32> {
-    let (service, common, provider_info): (
-        Arc<dyn SigningService>,
-        CommonSignArgs,
-        ProviderDisplayInfo,
-    ) = match provider {
+    match provider {
         X509Provider::Pfx(args) => {
-            let password = resolve_pfx_password(
-                args.pfx_password_file.as_deref(),
-                args.pfx_password_env.as_deref(),
-            )?;
-            let service = providers::local::create_pfx_service(&args.pfx, password.as_deref())?;
-            (
-                Arc::new(service),
+            let mut provider_options = HashMap::new();
+            provider_options.insert("pfx".to_string(), args.pfx);
+            if let Some(password_file) = args.pfx_password_file {
+                provider_options.insert("pfx-password-file".to_string(), password_file);
+            }
+            if let Some(password_env) = args.pfx_password_env {
+                provider_options.insert("pfx-password-env".to_string(), password_env);
+            }
+
+            let mut provider = spawn_provider("local-pfx")?;
+            execute_signing_with_plugin(
+                &mut provider,
                 args.common,
+                provider_options,
                 ProviderDisplayInfo::new("PFX"),
+                format,
             )
         }
         X509Provider::Pem(args) => {
-            let service = providers::local::create_pem_service(&args.cert_file, &args.key_file)?;
-            (
-                Arc::new(service),
+            let mut provider_options = HashMap::new();
+            provider_options.insert("cert-file".to_string(), args.cert_file);
+            provider_options.insert("key-file".to_string(), args.key_file);
+
+            let mut provider = spawn_provider("local-pem")?;
+            execute_signing_with_plugin(
+                &mut provider,
                 args.common,
+                provider_options,
                 ProviderDisplayInfo::new("PEM"),
+                format,
             )
         }
         X509Provider::Ephemeral(args) => {
-            let service = providers::local::create_ephemeral_service(&args.subject)?;
-            (
-                Arc::new(service),
+            let mut provider_options = HashMap::new();
+            provider_options.insert("subject".to_string(), args.subject);
+
+            let mut provider = spawn_provider("local-ephemeral")?;
+            execute_signing_with_plugin(
+                &mut provider,
                 args.common,
+                provider_options,
                 ProviderDisplayInfo::new("Ephemeral"),
+                format,
             )
         }
         #[cfg(feature = "aas")]
         X509Provider::Aas(args) => {
-            let service = providers::aas::create_aas_service(
-                &args.aas_endpoint,
-                &args.aas_account_name,
-                &args.aas_cert_profile_name,
-            )?;
-            (
-                Arc::new(service),
+            let mut provider_options = HashMap::new();
+            provider_options.insert("aas-endpoint".to_string(), args.aas_endpoint);
+            provider_options.insert("aas-account-name".to_string(), args.aas_account_name.clone());
+            provider_options.insert(
+                "aas-cert-profile-name".to_string(),
+                args.aas_cert_profile_name.clone(),
+            );
+
+            let mut provider = spawn_provider("aas")?;
+            execute_signing_with_plugin(
+                &mut provider,
                 args.common,
+                provider_options,
                 ProviderDisplayInfo {
                     certificate_source: "Azure Artifact Signing".to_string(),
                     account_name: Some(args.aas_account_name),
                     certificate_profile: Some(args.aas_cert_profile_name),
+                    discovered_endpoints: vec![DiscoveredTransparencyEndpoint {
+                        service_type: "mst".to_string(),
+                        endpoint: "https://signing.transparency.azure.net".to_string(),
+                        display_name: "Microsoft Signing Transparency".to_string(),
+                        auto_submit: false,
+                    }],
                 },
+                format,
             )
         }
         #[cfg(feature = "akv")]
         X509Provider::Akv(args) => {
-            let service = providers::akv::create_akv_key_service(
-                &args.akv_vault,
-                &args.akv_key_name,
-                args.akv_key_version.as_deref(),
-            )?;
-            (
-                Arc::new(service),
+            let mut provider_options = HashMap::new();
+            provider_options.insert("akv-vault".to_string(), args.akv_vault);
+            provider_options.insert("akv-key-name".to_string(), args.akv_key_name.clone());
+            if let Some(key_version) = args.akv_key_version {
+                provider_options.insert("akv-key-version".to_string(), key_version);
+            }
+
+            let mut provider = spawn_provider("akv")?;
+            execute_signing_with_plugin(
+                &mut provider,
                 args.common,
+                provider_options,
                 ProviderDisplayInfo {
                     certificate_source: "Azure Key Vault (Key)".to_string(),
                     account_name: Some(args.akv_key_name),
                     certificate_profile: None,
+                    discovered_endpoints: Vec::new(),
                 },
+                format,
             )
         }
         #[cfg(feature = "akv")]
         X509Provider::AkvCert(args) => {
-            let service = providers::akv::create_akv_cert_service(
-                &args.akv_vault,
-                &args.akv_cert_name,
-                args.akv_cert_version.as_deref(),
-            )?;
-            (
-                Arc::new(service),
+            let mut provider_options = HashMap::new();
+            provider_options.insert("akv-vault".to_string(), args.akv_vault);
+            provider_options.insert("akv-cert-name".to_string(), args.akv_cert_name.clone());
+            if let Some(cert_version) = args.akv_cert_version {
+                provider_options.insert("akv-cert-version".to_string(), cert_version);
+            }
+
+            let mut provider = spawn_provider("akv-cert")?;
+            execute_signing_with_plugin(
+                &mut provider,
                 args.common,
+                provider_options,
                 ProviderDisplayInfo {
                     certificate_source: "Azure Key Vault (Certificate)".to_string(),
                     account_name: Some(args.akv_cert_name),
                     certificate_profile: None,
+                    discovered_endpoints: Vec::new(),
                 },
+                format,
             )
         }
-    };
-
-    execute_signing_service(service, common, provider_info, format)
+    }
 }
 
-fn execute_signing_service(
-    service: Arc<dyn SigningService>,
+fn execute_signing_with_plugin(
+    plugin: &mut impl RemoteSigningPlugin,
     common: CommonSignArgs,
+    provider_options: HashMap<String, String>,
     provider_info: ProviderDisplayInfo,
     format: OutputFormat,
 ) -> Result<i32> {
-    let transparency_plan = build_transparency_plan(service.as_ref(), &common);
+    ensure_supported_scitt_type(common.scitt_type.as_deref())?;
+    let transparency_plan = build_transparency_plan(provider_info.discovered_endpoints.as_slice(), &common);
     let (payload, payload_display) = read_payload_bytes(&common)?;
-    let direct_factory = DirectSignatureFactory::new(service);
-
-    let signed_bytes = match common.format {
-        SignatureFormat::Direct => {
-            let options = build_direct_signature_options(&common)?;
-            direct_factory
-                .create_bytes(&payload, &common.content_type, Some(options))
-                .map_err(|e| anyhow::anyhow!("Signing failed: {e}"))?
-        }
-        SignatureFormat::Indirect => {
-            let factory = IndirectSignatureFactory::new(direct_factory);
-            let options = build_indirect_signature_options(&common)?;
-            factory
-                .create_bytes(&payload, &common.content_type, Some(options))
-                .map_err(|e| anyhow::anyhow!("Signing failed: {e}"))?
-        }
-    };
+    let service_id = plugin.create_service(PluginConfig {
+        options: provider_options,
+    })?;
+    let sign_options = build_sign_payload_options(&common);
+    let signed_bytes = plugin
+        .sign_payload(
+            service_id.as_str(),
+            payload.as_slice(),
+            common.content_type.as_str(),
+            signature_format_name(common.format),
+            sign_options,
+        )
+        .map_err(|error| anyhow!("Signing failed: {error}"))?;
 
     let output_bytes = apply_scitt_transparency(
         signed_bytes,
@@ -465,10 +567,7 @@ fn execute_signing_service(
         output::write_field(
             writer.as_mut(),
             "Signature Type",
-            match common.format {
-                SignatureFormat::Direct => "direct",
-                SignatureFormat::Indirect => "indirect",
-            },
+            signature_format_name(common.format),
         )?;
         output::write_field(writer.as_mut(), "Content Type", &common.content_type)?;
         output::write_field(
@@ -532,35 +631,42 @@ fn execute_signing_service(
     Ok(0)
 }
 
-fn build_direct_signature_options(common: &CommonSignArgs) -> Result<DirectSignatureOptions> {
-    ensure_supported_scitt_type(common.scitt_type.as_deref())?;
+fn build_sign_payload_options(common: &CommonSignArgs) -> PluginConfig {
+    let mut options = HashMap::new();
 
-    let embed_payload = common.embed || !common.detached;
-    let mut options = DirectSignatureOptions::default().with_embed_payload(embed_payload);
-    let scitt_subject = selected_scitt_subject(common);
-
-    if common.issuer.is_some() || scitt_subject.is_some() {
-        let mut claims = CwtClaims::new();
-
-        if let Some(issuer) = &common.issuer {
-            claims = claims.with_issuer(issuer.clone());
-        }
-
-        if let Some(subject) = scitt_subject {
-            claims = claims.with_subject(subject.to_string());
-        }
-
-        let contributor = CwtClaimsHeaderContributor::new(&claims)
-            .map_err(|e| anyhow::anyhow!("Failed to build CWT claims contributor: {e}"))?;
-        options = options.add_header_contributor(Box::new(contributor));
+    if common.detached {
+        options.insert("detached".to_string(), "true".to_string());
+    }
+    if common.embed {
+        options.insert("embed".to_string(), "true".to_string());
+    }
+    if common.enable_scitt {
+        options.insert("enable-scitt".to_string(), "true".to_string());
+    }
+    if common.no_scitt {
+        options.insert("no-scitt".to_string(), "true".to_string());
+    }
+    if let Some(issuer) = &common.issuer {
+        options.insert("issuer".to_string(), issuer.clone());
+    }
+    if let Some(subject) = &common.cwt_subject {
+        options.insert("cwt-subject".to_string(), subject.clone());
+    }
+    if let Some(subject) = &common.scitt_subject {
+        options.insert("scitt-subject".to_string(), subject.clone());
+    }
+    if let Some(scitt_type) = &common.scitt_type {
+        options.insert("scitt-type".to_string(), scitt_type.clone());
     }
 
-    Ok(options)
+    PluginConfig { options }
 }
 
-fn build_indirect_signature_options(common: &CommonSignArgs) -> Result<IndirectSignatureOptions> {
-    Ok(IndirectSignatureOptions::default()
-        .with_base_options(build_direct_signature_options(common)?))
+fn signature_format_name(format: SignatureFormat) -> &'static str {
+    match format {
+        SignatureFormat::Direct => "direct",
+        SignatureFormat::Indirect => "indirect",
+    }
 }
 
 fn read_payload_bytes(common: &CommonSignArgs) -> Result<(Vec<u8>, String)> {
@@ -599,10 +705,10 @@ fn extract_certificate_subject(signed_bytes: &[u8]) -> Result<Option<String>> {
 }
 
 fn build_transparency_plan(
-    service: &dyn SigningService,
+    discovered_endpoints: &[DiscoveredTransparencyEndpoint],
     common: &CommonSignArgs,
 ) -> TransparencyCommandPlan {
-    let discovered_endpoints = service.transparency_endpoints();
+    let discovered_endpoints = discovered_endpoints.to_vec();
     let mut submission_targets = Vec::new();
     let mut seen_targets = HashSet::new();
 
@@ -684,7 +790,7 @@ fn push_transparency_submission_target(
     }
 }
 
-fn format_discovered_transparency_endpoints(endpoints: &[TransparencyEndpointInfo]) -> String {
+fn format_discovered_transparency_endpoints(endpoints: &[DiscoveredTransparencyEndpoint]) -> String {
     if endpoints.is_empty() {
         return "N/A".to_string();
     }
@@ -733,7 +839,7 @@ fn format_transparency_suggestions(suggestions: &[String]) -> String {
     suggestions.join(", ")
 }
 
-fn format_transparency_suggestion(endpoint: &TransparencyEndpointInfo) -> String {
+fn format_transparency_suggestion(endpoint: &DiscoveredTransparencyEndpoint) -> String {
     match endpoint.service_type.as_str() {
         "mst" => format!("--scitt-mst-endpoint {}", endpoint.endpoint),
         service_type => format!("--scitt-{}-endpoint {}", service_type, endpoint.endpoint),
@@ -1080,4 +1186,508 @@ fn resolve_pfx_password(
     }
 
     Ok(None)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::commands::{self, Command, ParsedCli};
+
+    #[test]
+    fn signature_format_value_enum_parses_expected_values() {
+        let direct = parse_ephemeral_common(&[
+            "CoseSignTool",
+            "sign",
+            "x509",
+            "ephemeral",
+            "payload.bin",
+            "--output",
+            "out.cose",
+            "--format",
+            "direct",
+        ]);
+        assert!(matches!(direct.format, SignatureFormat::Direct));
+
+        let indirect = parse_ephemeral_common(&[
+            "CoseSignTool",
+            "sign",
+            "x509",
+            "ephemeral",
+            "payload.bin",
+            "--output",
+            "out.cose",
+            "--format",
+            "indirect",
+        ]);
+        assert!(matches!(indirect.format, SignatureFormat::Indirect));
+
+        let error = commands::parse_from(
+            [
+                "CoseSignTool",
+                "sign",
+                "x509",
+                "ephemeral",
+                "payload.bin",
+                "--output",
+                "out.cose",
+                "--format",
+                "invalid",
+            ],
+            &[],
+        )
+        .expect_err("invalid format should fail");
+        assert_eq!(error.kind(), clap::error::ErrorKind::InvalidValue);
+    }
+
+    #[test]
+    fn common_sign_args_apply_expected_defaults() {
+        let common = parse_ephemeral_common(&[
+            "CoseSignTool",
+            "sign",
+            "x509",
+            "ephemeral",
+            "payload.bin",
+            "--output",
+            "out.cose",
+        ]);
+
+        assert_eq!(common.payload, "payload.bin");
+        assert_eq!(common.output, "out.cose");
+        assert_eq!(common.content_type, "application/octet-stream");
+        assert!(matches!(common.format, SignatureFormat::Indirect));
+        assert!(!common.detached);
+        assert!(!common.embed);
+        assert!(common.issuer.is_none());
+        assert!(common.cwt_subject.is_none());
+        assert!(common.scitt_subject.is_none());
+        assert!(!common.enable_scitt);
+        assert!(!common.no_scitt);
+        assert!(common.scitt_type.is_none());
+        #[cfg(feature = "mst")]
+        assert!(common.mst_endpoints.is_empty());
+        assert!(common.transparency_options.is_empty());
+    }
+
+    // --- resolve_pfx_password tests ---
+
+    #[test]
+    fn resolve_pfx_password_both_sources_returns_error() {
+        let result = resolve_pfx_password(Some("file.txt"), Some("ENV_VAR"));
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("not both"));
+    }
+
+    #[test]
+    fn resolve_pfx_password_neither_returns_none() {
+        let result = resolve_pfx_password(None, None).unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn resolve_pfx_password_from_env_var() {
+        let env_var = format!(
+            "COSESIGNTOOL_TEST_PFX_PW_{}",
+            std::process::id()
+        );
+        std::env::set_var(&env_var, "my-secret");
+        let result = resolve_pfx_password(None, Some(env_var.as_str())).unwrap();
+        std::env::remove_var(&env_var);
+        assert_eq!(result, Some("my-secret".to_string()));
+    }
+
+    #[test]
+    fn resolve_pfx_password_missing_env_var_returns_error() {
+        let result = resolve_pfx_password(None, Some("COSESIGNTOOL_NONEXISTENT_ENV_VAR_12345"));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn resolve_pfx_password_from_file() {
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let path = std::env::current_dir()
+            .unwrap()
+            .join(format!(".test-pfx-pw-{}-{}.txt", std::process::id(), timestamp));
+        std::fs::write(&path, "file-password\r\n").unwrap();
+        let result = resolve_pfx_password(Some(path.to_str().unwrap()), None).unwrap();
+        std::fs::remove_file(&path).unwrap();
+        assert_eq!(result, Some("file-password".to_string()));
+    }
+
+    #[test]
+    fn resolve_pfx_password_missing_file_returns_error() {
+        let result = resolve_pfx_password(Some("nonexistent-pfx-pw-file.txt"), None);
+        assert!(result.is_err());
+    }
+
+    // --- ensure_supported_scitt_type tests ---
+
+    #[test]
+    fn ensure_supported_scitt_type_none_is_ok() {
+        assert!(ensure_supported_scitt_type(None).is_ok());
+    }
+
+    #[test]
+    fn ensure_supported_scitt_type_mst_is_ok() {
+        assert!(ensure_supported_scitt_type(Some("mst")).is_ok());
+        assert!(ensure_supported_scitt_type(Some("MST")).is_ok());
+    }
+
+    #[test]
+    fn ensure_supported_scitt_type_unknown_is_error() {
+        let result = ensure_supported_scitt_type(Some("unknown"));
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Unsupported"));
+    }
+
+    // --- selected_scitt_subject tests ---
+
+    #[test]
+    fn selected_scitt_subject_prefers_cwt_subject() {
+        let common = CommonSignArgs {
+            payload: String::new(),
+            output: String::new(),
+            content_type: String::new(),
+            format: SignatureFormat::Indirect,
+            detached: false,
+            embed: false,
+            issuer: None,
+            cwt_subject: Some("cwt".to_string()),
+            scitt_subject: Some("scitt".to_string()),
+            enable_scitt: false,
+            no_scitt: false,
+            scitt_type: None,
+            #[cfg(feature = "mst")]
+            mst_endpoints: Vec::new(),
+            transparency_options: HashMap::new(),
+        };
+        assert_eq!(selected_scitt_subject(&common), Some("cwt"));
+    }
+
+    #[test]
+    fn selected_scitt_subject_falls_back_to_scitt_subject() {
+        let common = CommonSignArgs {
+            payload: String::new(),
+            output: String::new(),
+            content_type: String::new(),
+            format: SignatureFormat::Indirect,
+            detached: false,
+            embed: false,
+            issuer: None,
+            cwt_subject: None,
+            scitt_subject: Some("scitt".to_string()),
+            enable_scitt: false,
+            no_scitt: false,
+            scitt_type: None,
+            #[cfg(feature = "mst")]
+            mst_endpoints: Vec::new(),
+            transparency_options: HashMap::new(),
+        };
+        assert_eq!(selected_scitt_subject(&common), Some("scitt"));
+    }
+
+    #[test]
+    fn selected_scitt_subject_returns_none_when_neither_set() {
+        let common = CommonSignArgs {
+            payload: String::new(),
+            output: String::new(),
+            content_type: String::new(),
+            format: SignatureFormat::Indirect,
+            detached: false,
+            embed: false,
+            issuer: None,
+            cwt_subject: None,
+            scitt_subject: None,
+            enable_scitt: false,
+            no_scitt: false,
+            scitt_type: None,
+            #[cfg(feature = "mst")]
+            mst_endpoints: Vec::new(),
+            transparency_options: HashMap::new(),
+        };
+        assert_eq!(selected_scitt_subject(&common), None);
+    }
+
+    // --- transparency_service_type_from_option tests ---
+
+    #[test]
+    fn transparency_service_type_from_option_extracts_type() {
+        assert_eq!(
+            transparency_service_type_from_option("scitt-mst-endpoint"),
+            Some("mst")
+        );
+        assert_eq!(
+            transparency_service_type_from_option("scitt-custom-endpoint"),
+            Some("custom")
+        );
+    }
+
+    #[test]
+    fn transparency_service_type_from_option_rejects_invalid_names() {
+        assert_eq!(transparency_service_type_from_option("other-option"), None);
+        assert_eq!(
+            transparency_service_type_from_option("scitt--endpoint"),
+            None
+        );
+    }
+
+    // --- format helpers tests ---
+
+    #[test]
+    fn format_discovered_transparency_endpoints_empty() {
+        assert_eq!(
+            format_discovered_transparency_endpoints(&[]),
+            "N/A"
+        );
+    }
+
+    #[test]
+    fn format_discovered_transparency_endpoints_auto_and_manual() {
+        let endpoints = vec![
+            DiscoveredTransparencyEndpoint {
+                service_type: "mst".into(),
+                endpoint: "https://mst.example".into(),
+                display_name: "MST".into(),
+                auto_submit: true,
+            },
+            DiscoveredTransparencyEndpoint {
+                service_type: "custom".into(),
+                endpoint: "https://custom.example".into(),
+                display_name: "Custom".into(),
+                auto_submit: false,
+            },
+        ];
+        let result = format_discovered_transparency_endpoints(&endpoints);
+        assert!(result.contains("auto-submit"));
+        assert!(result.contains("manual"));
+        assert!(result.contains("MST"));
+    }
+
+    #[test]
+    fn format_transparency_submission_targets_empty() {
+        assert_eq!(format_transparency_submission_targets(&[]), "N/A");
+    }
+
+    #[test]
+    fn format_transparency_submission_targets_one_target() {
+        let targets = vec![TransparencySubmissionTarget {
+            service_type: "mst".into(),
+            endpoint: "https://mst.example".into(),
+            display_name: "MST Ledger".into(),
+        }];
+        let result = format_transparency_submission_targets(&targets);
+        assert!(result.contains("MST Ledger"));
+        assert!(result.contains("[mst]"));
+    }
+
+    #[test]
+    fn format_transparency_suggestions_empty() {
+        assert_eq!(format_transparency_suggestions(&[]), "N/A");
+    }
+
+    #[test]
+    fn format_transparency_suggestions_joins_entries() {
+        let suggestions = vec!["--scitt-mst-endpoint A".to_string(), "--scitt-custom-endpoint B".to_string()];
+        let result = format_transparency_suggestions(&suggestions);
+        assert!(result.contains("--scitt-mst-endpoint A"));
+        assert!(result.contains(", "));
+    }
+
+    #[test]
+    fn format_transparency_suggestion_mst_type() {
+        let endpoint = DiscoveredTransparencyEndpoint {
+            service_type: "mst".into(),
+            endpoint: "https://mst.example".into(),
+            display_name: "MST".into(),
+            auto_submit: false,
+        };
+        let suggestion = format_transparency_suggestion(&endpoint);
+        assert_eq!(suggestion, "--scitt-mst-endpoint https://mst.example");
+    }
+
+    #[test]
+    fn format_transparency_suggestion_custom_type() {
+        let endpoint = DiscoveredTransparencyEndpoint {
+            service_type: "custom".into(),
+            endpoint: "https://custom.example".into(),
+            display_name: "Custom".into(),
+            auto_submit: false,
+        };
+        let suggestion = format_transparency_suggestion(&endpoint);
+        assert_eq!(
+            suggestion,
+            "--scitt-custom-endpoint https://custom.example"
+        );
+    }
+
+    // --- is_builtin_provider_name tests ---
+
+    #[test]
+    fn is_builtin_provider_name_recognized() {
+        assert!(is_builtin_provider_name("pfx"));
+        assert!(is_builtin_provider_name("pem"));
+        assert!(is_builtin_provider_name("ephemeral"));
+        assert!(!is_builtin_provider_name("custom-plugin"));
+        assert!(!is_builtin_provider_name(""));
+    }
+
+    // --- apply_scitt_transparency tests ---
+
+    #[test]
+    fn apply_scitt_transparency_no_targets_returns_input() {
+        let input = vec![1, 2, 3, 4];
+        let result = apply_scitt_transparency(input.clone(), &[]).unwrap();
+        assert_eq!(result, input);
+    }
+
+    #[test]
+    fn apply_scitt_transparency_unsupported_type_returns_error() {
+        let targets = vec![TransparencySubmissionTarget {
+            service_type: "unsupported".into(),
+            endpoint: "https://example.com".into(),
+            display_name: "Test".into(),
+        }];
+        let result = apply_scitt_transparency(vec![1, 2, 3], &targets);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("not supported"));
+    }
+
+    // --- push_transparency_submission_target tests ---
+
+    #[test]
+    fn push_transparency_submission_target_deduplicates() {
+        let mut targets = Vec::new();
+        let mut seen = HashSet::new();
+        push_transparency_submission_target(
+            &mut targets,
+            &mut seen,
+            "mst",
+            "https://a.example",
+            "A",
+        );
+        push_transparency_submission_target(
+            &mut targets,
+            &mut seen,
+            "mst",
+            "https://a.example",
+            "A duplicate",
+        );
+        assert_eq!(targets.len(), 1);
+    }
+
+    #[test]
+    fn push_transparency_submission_target_skips_empty_endpoint() {
+        let mut targets = Vec::new();
+        let mut seen = HashSet::new();
+        push_transparency_submission_target(&mut targets, &mut seen, "mst", "", "Empty");
+        assert!(targets.is_empty());
+    }
+
+    // --- leak_str test ---
+
+    #[test]
+    fn leak_str_returns_static_str() {
+        let s: &'static str = leak_str("hello world");
+        assert_eq!(s, "hello world");
+    }
+
+    // --- signature_format_name tests ---
+
+    #[test]
+    fn signature_format_name_returns_expected_names() {
+        assert_eq!(signature_format_name(SignatureFormat::Direct), "direct");
+        assert_eq!(signature_format_name(SignatureFormat::Indirect), "indirect");
+    }
+
+    // --- collect_plugin_signing_commands tests ---
+
+    #[test]
+    fn collect_plugin_signing_commands_filters_and_sorts() {
+        use cosesigntool_plugin_api::traits::*;
+        let plugins = vec![PluginInfo {
+            id: "test".into(),
+            name: "Test".into(),
+            version: "1.0".into(),
+            description: "test".into(),
+            capabilities: vec![PluginCapability::Signing],
+            commands: vec![
+                PluginCommandDef {
+                    name: "zzz-provider".into(),
+                    description: "Z".into(),
+                    options: vec![],
+                    capability: PluginCapability::Signing,
+                },
+                PluginCommandDef {
+                    name: "aaa-provider".into(),
+                    description: "A".into(),
+                    options: vec![],
+                    capability: PluginCapability::Signing,
+                },
+                PluginCommandDef {
+                    name: "verify-cmd".into(),
+                    description: "V".into(),
+                    options: vec![],
+                    capability: PluginCapability::Verification,
+                },
+                PluginCommandDef {
+                    name: "pfx".into(),
+                    description: "builtin".into(),
+                    options: vec![],
+                    capability: PluginCapability::Signing,
+                },
+            ],
+            transparency_options: vec![],
+        }];
+        let commands = collect_plugin_signing_commands(&plugins);
+        assert_eq!(commands.len(), 2);
+        assert_eq!(commands[0].name, "aaa-provider");
+        assert_eq!(commands[1].name, "zzz-provider");
+    }
+
+    // --- find_plugin_command tests ---
+
+    #[test]
+    fn find_plugin_command_finds_signing_command_by_name() {
+        use cosesigntool_plugin_api::traits::*;
+        let plugins = vec![PluginInfo {
+            id: "test".into(),
+            name: "Test".into(),
+            version: "1.0".into(),
+            description: "test".into(),
+            capabilities: vec![PluginCapability::Signing],
+            commands: vec![PluginCommandDef {
+                name: "my-cmd".into(),
+                description: "desc".into(),
+                options: vec![],
+                capability: PluginCapability::Signing,
+            }],
+            transparency_options: vec![],
+        }];
+        assert!(find_plugin_command(&plugins, "my-cmd").is_some());
+        assert!(find_plugin_command(&plugins, "nonexistent").is_none());
+    }
+
+    fn parse_ephemeral_common(args: &[&str]) -> CommonSignArgs {
+        let parsed = commands::parse_from(args.iter().copied(), &[]).expect("CLI arguments should parse");
+        match parsed {
+            ParsedCli::BuiltIn(cli) => match cli.command {
+                Command::Sign { method } => match method {
+                    SignMethod::X509 {
+                        provider: X509Provider::Ephemeral(args),
+                    } => args.common,
+                    other => panic!("unexpected sign provider: {other:?}"),
+                },
+                other => panic!("unexpected CLI command: {other:?}"),
+            },
+            other => panic!("unexpected parsed CLI variant: {other:?}"),
+        }
+    }
 }

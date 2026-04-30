@@ -7,8 +7,10 @@ use crate::auth::{constant_time_eq, read_and_clear_auth_key, AuthError, AUTH_KEY
 use crate::client::PipeStream;
 use crate::protocol::{self, methods, Request, RequestParams, Response, ResponseResult};
 use crate::traits::{
-    AlgorithmResponse, CertificateChainResponse, PluginCapability, PluginProvider, SignResponse,
+    AlgorithmResponse, CertificateChainResponse, PluginCapability, PluginProvider,
+    SignPayloadResponse, SignResponse,
 };
+use std::io::{Read, Write};
 
 #[cfg(unix)]
 use std::os::unix::net::UnixListener;
@@ -74,16 +76,28 @@ pub fn run_with_args(mut plugin: impl PluginProvider, args: &[String]) -> Result
     let auth_key = read_and_clear_auth_key()?;
     let mut stream = accept_one_connection(pipe_name.as_str())?;
 
-    authenticate(&mut stream, &auth_key)?;
+    serve_connection(&mut plugin, stream.as_mut(), &auth_key)
+}
+
+/// Authenticate and serve requests on an existing plugin transport.
+pub fn serve_connection<S>(
+    plugin: &mut dyn PluginProvider,
+    stream: &mut S,
+    expected_key: &[u8; AUTH_KEY_LENGTH],
+) -> Result<(), ServerError>
+where
+    S: Read + Write + ?Sized,
+{
+    authenticate(stream, expected_key)?;
 
     loop {
-        let request = match protocol::read_request(&mut stream)? {
+        let request = match protocol::read_request(stream)? {
             Some(request) => request,
             None => break,
         };
         let should_shutdown = request.method == methods::SHUTDOWN;
-        let response = handle_request(&mut plugin, &request);
-        protocol::write_response(&mut stream, &response)?;
+        let response = dispatch_request(plugin, &request);
+        protocol::write_response(stream, &response)?;
 
         if should_shutdown {
             break;
@@ -93,10 +107,10 @@ pub fn run_with_args(mut plugin: impl PluginProvider, args: &[String]) -> Result
     Ok(())
 }
 
-fn authenticate(
-    stream: &mut Box<dyn PipeStream>,
-    expected_key: &[u8; AUTH_KEY_LENGTH],
-) -> Result<(), ServerError> {
+fn authenticate<S>(stream: &mut S, expected_key: &[u8; AUTH_KEY_LENGTH]) -> Result<(), ServerError>
+where
+    S: Read + Write + ?Sized,
+{
     let first_request = protocol::read_request(stream)?.ok_or_else(|| {
         ServerError::AuthenticationFailed("pipe closed before authenticate request".to_string())
     })?;
@@ -136,7 +150,8 @@ fn authenticate(
     Ok(())
 }
 
-fn handle_request(plugin: &mut dyn PluginProvider, request: &Request) -> Response {
+/// Dispatch a decoded request to the plugin provider.
+pub fn dispatch_request(plugin: &mut dyn PluginProvider, request: &Request) -> Response {
     match request.method.as_str() {
         methods::AUTHENTICATE => Response::err(
             "AUTH_ALREADY_COMPLETED",
@@ -195,6 +210,30 @@ fn handle_request(plugin: &mut dyn PluginProvider, request: &Request) -> Respons
             ) {
                 Ok(signature) => Response::ok(ResponseResult::Sign(SignResponse { signature })),
                 Err(error) => Response::err("SIGN_FAILED", error),
+            }
+        }
+        methods::SIGN_PAYLOAD => {
+            let sign_request = match &request.params {
+                RequestParams::SignPayload(sign_request) => sign_request,
+                _ => {
+                    return Response::err(
+                        "INVALID_PARAMS",
+                        "sign_payload requires SignPayloadRequest",
+                    )
+                }
+            };
+
+            match plugin.sign_payload(
+                sign_request.service_id.as_str(),
+                sign_request.payload.as_slice(),
+                sign_request.content_type.as_str(),
+                sign_request.format.as_str(),
+                &sign_request.options,
+            ) {
+                Ok(cose_bytes) => {
+                    Response::ok(ResponseResult::SignPayload(SignPayloadResponse { cose_bytes }))
+                }
+                Err(error) => Response::err("SIGN_PAYLOAD_FAILED", error),
             }
         }
         methods::GET_TRUST_POLICY_INFO => {

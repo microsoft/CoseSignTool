@@ -87,6 +87,26 @@ impl Request {
         )
     }
 
+    /// Creates a `sign_payload` request.
+    pub fn sign_payload(
+        service_id: impl Into<String>,
+        payload: Vec<u8>,
+        content_type: impl Into<String>,
+        format: impl Into<String>,
+        options: PluginConfig,
+    ) -> Self {
+        Self::new(
+            methods::SIGN_PAYLOAD,
+            RequestParams::SignPayload(SignPayloadRequest {
+                service_id: service_id.into(),
+                payload,
+                content_type: content_type.into(),
+                format: format.into(),
+                options,
+            }),
+        )
+    }
+
     /// Creates a `verify` request.
     pub fn verify(
         cose_bytes: Vec<u8>,
@@ -141,6 +161,8 @@ pub enum RequestParams {
     },
     /// Parameters for `sign`.
     Sign(SignRequest),
+    /// Parameters for `sign_payload`.
+    SignPayload(SignPayloadRequest),
     /// Parameters for `verify`.
     Verify {
         /// Raw COSE_Sign1 bytes.
@@ -204,6 +226,8 @@ pub enum ResponseResult {
     Algorithm(AlgorithmResponse),
     /// Result payload for `sign`.
     Sign(SignResponse),
+    /// Result payload for `sign_payload`.
+    SignPayload(SignPayloadResponse),
     /// Result payload for `get_trust_policy_info`.
     TrustPolicyInfo(TrustPolicyInfo),
     /// Result payload for `verify`.
@@ -271,6 +295,8 @@ pub mod methods {
     pub const GET_ALGORITHM: &str = "get_algorithm";
     /// Sign data. Returns `SignResponse`.
     pub const SIGN: &str = "sign";
+    /// Sign a payload end-to-end. Returns `SignPayloadResponse`.
+    pub const SIGN_PAYLOAD: &str = "sign_payload";
     /// Describe verification trust policies. Returns `TrustPolicyInfo` or `null`.
     pub const GET_TRUST_POLICY_INFO: &str = "get_trust_policy_info";
     /// Verify a COSE_Sign1 message. Returns `VerificationResult` or `null`.
@@ -415,23 +441,28 @@ where
     Ok(Response { result, error })
 }
 
-/// Writes a length-prefixed CBOR frame.
-pub fn write_frame(writer: &mut impl Write, cbor_bytes: &[u8]) -> std::io::Result<()> {
-    if cbor_bytes.len() > u32::MAX as usize {
+/// Converts a frame length into the big-endian prefix used on the wire.
+pub fn frame_length_prefix(frame_length: usize) -> std::io::Result<[u8; 4]> {
+    if frame_length > u32::MAX as usize {
         return Err(std::io::Error::new(
             std::io::ErrorKind::InvalidInput,
             "plugin IPC frame exceeds the 4-byte length prefix limit",
         ));
     }
 
-    let length_prefix = (cbor_bytes.len() as u32).to_be_bytes();
+    Ok((frame_length as u32).to_be_bytes())
+}
+
+/// Writes a length-prefixed CBOR frame.
+pub fn write_frame(writer: &mut (impl Write + ?Sized), cbor_bytes: &[u8]) -> std::io::Result<()> {
+    let length_prefix = frame_length_prefix(cbor_bytes.len())?;
     writer.write_all(&length_prefix)?;
     writer.write_all(cbor_bytes)?;
     writer.flush()
 }
 
 /// Reads a length-prefixed CBOR frame.
-pub fn read_frame(reader: &mut impl Read) -> std::io::Result<Vec<u8>> {
+pub fn read_frame(reader: &mut (impl Read + ?Sized)) -> std::io::Result<Vec<u8>> {
     match read_frame_optional(reader)? {
         Some(frame) => Ok(frame),
         None => Err(std::io::Error::new(
@@ -442,7 +473,10 @@ pub fn read_frame(reader: &mut impl Read) -> std::io::Result<Vec<u8>> {
 }
 
 /// Writes a framed CBOR request.
-pub fn write_request(writer: &mut impl Write, request: &Request) -> std::io::Result<()> {
+pub fn write_request(
+    writer: &mut (impl Write + ?Sized),
+    request: &Request,
+) -> std::io::Result<()> {
     let provider = EverParseCborProvider;
     let mut encoder = provider.encoder();
     encode_request(&mut encoder, request).map_err(protocol_to_io_error)?;
@@ -451,7 +485,7 @@ pub fn write_request(writer: &mut impl Write, request: &Request) -> std::io::Res
 }
 
 /// Reads a framed CBOR request.
-pub fn read_request(reader: &mut impl Read) -> std::io::Result<Option<Request>> {
+pub fn read_request(reader: &mut (impl Read + ?Sized)) -> std::io::Result<Option<Request>> {
     let frame = match read_frame_optional(reader)? {
         Some(frame) => frame,
         None => return Ok(None),
@@ -465,7 +499,10 @@ pub fn read_request(reader: &mut impl Read) -> std::io::Result<Option<Request>> 
 }
 
 /// Writes a framed CBOR response.
-pub fn write_response(writer: &mut impl Write, response: &Response) -> std::io::Result<()> {
+pub fn write_response(
+    writer: &mut (impl Write + ?Sized),
+    response: &Response,
+) -> std::io::Result<()> {
     let provider = EverParseCborProvider;
     let mut encoder = provider.encoder();
     encode_response(&mut encoder, response).map_err(protocol_to_io_error)?;
@@ -474,7 +511,7 @@ pub fn write_response(writer: &mut impl Write, response: &Response) -> std::io::
 }
 
 /// Reads a framed CBOR response.
-pub fn read_response(reader: &mut impl Read) -> std::io::Result<Response> {
+pub fn read_response(reader: &mut (impl Read + ?Sized)) -> std::io::Result<Response> {
     let frame = read_frame(reader)?;
     let provider = EverParseCborProvider;
     let mut decoder = provider.decoder(frame.as_slice());
@@ -522,6 +559,13 @@ fn validate_request(request: &Request) -> ProtocolResult<()> {
                 ));
             }
         }
+        methods::SIGN_PAYLOAD => {
+            if !matches!(request.params, RequestParams::SignPayload(_)) {
+                return Err(ProtocolCodecError::InvalidMessage(
+                    "'sign_payload' requires SignPayloadRequest params".into(),
+                ));
+            }
+        }
         methods::VERIFY => {
             if !matches!(request.params, RequestParams::Verify { .. }) {
                 return Err(ProtocolCodecError::InvalidMessage(
@@ -565,6 +609,25 @@ where
                 .map_err(cbor_error)?;
             encoder.encode_tstr("algorithm").map_err(cbor_error)?;
             encoder.encode_i64(request.algorithm).map_err(cbor_error)
+        }
+        RequestParams::SignPayload(request) => {
+            encoder.encode_map(5).map_err(cbor_error)?;
+            encoder.encode_tstr("service_id").map_err(cbor_error)?;
+            encoder
+                .encode_tstr(request.service_id.as_str())
+                .map_err(cbor_error)?;
+            encoder.encode_tstr("payload").map_err(cbor_error)?;
+            encoder
+                .encode_bstr(request.payload.as_slice())
+                .map_err(cbor_error)?;
+            encoder.encode_tstr("content_type").map_err(cbor_error)?;
+            encoder
+                .encode_tstr(request.content_type.as_str())
+                .map_err(cbor_error)?;
+            encoder.encode_tstr("format").map_err(cbor_error)?;
+            encoder.encode_tstr(request.format.as_str()).map_err(cbor_error)?;
+            encoder.encode_tstr("options").map_err(cbor_error)?;
+            encode_plugin_config(encoder, &request.options)
         }
         RequestParams::Verify {
             cose_bytes,
@@ -627,6 +690,13 @@ where
             encoder.encode_tstr("signature").map_err(cbor_error)?;
             encoder
                 .encode_bstr(result.signature.as_slice())
+                .map_err(cbor_error)
+        }
+        ResponseResult::SignPayload(result) => {
+            encoder.encode_map(1).map_err(cbor_error)?;
+            encoder.encode_tstr("cose_bytes").map_err(cbor_error)?;
+            encoder
+                .encode_bstr(result.cose_bytes.as_slice())
                 .map_err(cbor_error)
         }
         ResponseResult::TrustPolicyInfo(result) => encode_trust_policy_info(encoder, result),
@@ -954,6 +1024,10 @@ fn decode_request_params(method: &str, raw_params: Option<&[u8]>) -> ProtocolRes
             let raw = require_params(method, raw_params)?;
             Ok(RequestParams::Sign(decode_sign_request_from_bytes(raw)?))
         }
+        methods::SIGN_PAYLOAD => {
+            let raw = require_params(method, raw_params)?;
+            Ok(RequestParams::SignPayload(decode_sign_payload_request_from_bytes(raw)?))
+        }
         methods::VERIFY => {
             let raw = require_params(method, raw_params)?;
             decode_verify_request_from_bytes(raw)
@@ -990,6 +1064,10 @@ fn decode_response_result(raw_result: &[u8]) -> ProtocolResult<ResponseResult> {
         return Ok(ResponseResult::Sign(signature));
     }
 
+    if let Some(result) = try_decode_sign_payload_response_from_bytes(raw_result)? {
+        return Ok(ResponseResult::SignPayload(result));
+    }
+
     if let Some(info) = try_decode_trust_policy_info_from_bytes(raw_result)? {
         return Ok(ResponseResult::TrustPolicyInfo(info));
     }
@@ -1004,14 +1082,24 @@ fn decode_response_result(raw_result: &[u8]) -> ProtocolResult<ResponseResult> {
 fn decode_plugin_config_from_bytes(data: &[u8]) -> ProtocolResult<PluginConfig> {
     let provider = EverParseCborProvider;
     let mut decoder = provider.decoder(data);
-    let entry_count = decode_required_map_len(&mut decoder, "create_service params")?;
+    let config = decode_plugin_config(&mut decoder)?;
+    ensure_no_trailing(&decoder, "create_service params")?;
+    Ok(config)
+}
+
+fn decode_plugin_config<'a, D>(decoder: &mut D) -> ProtocolResult<PluginConfig>
+where
+    D: CborDecoder<'a>,
+    D::Error: std::fmt::Display,
+{
+    let entry_count = decode_required_map_len(decoder, "plugin config")?;
     let mut options: Option<HashMap<String, String>> = None;
 
     for _ in 0..entry_count {
-        let key = decode_tstr_owned(&mut decoder)?;
+        let key = decode_tstr_owned(decoder)?;
         match key.as_str() {
             "options" => {
-                options = Some(decode_options_map(&mut decoder)?);
+                options = Some(decode_options_map(decoder)?);
             }
             _ => {
                 decoder.skip().map_err(cbor_error)?;
@@ -1019,13 +1107,9 @@ fn decode_plugin_config_from_bytes(data: &[u8]) -> ProtocolResult<PluginConfig> 
         }
     }
 
-    ensure_no_trailing(&decoder, "create_service params")?;
-
     Ok(PluginConfig {
         options: options.ok_or_else(|| {
-            ProtocolCodecError::InvalidMessage(
-                "create_service params are missing the 'options' map".into(),
-            )
+            ProtocolCodecError::InvalidMessage("plugin config is missing the 'options' map".into())
         })?,
     })
 }
@@ -1067,6 +1151,66 @@ fn decode_sign_request_from_bytes(data: &[u8]) -> ProtocolResult<SignRequest> {
         })?,
         algorithm: algorithm.ok_or_else(|| {
             ProtocolCodecError::InvalidMessage("sign params are missing 'algorithm'".into())
+        })?,
+    })
+}
+
+fn decode_sign_payload_request_from_bytes(data: &[u8]) -> ProtocolResult<SignPayloadRequest> {
+    let provider = EverParseCborProvider;
+    let mut decoder = provider.decoder(data);
+    let entry_count = decode_required_map_len(&mut decoder, "sign_payload params")?;
+    let mut service_id: Option<String> = None;
+    let mut payload: Option<Vec<u8>> = None;
+    let mut content_type: Option<String> = None;
+    let mut format: Option<String> = None;
+    let mut options: Option<PluginConfig> = None;
+
+    for _ in 0..entry_count {
+        let key = decode_tstr_owned(&mut decoder)?;
+        match key.as_str() {
+            "service_id" => {
+                service_id = Some(decode_tstr_owned(&mut decoder)?);
+            }
+            "payload" => {
+                payload = Some(decode_bstr_owned(&mut decoder)?);
+            }
+            "content_type" => {
+                content_type = Some(decode_tstr_owned(&mut decoder)?);
+            }
+            "format" => {
+                format = Some(decode_tstr_owned(&mut decoder)?);
+            }
+            "options" => {
+                let decoded_options = decode_plugin_config(&mut decoder)?;
+                options = Some(decoded_options);
+            }
+            _ => {
+                decoder.skip().map_err(cbor_error)?;
+            }
+        }
+    }
+
+    ensure_no_trailing(&decoder, "sign_payload params")?;
+
+    Ok(SignPayloadRequest {
+        service_id: service_id.ok_or_else(|| {
+            ProtocolCodecError::InvalidMessage(
+                "sign_payload params are missing 'service_id'".into(),
+            )
+        })?,
+        payload: payload.ok_or_else(|| {
+            ProtocolCodecError::InvalidMessage("sign_payload params are missing 'payload'".into())
+        })?,
+        content_type: content_type.ok_or_else(|| {
+            ProtocolCodecError::InvalidMessage(
+                "sign_payload params are missing 'content_type'".into(),
+            )
+        })?,
+        format: format.ok_or_else(|| {
+            ProtocolCodecError::InvalidMessage("sign_payload params are missing 'format'".into())
+        })?,
+        options: options.ok_or_else(|| {
+            ProtocolCodecError::InvalidMessage("sign_payload params are missing 'options'".into())
         })?,
     })
 }
@@ -1382,6 +1526,38 @@ fn try_decode_sign_response_from_bytes(data: &[u8]) -> ProtocolResult<Option<Sig
 
     match signature {
         Some(signature) => Ok(Some(SignResponse { signature })),
+        None => Ok(None),
+    }
+}
+
+fn try_decode_sign_payload_response_from_bytes(
+    data: &[u8],
+) -> ProtocolResult<Option<SignPayloadResponse>> {
+    let provider = EverParseCborProvider;
+    let mut decoder = provider.decoder(data);
+    if decoder.peek_type().map_err(cbor_error)? != CborType::Map {
+        return Ok(None);
+    }
+
+    let entry_count = decode_required_map_len(&mut decoder, "sign_payload result")?;
+    let mut cose_bytes: Option<Vec<u8>> = None;
+
+    for _ in 0..entry_count {
+        let key = decode_tstr_owned(&mut decoder)?;
+        match key.as_str() {
+            "cose_bytes" => {
+                cose_bytes = Some(decode_bstr_owned(&mut decoder)?);
+            }
+            _ => {
+                decoder.skip().map_err(cbor_error)?;
+            }
+        }
+    }
+
+    ensure_no_trailing(&decoder, "sign_payload result")?;
+
+    match cose_bytes {
+        Some(cose_bytes) => Ok(Some(SignPayloadResponse { cose_bytes })),
         None => Ok(None),
     }
 }
@@ -2051,7 +2227,7 @@ fn protocol_to_io_error(error: ProtocolCodecError) -> std::io::Error {
     }
 }
 
-fn read_frame_optional(reader: &mut impl Read) -> std::io::Result<Option<Vec<u8>>> {
+fn read_frame_optional(reader: &mut (impl Read + ?Sized)) -> std::io::Result<Option<Vec<u8>>> {
     let mut length_prefix = [0u8; 4];
     let bytes_read = reader.read(&mut length_prefix[..1])?;
     if bytes_read == 0 {

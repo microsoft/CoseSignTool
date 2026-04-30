@@ -191,8 +191,13 @@ fn execute_x509(args: VerifyX509Args, format: OutputFormat) -> Result<i32> {
 
 fn execute_scitt(args: VerifyScittArgs, format: OutputFormat) -> Result<i32> {
     ensure_supported_scitt_type(args.scitt_type.as_deref())?;
+    let (trusted_issuers, offline_keys) = resolve_scitt_trust_inputs(&args)?;
+    execute_scitt_inner(args, trusted_issuers, offline_keys, format)
+}
 
-    // Parse offline keys: each is "issuer=path"
+fn resolve_scitt_trust_inputs(
+    args: &VerifyScittArgs,
+) -> Result<(Vec<String>, HashMap<String, String>)> {
     let mut offline_keys: HashMap<String, String> = HashMap::new();
     let mut trusted_issuers: Vec<String> = args.issuer.clone();
 
@@ -209,11 +214,10 @@ fn execute_scitt(args: VerifyScittArgs, format: OutputFormat) -> Result<i32> {
             )
         })?;
         offline_keys.insert(issuer.to_string(), path.to_string());
-        // Specifying offline keys implicitly trusts that issuer.
         push_unique(&mut trusted_issuers, issuer.to_string());
     }
 
-    execute_scitt_inner(args, trusted_issuers, offline_keys, format)
+    Ok((trusted_issuers, offline_keys))
 }
 
 #[cfg(feature = "mst")]
@@ -446,4 +450,203 @@ fn describe_trust_mode(args: &VerifyX509Args) -> String {
     }
 
     mode
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        describe_trust_mode, ensure_supported_scitt_type, push_unique,
+        read_detached_payload, resolve_scitt_trust_inputs, VerifyScittArgs, VerifyX509Args,
+    };
+
+    #[test]
+    fn resolve_scitt_trust_inputs_parses_offline_keys_and_deduplicates_issuers() {
+        let args = VerifyScittArgs {
+            signature: "signature.cose".to_string(),
+            payload: None,
+            issuer: vec!["https://issuer-a.example".to_string()],
+            scitt_type: None,
+            #[cfg(feature = "mst")]
+            mst_endpoints: vec![
+                "https://issuer-a.example".to_string(),
+                "https://mst.example".to_string(),
+            ],
+            issuer_offline_keys: vec![
+                "https://issuer-b.example=keys-b.jwks".to_string(),
+                "https://issuer-a.example=keys-a.jwks".to_string(),
+            ],
+        };
+
+        let (trusted_issuers, offline_keys) =
+            resolve_scitt_trust_inputs(&args).expect("trust inputs should parse");
+
+        assert_eq!(
+            offline_keys.get("https://issuer-b.example"),
+            Some(&"keys-b.jwks".to_string())
+        );
+        assert_eq!(
+            offline_keys.get("https://issuer-a.example"),
+            Some(&"keys-a.jwks".to_string())
+        );
+
+        #[cfg(feature = "mst")]
+        assert_eq!(
+            trusted_issuers,
+            vec![
+                "https://issuer-a.example".to_string(),
+                "https://mst.example".to_string(),
+                "https://issuer-b.example".to_string(),
+            ]
+        );
+
+        #[cfg(not(feature = "mst"))]
+        assert_eq!(
+            trusted_issuers,
+            vec![
+                "https://issuer-a.example".to_string(),
+                "https://issuer-b.example".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn resolve_scitt_trust_inputs_rejects_invalid_offline_key_entries() {
+        let args = VerifyScittArgs {
+            signature: "signature.cose".to_string(),
+            payload: None,
+            issuer: Vec::new(),
+            scitt_type: None,
+            #[cfg(feature = "mst")]
+            mst_endpoints: Vec::new(),
+            issuer_offline_keys: vec!["missing-separator".to_string()],
+        };
+
+        let error = resolve_scitt_trust_inputs(&args)
+            .expect_err("invalid offline key entries should fail");
+        assert!(error.to_string().contains("Expected issuer=path"));
+    }
+
+    // --- describe_trust_mode tests ---
+
+    #[test]
+    fn describe_trust_mode_system_roots() {
+        let args = VerifyX509Args {
+            signature: "sig.cose".into(),
+            payload: None,
+            signature_only: false,
+            trust_system_roots: true,
+            allow_untrusted: false,
+            trust_embedded: false,
+            allow_thumbprint: None,
+        };
+        assert_eq!(describe_trust_mode(&args), "System trust roots");
+    }
+
+    #[test]
+    fn describe_trust_mode_allow_untrusted() {
+        let args = VerifyX509Args {
+            signature: "sig.cose".into(),
+            payload: None,
+            signature_only: false,
+            trust_system_roots: false,
+            allow_untrusted: true,
+            trust_embedded: false,
+            allow_thumbprint: None,
+        };
+        assert_eq!(describe_trust_mode(&args), "Allow untrusted roots");
+    }
+
+    #[test]
+    fn describe_trust_mode_no_trust_roots() {
+        let args = VerifyX509Args {
+            signature: "sig.cose".into(),
+            payload: None,
+            signature_only: false,
+            trust_system_roots: false,
+            allow_untrusted: false,
+            trust_embedded: false,
+            allow_thumbprint: None,
+        };
+        assert_eq!(describe_trust_mode(&args), "No trust roots");
+    }
+
+    #[test]
+    fn describe_trust_mode_with_thumbprint_pin() {
+        let args = VerifyX509Args {
+            signature: "sig.cose".into(),
+            payload: None,
+            signature_only: false,
+            trust_system_roots: true,
+            allow_untrusted: false,
+            trust_embedded: false,
+            allow_thumbprint: Some("ABCD1234".into()),
+        };
+        let mode = describe_trust_mode(&args);
+        assert!(mode.contains("System trust roots"));
+        assert!(mode.contains("thumbprint pin"));
+    }
+
+    // --- ensure_supported_scitt_type tests ---
+
+    #[test]
+    fn ensure_supported_scitt_type_none_ok() {
+        assert!(ensure_supported_scitt_type(None).is_ok());
+    }
+
+    #[test]
+    fn ensure_supported_scitt_type_mst_ok() {
+        assert!(ensure_supported_scitt_type(Some("mst")).is_ok());
+        assert!(ensure_supported_scitt_type(Some("MST")).is_ok());
+    }
+
+    #[test]
+    fn ensure_supported_scitt_type_unknown_is_error() {
+        let err = ensure_supported_scitt_type(Some("other")).unwrap_err();
+        assert!(err.to_string().contains("Unsupported"));
+    }
+
+    // --- push_unique tests ---
+
+    #[test]
+    fn push_unique_adds_new_and_skips_duplicates() {
+        let mut items = vec!["a".to_string()];
+        push_unique(&mut items, "b".to_string());
+        push_unique(&mut items, "a".to_string());
+        assert_eq!(items, vec!["a".to_string(), "b".to_string()]);
+    }
+
+    // --- read_detached_payload tests ---
+
+    #[test]
+    fn read_detached_payload_none_returns_none() {
+        assert!(read_detached_payload(None).unwrap().is_none());
+    }
+
+    #[test]
+    fn read_detached_payload_missing_file_returns_error() {
+        let result = read_detached_payload(Some("nonexistent-payload-file.bin"));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn read_detached_payload_reads_file() {
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let path = std::env::current_dir()
+            .unwrap()
+            .join(format!(
+                ".test-detached-payload-{}-{}.bin",
+                std::process::id(),
+                timestamp
+            ));
+        std::fs::write(&path, b"test payload data").unwrap();
+        let payload = read_detached_payload(Some(path.to_str().unwrap()))
+            .unwrap()
+            .expect("payload should be returned");
+        std::fs::remove_file(&path).unwrap();
+        // Just verify the payload was read (Payload type wraps the bytes)
+        let _ = payload;
+    }
 }

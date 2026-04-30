@@ -119,6 +119,28 @@ pub struct SignResponse {
     pub signature: Vec<u8>,
 }
 
+/// An end-to-end signing request sent to a plugin.
+#[derive(Debug, Clone)]
+pub struct SignPayloadRequest {
+    /// Service ID from create_service.
+    pub service_id: String,
+    /// Raw payload bytes to sign.
+    pub payload: Vec<u8>,
+    /// Content type to apply to the signature.
+    pub content_type: String,
+    /// Signature format name (`direct` or `indirect`).
+    pub format: String,
+    /// Additional signing options.
+    pub options: PluginConfig,
+}
+
+/// An end-to-end signing response from a plugin.
+#[derive(Debug, Clone)]
+pub struct SignPayloadResponse {
+    /// The complete COSE_Sign1 bytes.
+    pub cose_bytes: Vec<u8>,
+}
+
 /// Certificate chain response from a plugin.
 #[derive(Debug, Clone)]
 pub struct CertificateChainResponse {
@@ -219,6 +241,23 @@ pub trait PluginProvider: Send {
     /// Sign data, returning signature bytes.
     fn sign(&mut self, service_id: &str, data: &[u8], algorithm: i64) -> Result<Vec<u8>, String>;
 
+    /// Sign a payload end-to-end, returning the complete COSE_Sign1 bytes.
+    fn sign_payload(
+        &mut self,
+        service_id: &str,
+        payload: &[u8],
+        content_type: &str,
+        format: &str,
+        options: &PluginConfig,
+    ) -> Result<Vec<u8>, String> {
+        let _ = service_id;
+        let _ = payload;
+        let _ = content_type;
+        let _ = format;
+        let _ = options;
+        Err("sign_payload not implemented".into())
+    }
+
     /// Verify a COSE_Sign1 message. Returns `None` if this plugin does not support verification.
     fn verify(
         &mut self,
@@ -260,6 +299,18 @@ where
 
     fn sign(&mut self, service_id: &str, data: &[u8], algorithm: i64) -> Result<Vec<u8>, String> {
         self.as_mut().sign(service_id, data, algorithm)
+    }
+
+    fn sign_payload(
+        &mut self,
+        service_id: &str,
+        payload: &[u8],
+        content_type: &str,
+        format: &str,
+        options: &PluginConfig,
+    ) -> Result<Vec<u8>, String> {
+        self.as_mut()
+            .sign_payload(service_id, payload, content_type, format, options)
     }
 
     fn verify(

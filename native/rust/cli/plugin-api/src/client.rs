@@ -96,7 +96,15 @@ pub struct PluginClient {
 impl PluginClient {
     /// Connect to the given named pipe or Unix socket and authenticate.
     pub fn connect(pipe_name: &str, auth_key: &[u8; AUTH_KEY_LENGTH]) -> Result<Self, ClientError> {
-        let mut stream = connect_stream(pipe_name)?;
+        let stream = connect_stream(pipe_name)?;
+        Self::connect_with_stream(stream, auth_key)
+    }
+
+    /// Authenticate an already-connected stream.
+    pub fn connect_with_stream(
+        mut stream: Box<dyn PipeStream>,
+        auth_key: &[u8; AUTH_KEY_LENGTH],
+    ) -> Result<Self, ClientError> {
         protocol::write_request(&mut stream, &Request::authenticate(auth_key.to_vec()))?;
 
         let response = protocol::read_response(&mut stream)?;
@@ -183,6 +191,32 @@ impl PluginClient {
             result => Err(Self::unexpected_response(
                 methods::SIGN,
                 "expected signature response",
+                result,
+            )),
+        }
+    }
+
+    /// Sign a payload end-to-end using an existing service.
+    pub fn sign_payload(
+        &mut self,
+        service_id: &str,
+        payload: &[u8],
+        content_type: &str,
+        format: &str,
+        options: PluginConfig,
+    ) -> Result<Vec<u8>, ClientError> {
+        let response = self.call(&Request::sign_payload(
+            service_id,
+            payload.to_vec(),
+            content_type,
+            format,
+            options,
+        ))?;
+        match response.result {
+            ResponseResult::SignPayload(result) => Ok(result.cose_bytes),
+            result => Err(Self::unexpected_response(
+                methods::SIGN_PAYLOAD,
+                "expected sign_payload response",
                 result,
             )),
         }

@@ -89,9 +89,9 @@ With the Azure Artifact Signing plugin:
 ```bash
 # Sign with Azure Artifact Signing
 CoseSignTool sign-azure document.json \
-    --ats-endpoint https://myaccount.codesigning.azure.net \
-    --ats-account-name myaccount \
-    --ats-cert-profile-name myprofile
+    --aas-endpoint https://myaccount.codesigning.azure.net \
+    --aas-account-name myaccount \
+    --aas-cert-profile-name myprofile
 ```
 
 ## Security Considerations

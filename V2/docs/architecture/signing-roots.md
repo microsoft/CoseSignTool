@@ -20,7 +20,7 @@ This implies plugins must be able to **extend features of other plugins** ("AKV 
 ## Proposed terminology
 
 - **Signing root**: selects the signing trust model and owns the *contract* for what must be provided.
-  - Examples: `x509`, `akv`, `ats`.
+  - Examples: `x509`, `akv`, `aas`.
 - **Material provider** (aka *feature provider*): supplies a concrete implementation required by a root.
   - Examples for X.509 root: `pfx`, `store`, `pem`, `akv-cert`.
 

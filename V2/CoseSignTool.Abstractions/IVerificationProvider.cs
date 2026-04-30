@@ -34,7 +34,7 @@ public interface IVerificationProvider
 
     /// <summary>
     /// Adds verification-specific options to the verify command.
-    /// Examples: --trust-roots, --subject-name, --mst-endpoint, etc.
+    /// Examples: --trust-roots, --subject-name, --issuer-offline-keys, etc.
     /// </summary>
     /// <param name="command">The verify command to add options to.</param>
     void AddVerificationOptions(Command command);

@@ -46,16 +46,22 @@ public class SigningCommandBuilder
         public static readonly string SignatureTypeDetached = "detached";
         public static readonly string SignatureTypeEmbedded = "embedded";
 
-        // CWT Claims option names
+        // SCITT option names
         public static readonly string OptionNameIssuer = "--issuer";
-        public static readonly string OptionNameCwtSubject = "--cwt-subject";
+        public static readonly string OptionNameScittSubject = "--scitt-subject";
         public static readonly string OptionNameNoScitt = "--no-scitt";
+        public static readonly string OptionNameScittMstEndpoint = "--scitt-mst-endpoint";
         public static readonly string OptionNamePayloadLocation = "--payload-location";
         public static readonly string OptionAliasPayloadLocation = "-l";
         public static readonly string StandardOptionIssuer = "issuer";
-        public static readonly string StandardOptionCwtSubject = "cwt-subject";
+        public static readonly string StandardOptionScittSubject = "scitt-subject";
         public static readonly string StandardOptionNoScitt = "no-scitt";
+        public static readonly string StandardOptionScittMstEndpoint = "scitt-mst-endpoint";
         public static readonly string StandardOptionPayloadLocation = "payload-location";
+
+        // Transparency settings
+        public static readonly string TransparencyServiceTypeMst = "mst";
+        public static readonly string TransparencyOptionKeyMstEndpoint = "mst-endpoint";
 
         // Default values
         public static readonly string DefaultContentType = "application/octet-stream";
@@ -152,8 +158,8 @@ public class SigningCommandBuilder
                 urn:uuid:550e8400-e29b-41d4-a716-446655440000
             """;
 
-        public static readonly string DescriptionCwtSubject = """
-            CWT Claims subject (sub) - identifies what is being signed.
+        public static readonly string DescriptionScittSubject = """
+            SCITT subject — CWT Claims subject (sub) field.
               Overrides the default subject ("unknown.intent").
               Examples:
                 pkg:npm/express@4.18.2        - Package URL (purl)
@@ -162,11 +168,18 @@ public class SigningCommandBuilder
             """;
 
         public static readonly string DescriptionNoScitt = """
-            Disable automatic SCITT compliance (no CWT claims added).
+            Disable SCITT compliance (omit default CWT claims).
               By default, CoseSignTool adds SCITT-compliant CWT claims (iss, sub, iat, nbf)
               to signatures. Use this flag to disable automatic claim generation.
-              Note: --issuer and --cwt-subject still work with --no-scitt to add
+              Note: --issuer and --scitt-subject still work with --no-scitt to add
               only the claims you explicitly specify.
+            """;
+
+        public static readonly string DescriptionScittMstEndpoint = """
+            MST transparency service endpoint (repeatable for multi-ledger).
+              Examples:
+                --scitt-mst-endpoint https://dataplane.codetransparency.azure.net
+                --scitt-mst-endpoint https://ledger-a.example.com --scitt-mst-endpoint https://ledger-b.example.com
             """;
 
         public static readonly string DescriptionPayloadLocation = """
@@ -201,7 +214,7 @@ public class SigningCommandBuilder
             """;
     }
 
-    private readonly IReadOnlyList<ITransparencyProvider>? TransparencyProviders;
+    private readonly IReadOnlyList<ITransparencyProviderContributor>? TransparencyProviderContributors;
     private readonly ILoggerFactory? LoggerFactory;
     private readonly IConsole Console;
 
@@ -209,16 +222,16 @@ public class SigningCommandBuilder
     /// Initializes a new instance of the <see cref="SigningCommandBuilder"/> class.
     /// </summary>
     /// <param name="console">Console I/O abstraction. Required for stream access.</param>
-    /// <param name="transparencyProviders">Optional transparency providers to attach to signing commands.</param>
+    /// <param name="transparencyProviderContributors">Optional transparency provider contributors available to signing commands.</param>
     /// <param name="loggerFactory">Optional logger factory used to create loggers for signing components.</param>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="console"/> is null.</exception>
     public SigningCommandBuilder(
         IConsole console,
-        IReadOnlyList<ITransparencyProvider>? transparencyProviders = null,
+        IReadOnlyList<ITransparencyProviderContributor>? transparencyProviderContributors = null,
         ILoggerFactory? loggerFactory = null)
     {
         Console = console ?? throw new ArgumentNullException(nameof(console));
-        TransparencyProviders = transparencyProviders;
+        TransparencyProviderContributors = transparencyProviderContributors;
         LoggerFactory = loggerFactory;
     }
 
@@ -314,13 +327,20 @@ public class SigningCommandBuilder
             name: ClassStrings.OptionNameIssuer,
             description: ClassStrings.DescriptionIssuer);
 
-        var cwtSubjectOption = new Option<string?>(
-            name: ClassStrings.OptionNameCwtSubject,
-            description: ClassStrings.DescriptionCwtSubject);
+        var scittSubjectOption = new Option<string?>(
+            name: ClassStrings.OptionNameScittSubject,
+            description: ClassStrings.DescriptionScittSubject);
 
         var noScittOption = new Option<bool>(
             name: ClassStrings.OptionNameNoScitt,
             description: ClassStrings.DescriptionNoScitt);
+
+        var scittMstEndpointOption = new Option<string[]?>(
+            name: ClassStrings.OptionNameScittMstEndpoint,
+            description: ClassStrings.DescriptionScittMstEndpoint)
+        {
+            Arity = ArgumentArity.ZeroOrMore
+        };
 
         var payloadLocationOption = new Option<string?>(
             name: ClassStrings.OptionNamePayloadLocation,
@@ -333,8 +353,9 @@ public class SigningCommandBuilder
         command.AddOption(contentTypeOption);
         command.AddOption(quietOption);
         command.AddOption(issuerOption);
-        command.AddOption(cwtSubjectOption);
+        command.AddOption(scittSubjectOption);
         command.AddOption(noScittOption);
+        command.AddOption(scittMstEndpointOption);
         command.AddOption(payloadLocationOption);
 
         // Let plugin add its specific options (--pfx, --thumbprint, etc.)
@@ -352,8 +373,9 @@ public class SigningCommandBuilder
                 contentTypeOption,
                 quietOption,
                 issuerOption,
-                cwtSubjectOption,
+                scittSubjectOption,
                 noScittOption,
+                scittMstEndpointOption,
                 payloadLocationOption);
             context.ExitCode = exitCode;
         });
@@ -384,8 +406,9 @@ public class SigningCommandBuilder
         Option<string> contentTypeOption,
         Option<bool> quietOption,
         Option<string?> issuerOption,
-        Option<string?> cwtSubjectOption,
+        Option<string?> scittSubjectOption,
         Option<bool> noScittOption,
+        Option<string[]?> scittMstEndpointOption,
         Option<string?> payloadLocationOption)
     {
         var parseResult = context.ParseResult;
@@ -418,7 +441,7 @@ public class SigningCommandBuilder
             string contentType = parseResult.GetValueForOption(contentTypeOption) ?? ClassStrings.DefaultContentType;
             bool quiet = parseResult.GetValueForOption(quietOption);
             string? issuer = parseResult.GetValueForOption(issuerOption);
-            string? cwtSubject = parseResult.GetValueForOption(cwtSubjectOption);
+            string? scittSubject = parseResult.GetValueForOption(scittSubjectOption);
             bool noScitt = parseResult.GetValueForOption(noScittOption);
             string? payloadLocation = parseResult.GetValueForOption(payloadLocationOption);
 
@@ -432,12 +455,12 @@ public class SigningCommandBuilder
 
             // Create CWT claims header contributor if issuer or subject specified
             ICoseSign1HeaderContributor? cwtContributor = null;
-            if (!string.IsNullOrEmpty(issuer) || !string.IsNullOrEmpty(cwtSubject))
+            if (!string.IsNullOrEmpty(issuer) || !string.IsNullOrEmpty(scittSubject))
             {
                 var claims = new CwtClaims
                 {
                     Issuer = issuer,
-                    Subject = cwtSubject,
+                    Subject = scittSubject,
                     IssuedAt = DateTimeOffset.UtcNow,
                     NotBefore = DateTimeOffset.UtcNow
                 };
@@ -540,17 +563,17 @@ public class SigningCommandBuilder
                 if (string.Equals(normalizedSignatureType, ClassStrings.SignatureTypeIndirect, StringComparison.OrdinalIgnoreCase))
                 {
                     signatureBytes = await CreateIndirectSignatureAsync(
-                        signingService, payloadStream, contentType, cwtContributor, disableAutoScitt, payloadLocation, cancellationToken);
+                        provider, parseResult, scittMstEndpointOption, signingService, payloadStream, contentType, cwtContributor, disableAutoScitt, payloadLocation, cancellationToken);
                 }
                 else if (string.Equals(normalizedSignatureType, ClassStrings.SignatureTypeEmbedded, StringComparison.OrdinalIgnoreCase))
                 {
                     signatureBytes = await CreateDirectSignatureAsync(
-                        signingService, payloadStream, contentType, embedPayload: true, cwtContributor, disableAutoScitt, cancellationToken);
+                        provider, parseResult, scittMstEndpointOption, signingService, payloadStream, contentType, embedPayload: true, cwtContributor, disableAutoScitt, cancellationToken);
                 }
                 else if (string.Equals(normalizedSignatureType, ClassStrings.SignatureTypeDetached, StringComparison.OrdinalIgnoreCase))
                 {
                     signatureBytes = await CreateDirectSignatureAsync(
-                        signingService, payloadStream, contentType, embedPayload: false, cwtContributor, disableAutoScitt, cancellationToken);
+                        provider, parseResult, scittMstEndpointOption, signingService, payloadStream, contentType, embedPayload: false, cwtContributor, disableAutoScitt, cancellationToken);
                 }
                 else
                 {
@@ -666,8 +689,9 @@ public class SigningCommandBuilder
             ClassStrings.StandardOptionContentType,
             ClassStrings.StandardOptionQuiet,
             ClassStrings.StandardOptionIssuer,
-            ClassStrings.StandardOptionCwtSubject,
+            ClassStrings.StandardOptionScittSubject,
             ClassStrings.StandardOptionNoScitt,
+            ClassStrings.StandardOptionScittMstEndpoint,
             ClassStrings.StandardOptionPayloadLocation,
             ClassStrings.StandardOptionHelp
         };
@@ -693,7 +717,76 @@ public class SigningCommandBuilder
         return options;
     }
 
+    private async Task<IReadOnlyList<ITransparencyProvider>?> CreateTransparencyProvidersAsync(
+        ISigningCommandProvider provider,
+        ParseResult parseResult,
+        Option<string[]?> scittMstEndpointOption,
+        CancellationToken cancellationToken)
+    {
+        if (TransparencyProviderContributors is null || TransparencyProviderContributors.Count == 0)
+        {
+            return null;
+        }
+
+        string[] configuredMstEndpoints = parseResult.GetValueForOption(scittMstEndpointOption) ?? Array.Empty<string>();
+        var transparencyProviders = new List<ITransparencyProvider>();
+
+        foreach (ITransparencyProviderContributor contributor in TransparencyProviderContributors)
+        {
+            IReadOnlyList<string> endpoints = GetTransparencyEndpoints(provider, contributor.ServiceType, configuredMstEndpoints);
+            foreach (string endpoint in endpoints)
+            {
+                IDictionary<string, object?> options = CreateTransparencyOptions(contributor.ServiceType, endpoint);
+                ITransparencyProvider transparencyProvider = await contributor.CreateTransparencyProviderAsync(options, cancellationToken);
+                transparencyProviders.Add(transparencyProvider);
+            }
+        }
+
+        return transparencyProviders.Count > 0 ? transparencyProviders : null;
+    }
+
+    private static IReadOnlyList<string> GetTransparencyEndpoints(
+        ISigningCommandProvider provider,
+        string serviceType,
+        IReadOnlyList<string> configuredMstEndpoints)
+    {
+        if (string.Equals(serviceType, ClassStrings.TransparencyServiceTypeMst, StringComparison.OrdinalIgnoreCase))
+        {
+            if (configuredMstEndpoints.Count > 0)
+            {
+                return configuredMstEndpoints;
+            }
+        }
+
+        var endpoints = new List<string>();
+        foreach (TransparencyEndpointInfo endpoint in provider.TransparencyEndpoints)
+        {
+            if (endpoint.AutoSubmit && string.Equals(endpoint.ServiceType, serviceType, StringComparison.OrdinalIgnoreCase))
+            {
+                endpoints.Add(endpoint.Endpoint);
+            }
+        }
+
+        return endpoints;
+    }
+
+    private static IDictionary<string, object?> CreateTransparencyOptions(string serviceType, string endpoint)
+    {
+        if (string.Equals(serviceType, ClassStrings.TransparencyServiceTypeMst, StringComparison.OrdinalIgnoreCase))
+        {
+            return new Dictionary<string, object?>
+            {
+                [ClassStrings.TransparencyOptionKeyMstEndpoint] = endpoint
+            };
+        }
+
+        return new Dictionary<string, object?>();
+    }
+
     private async Task<byte[]> CreateDirectSignatureAsync(
+        ISigningCommandProvider provider,
+        ParseResult parseResult,
+        Option<string[]?> scittMstEndpointOption,
         ISigningService<CoseSign1.Abstractions.SigningOptions> signingService,
         Stream payloadStream,
         string contentType,
@@ -703,7 +796,8 @@ public class SigningCommandBuilder
         CancellationToken cancellationToken)
     {
         var logger = LoggerFactory?.CreateLogger<DirectSignatureFactory>();
-        using var factory = new DirectSignatureFactory(signingService, TransparencyProviders, logger);
+        var transparencyProviders = await CreateTransparencyProvidersAsync(provider, parseResult, scittMstEndpointOption, cancellationToken);
+        using var factory = new DirectSignatureFactory(signingService, transparencyProviders, logger);
 
         // Build additional context to pass SCITT settings to the signing service
         var additionalContext = new Dictionary<string, object>();
@@ -729,6 +823,9 @@ public class SigningCommandBuilder
     }
 
     private async Task<byte[]> CreateIndirectSignatureAsync(
+        ISigningCommandProvider provider,
+        ParseResult parseResult,
+        Option<string[]?> scittMstEndpointOption,
         ISigningService<CoseSign1.Abstractions.SigningOptions> signingService,
         Stream payloadStream,
         string contentType,
@@ -738,7 +835,8 @@ public class SigningCommandBuilder
         CancellationToken cancellationToken)
     {
         var logger = LoggerFactory?.CreateLogger<IndirectSignatureFactory>();
-        using var factory = new IndirectSignatureFactory(signingService, TransparencyProviders, logger, LoggerFactory);
+        var transparencyProviders = await CreateTransparencyProvidersAsync(provider, parseResult, scittMstEndpointOption, cancellationToken);
+        using var factory = new IndirectSignatureFactory(signingService, transparencyProviders, logger, LoggerFactory);
 
         // Build additional context to pass SCITT settings to the signing service
         var additionalContext = new Dictionary<string, object>();

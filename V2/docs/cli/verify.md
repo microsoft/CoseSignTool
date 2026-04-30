@@ -81,31 +81,31 @@ Example:
 cosesigntool verify akv signature.cose --allowed-vaults "https://production-vault.vault.azure.net/keys/*"
 ```
 
-## verify mst
+## verify scitt
 
 Verify MST receipt trust.
 
 ```bash
-cosesigntool verify mst [<signature>] [options]
+cosesigntool verify scitt [<signature>] [options]
 ```
 
 MST options:
 
 | Option | Description |
 |--------|-------------|
-| `--mst-offline-keys <path>` | Pinned MST signing keys JWKS JSON file for offline-only receipt verification (alias: `--offline_keys`) |
-| `--mst-trust-ledger-instance <host-or-url>` | Allowed MST ledger instance(s) (issuer host allow-list). Repeatable |
+| `--issuer-offline-keys <issuer=path>` | Pinned SCITT issuer signing keys JWKS JSON file for offline-only receipt verification |
+| `--issuer <host-or-url>` | Allowed SCITT issuer host(s). Repeatable |
 
-At least one of `--mst-offline-keys` or `--mst-trust-ledger-instance` is required.
+At least one of `--issuer-offline-keys` or `--issuer` is required.
 
 Examples:
 
 ```bash
 # Trust a specific ledger instance (repeatable)
-cosesigntool verify mst signed.cose --mst-trust-ledger-instance esrp-cts-cp.confidential-ledger.azure.com
+cosesigntool verify scitt signed.cose --issuer esrp-cts-cp.confidential-ledger.azure.com
 
 # Offline-only receipt verification
-cosesigntool verify mst signed.cose --mst-offline-keys esrp-cts-cp.confidential-ledger.azure.com.jwks.json
+cosesigntool verify scitt signed.cose --issuer-offline-keys esrp-cts-cp.confidential-ledger.azure.com=esrp-cts-cp.confidential-ledger.azure.com.jwks.json
 ```
 
 ## See Also

@@ -10,7 +10,7 @@ namespace CoseSignTool.Abstractions;
 public interface IVerificationRootProvider : IVerificationProvider
 {
     /// <summary>
-    /// Gets the stable root identifier (e.g., "x509", "mst").
+    /// Gets the stable root identifier (e.g., "x509", "scitt").
     /// This is used as the subcommand name under <c>verify</c>.
     /// </summary>
     string RootId { get; }

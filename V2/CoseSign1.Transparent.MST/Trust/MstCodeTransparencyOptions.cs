@@ -81,15 +81,41 @@ internal static class MstCodeTransparencyOptions
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(options.OfflineTrustedJwksJson))
+        var offlineKeys = new CodeTransparencyOfflineKeys();
+        if (options.OfflineTrustedJwksByIssuer != null && options.OfflineTrustedJwksByIssuer.Count > 0)
         {
-            throw new InvalidOperationException(ClassStrings.ErrorOfflineJwksNotConfigured);
+            foreach (var entry in options.OfflineTrustedJwksByIssuer)
+            {
+                if (!string.IsNullOrWhiteSpace(entry.Key))
+                {
+                    offlineKeys.Add(entry.Key, ParseJwksDocument(entry.Value));
+                }
+            }
+        }
+        else
+        {
+            if (string.IsNullOrWhiteSpace(options.OfflineTrustedJwksJson))
+            {
+                throw new InvalidOperationException(ClassStrings.ErrorOfflineJwksNotConfigured);
+            }
+
+            var jwks = ParseJwksDocument(options.OfflineTrustedJwksJson);
+            foreach (var host in issuerHosts)
+            {
+                if (!string.IsNullOrWhiteSpace(host))
+                {
+                    offlineKeys.Add(host, jwks);
+                }
+            }
         }
 
-        // The pinned payload is a JWKS document: { "keys": [ ... ] }
-        // Azure.Security.CodeTransparency.JsonWebKey is not directly deserializable via System.Text.Json,
-        // so we parse the JSON and construct the SDK model via its model factory.
-        using var doc = JsonDocument.Parse(options.OfflineTrustedJwksJson);
+        verificationOptions.OfflineKeys = offlineKeys;
+        verificationOptions.OfflineKeysBehavior = OfflineKeysBehavior.NoFallbackToNetwork;
+    }
+
+    private static JwksDocument ParseJwksDocument(string jwksJson)
+    {
+        using var doc = JsonDocument.Parse(jwksJson);
         if (!doc.RootElement.TryGetProperty(ClassStrings.JwksKeysPropertyName, out var keysElement) || keysElement.ValueKind != JsonValueKind.Array)
         {
             throw new InvalidOperationException(ClassStrings.ErrorOfflineJwksNotConfigured);
@@ -110,8 +136,6 @@ internal static class MstCodeTransparencyOptions
             }
 
             var x5c = TryGetStringArray(keyElement, ClassStrings.JwkPropertyX5c);
-
-            // Most JWKS fields are optional; pass through what is present.
             var jwk = SecurityCodeTransparencyModelFactory.JsonWebKey(
                 alg: TryGetString(keyElement, ClassStrings.JwkPropertyAlg),
                 crv: TryGetString(keyElement, ClassStrings.JwkPropertyCrv),
@@ -139,21 +163,7 @@ internal static class MstCodeTransparencyOptions
             throw new InvalidOperationException(ClassStrings.ErrorOfflineJwksNotConfigured);
         }
 
-        // NOTE: this is a single JWKS document; we dynamically map it to issuer host(s) discovered in the message.
-        var jwks = SecurityCodeTransparencyModelFactory.JwksDocument(keys);
-
-        var offlineKeys = new CodeTransparencyOfflineKeys();
-        foreach (var host in issuerHosts)
-        {
-            if (!string.IsNullOrWhiteSpace(host))
-            {
-                offlineKeys.Add(host, jwks);
-            }
-        }
-
-        // If we couldn't discover hosts, still set an empty store and force no-network behavior.
-        verificationOptions.OfflineKeys = offlineKeys;
-        verificationOptions.OfflineKeysBehavior = OfflineKeysBehavior.NoFallbackToNetwork;
+        return SecurityCodeTransparencyModelFactory.JwksDocument(keys);
     }
 
     private static string? TryGetString(JsonElement obj, string propertyName)

@@ -88,11 +88,13 @@ public sealed class ThrowingProvidersPlugin : IPlugin
         {
             public const string ProviderName = "Faulting";
             public const string ProviderDescription = "Faulting contributor";
+            public const string ServiceType = "faulting";
             public const string ErrorMessageTransparencyFail = "transparency fail";
         }
 
         public string ProviderName => ClassStrings.ProviderName;
         public string ProviderDescription => ClassStrings.ProviderDescription;
+        public string ServiceType => ClassStrings.ServiceType;
 
         public Task<ITransparencyProvider> CreateTransparencyProviderAsync(
             IDictionary<string, object?> options,
@@ -156,6 +158,7 @@ public sealed class ThrowingRegisterCommandsPlugin : IPlugin
         public string CommandName => ClassStrings.CommandName;
         public string CommandDescription => ClassStrings.CommandDescription;
         public string ExampleUsage => ClassStrings.ExampleUsage;
+        public IReadOnlyList<TransparencyEndpointInfo> TransparencyEndpoints => Array.Empty<TransparencyEndpointInfo>();
 
         public void AddCommandOptions(Command command)
         {

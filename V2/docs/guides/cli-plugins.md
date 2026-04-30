@@ -27,9 +27,9 @@ The default distribution includes these plugins (each has its own documentation 
 - **Azure Key Vault**: [Azure Key Vault plugin](../plugins/azure-keyvault-plugin.md)
   - Commands: `sign x509 akv-cert`, `sign akv akv-key`
 - **Azure Artifact Signing**: [Azure plugin](../plugins/azure-plugin.md)
-  - Command: `sign x509 ats`
+  - Command: `sign x509 aas`
 - **Microsoft Signing Transparency (MST)**: [MST plugin](../plugins/mst-plugin.md)
-  - Adds MST receipt verification support under `cosesigntool verify mst` (for example `--mst-offline-keys`, `--mst-trust-ledger-instance`)
+  - Adds SCITT receipt verification support under `cosesigntool verify scitt` (for example `--issuer`, `--issuer-offline-keys`)
 - **Indirect signatures**: [Indirect signatures](../plugins/indirect-plugin.md)
   - Uses the standard `--signature-type indirect` option (default); the CLI does not currently expose a `--hash-algorithm` switch
 

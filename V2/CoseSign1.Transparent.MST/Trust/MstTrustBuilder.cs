@@ -148,4 +148,9 @@ public sealed class MstTrustOptions
     /// verification should not need to fetch signing keys from the network.
     /// </remarks>
     public string? OfflineTrustedJwksJson { get; set; }
+
+    /// <summary>
+    /// Gets or sets issuer-specific JWKS JSON content used for offline verification.
+    /// </summary>
+    public IReadOnlyDictionary<string, string>? OfflineTrustedJwksByIssuer { get; set; }
 }

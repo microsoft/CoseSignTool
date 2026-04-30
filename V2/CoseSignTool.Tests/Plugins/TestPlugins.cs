@@ -34,6 +34,8 @@ public sealed class ThrowingGetExtensionsPlugin : IPlugin
 
 public sealed class ThrowingProvidersPlugin : IPlugin
 {
+    private const string FaultingServiceType = "faulting";
+
     public string Name => "ThrowProviders";
     public string Version => "1.0.0";
     public string Description => "Test plugin that throws while collecting providers";
@@ -59,6 +61,7 @@ public sealed class ThrowingProvidersPlugin : IPlugin
     {
         public string ProviderName => "Faulting";
         public string ProviderDescription => "Faulting contributor";
+        public string ServiceType => FaultingServiceType;
 
         public Task<ITransparencyProvider> CreateTransparencyProviderAsync(
             IDictionary<string, object?> options,
@@ -98,6 +101,7 @@ public sealed class ThrowingRegisterCommandsPlugin : IPlugin
         public string CommandName => "sign-test";
         public string CommandDescription => "Test signing command";
         public string ExampleUsage => "--example value";
+        public IReadOnlyList<TransparencyEndpointInfo> TransparencyEndpoints => Array.Empty<TransparencyEndpointInfo>();
 
         public void AddCommandOptions(Command command)
         {

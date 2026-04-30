@@ -41,7 +41,7 @@ public class AzureArtifactSigningPlugin : IPlugin
         transparencyProviders: [],
         signingRootProviders: [],
         signingMaterialProviders: [],
-        certificateSigningMaterialProviders: [new AtsCertificateSigningMaterialProvider()]);
+        certificateSigningMaterialProviders: [new AasCertificateSigningMaterialProvider()]);
 
     /// <inheritdoc/>
     public void RegisterCommands(Command rootCommand)
@@ -51,11 +51,11 @@ public class AzureArtifactSigningPlugin : IPlugin
 }
 
 [ExcludeFromCodeCoverage]
-internal sealed class AtsCertificateSigningMaterialProvider : ICertificateSigningMaterialProvider
+internal sealed class AasCertificateSigningMaterialProvider : ICertificateSigningMaterialProvider
 {
     internal static class ClassStrings
     {
-        public const string ProviderId = "ats";
+        public const string ProviderId = "aas";
         public const string ProviderDisplayName = "Azure Artifact Signing";
         public const string ProviderHelpSummary = "Microsoft Azure Artifact Signing cloud service";
     }

@@ -510,5 +510,5 @@ CoseSignTool V2 includes the following bundled plugins:
 |--------|----------|-------------|
 | `CoseSignTool.Local.Plugin` | `sign x509 pfx`, `sign x509 pem`, `sign x509 certstore`, `sign x509 ephemeral` | Local certificate signing |
 | `CoseSignTool.AzureKeyVault.Plugin` | `sign x509 akv-cert`, `sign akv akv-key` | Azure Key Vault signing |
-| `CoseSignTool.AzureArtifactSigning.Plugin` | `sign x509 ats` | Azure Artifact Signing |
-| `CoseSignTool.MST.Plugin` | `verify mst` (and signing receipt attachment via transparency provider) | Microsoft Signing Transparency integration |
+| `CoseSignTool.AzureArtifactSigning.Plugin` | `sign x509 aas` | Azure Artifact Signing |
+| `CoseSignTool.MST.Plugin` | `verify scitt` (and signing receipt attachment via transparency provider) | Microsoft Signing Transparency integration |

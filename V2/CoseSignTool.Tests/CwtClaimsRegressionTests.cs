@@ -12,7 +12,7 @@ using CoseSign1.Headers.Extensions;
 /// These tests verify that:
 /// 1. CWT claims are added by default when signing
 /// 2. The --issuer option correctly overrides the default issuer
-/// 3. The --cwt-subject option correctly overrides the default subject
+/// 3. The --scitt-subject option correctly overrides the default subject
 /// 4. The --no-scitt option disables automatic CWT claims
 /// 5. Combinations of options work correctly
 /// </summary>
@@ -36,7 +36,7 @@ public class CwtClaimsRegressionTests
         {
             File.WriteAllText(tempPayload, "Test payload for CWT claims verification");
 
-            // Act - Sign with default options (no --issuer, --cwt-subject, or --no-scitt)
+            // Act - Sign with default options (no --issuer, --scitt-subject, or --no-scitt)
             var signExitCode = rootCommand.Invoke($"sign x509 ephemeral \"{tempPayload}\"");
 
             // Assert - Signing succeeded
@@ -81,7 +81,7 @@ public class CwtClaimsRegressionTests
     }
 
     /// <summary>
-    /// Verifies that the --cwt-subject option correctly overrides the default subject
+    /// Verifies that the --scitt-subject option correctly overrides the default subject
     /// while keeping the auto-generated DID:x509 issuer.
     /// </summary>
     [Test]
@@ -100,7 +100,7 @@ public class CwtClaimsRegressionTests
 
             // Act - Sign with custom subject only
             var signExitCode = rootCommand.Invoke(
-                $"sign x509 ephemeral \"{tempPayload}\" --cwt-subject \"{customSubject}\"");
+                $"sign x509 ephemeral \"{tempPayload}\" --scitt-subject \"{customSubject}\"");
 
             // Assert
             Assert.That(signExitCode, Is.EqualTo((int)ExitCode.Success));
@@ -170,7 +170,7 @@ public class CwtClaimsRegressionTests
             Assert.That(claims!.Issuer, Is.EqualTo(customIssuer),
                 "Custom issuer should override the default DID:x509");
 
-            // Note: When --issuer is specified without --cwt-subject, the contributor
+            // Note: When --issuer is specified without --scitt-subject, the contributor
             // creates claims with only the specified values + timestamps
         }
         finally
@@ -188,7 +188,7 @@ public class CwtClaimsRegressionTests
     }
 
     /// <summary>
-    /// Verifies that both --issuer and --cwt-subject can be used together.
+    /// Verifies that both --issuer and --scitt-subject can be used together.
     /// </summary>
     [Test]
     public void Sign_WithCustomIssuerAndSubject_HasBothCustomValues()
@@ -207,7 +207,7 @@ public class CwtClaimsRegressionTests
 
             // Act - Sign with both custom issuer and subject
             var signExitCode = rootCommand.Invoke(
-                $"sign x509 ephemeral \"{tempPayload}\" --issuer \"{customIssuer}\" --cwt-subject \"{customSubject}\"");
+                $"sign x509 ephemeral \"{tempPayload}\" --issuer \"{customIssuer}\" --scitt-subject \"{customSubject}\"");
 
             // Assert
             Assert.That(signExitCode, Is.EqualTo((int)ExitCode.Success));

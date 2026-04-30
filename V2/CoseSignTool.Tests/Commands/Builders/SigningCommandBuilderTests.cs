@@ -7,6 +7,7 @@ using System.CommandLine;
 using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
 using CoseSign1.Abstractions;
+using CoseSign1.Abstractions.Transparency;
 using CoseSignTool.Abstractions;
 using CoseSignTool.Commands.Builders;
 using CoseSignTool.Output;
@@ -15,6 +16,9 @@ using Microsoft.Extensions.Logging;
 [TestFixture]
 public class SigningCommandBuilderTests
 {
+    private const string MstServiceType = "mst";
+    private const string MstEndpointOptionKey = "mst-endpoint";
+    private const string TestTransparencyProviderName = "Test MST";
     private sealed class TestSigningService : ISigningService<SigningOptions>
     {
         private readonly ECDsa _key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
@@ -74,6 +78,8 @@ public class SigningCommandBuilderTests
 
         public string ExampleUsage => "--mode success";
 
+        public IReadOnlyList<TransparencyEndpointInfo> TransparencyEndpoints { get; set; } = Array.Empty<TransparencyEndpointInfo>();
+
         public void AddCommandOptions(Command command)
         {
             command.AddOption(_modeOption);
@@ -102,6 +108,49 @@ public class SigningCommandBuilderTests
         }
     }
 
+    private sealed class RecordingTransparencyProviderContributor : ITransparencyProviderContributor
+    {
+        public int CallCount { get; private set; }
+
+        public IDictionary<string, object?>? LastOptions { get; private set; }
+
+        public string ProviderName => TestTransparencyProviderName;
+
+        public string ProviderDescription => "Test MST transparency contributor";
+
+        public string ServiceType => MstServiceType;
+
+        public Task<ITransparencyProvider> CreateTransparencyProviderAsync(
+            IDictionary<string, object?> options,
+            CancellationToken cancellationToken = default)
+        {
+            CallCount++;
+            LastOptions = new Dictionary<string, object?>(options);
+            return Task.FromResult<ITransparencyProvider>(new TestTransparencyProvider());
+        }
+    }
+
+    private sealed class TestTransparencyProvider : ITransparencyProvider
+    {
+        public string ProviderName => TestTransparencyProviderName;
+
+        public Uri? ServiceEndpoint => null;
+
+        public Task<CoseSign1Message> AddTransparencyProofAsync(
+            CoseSign1Message message,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(message);
+        }
+
+        public Task<TransparencyValidationResult> VerifyTransparencyProofAsync(
+            CoseSign1Message message,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(TransparencyValidationResult.Success(TestTransparencyProviderName));
+        }
+    }
+
     private static RootCommand CreateRoot(Command signingCommand)
     {
         var root = new RootCommand("root");
@@ -120,7 +169,7 @@ public class SigningCommandBuilderTests
         // Arrange
         var provider = new TestSigningCommandProvider();
         using var loggerFactory = LoggerFactory.Create(_ => { });
-        var builder = new SigningCommandBuilder(new TestConsole(), transparencyProviders: null, loggerFactory: loggerFactory);
+        var builder = new SigningCommandBuilder(new TestConsole(), transparencyProviderContributors: null, loggerFactory: loggerFactory);
         var signingCommand = builder.BuildSigningCommand(provider);
         var root = CreateRoot(signingCommand);
 
@@ -169,7 +218,7 @@ public class SigningCommandBuilderTests
         // Arrange
         var provider = new TestSigningCommandProvider();
         using var loggerFactory = LoggerFactory.Create(_ => { });
-        var builder = new SigningCommandBuilder(new TestConsole(), transparencyProviders: null, loggerFactory: loggerFactory);
+        var builder = new SigningCommandBuilder(new TestConsole(), transparencyProviderContributors: null, loggerFactory: loggerFactory);
         var signingCommand = builder.BuildSigningCommand(provider);
         var root = CreateRoot(signingCommand);
 
@@ -202,6 +251,103 @@ public class SigningCommandBuilderTests
         Assert.That(provider.LastOptions, Is.Not.Null);
         Assert.That(provider.LastOptions!.ContainsKey("mode"), Is.True);
         Assert.That(provider.LastOptions.ContainsKey("__loggerFactory"), Is.True);
+    }
+
+    [Test]
+    public async Task InvokeAsync_WithProviderTransparencyEndpoint_CreatesMatchingTransparencyProvider()
+    {
+        // Arrange
+        var contributor = new RecordingTransparencyProviderContributor();
+        var provider = new TestSigningCommandProvider
+        {
+            TransparencyEndpoints =
+            [
+                new TransparencyEndpointInfo(
+                    MstServiceType,
+                    "https://ledger.example.test",
+                    TestTransparencyProviderName,
+                    true)
+            ]
+        };
+        using var loggerFactory = LoggerFactory.Create(_ => { });
+        var builder = new SigningCommandBuilder(new TestConsole(), [contributor], loggerFactory);
+        var signingCommand = builder.BuildSigningCommand(provider);
+        var root = CreateRoot(signingCommand);
+
+        var tempDir = Path.Combine(Path.GetTempPath(), $"sign_builder_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var payloadPath = Path.Combine(tempDir, "payload.bin");
+            await File.WriteAllBytesAsync(payloadPath, [0x01, 0x02, 0x03, 0x04]);
+
+            var outputPath = Path.Combine(tempDir, "signature.cose");
+
+            // Act
+            var exitCode = await root.InvokeAsync(new[]
+            {
+                "--output-format", "quiet",
+                provider.CommandName,
+                payloadPath,
+                "--signature-type", "detached",
+                "--output", outputPath,
+                "--mode", "success"
+            });
+
+            // Assert
+            Assert.That(exitCode, Is.EqualTo(0));
+            Assert.That(contributor.CallCount, Is.EqualTo(1));
+            Assert.That(contributor.LastOptions, Is.Not.Null);
+            Assert.That(contributor.LastOptions![MstEndpointOptionKey], Is.EqualTo("https://ledger.example.test"));
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Test]
+    public async Task InvokeAsync_WithScittMstEndpoint_OverridesProviderTransparencyEndpoint()
+    {
+        // Arrange
+        var contributor = new RecordingTransparencyProviderContributor();
+        var provider = new TestSigningCommandProvider();
+        using var loggerFactory = LoggerFactory.Create(_ => { });
+        var builder = new SigningCommandBuilder(new TestConsole(), [contributor], loggerFactory);
+        var signingCommand = builder.BuildSigningCommand(provider);
+        var root = CreateRoot(signingCommand);
+
+        var tempDir = Path.Combine(Path.GetTempPath(), $"sign_builder_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        try
+        {
+            var payloadPath = Path.Combine(tempDir, "payload.bin");
+            await File.WriteAllBytesAsync(payloadPath, [0x01, 0x02, 0x03, 0x04]);
+
+            var outputPath = Path.Combine(tempDir, "signature.cose");
+
+            // Act
+            var exitCode = await root.InvokeAsync(new[]
+            {
+                "--output-format", "quiet",
+                provider.CommandName,
+                payloadPath,
+                "--signature-type", "detached",
+                "--output", outputPath,
+                "--scitt-mst-endpoint", "https://override.example.test",
+                "--mode", "success"
+            });
+
+            // Assert
+            Assert.That(exitCode, Is.EqualTo(0));
+            Assert.That(contributor.CallCount, Is.EqualTo(1));
+            Assert.That(contributor.LastOptions, Is.Not.Null);
+            Assert.That(contributor.LastOptions![MstEndpointOptionKey], Is.EqualTo("https://override.example.test"));
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
     }
 
     [Test]

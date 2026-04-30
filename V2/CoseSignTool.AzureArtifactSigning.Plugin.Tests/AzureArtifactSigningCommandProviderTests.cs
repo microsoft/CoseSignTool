@@ -21,7 +21,7 @@ public class AzureArtifactSigningCommandProviderTests
         var name = provider.CommandName;
 
         // Assert
-        Assert.That(name, Is.EqualTo("x509-ats"));
+        Assert.That(name, Is.EqualTo("x509-aas"));
     }
 
     [Test]
@@ -50,9 +50,9 @@ public class AzureArtifactSigningCommandProviderTests
         provider.AddCommandOptions(command);
 
         // Assert
-        Assert.That(command.Options, Has.Some.Matches<Option>(o => o.Name == "ats-endpoint"));
-        Assert.That(command.Options, Has.Some.Matches<Option>(o => o.Name == "ats-account-name"));
-        Assert.That(command.Options, Has.Some.Matches<Option>(o => o.Name == "ats-cert-profile-name"));
+        Assert.That(command.Options, Has.Some.Matches<Option>(o => o.Name == "aas-endpoint"));
+        Assert.That(command.Options, Has.Some.Matches<Option>(o => o.Name == "aas-account-name"));
+        Assert.That(command.Options, Has.Some.Matches<Option>(o => o.Name == "aas-cert-profile-name"));
     }
 
     [Test]
@@ -66,7 +66,7 @@ public class AzureArtifactSigningCommandProviderTests
         provider.AddCommandOptions(command);
 
         // Assert
-        var endpointOption = command.Options.FirstOrDefault(o => o.Name == "ats-endpoint");
+        var endpointOption = command.Options.FirstOrDefault(o => o.Name == "aas-endpoint");
         Assert.That(endpointOption, Is.Not.Null);
         Assert.That(endpointOption!.IsRequired, Is.True);
     }
@@ -82,7 +82,7 @@ public class AzureArtifactSigningCommandProviderTests
         provider.AddCommandOptions(command);
 
         // Assert
-        var accountNameOption = command.Options.FirstOrDefault(o => o.Name == "ats-account-name");
+        var accountNameOption = command.Options.FirstOrDefault(o => o.Name == "aas-account-name");
         Assert.That(accountNameOption, Is.Not.Null);
         Assert.That(accountNameOption!.IsRequired, Is.True);
     }
@@ -98,9 +98,24 @@ public class AzureArtifactSigningCommandProviderTests
         provider.AddCommandOptions(command);
 
         // Assert
-        var certProfileOption = command.Options.FirstOrDefault(o => o.Name == "ats-cert-profile-name");
+        var certProfileOption = command.Options.FirstOrDefault(o => o.Name == "aas-cert-profile-name");
         Assert.That(certProfileOption, Is.Not.Null);
         Assert.That(certProfileOption!.IsRequired, Is.True);
+    }
+
+    [Test]
+    public void TransparencyEndpoints_ReturnsDefaultMstEndpoint()
+    {
+        // Arrange
+        var provider = new AzureArtifactSigningCommandProvider();
+
+        // Act
+        var transparencyEndpoint = provider.TransparencyEndpoints.Single();
+
+        // Assert
+        Assert.That(transparencyEndpoint.ServiceType, Is.EqualTo("mst"));
+        Assert.That(transparencyEndpoint.Endpoint, Is.EqualTo("https://dataplane.codetransparency.azure.net"));
+        Assert.That(transparencyEndpoint.AutoSubmit, Is.True);
     }
 
     [Test]
@@ -110,8 +125,8 @@ public class AzureArtifactSigningCommandProviderTests
         var provider = new AzureArtifactSigningCommandProvider();
         var options = new Dictionary<string, object?>
         {
-            ["ats-account-name"] = "testaccount",
-            ["ats-cert-profile-name"] = "testprofile"
+            ["aas-account-name"] = "testaccount",
+            ["aas-cert-profile-name"] = "testprofile"
         };
 
         // Act & Assert
@@ -126,8 +141,8 @@ public class AzureArtifactSigningCommandProviderTests
         var provider = new AzureArtifactSigningCommandProvider();
         var options = new Dictionary<string, object?>
         {
-            ["ats-endpoint"] = "https://test.codesigning.azure.net",
-            ["ats-cert-profile-name"] = "testprofile"
+            ["aas-endpoint"] = "https://test.codesigning.azure.net",
+            ["aas-cert-profile-name"] = "testprofile"
         };
 
         // Act & Assert
@@ -142,8 +157,8 @@ public class AzureArtifactSigningCommandProviderTests
         var provider = new AzureArtifactSigningCommandProvider();
         var options = new Dictionary<string, object?>
         {
-            ["ats-endpoint"] = "https://test.codesigning.azure.net",
-            ["ats-account-name"] = "testaccount"
+            ["aas-endpoint"] = "https://test.codesigning.azure.net",
+            ["aas-account-name"] = "testaccount"
         };
 
         // Act & Assert
@@ -158,9 +173,9 @@ public class AzureArtifactSigningCommandProviderTests
         var provider = new AzureArtifactSigningCommandProvider();
         var options = new Dictionary<string, object?>
         {
-            ["ats-endpoint"] = "not-a-valid-url",
-            ["ats-account-name"] = "testaccount",
-            ["ats-cert-profile-name"] = "testprofile"
+            ["aas-endpoint"] = "not-a-valid-url",
+            ["aas-account-name"] = "testaccount",
+            ["aas-cert-profile-name"] = "testprofile"
         };
 
         // Act & Assert

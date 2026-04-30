@@ -94,6 +94,9 @@ public class PfxSigningCommandProvider : ISigningCommandProvider
     public string ExampleUsage => ClassStrings.ExampleUsageValue;
 
     /// <inheritdoc/>
+    public IReadOnlyList<TransparencyEndpointInfo> TransparencyEndpoints => Array.Empty<TransparencyEndpointInfo>();
+
+    /// <inheritdoc/>
     public void AddCommandOptions(Command command)
     {
         var pfxOption = new Option<FileInfo>(

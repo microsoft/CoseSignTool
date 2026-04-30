@@ -158,8 +158,8 @@ This section provides comprehensive documentation for each NuGet package in the 
 
 **Options Added to `verify` Command**:
 - `--mst-trust` - Enable MST receipt trust validation for verification
-- `--mst-offline-keys` - Pinned offline keys JWKS JSON for offline-only verification
-- `--mst-trust-ledger-instance` - Allowed MST ledger instance(s) (issuer host allow-list)
+- `--issuer-offline-keys` - Pinned issuer JWKS JSON for offline-only verification
+- `--issuer` - Allowed SCITT issuer host(s)
 
 **Use When**: Verifying supply chain transparency via CLI.
 

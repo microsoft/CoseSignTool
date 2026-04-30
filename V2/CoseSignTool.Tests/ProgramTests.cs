@@ -257,7 +257,7 @@ public class ProgramTests
         Assert.That(output, Does.Contain("Commands:")
             .Or.Contain("COMMANDS:"));
         Assert.That(output, Does.Contain("x509"));
-        Assert.That(output, Does.Contain("mst"));
+        Assert.That(output, Does.Contain("scitt"));
         Assert.That(output, Does.Contain("akv"));
     }
 
@@ -266,7 +266,7 @@ public class ProgramTests
     {
         // Arrange
         var console = new TestConsole();
-        string[] args = ["verify", "mst", "--help"];
+        string[] args = ["verify", "scitt", "--help"];
 
         // Act
         var exitCode = Program.Run(args, console);
@@ -274,8 +274,8 @@ public class ProgramTests
 
         // Assert
         Assert.That(exitCode, Is.EqualTo((int)ExitCode.Success));
-        Assert.That(output, Does.Contain("--mst-offline-keys"));
-        Assert.That(output, Does.Contain("--mst-trust-ledger-instance"));
+        Assert.That(output, Does.Contain("--issuer"));
+        Assert.That(output, Does.Contain("--issuer-offline-keys"));
         // MST-specific options should be present; X.509 certificate options should not be present
         Assert.That(output, Does.Not.Contain("--trust-roots"));
         Assert.That(output, Does.Not.Contain("--allow-untrusted"));
@@ -296,7 +296,7 @@ public class ProgramTests
         // Assert
         Assert.That(exitCode, Is.EqualTo((int)ExitCode.Success));
         Assert.That(output, Does.Contain("--trust-roots"));
-        Assert.That(output, Does.Not.Contain("--mst-offline-keys"));
+        Assert.That(output, Does.Not.Contain("--issuer-offline-keys"));
     }
 
     [Test]

@@ -13,7 +13,7 @@ namespace CoseSignTool.Abstractions;
 public interface ICertificateSigningMaterialProvider
 {
     /// <summary>
-    /// Gets the stable provider identifier (e.g., "pfx", "akv", "ats").
+    /// Gets the stable provider identifier (e.g., "pfx", "akv", "aas").
     /// </summary>
     string ProviderId { get; }
 

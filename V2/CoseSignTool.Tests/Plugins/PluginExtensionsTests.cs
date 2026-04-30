@@ -16,6 +16,7 @@ using CoseSignTool.Abstractions;
 [TestFixture]
 public class PluginExtensionsTests
 {
+    private const string TestServiceType = "test";
     #region Default Constructor Tests
 
     [Test]
@@ -195,6 +196,7 @@ public class PluginExtensionsTests
         public string CommandName => "test-sign";
         public string CommandDescription => "Test signing command";
         public string ExampleUsage => "--test-option value";
+        public IReadOnlyList<TransparencyEndpointInfo> TransparencyEndpoints => Array.Empty<TransparencyEndpointInfo>();
         public void AddCommandOptions(Command command) { }
         public Task<CoseSign1.Abstractions.ISigningService<CoseSign1.Abstractions.SigningOptions>> CreateSigningServiceAsync(IDictionary<string, object?> options)
             => Task.FromResult<CoseSign1.Abstractions.ISigningService<CoseSign1.Abstractions.SigningOptions>>(null!);
@@ -218,6 +220,7 @@ public class PluginExtensionsTests
     {
         public string ProviderName => "Test";
         public string ProviderDescription => "Test transparency provider";
+        public string ServiceType => TestServiceType;
         public Task<CoseSign1.Abstractions.Transparency.ITransparencyProvider> CreateTransparencyProviderAsync(IDictionary<string, object?> options, CancellationToken cancellationToken = default)
             => Task.FromResult<CoseSign1.Abstractions.Transparency.ITransparencyProvider>(null!);
     }

@@ -25,7 +25,7 @@ public interface ISigningCommandProvider
 
     /// <summary>
     /// Adds command-specific options to the command.
-    /// Examples: --pfx, --thumbprint, --ats-endpoint, etc.
+    /// Examples: --pfx, --thumbprint, --aas-endpoint, etc.
     /// Do NOT add --output or payload argument - these are managed by the main exe.
     /// </summary>
     /// <param name="command">The command to add options to.</param>
@@ -52,4 +52,9 @@ public interface ISigningCommandProvider
     /// </summary>
     /// <example>"--pfx cert.pfx" or "--thumbprint ABC123"</example>
     string ExampleUsage { get; }
+
+    /// <summary>
+    /// Gets transparency service endpoints compatible with this signing provider.
+    /// </summary>
+    IReadOnlyList<TransparencyEndpointInfo> TransparencyEndpoints { get; }
 }

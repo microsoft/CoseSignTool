@@ -36,10 +36,10 @@ var service = new AzureArtifactSigningService(options);
 
 **CLI:**
 ```bash
-cosesigntool sign x509 ats document.json ^
-    --ats-endpoint https://myaccount.codesigning.azure.net ^
-    --ats-account-name myaccount ^
-    --ats-cert-profile-name myprofile
+cosesigntool sign x509 aas document.json ^
+    --aas-endpoint https://myaccount.codesigning.azure.net ^
+    --aas-account-name myaccount ^
+    --aas-cert-profile-name myprofile
 ```
 
 ### Azure Key Vault

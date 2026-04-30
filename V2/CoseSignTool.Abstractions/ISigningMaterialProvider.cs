@@ -6,7 +6,7 @@ namespace CoseSignTool.Abstractions;
 /// <summary>
 /// Optional interface for plugins that describe a signing material provider.
 /// Material providers extend a signing root by providing concrete signing material.
-/// Examples: PFX, certificate store, AKV certificate, ATS.
+/// Examples: PFX, certificate store, AKV certificate, AAS.
 /// </summary>
 public interface ISigningMaterialProvider
 {

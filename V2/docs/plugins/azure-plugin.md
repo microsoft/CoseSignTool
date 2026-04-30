@@ -20,20 +20,20 @@ This plugin enables cloud-based code signing using Azure Artifact Signing servic
 
 ## Commands
 
-### sign x509 ats
+### sign x509 aas
 
 Sign a payload using Azure Artifact Signing service.
 
 ```bash
-cosesigntool sign x509 ats <payload> --ats-endpoint <url> --ats-account-name <name> --ats-cert-profile-name <profile> [options]
+cosesigntool sign x509 aas <payload> --aas-endpoint <url> --aas-account-name <name> --aas-cert-profile-name <profile> [options]
 ```
 
 **Options**:
 | Option | Required | Description |
 |--------|----------|-------------|
-| `--ats-endpoint` | Yes | Azure Artifact Signing service endpoint URL |
-| `--ats-account-name` | Yes | Name of your Artifact Signing Account |
-| `--ats-cert-profile-name` | Yes | Name of the certificate profile to use |
+| `--aas-endpoint` | Yes | Azure Artifact Signing service endpoint URL |
+| `--aas-account-name` | Yes | Name of your Artifact Signing Account |
+| `--aas-cert-profile-name` | Yes | Name of the certificate profile to use |
 | `--output`, `-o` | No | Output path for signature file |
 | `--signature-type`, `-t` | No | Signature type: `embedded`, `detached`, `indirect` (default: `indirect`) |
 | `--content-type`, `-c` | No | MIME type of payload |
@@ -41,16 +41,16 @@ cosesigntool sign x509 ats <payload> --ats-endpoint <url> --ats-account-name <na
 **Examples**:
 ```bash
 # Sign with Azure Artifact Signing
-cosesigntool sign x509 ats document.json \
-    --ats-endpoint https://myaccount.codesigning.azure.net \
-    --ats-account-name myaccount \
-    --ats-cert-profile-name production
+cosesigntool sign x509 aas document.json \
+    --aas-endpoint https://myaccount.codesigning.azure.net \
+    --aas-account-name myaccount \
+    --aas-cert-profile-name production
 
 # Create indirect signature
-cosesigntool sign x509 ats document.json \
-    --ats-endpoint https://myaccount.codesigning.azure.net \
-    --ats-account-name myaccount \
-    --ats-cert-profile-name production \
+cosesigntool sign x509 aas document.json \
+    --aas-endpoint https://myaccount.codesigning.azure.net \
+    --aas-account-name myaccount \
+    --aas-cert-profile-name production \
     --signature-type indirect
 ```
 
@@ -74,10 +74,10 @@ No additional configuration needed. The plugin automatically uses the managed id
 az login
 
 # Run signing command
-cosesigntool sign x509 ats document.json --ats-endpoint ... --ats-account-name ... --ats-cert-profile-name ...
+cosesigntool sign x509 aas document.json --aas-endpoint ... --aas-account-name ... --aas-cert-profile-name ...
 ```
 
-Note: In V2, Azure Artifact Signing is exposed as `sign x509 ats`.
+Note: In V2, Azure Artifact Signing is exposed as `sign x509 aas`.
 
 ### Using Service Principal
 

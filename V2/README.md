@@ -290,10 +290,10 @@ Trust is evaluated **before** signature verification to prevent oracle attacks.
 - **`sign x509 ephemeral`** - Sign with temporary test certificate
 - **`sign x509 akv-cert`** - Sign with Azure Key Vault certificate
 - **`sign akv akv-key`** - Sign with Azure Key Vault key (no X.509 chain)
-- **`sign x509 ats`** - Sign with Azure Artifact Signing
+- **`sign x509 aas`** - Sign with Azure Artifact Signing
 - **`verify x509`** - Verify using X.509 trust
 - **`verify akv`** - Verify using Azure Key Vault key trust
-- **`verify mst`** - Verify using MST receipt trust
+- **`verify scitt`** - Verify using SCITT receipt trust
 - **`inspect`** - Inspect signature details
 
 See [CLI Documentation](docs/cli/README.md) for detailed command reference.

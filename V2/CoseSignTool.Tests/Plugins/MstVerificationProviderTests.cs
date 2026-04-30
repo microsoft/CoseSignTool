@@ -13,23 +13,23 @@ using CoseSignTool.MST.Plugin;
 using Microsoft.Extensions.DependencyInjection;
 
 /// <summary>
-/// Tests for the MstVerificationProvider class.
+/// Tests for the <see cref="MstVerificationProvider"/> class.
 /// </summary>
 [TestFixture]
 public class MstVerificationProviderTests
 {
-    private record TestState(MstVerificationProvider Provider, Command MstCommand, Parser Parser);
+    private record TestState(MstVerificationProvider Provider, Command ScittCommand, Parser Parser);
 
     private static ServiceProvider BuildServiceProvider(MstVerificationProvider provider, ParseResult parseResult)
     {
         var services = new ServiceCollection();
         var builder = services.ConfigureCoseValidation();
 
-        // Simulate CLI behavior: only configure activated providers.
         if (provider.IsActivated(parseResult))
         {
             provider.ConfigureValidation(builder, parseResult, new VerificationContext(detachedPayload: null));
         }
+
         return services.BuildServiceProvider();
     }
 
@@ -39,136 +39,113 @@ public class MstVerificationProviderTests
 
         var root = new RootCommand();
         var verify = new Command("verify", "Test verify command");
-        var mst = new Command("mst", "Test MST root command");
-        provider.AddVerificationOptions(mst);
+        var scitt = new Command("scitt", "Test SCITT root command");
+        provider.AddVerificationOptions(scitt);
 
-        verify.AddCommand(mst);
+        verify.AddCommand(scitt);
         root.AddCommand(verify);
 
         var parser = new Parser(root);
-        return new TestState(provider, mst, parser);
+        return new TestState(provider, scitt, parser);
     }
 
     [Test]
-    public void ProviderName_ReturnsMST()
+    public void ProviderName_ReturnsScitt()
     {
-        // Arrange
-        var (Provider, _, _) = CreateTestState();
+        var (provider, _, _) = CreateTestState();
 
-        // Assert
-        Assert.That(Provider.ProviderName, Is.EqualTo("MST"));
+        Assert.That(provider.ProviderName, Is.EqualTo("SCITT"));
     }
 
     [Test]
     public void Description_ReturnsExpectedDescription()
     {
-        // Arrange
-        var (Provider, _, _) = CreateTestState();
+        var (provider, _, _) = CreateTestState();
 
-        // Assert
-        Assert.That(Provider.Description, Does.Contain("Microsoft Signing Transparency"));
+        Assert.That(provider.Description, Does.Contain("SCITT"));
     }
 
     [Test]
     public void Priority_Returns100()
     {
-        // Arrange
-        var (Provider, _, _) = CreateTestState();
+        var (provider, _, _) = CreateTestState();
 
-        // Assert - MST should run after signature and chain validation
-        Assert.That(Provider.Priority, Is.EqualTo(100));
+        Assert.That(provider.Priority, Is.EqualTo(100));
     }
 
     [Test]
     public void AddVerificationOptions_AddsAllRequiredOptions()
     {
-        // Arrange
-        var (_, mstCommand, _) = CreateTestState();
+        var (_, scittCommand, _) = CreateTestState();
 
-        // Assert
-        Assert.That(mstCommand.Options.Any(o => o.Name == "mst-offline-keys"), Is.True);
-        Assert.That(mstCommand.Options.Any(o => o.Name == "mst-trust-ledger-instance"), Is.True);
+        Assert.That(scittCommand.Options.Any(o => o.Name == "issuer"), Is.True);
+        Assert.That(scittCommand.Options.Any(o => o.Name == "issuer-offline-keys"), Is.True);
     }
 
     [Test]
     public void IsActivated_WithDefaultOptions_ReturnsFalse()
     {
-        // Arrange - no MST options specified
-        var (Provider, _, Parser) = CreateTestState();
-        var parseResult = Parser.Parse("verify");
+        var (provider, _, parser) = CreateTestState();
+        var parseResult = parser.Parse("verify");
 
-        // Act
-        var isActivated = Provider.IsActivated(parseResult);
-
-        // Assert
-        Assert.That(isActivated, Is.False, "MST provider should not be activated by default");
+        Assert.That(provider.IsActivated(parseResult), Is.False);
     }
 
     [Test]
-    public void IsActivated_WithMstTrust_ReturnsTrue()
+    public void IsActivated_WithScittTrust_ReturnsTrue()
     {
-        // Arrange
-        var (Provider, _, Parser) = CreateTestState();
-        var parseResult = Parser.Parse("verify mst --mst-trust-ledger-instance example.confidential-ledger.azure.com");
+        var (provider, _, parser) = CreateTestState();
+        var parseResult = parser.Parse("verify scitt --issuer https://example.confidential-ledger.azure.com");
 
-        // Act
-        var isActivated = Provider.IsActivated(parseResult);
-
-        // Assert
-        Assert.That(isActivated, Is.True, "provider should activate when receipt is required");
+        Assert.That(provider.IsActivated(parseResult), Is.True);
     }
 
     [Test]
     public void ConfigureValidation_WithNoOptions_DoesNotRegisterMstTrustPack()
     {
-        // Arrange
-        var (Provider, _, Parser) = CreateTestState();
-        var parseResult = Parser.Parse("verify");
+        var (provider, _, parser) = CreateTestState();
+        var parseResult = parser.Parse("verify");
 
-        using var sp = BuildServiceProvider(Provider, parseResult);
-        Assert.That(sp.GetServices<ITrustPack>().OfType<MstTrustPack>(), Is.Empty);
+        using var serviceProvider = BuildServiceProvider(provider, parseResult);
+        Assert.That(serviceProvider.GetServices<ITrustPack>().OfType<MstTrustPack>(), Is.Empty);
     }
 
     [Test]
-    public void ConfigureValidation_WithMstTrustAndLedgerAllowList_RegistersMstTrustPackAndPolicy()
+    public void ConfigureValidation_WithIssuer_RegistersMstTrustPackAndPolicy()
     {
-        // Arrange
-        var (Provider, _, Parser) = CreateTestState();
-        var parseResult = Parser.Parse("verify mst --mst-trust-ledger-instance example.confidential-ledger.azure.com");
+        var (provider, _, parser) = CreateTestState();
+        var parseResult = parser.Parse("verify scitt --issuer https://example.confidential-ledger.azure.com");
 
-        using var sp = BuildServiceProvider(Provider, parseResult);
-        Assert.That(sp.GetServices<ITrustPack>().OfType<MstTrustPack>(), Is.Not.Empty);
+        using var serviceProvider = BuildServiceProvider(provider, parseResult);
+        Assert.That(serviceProvider.GetServices<ITrustPack>().OfType<MstTrustPack>(), Is.Not.Empty);
 
-        // Trust requirements are expressed via TrustPlanPolicy.
-        var ctx = new VerificationContext(detachedPayload: null);
-        Assert.That(Provider.CreateTrustPlanPolicy(parseResult, ctx), Is.Not.Null);
+        var context = new VerificationContext(detachedPayload: null);
+        Assert.That(provider.CreateTrustPlanPolicy(parseResult, context), Is.Not.Null);
     }
 
     [Test]
-    public void CreateTrustPlanPolicy_WithMstTrustButNoAllowListOrOfflineKeys_ThrowsArgumentException()
+    public void CreateTrustPlanPolicy_WithScittTrustButNoIssuerConfiguration_ThrowsArgumentException()
     {
-        // Arrange
-        var (Provider, _, Parser) = CreateTestState();
-        var parseResult = Parser.Parse("verify mst");
+        var (provider, _, parser) = CreateTestState();
+        var parseResult = parser.Parse("verify scitt");
 
-        var ctx = new VerificationContext(detachedPayload: null);
-        Assert.Throws<ArgumentException>(() => Provider.CreateTrustPlanPolicy(parseResult, ctx));
+        var context = new VerificationContext(detachedPayload: null);
+        Assert.Throws<ArgumentException>(() => provider.CreateTrustPlanPolicy(parseResult, context));
     }
 
     [Test]
-    public void ConfigureValidation_WithMstTrustAndOfflineKeys_RegistersReceiptFacts()
+    public void ConfigureValidation_WithIssuerOfflineKeys_RegistersReceiptFacts()
     {
-        // Arrange
-        var (Provider, _, Parser) = CreateTestState();
-        var tmp = Path.Combine(Path.GetTempPath(), $"mst_offline_{Guid.NewGuid():N}.jwks.json");
+        var (provider, _, parser) = CreateTestState();
+        var tmp = Path.Combine(Path.GetTempPath(), $"scitt_offline_{Guid.NewGuid():N}.jwks.json");
         File.WriteAllText(tmp, "{\"keys\":[{\"kty\":\"RSA\",\"kid\":\"k1\",\"n\":\"AQAB\",\"e\":\"AQAB\"}]}");
 
         try
         {
-            var parseResult = Parser.Parse($"verify mst --mst-offline-keys \"{tmp}\"");
+            var parseResult = parser.Parse($"verify scitt --issuer-offline-keys \"https://example.confidential-ledger.azure.com={tmp}\"");
 
-            using var sp = BuildServiceProvider(Provider, parseResult);
-            var trustPack = sp.GetServices<ITrustPack>().OfType<MstTrustPack>().Single();
+            using var serviceProvider = BuildServiceProvider(provider, parseResult);
+            var trustPack = serviceProvider.GetServices<ITrustPack>().OfType<MstTrustPack>().Single();
             Assert.That(trustPack.FactTypes, Does.Contain(typeof(MstReceiptPresentFact)));
         }
         finally
@@ -183,30 +160,25 @@ public class MstVerificationProviderTests
     [Test]
     public void GetVerificationMetadata_WithNoOptions_ShowsNotEnabled()
     {
-        // Arrange
-        var (Provider, _, Parser) = CreateTestState();
-        var parseResult = Parser.Parse("verify");
+        var (provider, _, parser) = CreateTestState();
+        var parseResult = parser.Parse("verify");
 
-        // Act
-        var metadata = Provider.GetVerificationMetadata(parseResult, null!, ValidationResult.Success("Test"));
+        var metadata = provider.GetVerificationMetadata(parseResult, null!, ValidationResult.Success("Test"));
 
-        // Assert
-        Assert.That(metadata, Does.ContainKey("MST Trust"));
-        Assert.That(metadata["MST Trust"], Is.EqualTo("No"));
+        Assert.That(metadata, Does.ContainKey("SCITT Trust"));
+        Assert.That(metadata["SCITT Trust"], Is.EqualTo("No"));
     }
 
     [Test]
-    public void GetVerificationMetadata_WithMstTrust_ShowsEnabled()
+    public void GetVerificationMetadata_WithScittTrust_ShowsEnabled()
     {
-        // Arrange
-        var (Provider, _, Parser) = CreateTestState();
-        var parseResult = Parser.Parse("verify mst --mst-trust-ledger-instance example.confidential-ledger.azure.com");
+        var (provider, _, parser) = CreateTestState();
+        var parseResult = parser.Parse("verify scitt --issuer https://example.confidential-ledger.azure.com");
 
-        // Act
-        var metadata = Provider.GetVerificationMetadata(parseResult, null!, ValidationResult.Success("Test"));
+        var metadata = provider.GetVerificationMetadata(parseResult, null!, ValidationResult.Success("Test"));
 
-        // Assert
-        Assert.That(metadata, Does.ContainKey("MST Trust"));
-        Assert.That(metadata["MST Trust"], Is.EqualTo("Yes"));
+        Assert.That(metadata, Does.ContainKey("SCITT Trust"));
+        Assert.That(metadata["SCITT Trust"], Is.EqualTo("Yes"));
+        Assert.That(metadata["SCITT Trusted Issuers"], Is.EqualTo("example.confidential-ledger.azure.com"));
     }
 }

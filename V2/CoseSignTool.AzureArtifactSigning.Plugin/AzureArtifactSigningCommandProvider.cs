@@ -19,25 +19,25 @@ public class AzureArtifactSigningCommandProvider : ISigningCommandProvider
     [ExcludeFromCodeCoverage]
     internal static class ClassStrings
     {
-        public static readonly string CommandNameValue = "x509-ats";
+        public static readonly string CommandNameValue = "x509-aas";
         public static readonly string CommandDescriptionValue = "Sign a payload using Azure Artifact Signing service";
-        public static readonly string ExampleUsageValue = "--ats-endpoint https://... --ats-account-name <account> --ats-cert-profile-name <profile>";
+        public static readonly string ExampleUsageValue = "--aas-endpoint https://... --aas-account-name <account> --aas-cert-profile-name <profile>";
 
-        public static readonly string OptionNameAtsEndpoint = "--ats-endpoint";
-        public static readonly string OptionNameAtsAccountName = "--ats-account-name";
-        public static readonly string OptionNameAtsCertProfileName = "--ats-cert-profile-name";
+        public static readonly string OptionNameAasEndpoint = "--aas-endpoint";
+        public static readonly string OptionNameAasAccountName = "--aas-account-name";
+        public static readonly string OptionNameAasCertProfileName = "--aas-cert-profile-name";
 
-        public static readonly string OptionKeyAtsEndpoint = "ats-endpoint";
-        public static readonly string OptionKeyAtsAccountName = "ats-account-name";
-        public static readonly string OptionKeyAtsCertProfileName = "ats-cert-profile-name";
+        public static readonly string OptionKeyAasEndpoint = "aas-endpoint";
+        public static readonly string OptionKeyAasAccountName = "aas-account-name";
+        public static readonly string OptionKeyAasCertProfileName = "aas-cert-profile-name";
 
-        public static readonly string OptionDescriptionAtsEndpoint = "Azure Artifact Signing endpoint URL (e.g., https://xxx.codesigning.azure.net)";
-        public static readonly string OptionDescriptionAtsAccountName = "Azure Artifact Signing account name";
-        public static readonly string OptionDescriptionAtsCertProfileName = "Certificate profile name in Azure Artifact Signing";
+        public static readonly string OptionDescriptionAasEndpoint = "Azure Artifact Signing endpoint URL (e.g., https://xxx.codesigning.azure.net)";
+        public static readonly string OptionDescriptionAasAccountName = "Azure Artifact Signing account name";
+        public static readonly string OptionDescriptionAasCertProfileName = "Certificate profile name in Azure Artifact Signing";
 
-        public static readonly string ErrorAtsEndpointRequired = "Azure Artifact Signing endpoint is required";
-        public static readonly string ErrorAtsAccountNameRequired = "Azure Artifact Signing account name is required";
-        public static readonly string ErrorAtsCertProfileRequired = "Certificate profile name is required";
+        public static readonly string ErrorAasEndpointRequired = "Azure Artifact Signing endpoint is required";
+        public static readonly string ErrorAasAccountNameRequired = "Azure Artifact Signing account name is required";
+        public static readonly string ErrorAasCertProfileRequired = "Certificate profile name is required";
         public static readonly string ErrorFormatInvalidEndpointUrl = "Invalid Azure Artifact Signing endpoint URL: {0}";
 
         public static readonly string MetadataKeyCertificateSource = "Certificate Source";
@@ -48,6 +48,9 @@ public class AzureArtifactSigningCommandProvider : ISigningCommandProvider
         public static readonly string MetadataValueUnknown = "Unknown";
 
         public static readonly string DefaultCertificateSubject = "Azure Artifact Signing Certificate";
+        public static readonly string TransparencyServiceTypeMst = "mst";
+        public static readonly string MstTransparencyEndpoint = "https://dataplane.codetransparency.azure.net";
+        public static readonly string MstTransparencyDisplayName = "Microsoft Signing Transparency";
     }
 
     private ISigningService<CoseSign1.Abstractions.SigningOptions>? SigningService;
@@ -65,25 +68,36 @@ public class AzureArtifactSigningCommandProvider : ISigningCommandProvider
     public string ExampleUsage => ClassStrings.ExampleUsageValue;
 
     /// <inheritdoc/>
+    public IReadOnlyList<TransparencyEndpointInfo> TransparencyEndpoints =>
+        new[]
+        {
+            new TransparencyEndpointInfo(
+                ServiceType: ClassStrings.TransparencyServiceTypeMst,
+                Endpoint: ClassStrings.MstTransparencyEndpoint,
+                DisplayName: ClassStrings.MstTransparencyDisplayName,
+                AutoSubmit: true)
+        };
+
+    /// <inheritdoc/>
     public void AddCommandOptions(Command command)
     {
         var endpointOption = new Option<string>(
-            name: ClassStrings.OptionNameAtsEndpoint,
-            description: ClassStrings.OptionDescriptionAtsEndpoint)
+            name: ClassStrings.OptionNameAasEndpoint,
+            description: ClassStrings.OptionDescriptionAasEndpoint)
         {
             IsRequired = true
         };
 
         var accountNameOption = new Option<string>(
-            name: ClassStrings.OptionNameAtsAccountName,
-            description: ClassStrings.OptionDescriptionAtsAccountName)
+            name: ClassStrings.OptionNameAasAccountName,
+            description: ClassStrings.OptionDescriptionAasAccountName)
         {
             IsRequired = true
         };
 
         var certProfileOption = new Option<string>(
-            name: ClassStrings.OptionNameAtsCertProfileName,
-            description: ClassStrings.OptionDescriptionAtsCertProfileName)
+            name: ClassStrings.OptionNameAasCertProfileName,
+            description: ClassStrings.OptionDescriptionAasCertProfileName)
         {
             IsRequired = true
         };
@@ -98,12 +112,12 @@ public class AzureArtifactSigningCommandProvider : ISigningCommandProvider
     /// <exception cref="ArgumentException">The provided endpoint URL is not valid.</exception>
     public async Task<ISigningService<CoseSign1.Abstractions.SigningOptions>> CreateSigningServiceAsync(IDictionary<string, object?> options)
     {
-        var endpoint = options[ClassStrings.OptionKeyAtsEndpoint] as string
-            ?? throw new InvalidOperationException(ClassStrings.ErrorAtsEndpointRequired);
-        AccountName = options[ClassStrings.OptionKeyAtsAccountName] as string
-            ?? throw new InvalidOperationException(ClassStrings.ErrorAtsAccountNameRequired);
-        CertificateProfileName = options[ClassStrings.OptionKeyAtsCertProfileName] as string
-            ?? throw new InvalidOperationException(ClassStrings.ErrorAtsCertProfileRequired);
+        var endpoint = options[ClassStrings.OptionKeyAasEndpoint] as string
+            ?? throw new InvalidOperationException(ClassStrings.ErrorAasEndpointRequired);
+        AccountName = options[ClassStrings.OptionKeyAasAccountName] as string
+            ?? throw new InvalidOperationException(ClassStrings.ErrorAasAccountNameRequired);
+        CertificateProfileName = options[ClassStrings.OptionKeyAasCertProfileName] as string
+            ?? throw new InvalidOperationException(ClassStrings.ErrorAasCertProfileRequired);
 
         // Create Azure credential with non-interactive authentication
         var credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions

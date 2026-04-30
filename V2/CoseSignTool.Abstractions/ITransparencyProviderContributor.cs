@@ -22,6 +22,11 @@ public interface ITransparencyProviderContributor
     string ProviderDescription { get; }
 
     /// <summary>
+    /// Gets the service type handled by this contributor (for example, <c>mst</c>).
+    /// </summary>
+    string ServiceType { get; }
+
+    /// <summary>
     /// Creates a transparency provider instance with the given configuration options.
     /// </summary>
     /// <param name="options">Configuration options from command line arguments.</param>

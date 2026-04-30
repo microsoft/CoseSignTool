@@ -48,12 +48,12 @@ With the MST plugin installed, additional options are available on the `verify` 
 # Enable MST receipt trust with an explicit ledger allow-list (online verification)
 CoseSignTool verify signed.cose \
     --mst-trust \
-    --mst-trust-ledger-instance esrp-cts-cp.confidential-ledger.azure.com
+    --issuer esrp-cts-cp.confidential-ledger.azure.com
 
 # Offline-only verification using pinned keys (no network fallback)
 CoseSignTool verify signed.cose \
     --mst-trust \
-    --mst-offline-keys esrp-cts-cp.confidential-ledger.azure.com.jwks.json
+    --issuer-offline-keys esrp-cts-cp.confidential-ledger.azure.com=esrp-cts-cp.confidential-ledger.azure.com.jwks.json
 ```
 
 ## Verification Options

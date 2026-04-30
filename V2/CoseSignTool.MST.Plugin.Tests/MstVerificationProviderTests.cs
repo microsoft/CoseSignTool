@@ -20,7 +20,7 @@ using CoseSignTool.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
 
 /// <summary>
-/// Tests for <see cref="MstVerificationProvider" />.
+/// Tests for <see cref="MstVerificationProvider"/>.
 /// </summary>
 [TestFixture]
 public class MstVerificationProviderTests
@@ -35,14 +35,14 @@ public class MstVerificationProviderTests
     }
 
     [Test]
-    public void CreateTrustPlanPolicy_WhenMstRootSelectedWithLedgerAllowList_ReturnsNonNull()
+    public void CreateTrustPlanPolicy_WhenScittRootSelectedWithIssuer_ReturnsNonNull()
     {
         var provider = new MstVerificationProvider();
         var parseResult = CreateParseResult(provider, [
             "verify",
-            "mst",
-            "--mst-trust-ledger-instance",
-            "esrp-cts-cp.confidential-ledger.azure.com"
+            "scitt",
+            "--issuer",
+            "https://esrp-cts-cp.confidential-ledger.azure.com"
         ]);
 
         var context = new VerificationContext(detachedPayload: null);
@@ -52,12 +52,12 @@ public class MstVerificationProviderTests
     }
 
     [Test]
-    public void CreateTrustPlanPolicy_WhenMstRootSelectedButNoAllowListOrOfflineKeys_ThrowsArgumentException()
+    public void CreateTrustPlanPolicy_WhenScittRootSelectedButNoIssuerConfiguration_ThrowsArgumentException()
     {
         var provider = new MstVerificationProvider();
         var parseResult = CreateParseResult(provider, [
             "verify",
-            "mst"
+            "scitt"
         ]);
 
         var context = new VerificationContext(detachedPayload: null);
@@ -65,12 +65,10 @@ public class MstVerificationProviderTests
     }
 
     [Test]
-    public void CreateTrustPlanPolicy_WhenMstTrustNotEnabled_ReturnsNull()
+    public void CreateTrustPlanPolicy_WhenScittRootNotEnabled_ReturnsNull()
     {
         var provider = new MstVerificationProvider();
-        var parseResult = CreateParseResult(provider, [
-            "verify"
-        ]);
+        var parseResult = CreateParseResult(provider, ["verify"]);
 
         var context = new VerificationContext(detachedPayload: null);
         var policy = provider.CreateTrustPlanPolicy(parseResult, context);
@@ -79,20 +77,18 @@ public class MstVerificationProviderTests
     }
 
     [Test]
-    public void ConfigureValidation_WhenOfflineKeysFileDoesNotExist_ThrowsArgumentException()
+    public void ConfigureValidation_WhenIssuerOfflineKeysFileDoesNotExist_ThrowsArgumentException()
     {
         var provider = new MstVerificationProvider();
-
-        var trustFilePath = Path.Combine(Path.GetTempPath(), $"mst-offline-{Guid.NewGuid():N}.jwks.json");
+        var trustFilePath = Path.Combine(Path.GetTempPath(), $"scitt-offline-{Guid.NewGuid():N}.jwks.json");
         var parseResult = CreateParseResult(provider, [
             "verify",
-            "mst",
-            "--mst-offline-keys",
-            trustFilePath
+            "scitt",
+            "--issuer-offline-keys",
+            $"https://example.contoso={trustFilePath}"
         ]);
 
         var context = new VerificationContext(detachedPayload: null);
-
         var services = new ServiceCollection();
         var builder = services.ConfigureCoseValidation();
 
@@ -100,15 +96,12 @@ public class MstVerificationProviderTests
     }
 
     [Test]
-    public void ConfigureValidation_WhenMstRootNotSelected_DoesNotThrowWithoutConfiguration()
+    public void ConfigureValidation_WhenScittRootNotSelected_DoesNotThrowWithoutConfiguration()
     {
         var provider = new MstVerificationProvider();
-        var parseResult = CreateParseResult(provider, [
-            "verify"
-        ]);
+        var parseResult = CreateParseResult(provider, ["verify"]);
 
         var context = new VerificationContext(detachedPayload: null);
-
         var services = new ServiceCollection();
         var builder = services.ConfigureCoseValidation();
 
@@ -116,33 +109,31 @@ public class MstVerificationProviderTests
     }
 
     [Test]
-    public async Task ConfigureValidation_WhenOfflineKeysProvided_TrustedFactIsNotMissingOfflineKeys()
+    public async Task ConfigureValidation_WhenIssuerOfflineKeysProvided_TrustedFactIsNotMissingOfflineKeys()
     {
         var provider = new MstVerificationProvider();
 
-        var tempDir = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), $"mst-{Guid.NewGuid():N}"));
+        var tempDir = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), $"scitt-{Guid.NewGuid():N}"));
         try
         {
             var jwksPath = Path.Combine(tempDir.FullName, "keys.jwks.json");
-
             var rsaJwk = CreateRsaPublicJwkJsonElement();
             File.WriteAllText(jwksPath, JsonSerializer.Serialize(new { keys = new[] { rsaJwk } }), Encoding.UTF8);
 
             var parseResult = CreateParseResult(provider, [
                 "verify",
-                "mst",
-                "--mst-offline-keys",
-                jwksPath,
+                "scitt",
+                "--issuer-offline-keys",
+                $"https://example.contoso={jwksPath}",
             ]);
 
             var context = new VerificationContext(detachedPayload: null);
-
             var services = new ServiceCollection();
             var builder = services.ConfigureCoseValidation();
             provider.ConfigureValidation(builder, parseResult, context);
 
-            using var sp = services.BuildServiceProvider();
-            var pack = sp.GetServices<ITrustPack>().Single(p => p is MstTrustPack);
+            using var serviceProvider = services.BuildServiceProvider();
+            var pack = serviceProvider.GetServices<ITrustPack>().Single(p => p is MstTrustPack);
 
             var message = CreateMessageWithEmptyReceiptHeader();
             var messageSubject = TrustSubject.Message(message);
@@ -163,42 +154,41 @@ public class MstVerificationProviderTests
     }
 
     [Test]
-    public void GetVerificationMetadata_WhenMstTrustEnabled_IncludesExpectedKeys()
+    public void GetVerificationMetadata_WhenScittTrustEnabled_IncludesExpectedKeys()
     {
         var provider = new MstVerificationProvider();
         var parseResult = CreateParseResult(provider, [
             "verify",
-            "mst",
-            "--mst-trust-ledger-instance",
-            "esrp-cts-cp.confidential-ledger.azure.com"
+            "scitt",
+            "--issuer",
+            "https://esrp-cts-cp.confidential-ledger.azure.com"
         ]);
 
         var metadata = provider.GetVerificationMetadata(parseResult, message: null!, validationResult: null!);
 
-        Assert.That(metadata, Does.ContainKey("MST Trust"));
+        Assert.That(metadata, Does.ContainKey("SCITT Trust"));
+        Assert.That(metadata, Does.ContainKey("SCITT Trusted Issuers"));
     }
 
     [Test]
-    public void GetVerificationMetadata_WhenMstRootNotSelected_ReportsDisabled()
+    public void GetVerificationMetadata_WhenScittRootNotSelected_ReportsDisabled()
     {
         var provider = new MstVerificationProvider();
-        var parseResult = CreateParseResult(provider, [
-            "verify"
-        ]);
+        var parseResult = CreateParseResult(provider, ["verify"]);
 
         var metadata = provider.GetVerificationMetadata(parseResult, message: null!, validationResult: null!);
 
-        Assert.That(metadata, Does.ContainKey("MST Trust"));
-        Assert.That(metadata["MST Trust"], Is.EqualTo("No"));
+        Assert.That(metadata, Does.ContainKey("SCITT Trust"));
+        Assert.That(metadata["SCITT Trust"], Is.EqualTo("No"));
         Assert.That(metadata.Keys, Has.Count.EqualTo(1));
     }
 
     [Test]
-    public void GetVerificationMetadata_WhenOfflineKeysAliasProvided_IncludesOfflineKeyPath()
+    public void GetVerificationMetadata_WhenIssuerOfflineKeysProvided_IncludesOfflineKeyPath()
     {
         var provider = new MstVerificationProvider();
 
-        var tempDir = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), $"mst-{Guid.NewGuid():N}"));
+        var tempDir = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), $"scitt-{Guid.NewGuid():N}"));
         try
         {
             var jwksPath = Path.Combine(tempDir.FullName, "keys.jwks.json");
@@ -206,24 +196,20 @@ public class MstVerificationProviderTests
 
             var parseResult = CreateParseResult(provider, [
                 "verify",
-                "mst",
-                "--offline_keys",
-                jwksPath,
-                "--mst-trust-ledger-instance",
-                "https://example.contoso/ledger",
-                "--mst-trust-ledger-instance",
-                "example.contoso",
-                "--mst-trust-ledger-instance",
-                "  ",
-                "--mst-trust-ledger-instance",
-                "other.contoso",
+                "scitt",
+                "--issuer-offline-keys",
+                $"https://example.contoso/ledger={jwksPath}",
+                "--issuer",
+                "https://other.contoso"
             ]);
 
             var metadata = provider.GetVerificationMetadata(parseResult, message: null!, validationResult: null!);
 
-            Assert.That(metadata["MST Trust"], Is.EqualTo("Yes"));
-            Assert.That(metadata["MST Offline Keys"], Is.EqualTo(jwksPath));
-            Assert.That(metadata["MST Trusted Ledgers"], Is.EqualTo("example.contoso, other.contoso"));
+            Assert.That(metadata["SCITT Trust"], Is.EqualTo("Yes"));
+            Assert.That(metadata["SCITT Offline Keys"], Is.EqualTo($"example.contoso={jwksPath}"));
+            Assert.That(
+                metadata["SCITT Trusted Issuers"]!.ToString()!.Split(", "),
+                Is.EquivalentTo(new[] { "example.contoso", "other.contoso" }));
         }
         finally
         {
@@ -238,9 +224,9 @@ public class MstVerificationProviderTests
     {
         var root = new RootCommand("root");
         var verify = new Command("verify");
-        var mst = new Command("mst");
-        provider.AddVerificationOptions(mst);
-        verify.AddCommand(mst);
+        var scitt = new Command("scitt");
+        provider.AddVerificationOptions(scitt);
+        verify.AddCommand(scitt);
         root.AddCommand(verify);
 
         return root.Parse(args);
@@ -270,13 +256,6 @@ public class MstVerificationProviderTests
             .Replace('/', '_');
     }
 
-    private static string WriteTempFile(string dir, string fileName, string contents)
-    {
-        var path = Path.Combine(dir, fileName);
-        File.WriteAllText(path, contents, Encoding.UTF8);
-        return path;
-    }
-
     private static CoseSign1Message CreateMessageWithEmptyReceiptHeader()
     {
         using var key = ECDsa.Create();
@@ -286,8 +265,6 @@ public class MstVerificationProviderTests
         var unprotectedHeaders = new CoseHeaderMap();
         unprotectedHeaders[new CoseHeaderLabel(394)] = CborValue(writer =>
         {
-            // MST receipt header is an array of COSE_Sign1 byte strings.
-            // Include a single empty receipt entry so counter-signature scoped facts can be exercised.
             writer.WriteStartArray(1);
             writer.WriteByteString(Array.Empty<byte>());
             writer.WriteEndArray();

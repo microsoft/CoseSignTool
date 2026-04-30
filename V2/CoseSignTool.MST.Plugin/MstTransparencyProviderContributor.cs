@@ -20,6 +20,7 @@ public class MstTransparencyProviderContributor : ITransparencyProviderContribut
     {
         public const string ProviderName = "Microsoft Signing Transparency";
         public const string ProviderDescription = "Add Microsoft Signing Transparency (MST) receipts to signed messages";
+        public const string ServiceType = "mst";
 
         public const string OptionKeyMstEndpoint = "mst-endpoint";
 
@@ -32,6 +33,9 @@ public class MstTransparencyProviderContributor : ITransparencyProviderContribut
 
     /// <inheritdoc/>
     public string ProviderDescription => ClassStrings.ProviderDescription;
+
+    /// <inheritdoc/>
+    public string ServiceType => ClassStrings.ServiceType;
 
     /// <inheritdoc/>
     public Task<ITransparencyProvider> CreateTransparencyProviderAsync(

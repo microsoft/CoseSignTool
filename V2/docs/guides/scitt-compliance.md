@@ -195,8 +195,8 @@ cosesigntool sign x509 pfx artifact-manifest.json ^
 ### Verify with Transparency
 
 ```bash
-cosesigntool verify mst statement.cose ^
-    --mst-trust-ledger-instance esrp-cts-cp.confidential-ledger.azure.com
+cosesigntool verify scitt statement.cose ^
+    --issuer esrp-cts-cp.confidential-ledger.azure.com
 ```
 
 ## SCITT Content Types

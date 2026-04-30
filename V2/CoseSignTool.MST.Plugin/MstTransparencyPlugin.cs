@@ -13,7 +13,7 @@ using CoseSignTool.Abstractions;
 /// </summary>
 /// <remarks>
 /// This plugin extends CoseSignTool with MST capabilities:
-/// - Verification: Use 'verify' command with --mst-trust (plus allow-list or offline keys)
+/// - Verification: Use 'verify scitt' with issuer trust and optional offline JWKS mappings
 /// - Transparency: Automatically contributes MST transparency provider for signing
 /// 
 /// All I/O is handled by the main executable; this plugin only provides validators and providers.

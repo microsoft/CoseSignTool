@@ -73,7 +73,7 @@ public class VerifyCommandHandler
         public static readonly string MetadataKeyToBeSignedAttestationProvider = "ToBeSignedAttestation.Provider";
 
         public static readonly string ErrorNoVerifyRootSelected =
-            "No verification root was selected. Invoke 'verify <root>' (e.g., 'verify x509').";
+            "No verification root was selected. Invoke 'verify <root>' (e.g., 'verify x509' or 'verify scitt').";
     }
 
 

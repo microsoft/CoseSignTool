@@ -6,7 +6,6 @@ namespace CoseSignTool.Commands;
 using System.CommandLine;
 using System.CommandLine.Invocation;
 using System.Diagnostics.CodeAnalysis;
-using CoseSign1.Abstractions.Transparency;
 using CoseSignTool.Abstractions;
 using CoseSignTool.Commands.Builders;
 using CoseSignTool.Commands.Handlers;
@@ -241,7 +240,7 @@ public class CommandBuilder
         LoadPlugins(
             rootCommand,
             additionalPluginDirectories,
-            out var transparencyProviders,
+            out var transparencyProviderContributors,
             out var verificationProviders,
             out var signingRootProviders,
             out var signingMaterialProviders,
@@ -250,7 +249,7 @@ public class CommandBuilder
         // Create signing command builder with transparency providers and logger factory
         var signingCommandBuilder = new SigningCommandBuilder(
             Console,
-            transparencyProviders: transparencyProviders,
+            transparencyProviderContributors: transparencyProviderContributors,
             loggerFactory: LoggerFactory);
 
         // Add built-in verify and inspect commands with verification providers
@@ -267,13 +266,13 @@ public class CommandBuilder
     private void LoadPlugins(
         RootCommand rootCommand,
         IEnumerable<string>? additionalPluginDirectories,
-        out IReadOnlyList<ITransparencyProvider> transparencyProviders,
+        out IReadOnlyList<ITransparencyProviderContributor> transparencyProviderContributors,
         out IReadOnlyList<IVerificationProvider> verificationProviders,
         out IReadOnlyList<ISigningRootProvider> signingRootProviders,
         out IReadOnlyList<ISigningMaterialProvider> signingMaterialProviders,
         out IReadOnlyList<ISigningCommandProvider> signingCommandProviders)
     {
-        transparencyProviders = Array.Empty<ITransparencyProvider>();
+        transparencyProviderContributors = Array.Empty<ITransparencyProviderContributor>();
         verificationProviders = Array.Empty<IVerificationProvider>();
         signingRootProviders = Array.Empty<ISigningRootProvider>();
         signingMaterialProviders = Array.Empty<ISigningMaterialProvider>();
@@ -297,7 +296,7 @@ public class CommandBuilder
             loadTask.Wait(); // Synchronous wait since we can't make BuildRootCommand async
 
             // Collect providers from all plugins
-            var transparencyProvidersList = new List<ITransparencyProvider>();
+            var transparencyProviderContributorsList = new List<ITransparencyProviderContributor>();
             var verificationProvidersList = new List<IVerificationProvider>();
             var signingRootProvidersList = new List<ISigningRootProvider>();
             var signingMaterialProvidersList = new List<ISigningMaterialProvider>();
@@ -326,9 +325,9 @@ public class CommandBuilder
                 {
                     foreach (var contributor in extensions.TransparencyProviders)
                     {
+                        transparencyProviderContributorsList.Add(contributor);
                         var providerTask = contributor.CreateTransparencyProviderAsync(new Dictionary<string, object?>());
                         providerTask.Wait();
-                        transparencyProvidersList.Add(providerTask.Result);
                     }
                 }
                 catch (Exception ex)
@@ -365,7 +364,7 @@ public class CommandBuilder
                 }
             }
 
-            transparencyProviders = transparencyProvidersList;
+            transparencyProviderContributors = transparencyProviderContributorsList;
             verificationProviders = verificationProvidersList.OrderBy(p => p.Priority).ToList();
             signingRootProviders = signingRootProvidersList
                 .GroupBy(r => r.RootId, StringComparer.OrdinalIgnoreCase)

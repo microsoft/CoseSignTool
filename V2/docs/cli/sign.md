@@ -21,7 +21,7 @@ Sign commands are provided by CLI plugins:
 |---------|-------------|
 | `sign x509 akv-cert` | Sign using an Azure Key Vault certificate |
 | `sign akv akv-key` | Sign using an Azure Key Vault key (adds `kid` header; alias: `key`) |
-| `sign x509 ats` | Sign using Azure Artifact Signing |
+| `sign x509 aas` | Sign using Azure Artifact Signing |
 
 ## sign x509 pfx
 
@@ -216,23 +216,23 @@ cosesigntool sign akv akv-key document.json ^
     --output signed.cose
 ```
 
-## sign x509 ats
+## sign x509 aas
 
 Sign using Azure Artifact Signing (requires Azure plugin).
 
 ### Synopsis
 
 ```bash
-cosesigntool sign x509 ats [<payload>] [options]
+cosesigntool sign x509 aas [<payload>] [options]
 ```
 
 ### Options
 
 | Option | Description |
 |--------|-------------|
-| `--ats-endpoint <uri>` | Azure Artifact Signing endpoint (required) |
-| `--ats-account-name <name>` | Account name (required) |
-| `--ats-cert-profile-name <name>` | Certificate profile name (required) |
+| `--aas-endpoint <uri>` | Azure Artifact Signing endpoint (required) |
+| `--aas-account-name <name>` | Account name (required) |
+| `--aas-cert-profile-name <name>` | Certificate profile name (required) |
 | `--output <path>` | Output signature file path |
 | `--content-type <type>` | Content type header value |
 | `--signature-type <type>` | Signature type: `embedded`, `detached`, `indirect` (default: `indirect`) |
@@ -240,10 +240,10 @@ cosesigntool sign x509 ats [<payload>] [options]
 ### Example
 
 ```bash
-cosesigntool sign x509 ats document.json ^
-    --ats-endpoint https://myaccount.codesigning.azure.net ^
-    --ats-account-name myaccount ^
-    --ats-cert-profile-name myprofile ^
+cosesigntool sign x509 aas document.json ^
+    --aas-endpoint https://myaccount.codesigning.azure.net ^
+    --aas-account-name myaccount ^
+    --aas-cert-profile-name myprofile ^
     --output signed.cose
 ```
 

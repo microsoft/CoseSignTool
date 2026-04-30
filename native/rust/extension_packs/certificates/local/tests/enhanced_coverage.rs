@@ -176,8 +176,7 @@ fn ecdsa_with_sha384() {
     // ecdsa-with-SHA384 OID = 1.2.840.10045.4.3.3
     assert!(
         sig_alg.contains("1.2.840.10045.4.3.3"),
-        "Expected ecdsa-with-SHA384 OID, got: {}",
-        sig_alg
+        "Expected ecdsa-with-SHA384 OID"
     );
 }
 
@@ -199,8 +198,7 @@ fn ecdsa_with_sha512() {
     // ecdsa-with-SHA512 OID = 1.2.840.10045.4.3.4
     assert!(
         sig_alg.contains("1.2.840.10045.4.3.4"),
-        "Expected ecdsa-with-SHA512 OID, got: {}",
-        sig_alg
+        "Expected ecdsa-with-SHA512 OID"
     );
 }
 
@@ -222,8 +220,7 @@ fn rsa_with_sha384() {
     // sha384WithRSAEncryption OID = 1.2.840.113549.1.1.12
     assert!(
         sig_alg.contains("1.2.840.113549.1.1.12"),
-        "Expected sha384WithRSAEncryption OID, got: {}",
-        sig_alg
+        "Expected sha384WithRSAEncryption OID"
     );
 }
 
@@ -245,8 +242,7 @@ fn rsa_with_sha512() {
     // sha512WithRSAEncryption OID = 1.2.840.113549.1.1.13
     assert!(
         sig_alg.contains("1.2.840.113549.1.1.13"),
-        "Expected sha512WithRSAEncryption OID, got: {}",
-        sig_alg
+        "Expected sha512WithRSAEncryption OID"
     );
 }
 
@@ -274,8 +270,7 @@ fn rsa_pss_self_signed_sha256() {
     // RSASSA-PSS OID = 1.2.840.113549.1.1.10
     assert!(
         sig_alg.contains("1.2.840.113549.1.1.10"),
-        "Expected RSASSA-PSS OID, got: {}",
-        sig_alg
+        "Expected RSASSA-PSS OID"
     );
 }
 
@@ -297,8 +292,7 @@ fn rsa_pss_self_signed_sha384() {
     let sig_alg = parsed.signature_algorithm.algorithm.to_string();
     assert!(
         sig_alg.contains("1.2.840.113549.1.1.10"),
-        "Expected RSASSA-PSS OID, got: {}",
-        sig_alg
+        "Expected RSASSA-PSS OID"
     );
 }
 
@@ -320,8 +314,7 @@ fn rsa_pss_self_signed_sha512() {
     let sig_alg = parsed.signature_algorithm.algorithm.to_string();
     assert!(
         sig_alg.contains("1.2.840.113549.1.1.10"),
-        "Expected RSASSA-PSS OID, got: {}",
-        sig_alg
+        "Expected RSASSA-PSS OID"
     );
 }
 
@@ -606,8 +599,7 @@ fn rsa_pss_leaf_signed_by_rsa_pss_ca() {
     let sig_alg = parsed.signature_algorithm.algorithm.to_string();
     assert!(
         sig_alg.contains("1.2.840.113549.1.1.10"),
-        "Leaf should use RSASSA-PSS, got: {}",
-        sig_alg
+        "Leaf should use RSASSA-PSS"
     );
     assert!(has_extension(&parsed, OID_AKI));
 }
@@ -764,8 +756,7 @@ fn ecdsa_sha256_default_digest() {
     // ecdsa-with-SHA256 OID = 1.2.840.10045.4.3.2
     assert!(
         sig_alg.contains("1.2.840.10045.4.3.2"),
-        "Expected ecdsa-with-SHA256, got: {}",
-        sig_alg
+        "Expected ecdsa-with-SHA256"
     );
 }
 
@@ -792,8 +783,7 @@ fn rsa_pkcs1v15_explicit_padding() {
     // sha256WithRSAEncryption OID = 1.2.840.113549.1.1.11
     assert!(
         sig_alg.contains("1.2.840.113549.1.1.11"),
-        "Expected sha256WithRSAEncryption, got: {}",
-        sig_alg
+        "Expected sha256WithRSAEncryption"
     );
 }
 

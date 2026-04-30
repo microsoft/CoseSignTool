@@ -8,5 +8,8 @@ pub mod local;
 #[cfg(feature = "ats")]
 pub mod ats;
 
+#[cfg(feature = "akv")]
+pub mod akv;
+
 #[cfg(feature = "mst")]
 pub mod mst;

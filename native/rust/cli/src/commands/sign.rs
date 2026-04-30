@@ -42,7 +42,13 @@ pub enum X509Provider {
     /// Sign with Azure Artifact Signing cloud service.
     #[cfg(feature = "ats")]
     Ats(AtsArgs),
-    // AKV provider would go here behind #[cfg(feature = "akv")]
+    /// Sign using Azure Key Vault key (no certificate chain).
+    #[cfg(feature = "akv")]
+    Akv(AkvArgs),
+    /// Sign using Azure Key Vault certificate (with certificate chain).
+    #[cfg(feature = "akv")]
+    #[command(name = "akv-cert")]
+    AkvCert(AkvCertArgs),
 }
 
 #[derive(Debug)]
@@ -177,6 +183,44 @@ pub struct AtsArgs {
     pub ats_cert_profile_name: String,
 }
 
+#[cfg(feature = "akv")]
+#[derive(clap::Args, Debug)]
+pub struct AkvArgs {
+    #[command(flatten)]
+    pub common: CommonSignArgs,
+
+    /// Azure Key Vault URL (e.g., https://my-vault.vault.azure.net).
+    #[arg(long = "akv-vault")]
+    pub akv_vault: String,
+
+    /// Key name in Azure Key Vault.
+    #[arg(long = "akv-key-name")]
+    pub akv_key_name: String,
+
+    /// Key version (optional — uses latest if not specified).
+    #[arg(long = "akv-key-version")]
+    pub akv_key_version: Option<String>,
+}
+
+#[cfg(feature = "akv")]
+#[derive(clap::Args, Debug)]
+pub struct AkvCertArgs {
+    #[command(flatten)]
+    pub common: CommonSignArgs,
+
+    /// Azure Key Vault URL (e.g., https://my-vault.vault.azure.net).
+    #[arg(long = "akv-vault")]
+    pub akv_vault: String,
+
+    /// Certificate name in Azure Key Vault.
+    #[arg(long = "akv-cert-name")]
+    pub akv_cert_name: String,
+
+    /// Certificate version (optional — uses latest if not specified).
+    #[arg(long = "akv-cert-version")]
+    pub akv_cert_version: Option<String>,
+}
+
 // ============================================================================
 // Execution
 // ============================================================================
@@ -233,6 +277,40 @@ fn execute_x509(provider: X509Provider, format: OutputFormat) -> Result<i32> {
                     certificate_source: "Azure Artifact Signing".to_string(),
                     account_name: Some(args.ats_account_name),
                     certificate_profile: Some(args.ats_cert_profile_name),
+                },
+            )
+        }
+        #[cfg(feature = "akv")]
+        X509Provider::Akv(args) => {
+            let service = providers::akv::create_akv_key_service(
+                &args.akv_vault,
+                &args.akv_key_name,
+                args.akv_key_version.as_deref(),
+            )?;
+            (
+                Arc::new(service),
+                args.common,
+                ProviderDisplayInfo {
+                    certificate_source: "Azure Key Vault (Key)".to_string(),
+                    account_name: Some(args.akv_key_name),
+                    certificate_profile: None,
+                },
+            )
+        }
+        #[cfg(feature = "akv")]
+        X509Provider::AkvCert(args) => {
+            let service = providers::akv::create_akv_cert_service(
+                &args.akv_vault,
+                &args.akv_cert_name,
+                args.akv_cert_version.as_deref(),
+            )?;
+            (
+                Arc::new(service),
+                args.common,
+                ProviderDisplayInfo {
+                    certificate_source: "Azure Key Vault (Certificate)".to_string(),
+                    account_name: Some(args.akv_cert_name),
+                    certificate_profile: None,
                 },
             )
         }

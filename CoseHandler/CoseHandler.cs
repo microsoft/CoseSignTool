@@ -697,6 +697,7 @@ public static class CoseHandler
 
             // List for collecting any validation errors we hit.
             List<ValidationFailureCode> errorCodes = [];
+            content = null;
 
             // Load the signature content into a CoseSign1Message object.
             CoseSign1Message? msg = null;
@@ -717,9 +718,6 @@ public static class CoseHandler
                 content = null;
                 return new ValidationResult(false, errorCodes, validationType: ContentValidationType.ContentValidationNotPerformed);
             }
-
-            // Populate the output parameter
-            content = getPayload ? msg.Content : null;
 
             // Validate trust of the signing certificate for the message if a CoseSign1MessageValidator was passed.
             if (!validator.TryValidate(msg, out List<CoseSign1ValidationResult> certValidationResults))
@@ -804,6 +802,7 @@ public static class CoseHandler
                 messageVerified = false;
             }
 
+            content = getPayload && messageVerified ? msg.Content : null;
             return new ValidationResult(messageVerified, errorCodes, certValidationResults, chain, cvt);
         }
         finally
@@ -831,20 +830,20 @@ public static class CoseHandler
             signatureBytes, signatureStream, signatureFile,
             payloadBytes: null, payloadStream: null, payloadFile: null,
             out ReadOnlyMemory<byte>? payloadBytes, validator, getPayload: true);
-        string? content = null;
+        if (!result.Success)
+        {
+            return null;
+        }
 
         // payloadBytes gets populated by from the embedded signature by ValidateInternal.
         if (payloadBytes is null)
         {
             result.AddError(ValidationFailureCode.PayloadUnreadable);
             result.Success = false;
-        }
-        else
-        {
-            content = Encoding.UTF8.GetString(payloadBytes.Value.ToArray());
+            return null;
         }
 
-        return content;
+        return Encoding.UTF8.GetString(payloadBytes.Value.ToArray());
     }
     #endregion
 

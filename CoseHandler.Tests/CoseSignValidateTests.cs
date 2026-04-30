@@ -152,6 +152,19 @@ public class CoseHandlerSignValidateTests
         returnedPayload.Should().Be("Payload1!");
     }
 
+    [TestMethod]
+    public void EmbedSign_GetReturnsNullWhenTrustValidationFails()
+    {
+        ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(Payload1Bytes, SelfSignedCert, true);
+        signedBytes.ToArray().Should().NotBeNull();
+
+        string? returnedPayload = CoseHandler.GetPayload(signedBytes.ToArray(), out ValidationResult result, roots: null, revocationMode: RevMode);
+
+        returnedPayload.Should().BeNull();
+        result.Success.Should().BeFalse();
+        result.Errors.Should().ContainSingle(error => error.ErrorCode == ValidationFailureCode.TrustValidationFailed);
+    }
+
     /// <summary>
     /// Validates that a HeaderExtender is added when specified.
     /// </summary>

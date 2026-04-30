@@ -763,5 +763,59 @@ public class MainTests
         File.Delete(sigFile);
     }
 
+    [TestMethod]
+    public void GetDoesNotWritePayloadWhenTrustValidationFails()
+    {
+        string payloadContent = "Untrusted payload " + Guid.NewGuid();
+        string payloadFile = Path.GetTempFileName();
+        string sigFile = payloadFile + ".embedded.cose";
+        string saveFile = payloadFile + ".saved";
+        TextWriter originalOut = Console.Out;
+        TextWriter originalErr = Console.Error;
+
+        try
+        {
+            File.WriteAllText(payloadFile, payloadContent);
+            string[] signArgs = ["sign", @"/p", payloadFile, @"/pfx", PrivateKeyCertFileSelfSigned, @"/ep", @"/sf", sigFile];
+            CoseSignTool.Main(signArgs).Should().Be((int)ExitCode.Success, "Embedded sign should succeed");
+
+            using StringWriter redirectedOut = new();
+            using StringWriter redirectedErr = new();
+            Console.SetOut(redirectedOut);
+            Console.SetError(redirectedErr);
+
+            string[] getArgs = ["get", @"/sf", sigFile, @"/sa", saveFile, @"/rm", "NoCheck"];
+            CoseSignTool.Main(getArgs).Should().Be((int)ExitCode.TrustValidationFailure, "Get should fail for an untrusted embedded signature");
+
+            string stdoutContent = redirectedOut.ToString();
+            string stderrContent = redirectedErr.ToString();
+
+            File.Exists(saveFile).Should().BeFalse("Get should not save payload bytes before trust validation succeeds");
+            stdoutContent.Should().NotContain(payloadContent);
+            stdoutContent.Should().NotContain("Validation failed.");
+            stderrContent.Should().Contain("The signed payload could not be read.");
+            stderrContent.Should().Contain("Validation failed.");
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+            Console.SetError(originalErr);
+            if (File.Exists(payloadFile))
+            {
+                File.Delete(payloadFile);
+            }
+
+            if (File.Exists(sigFile))
+            {
+                File.Delete(sigFile);
+            }
+
+            if (File.Exists(saveFile))
+            {
+                File.Delete(saveFile);
+            }
+        }
+    }
+
     #endregion
 }

@@ -121,7 +121,8 @@ public class AzureArtifactSigningCommandProvider : ISigningCommandProvider
         var certificateProfileClient = new Azure.CodeSigning.CertificateProfileClient(credential, endpointUri);
 
         // Create signing context
-        var signContext = new AzSignContext(endpoint, AccountName, certificateProfileClient);
+        // Constructor: AzSignContext(accountName, certProfile, cpClient, ...)
+        var signContext = new AzSignContext(AccountName, CertificateProfileName, certificateProfileClient);
 
         // Create Azure Artifact Signing service
         SigningService = new AzureArtifactSigningService(signContext);

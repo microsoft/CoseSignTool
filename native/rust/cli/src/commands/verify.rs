@@ -5,7 +5,7 @@
 
 use crate::output::{self, OutputFormat};
 use anyhow::{Context, Result};
-use clap::{Args, Subcommand};
+use clap::{ArgAction, Args, Command as ClapCommand, Subcommand};
 use cose_sign1_certificates::validation::facts::{
     X509ChainTrustedFact, X509SigningCertificateIdentityFact,
 };
@@ -34,19 +34,38 @@ pub enum VerifyMethod {
 #[derive(Args, Debug)]
 pub struct VerifyX509Args {
     /// Path to the COSE_Sign1 signature file.
+    #[arg(value_name = "signature")]
     pub signature: String,
 
-    /// Path to the payload file (required for detached/indirect signatures).
-    #[arg(long)]
+    /// Payload file for detached/indirect verification
+    #[arg(short = 'p', long = "payload", value_name = "payload")]
     pub payload: Option<String>,
 
-    /// Allow a specific signing certificate thumbprint (SHA-256 hex).
-    #[arg(long = "allow-thumbprint")]
-    pub allow_thumbprint: Option<String>,
+    /// Verify only cryptographic signature, skip payload validation
+    #[arg(long = "signature-only")]
+    pub signature_only: bool,
 
-    /// Trust embedded certificate chain (no OS trust store validation).
-    #[arg(long = "trust-embedded")]
-    pub trust_embedded: bool,
+    /// Use system trust roots (default: true)
+    #[arg(long = "trust-system-roots", default_value_t = true, action = ArgAction::SetTrue)]
+    pub trust_system_roots: bool,
+
+    /// Allow untrusted roots (skip chain trust requirement)
+    #[arg(long = "allow-untrusted")]
+    pub allow_untrusted: bool,
+
+    /// Allow specific signing certificate thumbprint (SHA-256 hex)
+    #[arg(long = "allow-thumbprint", value_name = "thumbprint")]
+    pub allow_thumbprint: Option<String>,
+}
+
+/// Execute the verify command.
+pub fn build_verify_command() -> ClapCommand {
+    VerifyMethod::augment_subcommands(
+        ClapCommand::new("verify")
+            .about("Verify a COSE_Sign1 message.")
+            .subcommand_required(true)
+            .arg_required_else_help(true),
+    )
 }
 
 /// Execute the verify command.
@@ -75,7 +94,13 @@ fn execute_x509(args: VerifyX509Args, format: OutputFormat) -> Result<i32> {
     };
 
     let trust_options = CertificateTrustOptions {
-        trust_embedded_chain_as_trusted: args.trust_embedded,
+        allowed_thumbprints: args
+            .allow_thumbprint
+            .iter()
+            .cloned()
+            .collect::<Vec<String>>(),
+        identity_pinning_enabled: args.allow_thumbprint.is_some(),
+        trust_embedded_chain_as_trusted: args.trust_system_roots || args.allow_untrusted,
         ..Default::default()
     };
     let cert_pack: Arc<dyn CoseSign1TrustPack> =
@@ -83,6 +108,7 @@ fn execute_x509(args: VerifyX509Args, format: OutputFormat) -> Result<i32> {
     let validator =
         build_validator(cert_pack, args.allow_thumbprint.as_deref())?.with_options(|options| {
             options.detached_payload = detached_payload;
+            options.skip_post_signature_validation = args.signature_only;
         });
 
     let result = validator
@@ -164,10 +190,12 @@ fn read_signature_bytes(signature_path: &str) -> Result<(Vec<u8>, String)> {
 }
 
 fn describe_trust_mode(args: &VerifyX509Args) -> String {
-    let mut mode = if args.trust_embedded {
-        "Embedded certificate chain".to_string()
+    let mut mode = if args.allow_untrusted {
+        "Allow untrusted roots".to_string()
+    } else if args.trust_system_roots {
+        "System trust roots".to_string()
     } else {
-        "System trust store".to_string()
+        "No trust roots".to_string()
     };
 
     if args.allow_thumbprint.is_some() {

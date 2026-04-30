@@ -1,14 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-use clap::Parser;
-
 mod commands;
 mod output;
 mod plugin_host;
 mod providers;
-
-use commands::Cli;
 
 fn main() {
     // Initialize logging (respects --verbosity / -vv / -vvv)
@@ -20,14 +16,25 @@ fn main() {
         .with_writer(std::io::stderr)
         .init();
 
-    let cli = Cli::parse();
+    let mut plugin_registry = plugin_host::PluginRegistry::new();
+    if let Err(err) = plugin_registry.discover() {
+        tracing::warn!("Failed to discover plugins: {err:#}");
+    }
+
+    let cli = match commands::parse(&plugin_registry) {
+        Ok(cli) => cli,
+        Err(err) => {
+            err.print().expect("failed to print clap error");
+            std::process::exit(if err.use_stderr() { 2 } else { 0 });
+        }
+    };
 
     // Print banner unless quiet
     if !cli.quiet() {
         output::print_banner();
     }
 
-    let result = commands::dispatch(cli);
+    let result = commands::dispatch(cli, &plugin_registry);
 
     match result {
         Ok(code) => std::process::exit(code),

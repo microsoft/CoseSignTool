@@ -5,7 +5,7 @@
 
 use crate::output::{self, OutputFormat};
 use anyhow::{Context, Result};
-use clap::Args;
+use clap::{Args, Command as ClapCommand};
 use serde_json::{Map, Value};
 use std::fs;
 
@@ -13,7 +13,20 @@ use std::fs;
 #[derive(Args, Debug)]
 pub struct InspectArgs {
     /// Path to the COSE_Sign1 signature file.
+    #[arg(value_name = "signature")]
     pub signature: String,
+
+    /// Extract embedded payload to file
+    #[arg(long = "extract-payload", value_name = "path")]
+    pub extract_payload: Option<String>,
+}
+
+pub fn build_inspect_command() -> ClapCommand {
+    InspectArgs::augment_args(
+        ClapCommand::new("inspect")
+            .about("Inspect a COSE_Sign1 message (parse and display structure).")
+            .arg_required_else_help(true),
+    )
 }
 
 /// Execute the inspect command.
@@ -23,6 +36,14 @@ pub fn execute(args: InspectArgs, format: OutputFormat) -> Result<i32> {
 
     let message = cose_sign1_primitives::CoseSign1Message::parse(&raw_bytes)
         .map_err(|e| anyhow::anyhow!("Failed to parse COSE_Sign1: {e}"))?;
+
+    if let Some(extract_path) = &args.extract_payload {
+        let payload = message
+            .payload()
+            .ok_or_else(|| anyhow::anyhow!("COSE_Sign1 message does not contain an embedded payload"))?;
+        fs::write(extract_path, payload)
+            .with_context(|| format!("Failed to write extracted payload: {extract_path}"))?;
+    }
 
     let content_type = message
         .protected_headers()
@@ -61,6 +82,10 @@ pub fn execute(args: InspectArgs, format: OutputFormat) -> Result<i32> {
                     "Payload",
                     &format!("{} bytes (embedded)", payload.len()),
                 )?;
+            }
+
+            if let Some(extract_path) = &args.extract_payload {
+                output::write_field(stdout, "Extracted Payload", extract_path)?;
             }
 
             output::write_field(

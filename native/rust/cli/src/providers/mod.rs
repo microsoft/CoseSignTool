@@ -4,6 +4,7 @@
 //! Provider registry — compile-time feature-gated signing service providers.
 
 pub mod local;
+pub mod plugin;
 
 #[cfg(feature = "ats")]
 pub mod ats;

@@ -640,7 +640,7 @@ where
     E: CborEncoder,
     E::Error: std::fmt::Display,
 {
-    encoder.encode_map(5).map_err(cbor_error)?;
+    encoder.encode_map(6).map_err(cbor_error)?;
     encoder.encode_tstr("id").map_err(cbor_error)?;
     encoder.encode_tstr(info.id.as_str()).map_err(cbor_error)?;
     encoder.encode_tstr("name").map_err(cbor_error)?;
@@ -664,7 +664,94 @@ where
             .encode_tstr(capability.as_str())
             .map_err(cbor_error)?;
     }
+    encoder.encode_tstr("commands").map_err(cbor_error)?;
+    encode_plugin_command_array(encoder, info.commands.as_slice())?;
     Ok(())
+}
+
+fn encode_plugin_command_array<E>(
+    encoder: &mut E,
+    commands: &[PluginCommandDef],
+) -> ProtocolResult<()>
+where
+    E: CborEncoder,
+    E::Error: std::fmt::Display,
+{
+    encoder.encode_array(commands.len()).map_err(cbor_error)?;
+    for command in commands {
+        encode_plugin_command_def(encoder, command)?;
+    }
+    Ok(())
+}
+
+fn encode_plugin_command_def<E>(encoder: &mut E, command: &PluginCommandDef) -> ProtocolResult<()>
+where
+    E: CborEncoder,
+    E::Error: std::fmt::Display,
+{
+    encoder.encode_map(4).map_err(cbor_error)?;
+    encoder.encode_tstr("name").map_err(cbor_error)?;
+    encoder
+        .encode_tstr(command.name.as_str())
+        .map_err(cbor_error)?;
+    encoder.encode_tstr("description").map_err(cbor_error)?;
+    encoder
+        .encode_tstr(command.description.as_str())
+        .map_err(cbor_error)?;
+    encoder.encode_tstr("options").map_err(cbor_error)?;
+    encode_plugin_option_array(encoder, command.options.as_slice())?;
+    encoder.encode_tstr("capability").map_err(cbor_error)?;
+    encoder
+        .encode_tstr(command.capability.as_str())
+        .map_err(cbor_error)
+}
+
+fn encode_plugin_option_array<E>(encoder: &mut E, options: &[PluginOptionDef]) -> ProtocolResult<()>
+where
+    E: CborEncoder,
+    E::Error: std::fmt::Display,
+{
+    encoder.encode_array(options.len()).map_err(cbor_error)?;
+    for option in options {
+        encode_plugin_option_def(encoder, option)?;
+    }
+    Ok(())
+}
+
+fn encode_plugin_option_def<E>(encoder: &mut E, option: &PluginOptionDef) -> ProtocolResult<()>
+where
+    E: CborEncoder,
+    E::Error: std::fmt::Display,
+{
+    encoder.encode_map(7).map_err(cbor_error)?;
+    encoder.encode_tstr("name").map_err(cbor_error)?;
+    encoder.encode_tstr(option.name.as_str()).map_err(cbor_error)?;
+    encoder.encode_tstr("value_name").map_err(cbor_error)?;
+    encoder
+        .encode_tstr(option.value_name.as_str())
+        .map_err(cbor_error)?;
+    encoder.encode_tstr("description").map_err(cbor_error)?;
+    encoder
+        .encode_tstr(option.description.as_str())
+        .map_err(cbor_error)?;
+    encoder.encode_tstr("required").map_err(cbor_error)?;
+    encoder.encode_bool(option.required).map_err(cbor_error)?;
+    encoder.encode_tstr("default_value").map_err(cbor_error)?;
+    match &option.default_value {
+        Some(default_value) => encoder
+            .encode_tstr(default_value.as_str())
+            .map_err(cbor_error)?,
+        None => encoder.encode_null().map_err(cbor_error)?,
+    }
+    encoder.encode_tstr("short").map_err(cbor_error)?;
+    match option.short {
+        Some(short) => encoder
+            .encode_tstr(short.encode_utf8(&mut [0; 4]))
+            .map_err(cbor_error)?,
+        None => encoder.encode_null().map_err(cbor_error)?,
+    }
+    encoder.encode_tstr("is_flag").map_err(cbor_error)?;
+    encoder.encode_bool(option.is_flag).map_err(cbor_error)
 }
 
 fn encode_plugin_config<E>(encoder: &mut E, config: &PluginConfig) -> ProtocolResult<()>
@@ -1107,6 +1194,7 @@ fn try_decode_plugin_info_from_bytes(data: &[u8]) -> ProtocolResult<Option<Plugi
     let mut version: Option<String> = None;
     let mut description: Option<String> = None;
     let mut capabilities: Option<Vec<PluginCapability>> = None;
+    let mut commands: Option<Vec<PluginCommandDef>> = None;
     let mut matched_unique_field = false;
 
     for _ in 0..entry_count {
@@ -1129,6 +1217,9 @@ fn try_decode_plugin_info_from_bytes(data: &[u8]) -> ProtocolResult<Option<Plugi
             "capabilities" => {
                 matched_unique_field = true;
                 capabilities = Some(decode_capabilities_array(&mut decoder)?);
+            }
+            "commands" => {
+                commands = Some(decode_plugin_command_array(&mut decoder)?);
             }
             _ => {
                 decoder.skip().map_err(cbor_error)?;
@@ -1162,6 +1253,7 @@ fn try_decode_plugin_info_from_bytes(data: &[u8]) -> ProtocolResult<Option<Plugi
                 "capabilities result is missing 'capabilities'".into(),
             )
         })?,
+        commands: commands.unwrap_or_default(),
     }))
 }
 
@@ -1622,6 +1714,176 @@ where
 
     Ok(values)
 }
+
+fn decode_plugin_command_array<'a, D>(decoder: &mut D) -> ProtocolResult<Vec<PluginCommandDef>>
+where
+    D: CborDecoder<'a>,
+    D::Error: std::fmt::Display,
+{
+    let entry_count = decode_required_array_len(decoder, "plugin command array")?;
+    let mut commands = Vec::with_capacity(entry_count);
+
+    for _ in 0..entry_count {
+        commands.push(decode_plugin_command_def(decoder)?);
+    }
+
+    Ok(commands)
+}
+
+fn decode_plugin_command_def<'a, D>(decoder: &mut D) -> ProtocolResult<PluginCommandDef>
+where
+    D: CborDecoder<'a>,
+    D::Error: std::fmt::Display,
+{
+    let entry_count = decode_required_map_len(decoder, "plugin command")?;
+    let mut name: Option<String> = None;
+    let mut description: Option<String> = None;
+    let mut options: Option<Vec<PluginOptionDef>> = None;
+    let mut capability: Option<PluginCapability> = None;
+
+    for _ in 0..entry_count {
+        let key = decode_tstr_owned(decoder)?;
+        match key.as_str() {
+            "name" => {
+                name = Some(decode_tstr_owned(decoder)?);
+            }
+            "description" => {
+                description = Some(decode_tstr_owned(decoder)?);
+            }
+            "options" => {
+                options = Some(decode_plugin_option_array(decoder)?);
+            }
+            "capability" => {
+                let capability_name = decode_tstr_owned(decoder)?;
+                capability = Some(PluginCapability::from_str(capability_name.as_str()).ok_or_else(
+                    || {
+                        ProtocolCodecError::InvalidMessage(format!(
+                            "unknown plugin capability '{}'",
+                            capability_name
+                        ))
+                    },
+                )?);
+            }
+            _ => {
+                decoder.skip().map_err(cbor_error)?;
+            }
+        }
+    }
+
+    Ok(PluginCommandDef {
+        name: name.ok_or_else(|| {
+            ProtocolCodecError::InvalidMessage("plugin command is missing 'name'".into())
+        })?,
+        description: description.ok_or_else(|| {
+            ProtocolCodecError::InvalidMessage("plugin command is missing 'description'".into())
+        })?,
+        options: options.ok_or_else(|| {
+            ProtocolCodecError::InvalidMessage("plugin command is missing 'options'".into())
+        })?,
+        capability: capability.ok_or_else(|| {
+            ProtocolCodecError::InvalidMessage("plugin command is missing 'capability'".into())
+        })?,
+    })
+}
+
+fn decode_plugin_option_array<'a, D>(decoder: &mut D) -> ProtocolResult<Vec<PluginOptionDef>>
+where
+    D: CborDecoder<'a>,
+    D::Error: std::fmt::Display,
+{
+    let entry_count = decode_required_array_len(decoder, "plugin option array")?;
+    let mut options = Vec::with_capacity(entry_count);
+
+    for _ in 0..entry_count {
+        options.push(decode_plugin_option_def(decoder)?);
+    }
+
+    Ok(options)
+}
+
+fn decode_plugin_option_def<'a, D>(decoder: &mut D) -> ProtocolResult<PluginOptionDef>
+where
+    D: CborDecoder<'a>,
+    D::Error: std::fmt::Display,
+{
+    let entry_count = decode_required_map_len(decoder, "plugin option")?;
+    let mut name: Option<String> = None;
+    let mut value_name: Option<String> = None;
+    let mut description: Option<String> = None;
+    let mut required = false;
+    let mut default_value: Option<Option<String>> = None;
+    let mut short: Option<Option<char>> = None;
+    let mut is_flag = false;
+
+    for _ in 0..entry_count {
+        let key = decode_tstr_owned(decoder)?;
+        match key.as_str() {
+            "name" => {
+                name = Some(decode_tstr_owned(decoder)?);
+            }
+            "value_name" => {
+                value_name = Some(decode_tstr_owned(decoder)?);
+            }
+            "description" => {
+                description = Some(decode_tstr_owned(decoder)?);
+            }
+            "required" => {
+                required = decoder.decode_bool().map_err(cbor_error)?;
+            }
+            "default_value" => {
+                if decoder.is_null().map_err(cbor_error)? {
+                    decoder.decode_null().map_err(cbor_error)?;
+                    default_value = Some(None);
+                } else {
+                    default_value = Some(Some(decode_tstr_owned(decoder)?));
+                }
+            }
+            "short" => {
+                if decoder.is_null().map_err(cbor_error)? {
+                    decoder.decode_null().map_err(cbor_error)?;
+                    short = Some(None);
+                } else {
+                    let value = decode_tstr_owned(decoder)?;
+                    let mut chars = value.chars();
+                    let ch = chars.next().ok_or_else(|| {
+                        ProtocolCodecError::InvalidMessage(
+                            "plugin option short alias must not be empty".into(),
+                        )
+                    })?;
+                    if chars.next().is_some() {
+                        return Err(ProtocolCodecError::InvalidMessage(
+                            "plugin option short alias must be a single character".into(),
+                        ));
+                    }
+                    short = Some(Some(ch));
+                }
+            }
+            "is_flag" => {
+                is_flag = decoder.decode_bool().map_err(cbor_error)?;
+            }
+            _ => {
+                decoder.skip().map_err(cbor_error)?;
+            }
+        }
+    }
+
+    Ok(PluginOptionDef {
+        name: name.ok_or_else(|| {
+            ProtocolCodecError::InvalidMessage("plugin option is missing 'name'".into())
+        })?,
+        value_name: value_name.ok_or_else(|| {
+            ProtocolCodecError::InvalidMessage("plugin option is missing 'value_name'".into())
+        })?,
+        description: description.ok_or_else(|| {
+            ProtocolCodecError::InvalidMessage("plugin option is missing 'description'".into())
+        })?,
+        required,
+        default_value: default_value.unwrap_or(None),
+        short: short.unwrap_or(None),
+        is_flag,
+    })
+}
+
 
 fn decode_capabilities_array<'a, D>(decoder: &mut D) -> ProtocolResult<Vec<PluginCapability>>
 where

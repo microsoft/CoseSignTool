@@ -10,6 +10,7 @@ use cosesigntool_plugin_api::traits::*;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
@@ -137,7 +138,7 @@ impl Drop for PluginProcess {
 
 /// The plugin registry — discovers and manages plugin subprocesses.
 pub struct PluginRegistry {
-    plugins: HashMap<String, PluginProcess>,
+    plugins: HashMap<String, Arc<Mutex<PluginProcess>>>,
 }
 
 impl PluginRegistry {
@@ -228,6 +229,7 @@ impl PluginRegistry {
                 version: String::new(),
                 description: String::new(),
                 capabilities: Vec::new(),
+                commands: Vec::new(),
             },
             child,
             client,
@@ -249,33 +251,70 @@ impl PluginRegistry {
 
         let plugin_id = info.id.clone();
         plugin.info = info;
-        self.plugins.insert(plugin_id, plugin);
+        self.plugins
+            .insert(plugin_id, Arc::new(Mutex::new(plugin)));
         Ok(())
     }
 
-    /// Get a mutable reference to a plugin by ID.
-    pub fn get_mut(&mut self, id: &str) -> Option<&mut PluginProcess> {
-        self.plugins.get_mut(id)
+    /// Get a shared plugin handle by ID.
+    pub fn get(&self, id: &str) -> Option<Arc<Mutex<PluginProcess>>> {
+        self.plugins.get(id).cloned()
     }
 
     /// List all discovered plugins.
-    pub fn list(&self) -> Vec<&PluginInfo> {
-        self.plugins.values().map(|plugin| &plugin.info).collect()
+    pub fn list(&self) -> Vec<PluginInfo> {
+        let mut plugins = self
+            .plugins
+            .values()
+            .filter_map(|plugin| plugin.lock().ok().map(|process| process.info.clone()))
+            .collect::<Vec<PluginInfo>>();
+        plugins.sort_by(|left, right| left.id.cmp(&right.id));
+        plugins
     }
 
     /// Find plugins that provide a specific capability.
-    pub fn find_by_capability(&self, capability: PluginCapability) -> Vec<&PluginInfo> {
-        self.plugins
+    pub fn find_by_capability(&self, capability: PluginCapability) -> Vec<PluginInfo> {
+        let mut plugins = self
+            .plugins
             .values()
-            .filter(|plugin| plugin.info.capabilities.contains(&capability))
-            .map(|plugin| &plugin.info)
-            .collect()
+            .filter_map(|plugin| plugin.lock().ok().map(|process| process.info.clone()))
+            .filter(|plugin| plugin.capabilities.contains(&capability))
+            .collect::<Vec<PluginInfo>>();
+        plugins.sort_by(|left, right| left.id.cmp(&right.id));
+        plugins
+    }
+
+    /// Find the plugin command that handles the given signing provider name.
+    pub fn find_signing_command(&self, command_name: &str) -> Option<(String, PluginCommandDef)> {
+        let mut plugins = self.list();
+        plugins.sort_by(|left, right| left.id.cmp(&right.id));
+
+        for plugin in plugins {
+            for command in &plugin.commands {
+                if command.capability == PluginCapability::Signing && command.name == command_name {
+                    return Some((plugin.id.clone(), command.clone()));
+                }
+            }
+        }
+
+        None
     }
 
     /// Shutdown all plugins.
     pub fn shutdown_all(self) {
         for (_, plugin) in self.plugins {
-            let _ = plugin.shutdown();
+            match Arc::try_unwrap(plugin) {
+                Ok(plugin) => {
+                    if let Ok(plugin) = plugin.into_inner() {
+                        let _ = plugin.shutdown();
+                    }
+                }
+                Err(plugin) => {
+                    if let Ok(mut plugin) = plugin.lock() {
+                        let _ = plugin.client.send_shutdown();
+                    }
+                }
+            }
         }
     }
 

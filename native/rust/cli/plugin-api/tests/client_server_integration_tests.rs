@@ -9,8 +9,9 @@ use cosesigntool_plugin_api::auth::{auth_key_to_hex, generate_auth_key, AUTH_KEY
 use cosesigntool_plugin_api::client::PluginClient;
 use cosesigntool_plugin_api::server;
 use cosesigntool_plugin_api::traits::{
-    PluginCapability, PluginConfig, PluginInfo, PluginProvider, TrustPolicyInfo,
-    VerificationOptions, VerificationResult, VerificationStageKind, VerificationStageResult,
+    PluginCapability, PluginCommandDef, PluginConfig, PluginInfo, PluginOptionDef,
+    PluginProvider, TrustPolicyInfo, VerificationOptions, VerificationResult,
+    VerificationStageKind, VerificationStageResult,
 };
 
 #[test]
@@ -38,6 +39,9 @@ fn client_and_server_roundtrip_all_supported_methods() {
         info.capabilities,
         vec![PluginCapability::Signing, PluginCapability::Verification]
     );
+    assert_eq!(info.commands.len(), 1);
+    assert_eq!(info.commands[0].name, "ats");
+    assert_eq!(info.commands[0].options.len(), 2);
 
     let mut options = HashMap::new();
     options.insert("profile".to_string(), "contoso".to_string());
@@ -155,6 +159,7 @@ impl PluginProvider for TestPlugin {
             version: "1.0.0".to_string(),
             description: "Exercises the shared client/server helpers".to_string(),
             capabilities: vec![PluginCapability::Signing, PluginCapability::Verification],
+            commands: sample_plugin_commands(),
         }
     }
 
@@ -252,6 +257,7 @@ impl PluginProvider for SigningOnlyPlugin {
             version: "1.0.0".to_string(),
             description: "Advertises signing only to exercise capability gating".to_string(),
             capabilities: vec![PluginCapability::Signing],
+            commands: sample_plugin_commands(),
         }
     }
 
@@ -283,6 +289,34 @@ impl PluginProvider for SigningOnlyPlugin {
     fn trust_policy_info(&self) -> Option<TrustPolicyInfo> {
         panic!("server should not query trust policy info when verification capability is absent");
     }
+}
+
+fn sample_plugin_commands() -> Vec<PluginCommandDef> {
+    vec![PluginCommandDef {
+        name: "ats".to_string(),
+        description: "Azure Artifact Signing provider".to_string(),
+        options: vec![
+            PluginOptionDef {
+                name: "ats-endpoint".to_string(),
+                value_name: "ats-endpoint".to_string(),
+                description: "Azure Artifact Signing endpoint URL".to_string(),
+                required: true,
+                default_value: None,
+                short: None,
+                is_flag: false,
+            },
+            PluginOptionDef {
+                name: "detached".to_string(),
+                value_name: "detached".to_string(),
+                description: "Create detached signature".to_string(),
+                required: false,
+                default_value: None,
+                short: None,
+                is_flag: true,
+            },
+        ],
+        capability: PluginCapability::Signing,
+    }]
 }
 
 fn verification_options() -> VerificationOptions {

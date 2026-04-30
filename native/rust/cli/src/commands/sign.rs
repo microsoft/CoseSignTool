@@ -6,9 +6,11 @@
 //! Mirrors V2 .NET sign command structure exactly.
 
 use crate::output::{self, OutputFormat};
+use crate::plugin_host::PluginRegistry;
 use crate::providers;
 use anyhow::{Context, Result};
-use clap::{Args, Subcommand};
+use clap::{Arg, ArgAction, ArgMatches, Args, Command as ClapCommand, Subcommand};
+use cosesigntool_plugin_api::traits::{PluginCapability, PluginCommandDef, PluginInfo};
 use cose_sign1_factories::{
     direct::{DirectSignatureFactory, DirectSignatureOptions},
     indirect::{IndirectSignatureFactory, IndirectSignatureOptions},
@@ -16,6 +18,7 @@ use cose_sign1_factories::{
 use cose_sign1_headers::{CwtClaims, CwtClaimsHeaderContributor};
 use cose_sign1_primitives::CoseSign1Message;
 use cose_sign1_signing::SigningService;
+use std::collections::HashMap;
 use std::fs;
 use std::io::{IsTerminal, Read, Write};
 use std::sync::Arc;
@@ -59,50 +62,62 @@ struct ProviderDisplayInfo {
 }
 
 impl ProviderDisplayInfo {
-    fn new(certificate_source: &str) -> Self {
+    fn new(certificate_source: impl Into<String>) -> Self {
         Self {
-            certificate_source: certificate_source.to_string(),
+            certificate_source: certificate_source.into(),
             account_name: None,
             certificate_profile: None,
         }
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct PluginSignInvocation {
+    pub command_name: String,
+    pub common: CommonSignArgs,
+    pub provider_options: HashMap<String, String>,
+}
+
 // ============================================================================
 // Shared signing options (common to all providers)
 // ============================================================================
 
-#[derive(Args, Debug)]
+#[derive(Args, Debug, Clone)]
 pub struct CommonSignArgs {
     /// Path to the payload file to sign.
+    #[arg(value_name = "payload")]
     pub payload: String,
 
-    /// Path to write the COSE_Sign1 output.
-    #[arg(short, long)]
+    /// Output file path, or '-' for stdout.
+    #[arg(short = 'o', long = "output", value_name = "output")]
     pub output: String,
 
-    /// Content type (e.g., "application/spdx+json").
+    /// Content type.
     #[arg(
-        short = 'c',
         long = "content-type",
+        value_name = "content-type",
         default_value = "application/octet-stream"
     )]
     pub content_type: String,
 
-    /// Signature format: direct or indirect.
-    #[arg(long, default_value = "indirect")]
+    /// Signature format.
+    #[arg(long = "format", value_name = "format", default_value = "indirect")]
     pub format: SignatureFormat,
 
-    /// Create a detached signature (payload not embedded).
-    #[arg(long)]
+    /// Create detached signature.
+    #[arg(long = "detached", conflicts_with = "embed")]
     pub detached: bool,
 
-    /// CWT issuer claim.
-    #[arg(long)]
+    /// Embed payload in signature.
+    #[arg(long = "embed", conflicts_with = "detached")]
+    pub embed: bool,
+
+    /// CWT Claims issuer (iss).
+    #[arg(long = "issuer", value_name = "issuer")]
     pub issuer: Option<String>,
 
-    /// CWT subject claim.
-    #[arg(long = "cwt-subject")]
+    /// CWT Claims subject (sub).
+    #[arg(long = "cwt-subject", value_name = "cwt-subject")]
     pub cwt_subject: Option<String>,
 
     /// Add MST transparency receipt after signing.
@@ -112,7 +127,7 @@ pub struct CommonSignArgs {
 
     /// MST service endpoint URL.
     #[cfg(feature = "mst")]
-    #[arg(long = "mst-endpoint")]
+    #[arg(long = "mst-endpoint", value_name = "mst-endpoint")]
     pub mst_endpoint: Option<String>,
 }
 
@@ -131,13 +146,17 @@ pub struct PfxArgs {
     #[command(flatten)]
     pub common: CommonSignArgs,
 
-    /// Path to the PFX/PKCS#12 file.
-    #[arg(long)]
+    /// Path to PFX/PKCS#12 file containing the signing certificate and private key
+    #[arg(long = "pfx", value_name = "pfx")]
     pub pfx: String,
 
-    /// PFX password (prefer COSESIGNTOOL_PFX_PASSWORD env var).
-    #[arg(long = "pfx-password")]
-    pub pfx_password: Option<String>,
+    /// Path to a file containing the PFX password (more secure than command line)
+    #[arg(long = "pfx-password-file", value_name = "pfx-password-file")]
+    pub pfx_password_file: Option<String>,
+
+    /// Name of environment variable containing the PFX password
+    #[arg(long = "pfx-password-env", value_name = "pfx-password-env")]
+    pub pfx_password_env: Option<String>,
 }
 
 #[derive(Args, Debug)]
@@ -145,12 +164,12 @@ pub struct PemArgs {
     #[command(flatten)]
     pub common: CommonSignArgs,
 
-    /// Path to the PEM certificate file.
-    #[arg(long = "cert-file")]
+    /// Path to the certificate file (.pem, .crt)
+    #[arg(long = "cert-file", value_name = "cert-file")]
     pub cert_file: String,
 
-    /// Path to the PEM private key file.
-    #[arg(long = "key-file")]
+    /// Path to the private key file (.key, .pem)
+    #[arg(long = "key-file", value_name = "key-file")]
     pub key_file: String,
 }
 
@@ -170,16 +189,16 @@ pub struct AtsArgs {
     #[command(flatten)]
     pub common: CommonSignArgs,
 
-    /// Azure Artifact Signing endpoint URL.
-    #[arg(long = "ats-endpoint")]
+    /// Azure Artifact Signing endpoint URL (e.g., https://xxx.codesigning.azure.net)
+    #[arg(long = "ats-endpoint", value_name = "ats-endpoint")]
     pub ats_endpoint: String,
 
-    /// Azure Artifact Signing account name.
-    #[arg(long = "ats-account-name")]
+    /// Azure Artifact Signing account name
+    #[arg(long = "ats-account-name", value_name = "ats-account-name")]
     pub ats_account_name: String,
 
-    /// Certificate profile name in Azure Artifact Signing.
-    #[arg(long = "ats-cert-profile-name")]
+    /// Certificate profile name in Azure Artifact Signing
+    #[arg(long = "ats-cert-profile-name", value_name = "ats-cert-profile-name")]
     pub ats_cert_profile_name: String,
 }
 
@@ -208,16 +227,16 @@ pub struct AkvCertArgs {
     #[command(flatten)]
     pub common: CommonSignArgs,
 
-    /// Azure Key Vault URL (e.g., https://my-vault.vault.azure.net).
-    #[arg(long = "akv-vault")]
+    /// Azure Key Vault URL (e.g., https://my-vault.vault.azure.net)
+    #[arg(long = "akv-vault", value_name = "akv-vault")]
     pub akv_vault: String,
 
-    /// Certificate name in Azure Key Vault.
-    #[arg(long = "akv-cert-name")]
+    /// Name of the certificate in Azure Key Vault
+    #[arg(long = "akv-cert-name", value_name = "akv-cert-name")]
     pub akv_cert_name: String,
 
-    /// Certificate version (optional — uses latest if not specified).
-    #[arg(long = "akv-cert-version")]
+    /// Specific version of the certificate (optional - uses latest)
+    #[arg(long = "akv-cert-version", value_name = "akv-cert-version")]
     pub akv_cert_version: Option<String>,
 }
 
@@ -232,6 +251,20 @@ pub fn execute(method: SignMethod, format: OutputFormat) -> Result<i32> {
     }
 }
 
+pub fn execute_plugin(
+    invocation: PluginSignInvocation,
+    format: OutputFormat,
+    registry: &PluginRegistry,
+) -> Result<i32> {
+    let service = providers::plugin::create_plugin_service(
+        registry,
+        invocation.command_name.as_str(),
+        &invocation.provider_options,
+    )?;
+    let provider_info = ProviderDisplayInfo::new(format!("Plugin ({})", invocation.command_name));
+    execute_signing_service(Arc::new(service), invocation.common, provider_info, format)
+}
+
 fn execute_x509(provider: X509Provider, format: OutputFormat) -> Result<i32> {
     let (service, common, provider_info): (
         Arc<dyn SigningService>,
@@ -239,8 +272,11 @@ fn execute_x509(provider: X509Provider, format: OutputFormat) -> Result<i32> {
         ProviderDisplayInfo,
     ) = match provider {
         X509Provider::Pfx(args) => {
-            let service =
-                providers::local::create_pfx_service(&args.pfx, args.pfx_password.as_deref())?;
+            let password = resolve_pfx_password(
+                args.pfx_password_file.as_deref(),
+                args.pfx_password_env.as_deref(),
+            )?;
+            let service = providers::local::create_pfx_service(&args.pfx, password.as_deref())?;
             (
                 Arc::new(service),
                 args.common,
@@ -316,6 +352,15 @@ fn execute_x509(provider: X509Provider, format: OutputFormat) -> Result<i32> {
         }
     };
 
+    execute_signing_service(service, common, provider_info, format)
+}
+
+fn execute_signing_service(
+    service: Arc<dyn SigningService>,
+    common: CommonSignArgs,
+    provider_info: ProviderDisplayInfo,
+    format: OutputFormat,
+) -> Result<i32> {
     let (payload, payload_display) = read_payload_bytes(&common)?;
     let direct_factory = build_direct_factory(service, &common)?;
 
@@ -407,7 +452,8 @@ fn execute_x509(provider: X509Provider, format: OutputFormat) -> Result<i32> {
 }
 
 fn build_direct_signature_options(common: &CommonSignArgs) -> Result<DirectSignatureOptions> {
-    let mut options = DirectSignatureOptions::default().with_embed_payload(!common.detached);
+    let embed_payload = common.embed || !common.detached;
+    let mut options = DirectSignatureOptions::default().with_embed_payload(embed_payload);
 
     if common.issuer.is_some() || common.cwt_subject.is_some() {
         let mut claims = CwtClaims::new();
@@ -493,4 +539,207 @@ fn build_direct_factory(
     _common: &CommonSignArgs,
 ) -> Result<DirectSignatureFactory> {
     Ok(DirectSignatureFactory::new(service))
+}
+
+pub fn build_sign_command(plugin_infos: &[PluginInfo]) -> ClapCommand {
+    let mut x509_command = X509Provider::augment_subcommands(
+        ClapCommand::new("x509")
+            .about("Sign using X.509 certificates.")
+            .subcommand_required(true)
+            .arg_required_else_help(true),
+    );
+    let mut added_command_names = std::collections::HashSet::new();
+
+    for plugin_command in collect_plugin_signing_commands(plugin_infos) {
+        if added_command_names.insert(plugin_command.name.clone()) {
+            x509_command = x509_command.subcommand(build_plugin_subcommand(plugin_command));
+        }
+    }
+
+    ClapCommand::new("sign")
+        .about("Sign a payload and produce a COSE_Sign1 message.")
+        .subcommand_required(true)
+        .arg_required_else_help(true)
+        .subcommand(x509_command)
+}
+
+pub fn try_parse_plugin_invocation(
+    plugin_infos: &[PluginInfo],
+    matches: &ArgMatches,
+) -> Result<Option<PluginSignInvocation>, String> {
+    let Some(("sign", sign_matches)) = matches.subcommand() else {
+        return Ok(None);
+    };
+    let Some(("x509", x509_matches)) = sign_matches.subcommand() else {
+        return Ok(None);
+    };
+    let Some((provider_name, provider_matches)) = x509_matches.subcommand() else {
+        return Ok(None);
+    };
+
+    if is_builtin_provider_name(provider_name) {
+        return Ok(None);
+    }
+
+    let Some(command_def) = find_plugin_command(plugin_infos, provider_name) else {
+        return Ok(None);
+    };
+
+    Ok(Some(PluginSignInvocation {
+        command_name: provider_name.to_string(),
+        common: common_sign_args_from_matches(provider_matches)?,
+        provider_options: plugin_option_values_from_matches(provider_matches, command_def),
+    }))
+}
+
+pub fn is_builtin_provider_name(name: &str) -> bool {
+    match name {
+        "pfx" | "pem" | "ephemeral" => true,
+        #[cfg(feature = "ats")]
+        "ats" => true,
+        #[cfg(feature = "akv")]
+        "akv" | "akv-cert" => true,
+        _ => false,
+    }
+}
+
+fn build_plugin_subcommand(command: &PluginCommandDef) -> ClapCommand {
+    let command_name = leak_str(command.name.as_str());
+    let mut subcommand = CommonSignArgs::augment_args(
+        ClapCommand::new(command_name)
+            .about(leak_str(command.description.as_str()))
+            .arg_required_else_help(true),
+    );
+
+    for option in &command.options {
+        let option_name = leak_str(option.name.as_str());
+        let mut arg = Arg::new(option_name)
+            .long(option_name)
+            .help(leak_str(option.description.as_str()));
+
+        if let Some(short) = option.short {
+            arg = arg.short(short);
+        }
+
+        if option.is_flag {
+            arg = arg.action(ArgAction::SetTrue);
+        } else {
+            arg = arg
+                .value_name(leak_str(option.value_name.as_str()))
+                .required(option.required);
+            if let Some(default_value) = &option.default_value {
+                arg = arg.default_value(leak_str(default_value.as_str()));
+            }
+        }
+
+        subcommand = subcommand.arg(arg);
+    }
+
+    subcommand
+}
+
+fn collect_plugin_signing_commands(plugin_infos: &[PluginInfo]) -> Vec<&PluginCommandDef> {
+    let mut commands: Vec<&PluginCommandDef> = plugin_infos
+        .iter()
+        .flat_map(|plugin| plugin.commands.iter())
+        .filter(|command| command.capability == PluginCapability::Signing)
+        .filter(|command| !is_builtin_provider_name(command.name.as_str()))
+        .collect();
+    commands.sort_by(|left, right| left.name.cmp(&right.name));
+    commands
+}
+
+fn find_plugin_command<'a>(
+    plugin_infos: &'a [PluginInfo],
+    command_name: &str,
+) -> Option<&'a PluginCommandDef> {
+    plugin_infos
+        .iter()
+        .flat_map(|plugin| plugin.commands.iter())
+        .find(|command| {
+            command.capability == PluginCapability::Signing && command.name == command_name
+        })
+}
+
+fn plugin_option_values_from_matches(
+    matches: &ArgMatches,
+    command: &PluginCommandDef,
+) -> HashMap<String, String> {
+    let mut values = HashMap::new();
+
+    for option in &command.options {
+        if option.is_flag {
+            if matches.get_flag(option.name.as_str()) {
+                values.insert(option.name.clone(), "true".to_string());
+            }
+            continue;
+        }
+
+        if let Some(value) = matches.get_one::<String>(option.name.as_str()) {
+            values.insert(option.name.clone(), value.clone());
+        }
+    }
+
+    values
+}
+
+fn common_sign_args_from_matches(matches: &ArgMatches) -> Result<CommonSignArgs, String> {
+    Ok(CommonSignArgs {
+        payload: required_string_arg(matches, "payload")?,
+        output: required_string_arg(matches, "output")?,
+        content_type: required_string_arg(matches, "content_type")?,
+        format: matches
+            .get_one::<SignatureFormat>("format")
+            .cloned()
+            .unwrap_or(SignatureFormat::Indirect),
+        detached: matches.get_flag("detached"),
+        embed: matches.get_flag("embed"),
+        issuer: optional_string_arg(matches, "issuer"),
+        cwt_subject: optional_string_arg(matches, "cwt_subject"),
+        #[cfg(feature = "mst")]
+        add_mst_receipt: matches.get_flag("add_mst_receipt"),
+        #[cfg(feature = "mst")]
+        mst_endpoint: optional_string_arg(matches, "mst_endpoint"),
+    })
+}
+
+fn required_string_arg(matches: &ArgMatches, id: &str) -> Result<String, String> {
+    matches
+        .get_one::<String>(id)
+        .cloned()
+        .ok_or_else(|| format!("missing required argument '{}'", id))
+}
+
+fn optional_string_arg(matches: &ArgMatches, id: &str) -> Option<String> {
+    matches.get_one::<String>(id).cloned()
+}
+
+fn leak_str(value: &str) -> &'static str {
+    Box::leak(value.to_string().into_boxed_str())
+}
+
+fn resolve_pfx_password(
+    password_file: Option<&str>,
+    password_env: Option<&str>,
+) -> Result<Option<String>> {
+    if password_file.is_some() && password_env.is_some() {
+        return Err(anyhow::anyhow!(
+            "Specify either --pfx-password-file or --pfx-password-env, not both"
+        ));
+    }
+
+    if let Some(password_file) = password_file {
+        let password = fs::read_to_string(password_file)
+            .with_context(|| format!("Failed to read PFX password file: {password_file}"))?;
+        return Ok(Some(password.trim_end_matches(['\r', '\n']).to_string()));
+    }
+
+    if let Some(password_env) = password_env {
+        let password = std::env::var(password_env).with_context(|| {
+            format!("Environment variable '{password_env}' does not contain a PFX password")
+        })?;
+        return Ok(Some(password));
+    }
+
+    Ok(None)
 }

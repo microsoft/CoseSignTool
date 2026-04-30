@@ -9,9 +9,9 @@ use cosesigntool_plugin_api::protocol::{
     ResponseResult,
 };
 use cosesigntool_plugin_api::traits::{
-    AlgorithmResponse, CertificateChainResponse, PluginCapability, PluginConfig, PluginInfo,
-    TrustPolicyInfo, VerificationFailure, VerificationOptions, VerificationResult,
-    VerificationStageKind, VerificationStageResult,
+    AlgorithmResponse, CertificateChainResponse, PluginCapability, PluginCommandDef, PluginConfig,
+    PluginInfo, PluginOptionDef, TrustPolicyInfo, VerificationFailure, VerificationOptions,
+    VerificationResult, VerificationStageKind, VerificationStageResult,
 };
 
 #[test]
@@ -126,6 +126,7 @@ fn plugin_info_response_roundtrips_through_framed_cbor() {
         version: "1.2.3".to_string(),
         description: "Provides local signing".to_string(),
         capabilities: vec![PluginCapability::Signing, PluginCapability::Verification],
+        commands: sample_plugin_commands(),
     }));
     let mut buffer = Vec::new();
 
@@ -144,6 +145,16 @@ fn plugin_info_response_roundtrips_through_framed_cbor() {
             assert_eq!(info.capabilities.len(), 2);
             assert_eq!(info.capabilities[0], PluginCapability::Signing);
             assert_eq!(info.capabilities[1], PluginCapability::Verification);
+            assert_eq!(info.commands.len(), 1);
+            assert_eq!(info.commands[0].name, "ats");
+            assert_eq!(info.commands[0].capability, PluginCapability::Signing);
+            assert_eq!(info.commands[0].options.len(), 2);
+            assert_eq!(info.commands[0].options[0].name, "ats-endpoint");
+            assert_eq!(info.commands[0].options[0].short, Some('e'));
+            assert_eq!(
+                info.commands[0].options[1].default_value,
+                Some("default-profile".to_string())
+            );
         }
         other => panic!("unexpected result: {:?}", other),
     }
@@ -259,4 +270,32 @@ fn sample_verification_result() -> VerificationResult {
             ("trust_mode".to_string(), "embedded".to_string()),
         ]),
     }
+}
+
+fn sample_plugin_commands() -> Vec<PluginCommandDef> {
+    vec![PluginCommandDef {
+        name: "ats".to_string(),
+        description: "Azure Artifact Signing provider".to_string(),
+        options: vec![
+            PluginOptionDef {
+                name: "ats-endpoint".to_string(),
+                value_name: "ats-endpoint".to_string(),
+                description: "Azure Artifact Signing endpoint URL".to_string(),
+                required: true,
+                default_value: None,
+                short: Some('e'),
+                is_flag: false,
+            },
+            PluginOptionDef {
+                name: "profile".to_string(),
+                value_name: "profile".to_string(),
+                description: "Signing profile name".to_string(),
+                required: false,
+                default_value: Some("default-profile".to_string()),
+                short: None,
+                is_flag: false,
+            },
+        ],
+        capability: PluginCapability::Signing,
+    }]
 }

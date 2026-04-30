@@ -11,6 +11,38 @@
 
 use std::collections::HashMap;
 
+/// Definition of a CLI option exposed by a plugin command.
+#[derive(Debug, Clone)]
+pub struct PluginOptionDef {
+    /// Long option name without dashes (e.g., "ats-endpoint").
+    pub name: String,
+    /// Value placeholder (e.g., "ats-endpoint", "URL").
+    pub value_name: String,
+    /// Help description text.
+    pub description: String,
+    /// Whether this option is required.
+    pub required: bool,
+    /// Default value if any.
+    pub default_value: Option<String>,
+    /// Short alias (single char, e.g., 'o' for -o).
+    pub short: Option<char>,
+    /// Whether this option is a boolean flag with no value.
+    pub is_flag: bool,
+}
+
+/// Definition of a CLI subcommand exposed by a plugin.
+#[derive(Debug, Clone)]
+pub struct PluginCommandDef {
+    /// Subcommand name (e.g., "ats", "pfx", "akv-cert").
+    pub name: String,
+    /// Short description for help output.
+    pub description: String,
+    /// Options accepted by this subcommand.
+    pub options: Vec<PluginOptionDef>,
+    /// Capability provided by this command.
+    pub capability: PluginCapability,
+}
+
 /// Metadata about a plugin, reported during capability discovery.
 #[derive(Debug, Clone)]
 pub struct PluginInfo {
@@ -24,6 +56,8 @@ pub struct PluginInfo {
     pub description: String,
     /// Capabilities this plugin provides.
     pub capabilities: Vec<PluginCapability>,
+    /// CLI commands exposed by this plugin.
+    pub commands: Vec<PluginCommandDef>,
 }
 
 /// What a plugin can do.

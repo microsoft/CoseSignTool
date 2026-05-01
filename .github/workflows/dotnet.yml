@@ -91,13 +91,26 @@ jobs:
   create_changelog:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      # 'releases/generate-notes' API requires write even though it doesn't mutate; see
+      # https://docs.github.com/rest/releases/releases#generate-release-notes-content-for-a-release
+      contents: write
     steps:
+      # Checkout is required so `gh release list` / `gh release view` have a git context to
+      # discover the repository from. Without it, gh CLI logs "fatal: not a git repository"
+      # and silently falls back, which previously caused PREVIOUS_TAG to come up empty.
+      - name: Checkout code
+        if: ${{ github.event_name == 'push' }}
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
       - name: Generate cumulative changelog
         if: ${{ github.event_name == 'push' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -uo pipefail
+
           echo "# Changelog" > CHANGELOG.md
           echo "" >> CHANGELOG.md
 
@@ -106,18 +119,47 @@ jobs:
           echo "Previous tag: $PREVIOUS_TAG"
 
           # Generate delta release notes for the current (upcoming) release using GitHub's API.
+          # We capture the FULL response and the HTTP status separately so a non-2xx body
+          # cannot leak into the changelog (which previously surfaced a literal
+          # `{"message":"Resource not accessible by integration",...}` block in pre-release
+          # bodies on v1.7.6-pre2/3/4).
+          NOTES_RESPONSE=$(mktemp)
+          NOTES_STATUS=$(mktemp)
+
           if [ -n "$PREVIOUS_TAG" ]; then
-            NOTES=$(gh api repos/${{ github.repository }}/releases/generate-notes \
+            gh api repos/${{ github.repository }}/releases/generate-notes \
               -f tag_name="pending" \
               -f target_commitish="${{ github.sha }}" \
               -f previous_tag_name="$PREVIOUS_TAG" \
-              --jq '.body' 2>/dev/null || echo "")
+              > "$NOTES_RESPONSE" 2> "$NOTES_STATUS" \
+              && API_OK=1 || API_OK=0
           else
-            NOTES=$(gh api repos/${{ github.repository }}/releases/generate-notes \
+            gh api repos/${{ github.repository }}/releases/generate-notes \
               -f tag_name="pending" \
               -f target_commitish="${{ github.sha }}" \
-              --jq '.body' 2>/dev/null || echo "")
+              > "$NOTES_RESPONSE" 2> "$NOTES_STATUS" \
+              && API_OK=1 || API_OK=0
           fi
+
+          NOTES=""
+          if [ "$API_OK" = "1" ]; then
+            # Only consume the body when gh exited successfully AND jq can extract a non-null string.
+            CANDIDATE=$(jq -r '.body // empty' < "$NOTES_RESPONSE" 2>/dev/null || echo "")
+            if [ -n "$CANDIDATE" ]; then
+              NOTES="$CANDIDATE"
+            else
+              echo "::warning::generate-notes returned 2xx but body was empty; skipping delta section."
+            fi
+          else
+            # Surface the failure to the workflow log but DO NOT embed it in the release body.
+            echo "::warning::generate-notes API call failed; skipping delta section."
+            echo "::group::generate-notes diagnostic output"
+            cat "$NOTES_STATUS" || true
+            cat "$NOTES_RESPONSE" || true
+            echo "::endgroup::"
+          fi
+
+          rm -f "$NOTES_RESPONSE" "$NOTES_STATUS"
 
           if [ -n "$NOTES" ]; then
             echo "$NOTES" >> CHANGELOG.md
@@ -132,11 +174,16 @@ jobs:
 
           gh release list --limit 50 --json tagName --jq '.[].tagName' | while read -r TAG; do
             BODY=$(gh release view "$TAG" --json body --jq '.body' 2>/dev/null || echo "")
-            if [ -n "$BODY" ]; then
+            # Defensive filter: skip historically-corrupted bodies whose entire content is
+            # the leaked generate-notes 403 error JSON. Without this, every future cumulative
+            # changelog would re-propagate the garbage from v1.7.6-pre2/3/4 forever.
+            if [ -n "$BODY" ] && ! echo "$BODY" | grep -q 'Resource not accessible by integration'; then
               echo "### $TAG" >> CHANGELOG.md
               echo "" >> CHANGELOG.md
               echo "$BODY" >> CHANGELOG.md
               echo "" >> CHANGELOG.md
+            elif [ -n "$BODY" ]; then
+              echo "::notice::Skipping $TAG body in cumulative section (contains leaked generate-notes error JSON; see #201 follow-up)."
             fi
           done
 
@@ -194,53 +241,132 @@ jobs:
       with:
         name: changelog
 
-    # Create a semantically versioned tag that increments the last release.
-    #   If the last release is a pre-release, increment the pre-release number, so v1.2.3-pre4 becomes v1.2.3-pre5.
-    #   If the last release is an official release, create a new pre-release, so v1.2.3 becomes v1.2.3-pre1.
+    # Compute the next semantic version tag.
+    #
+    # Major is locked to 1 (per project policy — 1.x.x track).
+    # MINOR vs PATCH is decided by scanning commits since the latest official release for the
+    #   marker '[bump:minor]' in either the commit message body OR the merged-PR title.
+    #   If found → MINOR bump. Otherwise → PATCH bump (default).
+    # Pre-release iteration:
+    #   - If a -preN tag exists for a version STRICTLY GREATER than the latest official release,
+    #     we are still iterating on that pending version → bump preN to pre(N+1).
+    #   - If the highest -preN tag belongs to a version that has ALREADY been shipped officially
+    #     (the historical "stuck at v1.7.6-preN" failure mode), start a new cycle: bump from
+    #     the latest official and emit -pre1.
+    # Note: the previous implementation used GNU `sort --version-sort` which orders
+    #     v1.7.6-pre1 AFTER v1.7.6 — opposite of semver. Combined with "if pre, just increment"
+    #     that pinned post-v1.7.6 builds at v1.7.6-preN forever. The block below uses an
+    #     explicit semver-aware ranker (X*1e6 + Y*1e3 + Z) and keeps OFFICIAL > PRE.
     - name: Increment pre-release tag
       if: ${{ github.event_name == 'push' }}
       id: new-tag    # Output: ${{ steps.new-tag.outputs.newtag }}
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        # Filter to only well-formed tags (vX.Y.Z or vX.Y.Z-preN) to avoid malformed tags
-        # like "v.1.5.5" or "1.6.2" breaking the version sort.
-        CURRENT_TAG=$(git tag | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+(-pre[0-9]+)?$' | sort --version-sort | tail -n1)
-        echo "Current tag is $CURRENT_TAG"
-        if [[ $CURRENT_TAG =~ ^v([0-9]+\.[0-9]+\.[0-9]+)(-pre([0-9]+))?$ ]]; then
-          BASE_VERSION=${BASH_REMATCH[1]}
-          PRE_VERSION=${BASH_REMATCH[3]}
-          if [ -z "$PRE_VERSION" ]; then
-            NEW_TAG="v$BASE_VERSION-pre1"
-          else
-            NEW_TAG="v$BASE_VERSION-pre$((PRE_VERSION + 1))"
-          fi
-          echo "New tag is $NEW_TAG"
+        set -uo pipefail
 
-          echo "Let's make sure this tag doesn't already exist..."
-          tries=0
-          maxTries=5
-          while true; do
-            echo "This is try $tries"
-            RESPONSE=$(curl -sl https://api.github.com/repos/microsoft/CoseSignTool/releases/tags/$NEW_TAG)
-            if [ "$(echo "$RESPONSE" | jq -r '.message')" == "Not Found" ]; then
-              echo "Tag not found. We're good to go."
-              break
-            else
-              if [ $tries -ge $maxTries ]; then
-                echo "Max tries reached. Exiting."
-                exit 1
+        MAJOR_LOCK=1
+
+        # Helper: rank a base "X.Y.Z" as a sortable integer (Y,Z capped at 999).
+        rank() {
+          local base="$1"
+          local mj mn pt
+          IFS='.' read -r mj mn pt <<< "$base"
+          echo $(( mj * 1000000 + mn * 1000 + pt ))
+        }
+
+        # Build candidate sets from the full tag list, filtered to vX.Y.Z[-preN] only.
+        ALL_TAGS=$(git tag | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+(-pre[0-9]+)?$' || true)
+
+        LATEST_OFFICIAL=""
+        LATEST_OFFICIAL_RANK=-1
+        LATEST_PRE=""
+        LATEST_PRE_RANK=-1
+        LATEST_PRE_NUM=0
+
+        while IFS= read -r TAG; do
+          [ -z "$TAG" ] && continue
+          if [[ "$TAG" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)(-pre([0-9]+))?$ ]]; then
+            BASE="${BASH_REMATCH[1]}"
+            PRE_NUM="${BASH_REMATCH[3]:-}"
+            R=$(rank "$BASE")
+            if [ -z "$PRE_NUM" ]; then
+              if [ "$R" -gt "$LATEST_OFFICIAL_RANK" ]; then
+                LATEST_OFFICIAL_RANK="$R"
+                LATEST_OFFICIAL="$TAG"
               fi
-              echo "Oops! That tag already exists!"
-              NEW_TAG="${NEW_TAG%-*}-pre$(( ${NEW_TAG##*-pre} + 1 ))"   # Increment the prerelease number.
-              echo "Let's try $NEW_TAG"
-              tries=$((tries+1))
+            else
+              # Order pre-releases by base rank, then by pre number.
+              if [ "$R" -gt "$LATEST_PRE_RANK" ] \
+                 || { [ "$R" -eq "$LATEST_PRE_RANK" ] && [ "$PRE_NUM" -gt "$LATEST_PRE_NUM" ]; }; then
+                LATEST_PRE_RANK="$R"
+                LATEST_PRE_NUM="$PRE_NUM"
+                LATEST_PRE="$TAG"
+              fi
             fi
-          done
+          fi
+        done <<< "$ALL_TAGS"
 
-          echo "newtag=$NEW_TAG" >> "$GITHUB_OUTPUT"
+        echo "Latest official: ${LATEST_OFFICIAL:-<none>}"
+        echo "Latest pre:      ${LATEST_PRE:-<none>} (preNum=$LATEST_PRE_NUM)"
+
+        # Cold-start: no official AND no pre-release. Anchor at v$MAJOR_LOCK.0.0-pre1.
+        if [ -z "$LATEST_OFFICIAL" ] && [ -z "$LATEST_PRE" ]; then
+          NEW_TAG="v${MAJOR_LOCK}.0.0-pre1"
+          echo "Cold start; new tag is $NEW_TAG"
+        elif [ -n "$LATEST_PRE" ] && [ "$LATEST_PRE_RANK" -gt "$LATEST_OFFICIAL_RANK" ]; then
+          # Pre is for a version strictly newer than the latest official — keep iterating.
+          BASE=$(echo "$LATEST_PRE" | sed -E 's/^v([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
+          NEW_TAG="v${BASE}-pre$((LATEST_PRE_NUM + 1))"
+          echo "Continuing pre-release cycle on $BASE; new tag is $NEW_TAG"
         else
-          echo "Invalid tag format: '$CURRENT_TAG'"
-          exit 1
+          # Need to start a new cycle bumping from the latest official.
+          BASE=$(echo "$LATEST_OFFICIAL" | sed -E 's/^v//')
+          IFS='.' read -r MJ MN PT <<< "$BASE"
+
+          # Decide MINOR vs PATCH from commits since the latest official.
+          BUMP_KIND="patch"
+          if git rev-parse --verify "$LATEST_OFFICIAL" >/dev/null 2>&1; then
+            COMMIT_MSGS=$(git log --format='%B' "$LATEST_OFFICIAL"..HEAD 2>/dev/null || echo "")
+            if echo "$COMMIT_MSGS" | grep -qiE '\[bump:minor\]'; then
+              BUMP_KIND="minor"
+              echo "Found [bump:minor] marker in commits since $LATEST_OFFICIAL — applying MINOR bump."
+            fi
+          fi
+
+          if [ "$BUMP_KIND" = "minor" ]; then
+            MN=$((MN + 1))
+            PT=0
+          else
+            PT=$((PT + 1))
+          fi
+
+          # Major lock — never bump major from this workflow.
+          NEW_TAG="v${MAJOR_LOCK}.${MN}.${PT}-pre1"
+          echo "Starting new cycle from $LATEST_OFFICIAL ($BUMP_KIND bump); new tag is $NEW_TAG"
         fi
+
+        # Defensive check: in case the tag already exists (race or local-state issue), increment
+        # the pre number until we find a free slot.
+        echo "Verifying tag $NEW_TAG does not already exist..."
+        tries=0
+        maxTries=10
+        while true; do
+          RESPONSE=$(curl -sl https://api.github.com/repos/${{ github.repository }}/releases/tags/$NEW_TAG)
+          if [ "$(echo "$RESPONSE" | jq -r '.message')" = "Not Found" ]; then
+            echo "Tag $NEW_TAG is free."
+            break
+          fi
+          if [ $tries -ge $maxTries ]; then
+            echo "Max tries reached attempting to find a free tag. Exiting."
+            exit 1
+          fi
+          echo "Tag $NEW_TAG exists; trying next pre number."
+          NEW_TAG="${NEW_TAG%-*}-pre$(( ${NEW_TAG##*-pre} + 1 ))"
+          tries=$((tries+1))
+        done
+
+        echo "newtag=$NEW_TAG" >> "$GITHUB_OUTPUT"
 
     # Create the release. This should generate a release event, which will trigger the release_assets job.
     - name: Create Release

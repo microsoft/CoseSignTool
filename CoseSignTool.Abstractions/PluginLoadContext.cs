@@ -203,7 +203,10 @@ public class PluginLoadContext : AssemblyLoadContext
             {
                 return LoadFromAssemblyPath(expectedPath);
             }
-            catch (Exception ex) // CodeQL [SM02184] Plugin loader boundary: LoadFromAssemblyPath can transitively trigger module/type initializers that throw arbitrary exceptions (e.g. TypeInitializationException, PlatformNotSupportedException). A misbehaving plugin dependency must not crash the host; we log and fall through so the runtime can probe alternate paths.
+            catch (Exception ex) when (ex is not OutOfMemoryException
+                                          and not StackOverflowException
+                                          and not ThreadAbortException
+                                          and not AccessViolationException)
             {
                 Console.Error.WriteLine($"Warning: Failed to load assembly '{assemblyName.Name}' from '{expectedPath}': {ex.Message}");
             }
@@ -216,7 +219,10 @@ public class PluginLoadContext : AssemblyLoadContext
             {
                 return LoadFromAssemblyPath(assemblyPath);
             }
-            catch (Exception ex) // CodeQL [SM02184] Plugin loader boundary: see rationale above. Resolver-supplied paths are also subject to type-initializer failures originating inside plugin dependencies; swallow-and-log preserves host stability.
+            catch (Exception ex) when (ex is not OutOfMemoryException
+                                          and not StackOverflowException
+                                          and not ThreadAbortException
+                                          and not AccessViolationException)
             {
                 Console.Error.WriteLine($"Warning: Failed to load assembly '{assemblyName.Name}' from resolver path '{assemblyPath}': {ex.Message}");
             }

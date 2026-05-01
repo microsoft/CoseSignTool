@@ -96,7 +96,7 @@ public abstract class MstCommandBase : PluginCommandBase
     {
         try
         {
-            byte[] signatureBytes = await File.ReadAllBytesAsync(signaturePath, cancellationToken);
+            byte[] signatureBytes = await File.ReadAllBytesAsync(signaturePath, cancellationToken).ConfigureAwait(false);
             CoseSign1Message message = CoseMessage.DecodeSign1(signatureBytes);
             return (message, signatureBytes, PluginExitCode.Success);
         }
@@ -135,7 +135,7 @@ public abstract class MstCommandBase : PluginCommandBase
     protected static async Task WriteJsonResult(string outputPath, object result, CancellationToken cancellationToken, IPluginLogger? logger = null)
     {
         string jsonOutput = JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true });
-        await File.WriteAllTextAsync(outputPath, jsonOutput, cancellationToken);
+        await File.WriteAllTextAsync(outputPath, jsonOutput, cancellationToken).ConfigureAwait(false);
         logger?.LogInformation($"Result written to: {outputPath}");
     }
 
@@ -265,7 +265,7 @@ public abstract class MstCommandBase : PluginCommandBase
             }
 
             // Read and decode COSE message
-            (CoseSign1Message message, byte[] signatureBytes, PluginExitCode readResult) = await ReadAndDecodeCoseMessage(signaturePath, cancellationToken, Logger);
+            (CoseSign1Message message, byte[] signatureBytes, PluginExitCode readResult) = await ReadAndDecodeCoseMessage(signaturePath, cancellationToken, Logger).ConfigureAwait(false);
             if (readResult != PluginExitCode.Success || message == null)
             {
                 return readResult;
@@ -276,17 +276,17 @@ public abstract class MstCommandBase : PluginCommandBase
             using CancellationTokenSource combinedCts = CreateTimeoutCancellationToken(timeoutSeconds, cancellationToken);
 
             // Create CTS client
-            CodeTransparencyClient client = await CreateCtsClient(endpoint, tokenEnvVarName, useAzureAuth, Logger, combinedCts.Token);
+            CodeTransparencyClient client = await CreateCtsClient(endpoint, tokenEnvVarName, useAzureAuth, Logger, combinedCts.Token).ConfigureAwait(false);
 
             // Execute the specific operation
             (PluginExitCode exitCode, object? result) operationResult = await ExecuteSpecificOperation(
                 client, message, signatureBytes, endpoint, payloadPath, signaturePath, 
-                configuration, combinedCts.Token);
+                configuration, combinedCts.Token).ConfigureAwait(false);
 
             // Write output if requested
             if (!string.IsNullOrEmpty(outputPath) && operationResult.result != null)
             {
-                await WriteJsonResult(outputPath, operationResult.result, cancellationToken, Logger);
+                await WriteJsonResult(outputPath, operationResult.result, cancellationToken, Logger).ConfigureAwait(false);
             }
 
             return operationResult.exitCode;

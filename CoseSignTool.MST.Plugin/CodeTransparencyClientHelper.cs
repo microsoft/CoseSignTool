@@ -92,7 +92,7 @@ internal static class CodeTransparencyClientHelper
             // Acquire a token via the Azure default credential chain (CLI, MSI, VS, etc.).
             logger?.LogVerbose("MST auth: using Azure DefaultAzureCredential (--azure-auth)");
             DefaultAzureCredential defaultCred = new(); // CodeQL [SM05137] This is non-production testing code which is not deployed.
-            AccessToken defaultToken = await defaultCred.GetTokenAsync(new TokenRequestContext(DefaultAzureCredentialScopes), cancellationToken);
+            AccessToken defaultToken = await defaultCred.GetTokenAsync(new TokenRequestContext(DefaultAzureCredentialScopes), cancellationToken).ConfigureAwait(false);
             return new CodeTransparencyClient(uri, new AzureKeyCredential(defaultToken.Token), clientOptions);
         }
 

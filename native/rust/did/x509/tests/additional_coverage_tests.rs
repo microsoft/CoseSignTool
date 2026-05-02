@@ -8,91 +8,88 @@
 //! 2. x509_extensions.rs - EKU extraction, CA detection
 //! 3. Base64 encoding edge cases
 
+use cose_sign1_certificates_local::{
+    CertificateFactory, CertificateOptions, EphemeralCertificateFactory, SoftwareKeyProvider,
+};
 use did_x509::builder::DidX509Builder;
-use did_x509::error::DidX509Error;
 use did_x509::models::policy::DidX509Policy;
 use did_x509::resolver::DidX509Resolver;
 use did_x509::x509_extensions::{
     extract_eku_oids, extract_extended_key_usage, extract_fulcio_issuer, is_ca_certificate,
 };
-use rcgen::string::Ia5String;
-use rcgen::{
-    BasicConstraints as RcgenBasicConstraints, CertificateParams, DnType, ExtendedKeyUsagePurpose,
-    IsCa, KeyPair, SanType as RcgenSanType,
-};
-use std::borrow::Cow;
 use x509_parser::prelude::*;
 
-/// Generate an EC certificate with code signing EKU
-fn generate_ec_cert_with_eku(ekus: Vec<ExtendedKeyUsagePurpose>) -> Vec<u8> {
-    let mut params = CertificateParams::default();
-    params
-        .distinguished_name
-        .push(DnType::CommonName, "Test Certificate");
-    params.extended_key_usages = ekus;
-
-    let key = KeyPair::generate().unwrap();
-    let cert = params.self_signed(&key).unwrap();
-    cert.der().to_vec()
+/// Generate an EC certificate with specific EKU OIDs
+fn generate_ec_cert_with_eku(eku_oids: Vec<String>) -> Vec<u8> {
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let cert = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=Test Certificate")
+                .with_enhanced_key_usages(eku_oids),
+        )
+        .unwrap();
+    cert.cert_der
 }
 
 /// Generate a CA certificate with BasicConstraints(CA:true)
 fn generate_ca_cert() -> Vec<u8> {
-    let mut params = CertificateParams::default();
-    params
-        .distinguished_name
-        .push(DnType::CommonName, "Test CA Certificate");
-    params.is_ca = IsCa::Ca(RcgenBasicConstraints::Unconstrained);
-
-    let key = KeyPair::generate().unwrap();
-    let cert = params.self_signed(&key).unwrap();
-    cert.der().to_vec()
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let cert = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=Test CA Certificate")
+                .as_ca(u32::MAX)
+                .with_enhanced_key_usages(vec![]),
+        )
+        .unwrap();
+    cert.cert_der
 }
 
 /// Generate a non-CA certificate
 fn generate_non_ca_cert() -> Vec<u8> {
-    let mut params = CertificateParams::default();
-    params
-        .distinguished_name
-        .push(DnType::CommonName, "Test Non-CA Certificate");
-    params.is_ca = IsCa::NoCa;
-
-    let key = KeyPair::generate().unwrap();
-    let cert = params.self_signed(&key).unwrap();
-    cert.der().to_vec()
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let cert = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=Test Non-CA Certificate")
+                .with_enhanced_key_usages(vec![]),
+        )
+        .unwrap();
+    cert.cert_der
 }
 
 /// Generate a certificate with multiple EKU extensions
 fn generate_multi_eku_cert() -> Vec<u8> {
-    let mut params = CertificateParams::default();
-    params
-        .distinguished_name
-        .push(DnType::CommonName, "Multi EKU Certificate");
-    params.extended_key_usages = vec![
-        ExtendedKeyUsagePurpose::ServerAuth,
-        ExtendedKeyUsagePurpose::ClientAuth,
-        ExtendedKeyUsagePurpose::CodeSigning,
-        ExtendedKeyUsagePurpose::EmailProtection,
-        ExtendedKeyUsagePurpose::TimeStamping,
-        ExtendedKeyUsagePurpose::OcspSigning,
-    ];
-
-    let key = KeyPair::generate().unwrap();
-    let cert = params.self_signed(&key).unwrap();
-    cert.der().to_vec()
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let cert = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=Multi EKU Certificate")
+                .with_enhanced_key_usages(vec![
+                    "1.3.6.1.5.5.7.3.1".to_string(),
+                    "1.3.6.1.5.5.7.3.2".to_string(),
+                    "1.3.6.1.5.5.7.3.3".to_string(),
+                    "1.3.6.1.5.5.7.3.4".to_string(),
+                    "1.3.6.1.5.5.7.3.8".to_string(),
+                    "1.3.6.1.5.5.7.3.9".to_string(),
+                ]),
+        )
+        .unwrap();
+    cert.cert_der
 }
 
 /// Generate certificate with no extensions
 fn generate_plain_cert() -> Vec<u8> {
-    let mut params = CertificateParams::default();
-    params
-        .distinguished_name
-        .push(DnType::CommonName, "Plain Certificate");
-    // No extended_key_usages, no is_ca, no SAN
-
-    let key = KeyPair::generate().unwrap();
-    let cert = params.self_signed(&key).unwrap();
-    cert.der().to_vec()
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let cert = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=Plain Certificate")
+                .with_enhanced_key_usages(vec![]),
+        )
+        .unwrap();
+    cert.cert_der
 }
 
 // ============================================================================
@@ -101,7 +98,7 @@ fn generate_plain_cert() -> Vec<u8> {
 
 #[test]
 fn test_resolver_ec_p256_jwk() {
-    let cert_der = generate_ec_cert_with_eku(vec![ExtendedKeyUsagePurpose::CodeSigning]);
+    let cert_der = generate_ec_cert_with_eku(vec!["1.3.6.1.5.5.7.3.3".to_string()]);
     let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string().into()]);
     let did = DidX509Builder::build_sha256(&cert_der, &[policy]).unwrap();
 
@@ -124,7 +121,7 @@ fn test_resolver_ec_p256_jwk() {
 
 #[test]
 fn test_resolver_did_document_structure() {
-    let cert_der = generate_ec_cert_with_eku(vec![ExtendedKeyUsagePurpose::CodeSigning]);
+    let cert_der = generate_ec_cert_with_eku(vec!["1.3.6.1.5.5.7.3.3".to_string()]);
     let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string().into()]);
     let did = DidX509Builder::build_sha256(&cert_der, &[policy]).unwrap();
 
@@ -149,9 +146,8 @@ fn test_resolver_did_document_structure() {
 
 #[test]
 fn test_resolver_validation_failure() {
-    let cert_der = generate_ec_cert_with_eku(vec![ExtendedKeyUsagePurpose::ServerAuth]);
+    let cert_der = generate_ec_cert_with_eku(vec!["1.3.6.1.5.5.7.3.1".to_string()]);
     // Create DID requiring Code Signing EKU, but cert only has Server Auth
-    let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string().into()]); // Code Signing
 
     // Use a correct fingerprint but wrong policy
     use sha2::{Digest, Sha256};
@@ -209,7 +205,7 @@ fn test_extract_all_standard_ekus() {
 
 #[test]
 fn test_extract_single_eku_code_signing() {
-    let cert_der = generate_ec_cert_with_eku(vec![ExtendedKeyUsagePurpose::CodeSigning]);
+    let cert_der = generate_ec_cert_with_eku(vec!["1.3.6.1.5.5.7.3.3".to_string()]);
     let (_, cert) = X509Certificate::from_der(&cert_der).unwrap();
 
     let ekus = extract_extended_key_usage(&cert);
@@ -219,7 +215,7 @@ fn test_extract_single_eku_code_signing() {
 
 #[test]
 fn test_extract_eku_oids_wrapper_success() {
-    let cert_der = generate_ec_cert_with_eku(vec![ExtendedKeyUsagePurpose::ServerAuth]);
+    let cert_der = generate_ec_cert_with_eku(vec!["1.3.6.1.5.5.7.3.1".to_string()]);
     let (_, cert) = X509Certificate::from_der(&cert_der).unwrap();
 
     let result = extract_eku_oids(&cert);
@@ -295,7 +291,7 @@ fn test_extract_fulcio_issuer_none() {
 
 #[test]
 fn test_extract_fulcio_issuer_not_present() {
-    let cert_der = generate_ec_cert_with_eku(vec![ExtendedKeyUsagePurpose::CodeSigning]);
+    let cert_der = generate_ec_cert_with_eku(vec!["1.3.6.1.5.5.7.3.3".to_string()]);
     let (_, cert) = X509Certificate::from_der(&cert_der).unwrap();
 
     let issuer = extract_fulcio_issuer(&cert);
@@ -308,7 +304,7 @@ fn test_extract_fulcio_issuer_not_present() {
 
 #[test]
 fn test_base64url_no_padding() {
-    let cert_der = generate_ec_cert_with_eku(vec![ExtendedKeyUsagePurpose::CodeSigning]);
+    let cert_der = generate_ec_cert_with_eku(vec!["1.3.6.1.5.5.7.3.3".to_string()]);
     let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string().into()]);
     let did = DidX509Builder::build_sha256(&cert_der, &[policy]).unwrap();
 

@@ -35,6 +35,10 @@ members = [
   "extension_packs/azure_artifact_signing/client",
   "extension_packs/azure_artifact_signing/ffi",
   "cose_openssl",
+  "cli",
+  "cli/plugin-api",
+  "cli/plugin-loader",
+  "benches",
 ]
 
 [workspace.package]
@@ -72,6 +76,7 @@ x509-parser = "0.18"
 #   cargo build --features openssl/vendored
 # (requires Perl and a C compiler on the build machine)
 openssl = "0.10"
+openssl-sys = "0.9"
 
 # Concurrency + plumbing
 # once_cell removed — migrated to std::sync::LazyLock (Rust 1.80+)
@@ -87,4 +92,5 @@ azure_security_keyvault_certificates = "0.11"  # Planned: proper cert fetch in A
 tokio = { version = "1", features = ["rt", "macros"] }
 reqwest = { version = "0.13", features = ["json", "rustls-tls"] }
 async-trait = "0.1"
+criterion = { version = "0.5", features = ["html_reports"] }
 

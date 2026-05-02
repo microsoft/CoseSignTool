@@ -22,7 +22,7 @@ cose_sign1_validation = { path = "../../validation/core" }
 # cose_sign1_certificates = { path = "../../extension_packs/certificates" }
 cose_sign1_validation_primitives = { path = "../../validation/primitives" }
 cose_sign1_crypto_openssl = { path = "../../primitives/crypto/openssl" }
-rcgen = "0.14"
+cose_sign1_certificates_local = { path = "../../extension_packs/certificates/local" }
 ring.workspace = true
 openssl = { workspace = true }
 

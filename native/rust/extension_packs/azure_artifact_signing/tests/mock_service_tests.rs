@@ -44,14 +44,20 @@ fn mock_pipeline_client(responses: Vec<MockResponse>) -> CertificateProfileClien
     CertificateProfileClient::new_with_pipeline(options, pipeline).unwrap()
 }
 
-/// Generate a self-signed EC P-256 cert using rcgen for testing.
+/// Generate a self-signed EC P-256 cert for testing.
 fn make_test_cert() -> Vec<u8> {
-    use rcgen::{CertificateParams, KeyPair, PKCS_ECDSA_P256_SHA256};
-    let mut params = CertificateParams::new(vec!["test.example".to_string()]).unwrap();
-    params.is_ca = rcgen::IsCa::NoCa;
-    let kp = KeyPair::generate_for(&PKCS_ECDSA_P256_SHA256).unwrap();
-    let cert = params.self_signed(&kp).unwrap();
-    cert.der().as_ref().to_vec()
+    use cose_sign1_certificates_local::{
+        CertificateFactory, CertificateOptions, EphemeralCertificateFactory, SoftwareKeyProvider,
+    };
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=test.example")
+                .add_subject_alternative_name("test.example"),
+        )
+        .unwrap()
+        .cert_der
 }
 
 // ========== AzureArtifactSigningService::from_client() ==========
@@ -91,6 +97,27 @@ fn from_client_service_metadata() {
     let meta = service.service_metadata();
     // Service metadata should exist (populated by CertificateSigningService)
     let _ = meta;
+}
+
+#[test]
+fn from_client_transparency_endpoints_exposes_mst_discovery() {
+    let cert_der = make_test_cert();
+    let client = mock_pipeline_client(vec![
+        MockResponse::ok(cert_der.clone()),
+        MockResponse::ok(cert_der.clone()),
+    ]);
+
+    let service = AzureArtifactSigningService::from_client(client).unwrap();
+    let endpoints = service.transparency_endpoints();
+
+    assert_eq!(endpoints.len(), 1);
+    assert_eq!(endpoints[0].service_type, "mst");
+    assert_eq!(
+        endpoints[0].endpoint,
+        "https://signing.transparency.azure.net"
+    );
+    assert_eq!(endpoints[0].display_name, "Microsoft Signing Transparency");
+    assert!(!endpoints[0].auto_submit);
 }
 
 #[test]

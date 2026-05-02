@@ -5,26 +5,24 @@
 //!
 //! These tests target specific uncovered paths in the resolver implementation.
 
+use cose_sign1_certificates_local::{
+    CertificateFactory, CertificateOptions, EphemeralCertificateFactory, SoftwareKeyProvider,
+};
 use did_x509::error::DidX509Error;
 use did_x509::resolver::DidX509Resolver;
-use rcgen::{CertificateParams, DnType, ExtendedKeyUsagePurpose, KeyPair};
 use std::borrow::Cow;
 
 /// Generate a self-signed X.509 certificate with EC key for testing JWK conversion.
 fn generate_ec_cert() -> Vec<u8> {
-    let mut params = CertificateParams::default();
-    params
-        .distinguished_name
-        .push(DnType::CommonName, "Test EC Certificate");
-
-    // Add Extended Key Usage for Code Signing
-    params.extended_key_usages = vec![ExtendedKeyUsagePurpose::CodeSigning];
-
-    // Use EC key (rcgen defaults to P-256)
-    let key = KeyPair::generate().unwrap();
-    let cert = params.self_signed(&key).unwrap();
-
-    cert.der().to_vec()
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let cert = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=Test EC Certificate")
+                .with_enhanced_key_usages(vec!["1.3.6.1.5.5.7.3.3".to_string()]),
+        )
+        .unwrap();
+    cert.cert_der
 }
 
 /// Generate an invalid certificate chain for testing error paths.
@@ -34,7 +32,7 @@ fn generate_invalid_cert() -> Vec<u8> {
 
 #[test]
 fn test_resolver_with_valid_ec_chain() {
-    // Generate EC certificate (rcgen uses P-256 by default)
+    // Generate EC certificate (ECDSA P-256 by default)
     let cert_der = generate_ec_cert();
 
     // Use the builder to create the DID (proper fingerprint calculation)
@@ -61,7 +59,7 @@ fn test_resolver_with_valid_ec_chain() {
     // Verify EC JWK fields are present
     let jwk = &doc.verification_method[0].public_key_jwk;
     assert_eq!(jwk.get("kty").unwrap(), "EC");
-    assert_eq!(jwk.get("crv").unwrap(), "P-256"); // rcgen default
+    assert_eq!(jwk.get("crv").unwrap(), "P-256"); // ECDSA P-256 default
     assert!(jwk.contains_key("x")); // x coordinate
     assert!(jwk.contains_key("y")); // y coordinate
 }

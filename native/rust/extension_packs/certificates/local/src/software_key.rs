@@ -37,12 +37,15 @@ impl PrivateKeyProvider for SoftwareKeyProvider {
         "SoftwareKeyProvider"
     }
 
-    fn supports_algorithm(&self, algorithm: KeyAlgorithm) -> bool {
-        match algorithm {
-            KeyAlgorithm::Rsa => false, // Not yet implemented
+    fn supports_algorithm(&self, _algorithm: KeyAlgorithm) -> bool {
+        match _algorithm {
+            KeyAlgorithm::Rsa => true,
             KeyAlgorithm::Ecdsa => true,
+            KeyAlgorithm::EdDsa => true,
             #[cfg(feature = "pqc")]
             KeyAlgorithm::MlDsa => true,
+            #[cfg(feature = "composite")]
+            KeyAlgorithm::Composite => true,
         }
     }
 
@@ -51,26 +54,60 @@ impl PrivateKeyProvider for SoftwareKeyProvider {
         algorithm: KeyAlgorithm,
         key_size: Option<u32>,
     ) -> Result<GeneratedKey, CertLocalError> {
-        if !self.supports_algorithm(algorithm) {
-            return Err(CertLocalError::UnsupportedAlgorithm(format!(
-                "{:?} is not supported by SoftwareKeyProvider",
-                algorithm
-            )));
-        }
-
         let size = key_size.unwrap_or_else(|| algorithm.default_key_size());
 
         match algorithm {
-            KeyAlgorithm::Rsa => Err(CertLocalError::UnsupportedAlgorithm(
-                "RSA key generation is not yet implemented".to_string(),
-            )),
+            KeyAlgorithm::Rsa => {
+                let rsa = openssl::rsa::Rsa::generate(size)
+                    .map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
+                let pkey = PKey::from_rsa(rsa)
+                    .map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
+                let private_key_der = pkey
+                    .private_key_to_der()
+                    .map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
+                let public_key_der = pkey
+                    .public_key_to_der()
+                    .map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
+
+                Ok(GeneratedKey {
+                    private_key_der,
+                    public_key_der,
+                    algorithm,
+                    key_size: size,
+                })
+            }
             KeyAlgorithm::Ecdsa => {
-                let group = EcGroup::from_curve_name(Nid::X9_62_PRIME256V1)
+                let nid = match size {
+                    384 => Nid::SECP384R1,
+                    521 => Nid::SECP521R1,
+                    _ => Nid::X9_62_PRIME256V1,
+                };
+                let group = EcGroup::from_curve_name(nid)
                     .map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
                 let ec_key = EcKey::generate(&group)
                     .map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
                 let pkey = PKey::from_ec_key(ec_key)
                     .map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
+                let private_key_der = pkey
+                    .private_key_to_der()
+                    .map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
+                let public_key_der = pkey
+                    .public_key_to_der()
+                    .map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
+
+                Ok(GeneratedKey {
+                    private_key_der,
+                    public_key_der,
+                    algorithm,
+                    key_size: size,
+                })
+            }
+            KeyAlgorithm::EdDsa => {
+                let pkey = match size {
+                    448 => PKey::generate_ed448(),
+                    _ => PKey::generate_ed25519(),
+                }
+                .map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
                 let private_key_der = pkey
                     .private_key_to_der()
                     .map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
@@ -99,6 +136,71 @@ impl PrivateKeyProvider for SoftwareKeyProvider {
 
                 let (private_key_der, public_key_der) =
                     generate_mldsa_key_der(variant).map_err(CertLocalError::KeyGenerationFailed)?;
+
+                Ok(GeneratedKey {
+                    private_key_der,
+                    public_key_der,
+                    algorithm,
+                    key_size: size,
+                })
+            }
+            #[cfg(feature = "composite")]
+            KeyAlgorithm::Composite => {
+                // OQS provider hybrid naming convention (null-terminated C strings).
+                // Requires oqs-provider loaded in OpenSSL.
+                // See native/scripts/setup-oqs-provider.ps1
+                let alg_name: &[u8] = match size {
+                    44 => b"p256_mldsa44\0",
+                    87 => b"p384_mldsa87\0",
+                    _ => b"p384_mldsa65\0", // default
+                };
+
+                // Generate via EVP_PKEY_keygen with the OQS hybrid algorithm name.
+                // This requires OpenSSL 3.5+ with the OQS provider loaded.
+                use foreign_types::ForeignType;
+
+                let pkey: PKey<openssl::pkey::Private> = unsafe {
+                    let ctx = openssl_sys::EVP_PKEY_CTX_new_from_name(
+                        std::ptr::null_mut(),
+                        alg_name.as_ptr() as *const std::os::raw::c_char,
+                        std::ptr::null(),
+                    );
+                    if ctx.is_null() {
+                        return Err(CertLocalError::KeyGenerationFailed(format!(
+                            "EVP_PKEY_CTX_new_from_name({}) failed — OpenSSL 3.5+ with OQS provider required",
+                            String::from_utf8_lossy(&alg_name[..alg_name.len() - 1])
+                        )));
+                    }
+
+                    let rc = openssl_sys::EVP_PKEY_keygen_init(ctx);
+                    if rc != 1 {
+                        openssl_sys::EVP_PKEY_CTX_free(ctx);
+                        return Err(CertLocalError::KeyGenerationFailed(format!(
+                            "EVP_PKEY_keygen_init({}) failed",
+                            String::from_utf8_lossy(&alg_name[..alg_name.len() - 1])
+                        )));
+                    }
+
+                    let mut pkey_raw: *mut openssl_sys::EVP_PKEY = std::ptr::null_mut();
+                    let rc = openssl_sys::EVP_PKEY_keygen(ctx, &mut pkey_raw);
+                    openssl_sys::EVP_PKEY_CTX_free(ctx);
+
+                    if rc != 1 || pkey_raw.is_null() {
+                        return Err(CertLocalError::KeyGenerationFailed(format!(
+                            "EVP_PKEY_keygen({}) failed",
+                            String::from_utf8_lossy(&alg_name[..alg_name.len() - 1])
+                        )));
+                    }
+
+                    PKey::from_ptr(pkey_raw)
+                };
+
+                let private_key_der = pkey
+                    .private_key_to_der()
+                    .map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
+                let public_key_der = pkey
+                    .public_key_to_der()
+                    .map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
 
                 Ok(GeneratedKey {
                     private_key_der,

@@ -33,7 +33,46 @@ payloads of any size.
 
 ## Quick Start
 
-### Rust
+### Minimal Example (C++)
+
+```cpp
+#include <cose/sign1.hpp>
+
+auto msg     = cose::sign1::CoseSign1Message::Parse(data, len);
+auto payload = msg.Payload();
+if (payload) {
+    std::cout << "Payload: "
+              << std::string_view(reinterpret_cast<const char*>(payload->data), payload->size)
+              << std::endl;
+}
+// msg freed automatically via RAII
+```
+
+See [hello_cose.cpp](c_pp/examples/hello_cose.cpp) for the complete example, or
+[full_example.cpp](c_pp/examples/full_example.cpp) for signing + validation.
+
+### Minimal Example (C)
+
+```c
+#include <cose/sign1.h>
+
+CoseSign1MessageHandle* msg = NULL;
+CoseSign1ErrorHandle* error = NULL;
+cose_sign1_message_parse(data, len, &msg, &error);
+
+const uint8_t* payload = NULL;
+size_t payload_len = 0;
+cose_sign1_message_payload(msg, &payload, &payload_len);
+printf("Payload: %.*s\n", (int)payload_len, payload);
+
+cose_sign1_message_free(msg);
+```
+
+See [hello_cose.c](c/examples/hello_cose.c) for the complete example.
+
+### Build &amp; Test
+
+#### Rust
 
 ```bash
 cd native/rust
@@ -169,6 +208,8 @@ See [docs/DEPENDENCY-PHILOSOPHY.md](docs/DEPENDENCY-PHILOSOPHY.md) for the full 
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Complete architecture, naming conventions, extension packs, CLI |
 | [docs/FFI-OWNERSHIP.md](docs/FFI-OWNERSHIP.md) | Ownership model, handle lifecycle, zero-copy patterns |
 | [docs/DEPENDENCY-PHILOSOPHY.md](docs/DEPENDENCY-PHILOSOPHY.md) | Why each dependency exists, addition guidelines |
+| [docs/ERROR-CODES.md](docs/ERROR-CODES.md) | Complete FFI error code reference for all layers |
+| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Common errors, build issues, and how to fix them |
 | [rust/README.md](rust/README.md) | Crate inventory and Rust quick start |
 | [rust/docs/memory-characteristics.md](rust/docs/memory-characteristics.md) | Per-operation memory profiles, streaming analysis |
 | [rust/docs/ffi_guide.md](rust/docs/ffi_guide.md) | FFI crate reference, buffer patterns, build integration |

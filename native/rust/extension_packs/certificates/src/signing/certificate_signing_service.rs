@@ -80,6 +80,12 @@ impl SigningService for CertificateSigningService {
         let mut protected_headers = cose_sign1_primitives::CoseHeaderMap::new();
         let mut unprotected_headers = cose_sign1_primitives::CoseHeaderMap::new();
 
+        // Set the algorithm in protected headers (required by RFC 9052)
+        let algorithm = self.signing_key_provider.algorithm();
+        if algorithm != 0 {
+            protected_headers.set_alg(algorithm);
+        }
+
         // Create header contributor context
         let contributor_context =
             HeaderContributorContext::new(context, &*self.signing_key_provider);

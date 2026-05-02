@@ -56,21 +56,21 @@ fn test_certificate_profile_client_options_base_url_edge_cases() {
 
 #[test]
 fn test_certificate_profile_client_options_auth_scope_edge_cases() {
-    // Test auth scope generation with various endpoints
+    // Auth scope uses the Azure Code Signing resource ID rather than the regional endpoint.
     let test_cases = vec![
-        ("https://example.com", "https://example.com/.default"),
-        ("https://example.com/", "https://example.com/.default"),
-        ("https://example.com//", "https://example.com/.default"),
-        ("https://sub.domain.com", "https://sub.domain.com/.default"),
-        (
-            "https://api.service.azure.net",
-            "https://api.service.azure.net/.default",
-        ),
+        "https://example.com",
+        "https://example.com/",
+        "https://example.com//",
+        "https://sub.domain.com",
+        "https://api.service.azure.net",
     ];
 
-    for (endpoint, expected_scope) in test_cases {
+    for endpoint in test_cases {
         let options = CertificateProfileClientOptions::new(endpoint, "acc", "prof");
-        assert_eq!(options.auth_scope(), expected_scope);
+        assert_eq!(
+            options.auth_scope(),
+            "https://codesigning.azure.net/.default"
+        );
     }
 }
 

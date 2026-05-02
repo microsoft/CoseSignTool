@@ -6,7 +6,7 @@
 use crate::certificate::Certificate;
 use crate::error::CertLocalError;
 use crate::key_algorithm::KeyAlgorithm;
-use crate::options::CertificateOptions;
+use crate::options::{CertificateOptions, HashAlgorithm, SigningPadding};
 use crate::traits::{CertificateFactory, GeneratedKey, PrivateKeyProvider};
 use openssl::asn1::Asn1Time;
 use openssl::bn::{BigNum, MsbOption};
@@ -14,8 +14,12 @@ use openssl::ec::{EcGroup, EcKey};
 use openssl::hash::MessageDigest;
 use openssl::nid::Nid;
 use openssl::pkey::PKey;
-use openssl::x509::extension::{BasicConstraints, KeyUsage};
-use openssl::x509::{X509Builder, X509NameBuilder, X509};
+use openssl::rsa::Rsa;
+use openssl::x509::extension::{
+    AuthorityKeyIdentifier, BasicConstraints, ExtendedKeyUsage, KeyUsage, SubjectAlternativeName,
+    SubjectKeyIdentifier,
+};
+use openssl::x509::{X509Builder, X509Extension, X509NameBuilder, X509};
 use std::collections::HashMap;
 use std::sync::Mutex;
 
@@ -60,11 +64,23 @@ impl EphemeralCertificateFactory {
     }
 }
 
-type EcKeyResult = Result<(PKey<openssl::pkey::Private>, Vec<u8>, Vec<u8>), CertLocalError>;
+type KeyGenerationResult = Result<(PKey<openssl::pkey::Private>, Vec<u8>, Vec<u8>), CertLocalError>;
 
-/// Helper: generate an ECDSA P-256 key pair, returning (PKey, private_key_der, public_key_der).
-fn generate_ec_p256_key() -> EcKeyResult {
-    let group = EcGroup::from_curve_name(Nid::X9_62_PRIME256V1)
+/// Helper: generate an ECDSA key pair for the given curve size.
+///
+/// Maps key_size to NIST curves:
+/// - 256 (default) → P-256 (prime256v1)
+/// - 384 → P-384 (secp384r1)
+/// - 521 → P-521 (secp521r1)
+///
+/// Returns (PKey, private_key_der, public_key_der).
+fn generate_ec_key(key_size: Option<u32>) -> KeyGenerationResult {
+    let nid = match key_size.unwrap_or(256) {
+        384 => Nid::SECP384R1,
+        521 => Nid::SECP521R1,
+        _ => Nid::X9_62_PRIME256V1,
+    };
+    let group = EcGroup::from_curve_name(nid)
         .map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
     let ec_key =
         EcKey::generate(&group).map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
@@ -79,11 +95,52 @@ fn generate_ec_p256_key() -> EcKeyResult {
     Ok((pkey, private_key_der, public_key_der))
 }
 
+/// Helper: generate an RSA key pair.
+///
+/// Maps key_size to RSA modulus bits:
+/// - 2048 (default) → RSA-2048
+/// - 3072 → RSA-3072
+/// - 4096 → RSA-4096
+///
+/// Returns (PKey, private_key_der, public_key_der).
+fn generate_rsa_key(key_size: Option<u32>) -> KeyGenerationResult {
+    let bits = key_size.unwrap_or(2048);
+    let rsa =
+        Rsa::generate(bits).map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
+    let pkey =
+        PKey::from_rsa(rsa).map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
+    let private_key_der = pkey
+        .private_key_to_der()
+        .map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
+    let public_key_der = pkey
+        .public_key_to_der()
+        .map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
+    Ok((pkey, private_key_der, public_key_der))
+}
+
+/// Helper: generate an EdDSA key pair (Ed25519 or Ed448).
+///
+/// Maps key_size: 448 → Ed448, anything else → Ed25519 (default).
+///
+/// Returns (PKey, private_key_der, public_key_der).
+fn generate_eddsa_key(key_size: Option<u32>) -> KeyGenerationResult {
+    let pkey = match key_size.unwrap_or(255) {
+        448 => PKey::generate_ed448(),
+        _ => PKey::generate_ed25519(),
+    }
+    .map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
+    let private_key_der = pkey
+        .private_key_to_der()
+        .map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
+    let public_key_der = pkey
+        .public_key_to_der()
+        .map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
+    Ok((pkey, private_key_der, public_key_der))
+}
+
 /// Helper: generate an ML-DSA key pair, returning (PKey, private_key_der, public_key_der).
 #[cfg(feature = "pqc")]
-fn generate_mldsa_key(
-    key_size: &Option<u32>,
-) -> Result<(PKey<openssl::pkey::Private>, Vec<u8>, Vec<u8>), CertLocalError> {
+fn generate_mldsa_key(key_size: &Option<u32>) -> KeyGenerationResult {
     use cose_sign1_crypto_openssl::{generate_mldsa_key_der, MlDsaVariant};
 
     let variant = match key_size.unwrap_or(65) {
@@ -101,40 +158,240 @@ fn generate_mldsa_key(
     Ok((pkey, private_der, public_der))
 }
 
+/// Helper: generate a hybrid key pair (ML-DSA + ECDSA) via OQS provider.
+///
+/// Uses OpenSSL 3.5+ with oqs-provider for hybrid key generation.
+/// The OQS provider naming convention is:
+/// - 44 → p256_mldsa44 (ECDSA-P256 + ML-DSA-44)
+/// - 65 → p384_mldsa65 (ECDSA-P384 + ML-DSA-65)
+/// - 87 → p384_mldsa87 (ECDSA-P384 + ML-DSA-87)
+///
+/// See `native/scripts/setup-oqs-provider.ps1` for provider setup.
+///
+/// Returns (PKey, private_key_der, public_key_der).
+#[cfg(feature = "composite")]
+fn generate_composite_key(key_size: Option<u32>) -> KeyGenerationResult {
+    use foreign_types::ForeignType;
+
+    // OQS provider hybrid naming convention (null-terminated C strings).
+    // Requires oqs-provider loaded in OpenSSL.
+    // See native/scripts/setup-oqs-provider.ps1
+    let alg_name: &[u8] = match key_size.unwrap_or(65) {
+        44 => b"p256_mldsa44\0",
+        87 => b"p384_mldsa87\0",
+        _ => b"p384_mldsa65\0",
+    };
+
+    let pkey = unsafe {
+        let ctx = openssl_sys::EVP_PKEY_CTX_new_from_name(
+            std::ptr::null_mut(),
+            alg_name.as_ptr() as *const std::os::raw::c_char,
+            std::ptr::null(),
+        );
+        if ctx.is_null() {
+            return Err(CertLocalError::KeyGenerationFailed(format!(
+                "EVP_PKEY_CTX_new_from_name({}) failed — OpenSSL 3.5+ with OQS provider required",
+                String::from_utf8_lossy(&alg_name[..alg_name.len() - 1])
+            )));
+        }
+
+        let rc = openssl_sys::EVP_PKEY_keygen_init(ctx);
+        if rc != 1 {
+            openssl_sys::EVP_PKEY_CTX_free(ctx);
+            return Err(CertLocalError::KeyGenerationFailed(
+                "EVP_PKEY_keygen_init failed for composite key".into(),
+            ));
+        }
+
+        let mut pkey_raw: *mut openssl_sys::EVP_PKEY = std::ptr::null_mut();
+        let rc = openssl_sys::EVP_PKEY_keygen(ctx, &mut pkey_raw);
+        openssl_sys::EVP_PKEY_CTX_free(ctx);
+
+        if rc != 1 || pkey_raw.is_null() {
+            return Err(CertLocalError::KeyGenerationFailed(
+                "EVP_PKEY_keygen failed for composite key".into(),
+            ));
+        }
+
+        PKey::from_ptr(pkey_raw)
+    };
+
+    let private_key_der = pkey
+        .private_key_to_der()
+        .map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
+    let public_key_der = pkey
+        .public_key_to_der()
+        .map_err(|e| CertLocalError::KeyGenerationFailed(e.to_string()))?;
+    Ok((pkey, private_key_der, public_key_der))
+}
+
+/// Resolves the MessageDigest from options.
+fn resolve_digest(hash: HashAlgorithm) -> MessageDigest {
+    match hash {
+        HashAlgorithm::Sha256 => MessageDigest::sha256(),
+        HashAlgorithm::Sha384 => MessageDigest::sha384(),
+        HashAlgorithm::Sha512 => MessageDigest::sha512(),
+    }
+}
+
 /// Signs an X509 builder with the appropriate method for the given algorithm.
 ///
-/// Traditional algorithms (ECDSA, RSA) use `builder.sign()` with a digest.
-/// Pure signature algorithms (ML-DSA) use `sign_x509_prehash` with a null digest.
+/// Traditional algorithms (ECDSA, RSA with PKCS#1 v1.5) use `builder.sign()` with a digest.
+/// RSA-PSS uses `X509_sign_ctx` with a PSS-configured signing context.
+/// Pure signature algorithms (EdDSA, ML-DSA) use `sign_x509_null_digest`.
 fn sign_x509_builder(
     builder: &mut X509Builder,
     pkey: &PKey<openssl::pkey::Private>,
     algorithm: KeyAlgorithm,
+    hash: HashAlgorithm,
+    padding: SigningPadding,
 ) -> Result<(), CertLocalError> {
     match algorithm {
-        KeyAlgorithm::Ecdsa | KeyAlgorithm::Rsa => builder
-            .sign(pkey, MessageDigest::sha256())
+        KeyAlgorithm::Ecdsa => builder
+            .sign(pkey, resolve_digest(hash))
             .map_err(|e| CertLocalError::CertificateCreationFailed(e.to_string())),
+        KeyAlgorithm::Rsa => match padding {
+            SigningPadding::Pkcs1v15 => builder
+                .sign(pkey, resolve_digest(hash))
+                .map_err(|e| CertLocalError::CertificateCreationFailed(e.to_string())),
+            SigningPadding::Pss => {
+                // RSA-PSS requires X509_sign_ctx with a PSS-configured EVP_MD_CTX.
+                // We sign with a dummy first so builder.build() succeeds, then
+                // re-sign with PSS after building.
+                builder
+                    .sign(pkey, resolve_digest(hash))
+                    .map_err(|e| CertLocalError::CertificateCreationFailed(e.to_string()))
+            }
+        },
+        KeyAlgorithm::EdDsa => {
+            // EdDSA is a pure signature scheme — no external digest.
+            // We return Ok here; actual signing happens after builder.build().
+            Ok(())
+        }
         #[cfg(feature = "pqc")]
         KeyAlgorithm::MlDsa => {
             // ML-DSA is a pure signature scheme — no external digest.
-            // We must build the cert first, then sign it via the crypto_openssl API
-            // that calls X509_sign with NULL md.
-            //
-            // However, X509Builder::build() consumes the builder. So we use a
-            // workaround: sign with a dummy digest first (OpenSSL will overwrite
-            // the signature when we re-sign), then re-sign after build().
-            //
-            // Actually, X509Builder requires sign() before build() for the cert to
-            // be well-formed. For pure-sig algorithms, we call sign_x509_prehash
-            // on the already-built X509. The builder is consumed by build() below,
-            // so we set a flag here and handle the signing after build().
-            //
-            // Since we can't skip builder.sign() (it would produce an unsigned cert),
-            // and builder.build() consumes the builder, we'll just return Ok here
-            // and do the actual signing in the caller after build().
+            // We return Ok here; actual signing happens after builder.build().
+            Ok(())
+        }
+        #[cfg(feature = "composite")]
+        KeyAlgorithm::Composite => {
+            // Composite is a pure signature scheme — no external digest.
+            // We return Ok here; actual signing happens after builder.build().
             Ok(())
         }
     }
+}
+
+/// Signs an already-built X509 certificate using null-digest (for pure signature algorithms).
+///
+/// EdDSA (Ed25519/Ed448) and ML-DSA don't use an external hash function.
+/// OpenSSL handles these by passing NULL as the message digest to X509_sign.
+///
+/// # Safety
+///
+/// Uses openssl-sys FFI to call X509_sign with a null digest pointer.
+fn sign_x509_null_digest(
+    x509: &X509,
+    pkey: &PKey<openssl::pkey::Private>,
+) -> Result<(), CertLocalError> {
+    use foreign_types::ForeignTypeRef;
+
+    extern "C" {
+        fn X509_sign(
+            x: *mut openssl_sys::X509,
+            pkey: *mut openssl_sys::EVP_PKEY,
+            md: *const openssl_sys::EVP_MD,
+        ) -> std::os::raw::c_int;
+    }
+
+    let rc = unsafe { X509_sign(x509.as_ptr(), pkey.as_ptr(), std::ptr::null()) };
+    if rc <= 0 {
+        return Err(CertLocalError::CertificateCreationFailed(
+            "X509_sign with null digest failed (pure signature algorithm)".into(),
+        ));
+    }
+    Ok(())
+}
+
+/// Re-signs an already-built X509 certificate with RSA-PSS padding.
+///
+/// Uses EVP_DigestSignInit + EVP_PKEY_CTX_set_rsa_padding + X509_sign_ctx.
+///
+/// # Safety
+///
+/// Uses openssl-sys FFI to call EVP_DigestSignInit and X509_sign_ctx.
+fn sign_x509_rsa_pss(
+    x509: &X509,
+    pkey: &PKey<openssl::pkey::Private>,
+    hash: HashAlgorithm,
+) -> Result<(), CertLocalError> {
+    use foreign_types::ForeignTypeRef;
+
+    extern "C" {
+        fn X509_sign_ctx(
+            x: *mut openssl_sys::X509,
+            ctx: *mut openssl_sys::EVP_MD_CTX,
+        ) -> std::os::raw::c_int;
+    }
+
+    let md = match hash {
+        HashAlgorithm::Sha256 => unsafe { openssl_sys::EVP_sha256() },
+        HashAlgorithm::Sha384 => unsafe { openssl_sys::EVP_sha384() },
+        HashAlgorithm::Sha512 => unsafe { openssl_sys::EVP_sha512() },
+    };
+
+    unsafe {
+        let ctx = openssl_sys::EVP_MD_CTX_new();
+        if ctx.is_null() {
+            return Err(CertLocalError::CertificateCreationFailed(
+                "EVP_MD_CTX_new failed".into(),
+            ));
+        }
+
+        let mut pkey_ctx: *mut openssl_sys::EVP_PKEY_CTX = std::ptr::null_mut();
+        let rc = openssl_sys::EVP_DigestSignInit(
+            ctx,
+            &mut pkey_ctx,
+            md,
+            std::ptr::null_mut(),
+            pkey.as_ptr() as *mut _,
+        );
+        if rc != 1 {
+            openssl_sys::EVP_MD_CTX_free(ctx);
+            return Err(CertLocalError::CertificateCreationFailed(
+                "EVP_DigestSignInit failed for RSA-PSS".into(),
+            ));
+        }
+
+        // RSA_PKCS1_PSS_PADDING = 6
+        let rc = openssl_sys::EVP_PKEY_CTX_set_rsa_padding(pkey_ctx, 6);
+        if rc != 1 {
+            openssl_sys::EVP_MD_CTX_free(ctx);
+            return Err(CertLocalError::CertificateCreationFailed(
+                "EVP_PKEY_CTX_set_rsa_padding(PSS) failed".into(),
+            ));
+        }
+
+        // RSA_PSS_SALTLEN_AUTO = -2
+        let rc = openssl_sys::EVP_PKEY_CTX_set_rsa_pss_saltlen(pkey_ctx, -2);
+        if rc != 1 {
+            openssl_sys::EVP_MD_CTX_free(ctx);
+            return Err(CertLocalError::CertificateCreationFailed(
+                "EVP_PKEY_CTX_set_rsa_pss_saltlen failed".into(),
+            ));
+        }
+
+        let rc = X509_sign_ctx(x509.as_ptr(), ctx);
+        openssl_sys::EVP_MD_CTX_free(ctx);
+
+        if rc <= 0 {
+            return Err(CertLocalError::CertificateCreationFailed(
+                "X509_sign_ctx failed for RSA-PSS".into(),
+            ));
+        }
+    }
+    Ok(())
 }
 
 /// Re-signs an already-built X509 certificate for pure signature algorithms (ML-DSA).
@@ -158,14 +415,13 @@ impl CertificateFactory for EphemeralCertificateFactory {
     ) -> Result<Certificate, CertLocalError> {
         // Generate key pair based on algorithm
         let (pkey, private_key_der, public_key_der) = match options.key_algorithm {
-            KeyAlgorithm::Ecdsa => generate_ec_p256_key()?,
-            KeyAlgorithm::Rsa => {
-                return Err(CertLocalError::UnsupportedAlgorithm(
-                    "RSA key generation is not yet implemented".into(),
-                ));
-            }
+            KeyAlgorithm::Ecdsa => generate_ec_key(options.key_size)?,
+            KeyAlgorithm::Rsa => generate_rsa_key(options.key_size)?,
+            KeyAlgorithm::EdDsa => generate_eddsa_key(options.key_size)?,
             #[cfg(feature = "pqc")]
             KeyAlgorithm::MlDsa => generate_mldsa_key(&options.key_size)?,
+            #[cfg(feature = "composite")]
+            KeyAlgorithm::Composite => generate_composite_key(options.key_size)?,
         };
 
         // Build the X.509 certificate
@@ -224,8 +480,9 @@ impl CertificateFactory for EphemeralCertificateFactory {
             .set_pubkey(&pkey)
             .map_err(|e| CertLocalError::CertificateCreationFailed(e.to_string()))?;
 
-        // Basic constraints
+        // Basic constraints and key usage
         if options.is_ca {
+            // CA certificate: BasicConstraints CA:TRUE + keyCertSign + cRLSign
             let mut bc = BasicConstraints::new();
             bc.critical().ca();
             if options.path_length_constraint < u32::MAX {
@@ -247,31 +504,149 @@ impl CertificateFactory for EphemeralCertificateFactory {
             builder
                 .append_extension(ku)
                 .map_err(|e| CertLocalError::CertificateCreationFailed(e.to_string()))?;
+        } else {
+            // End-entity (leaf) certificate: BasicConstraints CA:FALSE + digitalSignature
+            let bc = BasicConstraints::new()
+                .critical()
+                .build()
+                .map_err(|e| CertLocalError::CertificateCreationFailed(e.to_string()))?;
+            builder
+                .append_extension(bc)
+                .map_err(|e| CertLocalError::CertificateCreationFailed(e.to_string()))?;
+
+            let ku = KeyUsage::new()
+                .critical()
+                .digital_signature()
+                .build()
+                .map_err(|e| CertLocalError::CertificateCreationFailed(e.to_string()))?;
+            builder
+                .append_extension(ku)
+                .map_err(|e| CertLocalError::CertificateCreationFailed(e.to_string()))?;
+        }
+
+        // Extended Key Usage (EKU)
+        if !options.enhanced_key_usages.is_empty() {
+            let mut eku = ExtendedKeyUsage::new();
+            for oid in &options.enhanced_key_usages {
+                match oid.as_str() {
+                    "1.3.6.1.5.5.7.3.1" => {
+                        eku.server_auth();
+                    }
+                    "1.3.6.1.5.5.7.3.2" => {
+                        eku.client_auth();
+                    }
+                    "1.3.6.1.5.5.7.3.3" => {
+                        eku.code_signing();
+                    }
+                    "1.3.6.1.5.5.7.3.4" => {
+                        eku.email_protection();
+                    }
+                    "1.3.6.1.5.5.7.3.8" => {
+                        eku.time_stamping();
+                    }
+                    other => {
+                        eku.other(other);
+                    }
+                }
+            }
+            builder
+                .append_extension(
+                    eku.build()
+                        .map_err(|e| CertLocalError::CertificateCreationFailed(e.to_string()))?,
+                )
+                .map_err(|e| CertLocalError::CertificateCreationFailed(e.to_string()))?;
+        }
+
+        // Subject Alternative Names (SANs)
+        if !options.subject_alternative_names.is_empty() {
+            let mut san = SubjectAlternativeName::new();
+            for name in &options.subject_alternative_names {
+                if let Some(email) = name.strip_prefix("email:") {
+                    san.email(email);
+                } else if let Some(uri) = name.strip_prefix("URI:") {
+                    san.uri(uri);
+                } else if let Some(ip) = name.strip_prefix("IP:") {
+                    san.ip(ip);
+                } else {
+                    san.dns(name);
+                }
+            }
+            builder
+                .append_extension(
+                    san.build(&builder.x509v3_context(None, None))
+                        .map_err(|e| CertLocalError::CertificateCreationFailed(e.to_string()))?,
+                )
+                .map_err(|e| CertLocalError::CertificateCreationFailed(e.to_string()))?;
+        }
+
+        // Subject Key Identifier (SKI) — hash of the subject's public key
+        let ski = SubjectKeyIdentifier::new()
+            .build(&builder.x509v3_context(None, None))
+            .map_err(|e| CertLocalError::CertificateCreationFailed(e.to_string()))?;
+        builder
+            .append_extension(ski)
+            .map_err(|e| CertLocalError::CertificateCreationFailed(e.to_string()))?;
+
+        // Custom X.509v3 extensions
+        for ext in &options.custom_extensions {
+            let oid = openssl::asn1::Asn1Object::from_str(&ext.oid).map_err(|e| {
+                CertLocalError::CertificateCreationFailed(format!("invalid OID {}: {}", ext.oid, e))
+            })?;
+            let octet_string =
+                openssl::asn1::Asn1OctetString::new_from_bytes(&ext.value).map_err(|e| {
+                    CertLocalError::CertificateCreationFailed(format!(
+                        "failed to create octet string for extension {}: {}",
+                        ext.oid, e
+                    ))
+                })?;
+            let extension = X509Extension::new_from_der(&oid, ext.critical, &octet_string)
+                .map_err(|e| {
+                    CertLocalError::CertificateCreationFailed(format!(
+                        "failed to create custom extension {}: {}",
+                        ext.oid, e
+                    ))
+                })?;
+            builder
+                .append_extension(extension)
+                .map_err(|e| CertLocalError::CertificateCreationFailed(e.to_string()))?;
         }
 
         // Set issuer name and sign
-        if let Some(issuer) = &options.issuer {
+        let (signing_key, issuer_x509) = if let Some(issuer) = &options.issuer {
             if let Some(issuer_key_der) = &issuer.private_key_der {
-                // Load issuer private key
                 let issuer_pkey = PKey::private_key_from_der(issuer_key_der).map_err(|e| {
                     CertLocalError::CertificateCreationFailed(format!(
                         "failed to load issuer key: {}",
                         e
                     ))
                 })?;
-
-                // Parse issuer cert to get its subject as our issuer name
-                let issuer_x509 = X509::from_der(&issuer.cert_der).map_err(|e| {
+                let issuer_cert = X509::from_der(&issuer.cert_der).map_err(|e| {
                     CertLocalError::CertificateCreationFailed(format!(
                         "failed to parse issuer cert: {}",
                         e
                     ))
                 })?;
                 builder
-                    .set_issuer_name(issuer_x509.subject_name())
+                    .set_issuer_name(issuer_cert.subject_name())
                     .map_err(|e| CertLocalError::CertificateCreationFailed(e.to_string()))?;
 
-                sign_x509_builder(&mut builder, &issuer_pkey, options.key_algorithm)?;
+                // Authority Key Identifier (AKI) — links to the issuer's key
+                let aki = AuthorityKeyIdentifier::new()
+                    .keyid(false)
+                    .build(&builder.x509v3_context(Some(&issuer_cert), None))
+                    .map_err(|e| CertLocalError::CertificateCreationFailed(e.to_string()))?;
+                builder
+                    .append_extension(aki)
+                    .map_err(|e| CertLocalError::CertificateCreationFailed(e.to_string()))?;
+
+                sign_x509_builder(
+                    &mut builder,
+                    &issuer_pkey,
+                    options.key_algorithm,
+                    options.hash_algorithm,
+                    options.signing_padding,
+                )?;
+                (issuer_pkey, Some(issuer_cert))
             } else {
                 return Err(CertLocalError::CertificateCreationFailed(
                     "issuer certificate must have a private key".into(),
@@ -282,40 +657,42 @@ impl CertificateFactory for EphemeralCertificateFactory {
             builder
                 .set_issuer_name(&subject_name)
                 .map_err(|e| CertLocalError::CertificateCreationFailed(e.to_string()))?;
-            sign_x509_builder(&mut builder, &pkey, options.key_algorithm)?;
-        }
+            sign_x509_builder(
+                &mut builder,
+                &pkey,
+                options.key_algorithm,
+                options.hash_algorithm,
+                options.signing_padding,
+            )?;
+            (pkey.clone(), None)
+        };
 
         let x509 = builder.build();
 
-        // For pure-sig algorithms, sign the built certificate via crypto_openssl
-        #[cfg(feature = "pqc")]
-        if matches!(options.key_algorithm, KeyAlgorithm::MlDsa) {
-            let sign_key = if options.issuer.is_some() {
-                // Issuer-signed: re-load the issuer key for signing
-                let issuer_key_der = options
-                    .issuer
-                    .as_ref()
-                    .unwrap()
-                    .private_key_der
-                    .as_ref()
-                    .unwrap();
-                PKey::private_key_from_der(issuer_key_der).map_err(|e| {
-                    CertLocalError::CertificateCreationFailed(format!(
-                        "failed to reload issuer key for ML-DSA signing: {}",
-                        e
-                    ))
-                })?
-            } else {
-                // Self-signed
-                PKey::private_key_from_der(&private_key_der).map_err(|e| {
-                    CertLocalError::CertificateCreationFailed(format!(
-                        "failed to reload key for ML-DSA signing: {}",
-                        e
-                    ))
-                })?
-            };
-            resign_x509_prehash(&x509, &sign_key)?;
+        // Post-build re-signing for pure signature algorithms and RSA-PSS
+        if options.key_algorithm.is_pure_signature() {
+            match options.key_algorithm {
+                KeyAlgorithm::EdDsa => {
+                    sign_x509_null_digest(&x509, &signing_key)?;
+                }
+                #[cfg(feature = "pqc")]
+                KeyAlgorithm::MlDsa => {
+                    resign_x509_prehash(&x509, &signing_key)?;
+                }
+                #[cfg(feature = "composite")]
+                KeyAlgorithm::Composite => {
+                    // Composite uses null digest like EdDSA/ML-DSA
+                    sign_x509_null_digest(&x509, &signing_key)?;
+                }
+                _ => {}
+            }
+        } else if matches!(options.key_algorithm, KeyAlgorithm::Rsa)
+            && matches!(options.signing_padding, SigningPadding::Pss)
+        {
+            sign_x509_rsa_pss(&x509, &signing_key, options.hash_algorithm)?;
         }
+
+        let _ = issuer_x509; // consumed above for AKI context
 
         let cert_der = x509
             .to_der()

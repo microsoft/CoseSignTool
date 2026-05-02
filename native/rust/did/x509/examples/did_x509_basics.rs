@@ -8,10 +8,12 @@
 
 use std::borrow::Cow;
 
+use cose_sign1_certificates_local::{
+    CertificateFactory, CertificateOptions, EphemeralCertificateFactory, SoftwareKeyProvider,
+};
 use did_x509::{
     DidX509Builder, DidX509Parser, DidX509Policy, DidX509Resolver, DidX509Validator, SanType,
 };
-use rcgen::{BasicConstraints, CertificateParams, IsCa, Issuer, KeyPair};
 use sha2::{Digest, Sha256};
 
 fn main() {
@@ -94,50 +96,30 @@ fn main() {
     println!("\n=== All steps completed successfully! ===");
 }
 
-/// Create an ephemeral CA and leaf certificate chain using rcgen.
+/// Create an ephemeral CA and leaf certificate chain using certificates_local.
 /// Returns (ca_der, leaf_der) — both DER-encoded.
 fn create_cert_chain() -> (Vec<u8>, Vec<u8>) {
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+
     // CA certificate
-    let mut ca_params = CertificateParams::new(vec!["Example CA".to_string()]).unwrap();
-    ca_params.is_ca = IsCa::Ca(BasicConstraints::Unconstrained);
-    ca_params
-        .distinguished_name
-        .push(rcgen::DnType::CommonName, "Example CA");
-    ca_params
-        .distinguished_name
-        .push(rcgen::DnType::OrganizationName, "Example Org");
-
-    let ca_key = KeyPair::generate().unwrap();
-    let ca_cert = ca_params.self_signed(&ca_key).unwrap();
-    let ca_der = ca_cert.der().to_vec();
-
-    // Create an Issuer from the CA params + key for signing the leaf.
-    // Note: Issuer::new consumes the params, so we rebuild them.
-    let mut ca_issuer_params = CertificateParams::new(vec!["Example CA".to_string()]).unwrap();
-    ca_issuer_params.is_ca = IsCa::Ca(BasicConstraints::Unconstrained);
-    ca_issuer_params
-        .distinguished_name
-        .push(rcgen::DnType::CommonName, "Example CA");
-    ca_issuer_params
-        .distinguished_name
-        .push(rcgen::DnType::OrganizationName, "Example Org");
-    let ca_issuer = Issuer::new(ca_issuer_params, ca_key);
+    let ca_cert = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=Example CA,O=Example Org")
+                .as_ca(u32::MAX),
+        )
+        .unwrap();
 
     // Leaf certificate signed by CA
-    let mut leaf_params = CertificateParams::new(vec!["leaf.example.com".to_string()]).unwrap();
-    leaf_params.is_ca = IsCa::NoCa;
-    leaf_params
-        .distinguished_name
-        .push(rcgen::DnType::CommonName, "Example Leaf");
-    leaf_params
-        .distinguished_name
-        .push(rcgen::DnType::OrganizationName, "Example Org");
-    // Add code-signing EKU
-    leaf_params.extended_key_usages = vec![rcgen::ExtendedKeyUsagePurpose::CodeSigning];
+    let leaf_cert = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=Example Leaf,O=Example Org")
+                .add_subject_alternative_name("leaf.example.com")
+                .with_enhanced_key_usages(vec!["1.3.6.1.5.5.7.3.3".to_string()])
+                .signed_by(ca_cert.clone()),
+        )
+        .unwrap();
 
-    let leaf_key = KeyPair::generate().unwrap();
-    let leaf_cert = leaf_params.signed_by(&leaf_key, &ca_issuer).unwrap();
-    let leaf_der = leaf_cert.der().to_vec();
-
-    (ca_der, leaf_der)
+    (ca_cert.cert_der, leaf_cert.cert_der)
 }

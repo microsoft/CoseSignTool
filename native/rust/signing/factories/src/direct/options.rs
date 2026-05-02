@@ -9,7 +9,6 @@ use cose_sign1_signing::HeaderContributor;
 ///
 /// Maps V2 `DirectSignatureOptions`.
 #[must_use = "builders do nothing unless consumed"]
-#[derive(Default)]
 pub struct DirectSignatureOptions {
     /// Whether to embed the payload in the COSE_Sign1 message.
     ///
@@ -39,6 +38,19 @@ pub struct DirectSignatureOptions {
     ///
     /// If `None`, uses the default MAX_EMBED_PAYLOAD_SIZE (100 MB).
     pub max_embed_size: Option<u64>,
+
+    /// Whether to verify the signature after signing to ensure the COSE_Sign1
+    /// message is valid for signature verification purposes.
+    ///
+    /// Default is `true`. This catches signing errors (wrong key, corrupted
+    /// output, algorithm mismatch) before the message leaves the factory.
+    ///
+    /// Set to `false` only in performance-critical paths where you trust the
+    /// signer and want to avoid the ~80μs verification overhead per operation.
+    ///
+    /// **Note:** This verifies cryptographic integrity only — it does NOT
+    /// establish trust over the signing key or certificate chain.
+    pub verify_after_sign: bool,
 }
 
 impl DirectSignatureOptions {
@@ -51,6 +63,7 @@ impl DirectSignatureOptions {
             disable_transparency: false,
             fail_on_transparency_error: true,
             max_embed_size: None,
+            verify_after_sign: true,
         }
     }
 
@@ -83,6 +96,21 @@ impl DirectSignatureOptions {
         self.disable_transparency = disable;
         self
     }
+
+    /// Sets whether to verify the signature after signing.
+    ///
+    /// Default is `true`. Set to `false` only when performance is critical
+    /// and the signer is trusted.
+    pub fn with_verify_after_sign(mut self, verify: bool) -> Self {
+        self.verify_after_sign = verify;
+        self
+    }
+}
+
+impl Default for DirectSignatureOptions {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl std::fmt::Debug for DirectSignatureOptions {
@@ -106,6 +134,7 @@ impl std::fmt::Debug for DirectSignatureOptions {
                 &self.fail_on_transparency_error,
             )
             .field("max_embed_size", &self.max_embed_size)
+            .field("verify_after_sign", &self.verify_after_sign)
             .finish()
     }
 }

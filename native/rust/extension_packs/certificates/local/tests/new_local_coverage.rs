@@ -165,7 +165,7 @@ fn software_key_provider_supports_ecdsa() {
     let provider = SoftwareKeyProvider::new();
     assert_eq!(provider.name(), "SoftwareKeyProvider");
     assert!(provider.supports_algorithm(KeyAlgorithm::Ecdsa));
-    assert!(!provider.supports_algorithm(KeyAlgorithm::Rsa));
+    assert!(provider.supports_algorithm(KeyAlgorithm::Rsa));
 }
 
 #[test]
@@ -178,8 +178,10 @@ fn software_key_provider_generate_ecdsa() {
 }
 
 #[test]
-fn software_key_provider_rsa_unsupported() {
+fn software_key_provider_rsa_supported() {
     let provider = SoftwareKeyProvider::new();
-    let result = provider.generate_key(KeyAlgorithm::Rsa, None);
-    assert!(result.is_err());
+    let key = provider.generate_key(KeyAlgorithm::Rsa, None).unwrap();
+    assert_eq!(key.algorithm, KeyAlgorithm::Rsa);
+    assert!(!key.private_key_der.is_empty());
+    assert!(!key.public_key_der.is_empty());
 }

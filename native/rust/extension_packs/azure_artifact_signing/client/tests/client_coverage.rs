@@ -63,7 +63,7 @@ fn test_certificate_profile_client_options_auth_scope() {
     );
 
     let auth_scope = options.auth_scope();
-    assert_eq!(auth_scope, "https://eus.codesigning.azure.net/.default");
+    assert_eq!(auth_scope, "https://codesigning.azure.net/.default");
 }
 
 #[test]
@@ -75,7 +75,7 @@ fn test_certificate_profile_client_options_auth_scope_no_trailing_slash() {
     );
 
     let auth_scope = options.auth_scope();
-    assert_eq!(auth_scope, "https://eus.codesigning.azure.net/.default");
+    assert_eq!(auth_scope, "https://codesigning.azure.net/.default");
 }
 
 #[test]

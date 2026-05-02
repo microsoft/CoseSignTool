@@ -20,11 +20,9 @@ cbor_primitives = { path = "../../primitives/cbor" }
 cbor_primitives_everparse = { path = "../../primitives/cbor/everparse" }
 
 # Signing an ephemeral ES256 COSE_Sign1
-ring.workspace = true
+cose_sign1_certificates_local = { path = "../../extension_packs/certificates/local" }
+openssl = { workspace = true }
 hex.workspace = true
-base64.workspace = true
-rcgen = "0.14"
-x509-parser.workspace = true
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }

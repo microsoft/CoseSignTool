@@ -275,6 +275,117 @@ pub mod win32 {
     /// is pure Rust business logic that can be unit-tested with a mock.
     pub struct Win32CertStoreProvider;
 
+    // NCrypt constants for private key export
+    const CRYPT_ACQUIRE_ONLY_NCRYPT_KEY_FLAG: u32 = 0x00040000;
+    const NCRYPT_ALLOW_PLAINTEXT_EXPORT_FLAG: u32 = 0x00000001;
+    const NCRYPT_SILENT_FLAG: u32 = 0x00000040;
+
+    // BCrypt/NCrypt export blob types
+    const BCRYPT_PKCS8_PRIVATE_KEY_BLOB: &str = "PKCS8_PRIVATEKEY";
+
+    #[link(name = "crypt32")]
+    extern "system" {
+        fn CryptAcquireCertificatePrivateKey(
+            p_cert: *const CERT_CONTEXT,
+            dw_flags: u32,
+            pv_parameters: *const c_void,
+            ph_crypto_provider_or_ncrypt_key: *mut usize,
+            pdw_key_spec: *mut u32,
+            pf_caller_free_prov_or_key: *mut i32,
+        ) -> i32;
+    }
+
+    #[link(name = "ncrypt")]
+    extern "system" {
+        fn NCryptExportKey(
+            h_key: usize,
+            h_export_key: usize,
+            psz_blob_type: *const u16,
+            p_parameter_list: *const c_void,
+            pb_output: *mut u8,
+            cb_output: u32,
+            pcb_result: *mut u32,
+            dw_flags: u32,
+        ) -> i32; // SECURITY_STATUS (0 = success)
+
+        fn NCryptFreeObject(h_object: usize) -> i32;
+    }
+
+    /// Attempts to export the private key from a certificate context via NCrypt.
+    ///
+    /// Returns `Some(pkcs8_der)` if the private key is exportable, `None` otherwise.
+    /// Non-exportable keys (e.g., HSM-backed) will return None without error.
+    unsafe fn try_export_private_key(cert_context: *const CERT_CONTEXT) -> Option<Vec<u8>> {
+        let mut ncrypt_key: usize = 0;
+        let mut key_spec: u32 = 0;
+        let mut caller_free: i32 = 0;
+
+        // Acquire NCrypt key handle from the certificate
+        let rc = CryptAcquireCertificatePrivateKey(
+            cert_context,
+            CRYPT_ACQUIRE_ONLY_NCRYPT_KEY_FLAG | NCRYPT_SILENT_FLAG,
+            ptr::null(),
+            &mut ncrypt_key,
+            &mut key_spec,
+            &mut caller_free,
+        );
+        if rc == 0 || ncrypt_key == 0 {
+            // No private key associated, or not NCrypt-backed
+            return None;
+        }
+
+        // Build wide string for blob type
+        let blob_type_wide: Vec<u16> = BCRYPT_PKCS8_PRIVATE_KEY_BLOB
+            .encode_utf16()
+            .chain(std::iter::once(0))
+            .collect();
+
+        // First call: get required buffer size
+        let mut cb_result: u32 = 0;
+        let status = NCryptExportKey(
+            ncrypt_key,
+            0,
+            blob_type_wide.as_ptr(),
+            ptr::null(),
+            ptr::null_mut(),
+            0,
+            &mut cb_result,
+            NCRYPT_ALLOW_PLAINTEXT_EXPORT_FLAG | NCRYPT_SILENT_FLAG,
+        );
+        if status != 0 || cb_result == 0 {
+            // Key is not exportable (e.g., HSM-backed, non-exportable policy)
+            if caller_free != 0 {
+                NCryptFreeObject(ncrypt_key);
+            }
+            return None;
+        }
+
+        // Second call: export the key
+        let mut buffer = vec![0u8; cb_result as usize];
+        let mut cb_actual: u32 = 0;
+        let status = NCryptExportKey(
+            ncrypt_key,
+            0,
+            blob_type_wide.as_ptr(),
+            ptr::null(),
+            buffer.as_mut_ptr(),
+            cb_result,
+            &mut cb_actual,
+            NCRYPT_ALLOW_PLAINTEXT_EXPORT_FLAG | NCRYPT_SILENT_FLAG,
+        );
+
+        if caller_free != 0 {
+            NCryptFreeObject(ncrypt_key);
+        }
+
+        if status != 0 {
+            return None;
+        }
+
+        buffer.truncate(cb_actual as usize);
+        Some(buffer)
+    }
+
     impl CertStoreProvider for Win32CertStoreProvider {
         fn find_by_sha1_hash(
             &self,
@@ -343,16 +454,18 @@ pub mod win32 {
                     .to_vec()
             };
 
+            // Export private key via NCrypt (returns None if not exportable)
+            let private_key_der = unsafe { try_export_private_key(cert_context) };
+
             // Clean up
             unsafe {
                 CertFreeCertificateContext(cert_context);
                 CertCloseStore(store_handle, 0);
             };
 
-            // Private key export requires NCrypt — TODO
             Ok(StoreCertificate {
                 cert_der,
-                private_key_der: None,
+                private_key_der,
             })
         }
     }

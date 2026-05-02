@@ -245,6 +245,34 @@ jobs:
         $env:PATH = "$env:VCPKG_ROOT\installed\x64-windows\bin;$env:PATH"
         cargo test --workspace --exclude cose-openssl
 
+    - name: Run benchmarks (regression detection)
+      shell: pwsh
+      working-directory: native/rust
+      run: |
+        $env:PATH = "$env:VCPKG_ROOT\installed\x64-windows\bin;$env:PATH"
+        # Run benchmarks — Criterion auto-compares against last saved baseline
+        # and reports any statistically significant regressions (p < 0.05)
+        cargo bench -p cose_benchmarks --bench cose_benchmarks 2>&1 | Tee-Object -FilePath benchmark-results.txt
+
+        # Parse results for regressions (lines containing "regressed")
+        $regressions = Select-String -Path benchmark-results.txt -Pattern "regressed"
+        if ($regressions) {
+          Write-Host "::warning::Performance regressions detected:" -ForegroundColor Yellow
+          $regressions | ForEach-Object { Write-Host "  $_" -ForegroundColor Yellow }
+          # Don't fail the build — just warn. Regressions may be expected.
+          # To fail on regression, uncomment: exit 1
+        } else {
+          Write-Host "No performance regressions detected." -ForegroundColor Green
+        }
+
+    - name: Upload benchmark results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: benchmark-results
+        path: native/rust/benchmark-results.txt
+        retention-days: 30
+
     - name: Rust coverage (90% line gate)
       shell: pwsh
       working-directory: native/rust
@@ -966,6 +994,73 @@ jobs:
         $env:PATH = "$env:VCPKG_ROOT\installed\x64-windows\bin;$env:PATH"
         cargo build --workspace --exclude cose-openssl --release
 
+    - name: Generate performance report
+      shell: pwsh
+      working-directory: native/rust
+      run: |
+        $env:PATH = "$env:VCPKG_ROOT\installed\x64-windows\bin;$env:PATH"
+        # Run benchmarks in release mode for accurate numbers
+        cargo bench -p cose_benchmarks --bench cose_benchmarks 2>&1 | Tee-Object -FilePath benchmark-raw.txt
+
+        # Generate markdown performance report
+        $report = @"
+        # Native COSE Library — Performance Report
+
+        **Generated:** $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss UTC')
+        **Platform:** ${{ matrix.target }}
+        **Rust:** $(rustc --version)
+        **Build:** Release (optimized)
+
+        ## Benchmark Results
+
+        | Benchmark | Median | Range | Throughput |
+        |-----------|--------|-------|------------|
+        "@
+
+        # Parse Criterion output into markdown table
+        $lines = Get-Content benchmark-raw.txt
+        for ($i = 0; $i -lt $lines.Count; $i++) {
+          $line = $lines[$i].Trim()
+          # Match lines like: parse/embedded/1KB      time:   [420.19 ns 423.61 ns 427.34 ns]
+          if ($line -match '^(\S+)\s+time:\s+\[(.+?)\s+(.+?)\s+(.+?)\]') {
+            $name = $Matches[1]
+            $low = $Matches[2]
+            $median = $Matches[3]
+            $high = $Matches[4]
+
+            # Check next line for throughput
+            $thrpt = ""
+            if ($i + 1 -lt $lines.Count) {
+              $nextLine = $lines[$i + 1].Trim()
+              if ($nextLine -match 'thrpt:\s+\[(.+?)\s+(.+?)\s+(.+?)\]') {
+                $thrpt = $Matches[2]
+              }
+            }
+
+            $report += "`n| ``$name`` | $median | $low — $high | $thrpt |"
+          }
+        }
+
+        $report += @"
+
+
+        ## Interpretation
+
+        - **Parse throughput** measures zero-copy CBOR decoding (ArcSlice architecture)
+        - **Sign/Verify** timings are dominated by OpenSSL crypto operations
+        - **Header decode** measures lazy header map access (cached after first decode)
+        - **Roundtrip** = sign + parse + verify end-to-end
+
+        ## Regression Detection
+
+        Criterion uses 100 samples per benchmark with statistical significance testing.
+        Regressions are flagged when p < 0.05 (95% confidence).
+        "@
+
+        $report | Out-File -FilePath performance-report.md -Encoding utf8
+        Write-Host "Performance report generated: performance-report.md"
+        Get-Content performance-report.md
+
     - name: Archive native libraries and headers
       shell: pwsh
       run: |
@@ -1000,6 +1095,11 @@ jobs:
         Copy-Item -Path "LICENSE" -Destination "$archiveDir/"
         if (Test-Path "native/README.md") {
           Copy-Item -Path "native/README.md" -Destination "$archiveDir/"
+        }
+
+        # Copy performance report
+        if (Test-Path "native/rust/performance-report.md") {
+          Copy-Item -Path "native/rust/performance-report.md" -Destination "$archiveDir/"
         }
 
         # Create version file
@@ -1201,6 +1301,73 @@ jobs:
         $env:PATH = "$env:VCPKG_ROOT\installed\x64-windows\bin;$env:PATH"
         cargo build --workspace --exclude cose-openssl --release
 
+    - name: Generate performance report
+      shell: pwsh
+      working-directory: native/rust
+      run: |
+        $env:PATH = "$env:VCPKG_ROOT\installed\x64-windows\bin;$env:PATH"
+        # Run benchmarks in release mode for accurate numbers
+        cargo bench -p cose_benchmarks --bench cose_benchmarks 2>&1 | Tee-Object -FilePath benchmark-raw.txt
+
+        # Generate markdown performance report
+        $report = @"
+        # Native COSE Library — Performance Report
+
+        **Generated:** $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss UTC')
+        **Platform:** ${{ matrix.target }}
+        **Rust:** $(rustc --version)
+        **Build:** Release (optimized)
+
+        ## Benchmark Results
+
+        | Benchmark | Median | Range | Throughput |
+        |-----------|--------|-------|------------|
+        "@
+
+        # Parse Criterion output into markdown table
+        $lines = Get-Content benchmark-raw.txt
+        for ($i = 0; $i -lt $lines.Count; $i++) {
+          $line = $lines[$i].Trim()
+          # Match lines like: parse/embedded/1KB      time:   [420.19 ns 423.61 ns 427.34 ns]
+          if ($line -match '^(\S+)\s+time:\s+\[(.+?)\s+(.+?)\s+(.+?)\]') {
+            $name = $Matches[1]
+            $low = $Matches[2]
+            $median = $Matches[3]
+            $high = $Matches[4]
+
+            # Check next line for throughput
+            $thrpt = ""
+            if ($i + 1 -lt $lines.Count) {
+              $nextLine = $lines[$i + 1].Trim()
+              if ($nextLine -match 'thrpt:\s+\[(.+?)\s+(.+?)\s+(.+?)\]') {
+                $thrpt = $Matches[2]
+              }
+            }
+
+            $report += "`n| ``$name`` | $median | $low — $high | $thrpt |"
+          }
+        }
+
+        $report += @"
+
+
+        ## Interpretation
+
+        - **Parse throughput** measures zero-copy CBOR decoding (ArcSlice architecture)
+        - **Sign/Verify** timings are dominated by OpenSSL crypto operations
+        - **Header decode** measures lazy header map access (cached after first decode)
+        - **Roundtrip** = sign + parse + verify end-to-end
+
+        ## Regression Detection
+
+        Criterion uses 100 samples per benchmark with statistical significance testing.
+        Regressions are flagged when p < 0.05 (95% confidence).
+        "@
+
+        $report | Out-File -FilePath performance-report.md -Encoding utf8
+        Write-Host "Performance report generated: performance-report.md"
+        Get-Content performance-report.md
+
     - name: Archive native libraries and headers
       shell: pwsh
       run: |
@@ -1234,6 +1401,11 @@ jobs:
         Copy-Item -Path "LICENSE" -Destination "$archiveDir/"
         if (Test-Path "native/README.md") {
           Copy-Item -Path "native/README.md" -Destination "$archiveDir/"
+        }
+
+        # Copy performance report
+        if (Test-Path "native/rust/performance-report.md") {
+          Copy-Item -Path "native/rust/performance-report.md" -Destination "$archiveDir/"
         }
 
         "$tag" | Out-File -FilePath "$archiveDir/VERSION" -Encoding utf8 -NoNewline

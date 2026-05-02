@@ -171,13 +171,12 @@ fn factory_create_ca_unbounded_path_length() {
 }
 
 // ---------------------------------------------------------------------------
-// Factory: RSA key generation error (exercises line 156-159)
+// Factory: RSA key generation succeeds
 // ---------------------------------------------------------------------------
 
-/// RSA key generation is not yet implemented.
-/// Covers: line 156-159 (UnsupportedAlgorithm error for RSA).
+/// RSA key generation is fully supported.
 #[test]
-fn factory_rsa_key_generation_returns_error() {
+fn factory_rsa_key_generation_succeeds() {
     let provider = Box::new(SoftwareKeyProvider::new());
     let factory = EphemeralCertificateFactory::new(provider);
 
@@ -185,14 +184,11 @@ fn factory_rsa_key_generation_returns_error() {
         .with_subject_name("CN=RSA Test")
         .with_key_algorithm(KeyAlgorithm::Rsa);
 
-    let result = factory.create_certificate(options);
-    assert!(result.is_err());
-    match result {
-        Err(CertLocalError::UnsupportedAlgorithm(msg)) => {
-            assert!(msg.contains("RSA"), "Error should mention RSA: {}", msg);
-        }
-        _ => panic!("Expected UnsupportedAlgorithm error"),
-    }
+    let cert = factory.create_certificate(options).unwrap();
+    assert!(!cert.cert_der.is_empty());
+    assert!(cert.has_private_key());
+    let subject = cert.subject().unwrap();
+    assert!(subject.contains("RSA Test"), "subject: {subject}");
 }
 
 // ---------------------------------------------------------------------------

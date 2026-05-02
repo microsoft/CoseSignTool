@@ -3,6 +3,9 @@
 
 //! Comprehensive FFI test coverage for DID x509 targeting uncovered error paths
 
+use cose_sign1_certificates_local::{
+    CertificateFactory, CertificateOptions, EphemeralCertificateFactory, SoftwareKeyProvider,
+};
 use did_x509_ffi::{
     did_x509_abi_version, did_x509_build_from_chain, did_x509_build_with_eku, did_x509_parse,
     did_x509_parsed_free, did_x509_parsed_get_fingerprint, did_x509_parsed_get_hash_algorithm,
@@ -14,7 +17,6 @@ use did_x509_ffi::{
     types::DidX509ParsedHandle,
 };
 use libc::c_char;
-use rcgen::{CertificateParams, DnType, KeyPair};
 use std::{ffi::CString, ptr};
 
 // Valid test fingerprint
@@ -342,11 +344,11 @@ fn test_build_with_empty_certs() {
 #[test]
 fn test_build_with_null_algorithm() {
     // Generate a minimal certificate for testing
-    let mut params = CertificateParams::default();
-    params.distinguished_name.push(DnType::CommonName, "Test");
-    let key_pair = KeyPair::generate().unwrap();
-    let cert = params.self_signed(&key_pair).unwrap();
-    let cert_der = cert.der();
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let cert = factory
+        .create_certificate(CertificateOptions::new().with_subject_name("CN=Test"))
+        .unwrap();
+    let cert_der = cert.cert_der;
 
     let cert_ptr = cert_der.as_ptr();
     let cert_len = cert_der.len() as u32;
@@ -374,11 +376,11 @@ fn test_build_with_null_algorithm() {
 #[test]
 fn test_build_with_invalid_algorithm() {
     // Generate a minimal certificate for testing
-    let mut params = CertificateParams::default();
-    params.distinguished_name.push(DnType::CommonName, "Test");
-    let key_pair = KeyPair::generate().unwrap();
-    let cert = params.self_signed(&key_pair).unwrap();
-    let cert_der = cert.der();
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let cert = factory
+        .create_certificate(CertificateOptions::new().with_subject_name("CN=Test"))
+        .unwrap();
+    let cert_der = cert.cert_der;
 
     let cert_ptr = cert_der.as_ptr();
     let cert_len = cert_der.len() as u32;

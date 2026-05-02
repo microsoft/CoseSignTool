@@ -700,6 +700,8 @@ impl CoseSign1Validator {
         info!(
             stage = "key_resolution",
             resolved = resolution_result.is_valid(),
+            algorithm = ?cose_sign1_parsed.alg(),
+            key_id = ?cose_sign1_parsed.protected_headers().kid(),
             "Key resolution complete"
         );
 
@@ -907,6 +909,12 @@ impl CoseSign1Validator {
             .as_ref()
             .expect("cose_key must be present when key resolution succeeded");
 
+        debug!(
+            stage = "signature",
+            message_algorithm = ?cose_sign1_parsed.alg(),
+            key_algorithm = cose_key.algorithm(),
+            "Verifying signature"
+        );
         let signature_result = self.run_signature_stage(cose_sign1_parsed.as_ref(), cose_key);
         if !signature_result.is_valid() {
             return Ok(CoseSign1ValidationResult {
@@ -985,6 +993,13 @@ impl CoseSign1Validator {
         // Stage 1: Key Material Resolution
         let (resolution_result, cose_key) =
             self.run_resolution_stage_async(&cose_sign1_parsed).await;
+        info!(
+            stage = "key_resolution",
+            resolved = resolution_result.is_valid(),
+            algorithm = ?cose_sign1_parsed.alg(),
+            key_id = ?cose_sign1_parsed.protected_headers().kid(),
+            "Key resolution complete (async)"
+        );
 
         let attempt_signature_bypass_on_resolution_failure = !resolution_result.is_valid();
 
@@ -1172,6 +1187,12 @@ impl CoseSign1Validator {
             .as_ref()
             .expect("cose_key must be present when key resolution succeeded");
 
+        debug!(
+            stage = "signature",
+            message_algorithm = ?cose_sign1_parsed.alg(),
+            key_algorithm = cose_key.algorithm(),
+            "Verifying signature"
+        );
         let signature_result = self.run_signature_stage(cose_sign1_parsed.as_ref(), cose_key);
         if !signature_result.is_valid() {
             return Ok(CoseSign1ValidationResult {

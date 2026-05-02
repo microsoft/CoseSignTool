@@ -10,6 +10,7 @@ test = false
 
 [features]
 pqc = ["crypto_primitives/pqc", "dep:cose_sign1_crypto_openssl"]
+composite = ["pqc"]
 pfx = []
 windows-store = []
 
@@ -20,6 +21,8 @@ cose_sign1_crypto_openssl = { path = "../../../primitives/crypto/openssl", featu
 x509-parser = { workspace = true }
 sha2 = { workspace = true }
 openssl = { workspace = true }
+openssl-sys = { workspace = true }
+foreign-types = "0.3"
 time = { version = "0.3" }
 
 [dev-dependencies]

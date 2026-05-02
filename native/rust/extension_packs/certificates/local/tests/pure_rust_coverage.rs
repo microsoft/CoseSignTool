@@ -230,11 +230,24 @@ fn test_algorithm_edge_cases() {
                     "ECDSA key size should be a standard curve size"
                 );
             }
+            KeyAlgorithm::EdDsa => {
+                assert!(
+                    key_size == 255 || key_size == 448,
+                    "EdDSA key size should be 255 (Ed25519) or 448 (Ed448)"
+                );
+            }
             #[cfg(feature = "pqc")]
             KeyAlgorithm::MlDsa => {
                 assert!(
                     key_size >= 44 && key_size <= 87,
                     "ML-DSA parameter set should be in valid range"
+                );
+            }
+            #[cfg(feature = "composite")]
+            KeyAlgorithm::Composite => {
+                assert!(
+                    key_size >= 44 && key_size <= 87,
+                    "Composite parameter set should be in valid range"
                 );
             }
         }

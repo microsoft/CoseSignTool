@@ -3,7 +3,9 @@
 
 //! Tests for metadata types.
 
-use cose_sign1_signing::{CryptographicKeyType, SigningKeyMetadata, SigningServiceMetadata};
+use cose_sign1_signing::{
+    CryptographicKeyType, SigningKeyMetadata, SigningServiceMetadata, TransparencyEndpointInfo,
+};
 
 #[test]
 fn test_cryptographic_key_type_variants() {
@@ -99,4 +101,19 @@ fn test_signing_key_metadata_clone() {
     assert_eq!(cloned.algorithm, metadata.algorithm);
     assert_eq!(cloned.key_type, metadata.key_type);
     assert_eq!(cloned.is_remote, metadata.is_remote);
+}
+
+#[test]
+fn test_transparency_endpoint_info_fields() {
+    let endpoint = TransparencyEndpointInfo {
+        service_type: "mst".to_string(),
+        endpoint: "https://signing.transparency.azure.net".to_string(),
+        display_name: "Microsoft Signing Transparency".to_string(),
+        auto_submit: false,
+    };
+
+    assert_eq!(endpoint.service_type, "mst");
+    assert_eq!(endpoint.endpoint, "https://signing.transparency.azure.net");
+    assert_eq!(endpoint.display_name, "Microsoft Signing Transparency");
+    assert!(!endpoint.auto_submit);
 }

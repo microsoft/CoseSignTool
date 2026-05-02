@@ -1,0 +1,60 @@
+[package]
+name = "cose_sign1_cli"
+version = "0.1.0"
+edition = { workspace = true }
+license = { workspace = true }
+description = "CoseSignTool — CLI for COSE_Sign1 signing, verification, and inspection"
+
+[[bin]]
+name = "CoseSignTool"
+path = "src/main.rs"
+
+[dependencies]
+# Workspace crates — always available
+cosesigntool_plugin_api = { path = "plugin-api" }
+cose_sign1_primitives = { path = "../primitives/cose/sign1" }
+cose_primitives = { path = "../primitives/cose" }
+cbor_primitives = { path = "../primitives/cbor" }
+cbor_primitives_everparse = { path = "../primitives/cbor/everparse" }
+cose_sign1_signing = { path = "../signing/core" }
+cose_sign1_headers = { path = "../signing/headers" }
+cose_sign1_certificates = { path = "../extension_packs/certificates" }
+cose_sign1_validation = { path = "../validation/core" }
+cose_sign1_validation_primitives = { path = "../validation/primitives" }
+did_x509 = { path = "../did/x509" }
+
+# Optional extension packs (behind feature flags)
+cose_sign1_transparent_mst = { path = "../extension_packs/mst", optional = true }
+
+# CLI framework
+clap = { workspace = true }
+
+# Output and error handling
+anyhow = { workspace = true }
+hex = { workspace = true }
+serde_json = { workspace = true }
+serde = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+# Crypto
+openssl = { workspace = true }
+sha2 = { workspace = true }
+x509-parser = { workspace = true }
+url = { workspace = true }
+
+[features]
+default = ["local"]
+local = []
+aas = []
+akv = []
+mst = ["dep:cose_sign1_transparent_mst"]
+all = ["local", "aas", "akv", "mst"]
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly)'] }

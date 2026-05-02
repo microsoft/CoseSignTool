@@ -25,6 +25,12 @@ use crate::sig_structure::{
     build_sig_structure, build_sig_structure_prefix, SizedRead, SizedReader,
 };
 
+/// Maximum nesting depth for CBOR header values (arrays, maps, tags).
+///
+/// Malicious inputs with deeply nested structures can cause stack overflow.
+/// This limit caps recursion during decode to prevent that attack vector.
+const MAX_CBOR_DEPTH: usize = 32;
+
 // Re-export the new ownership types for consumers.
 pub use cose_primitives::data::CoseData;
 pub use cose_primitives::lazy_headers::LazyHeaderMap;
@@ -1056,7 +1062,7 @@ impl CoseSign1Message {
             Some(n) => {
                 for _ in 0..n {
                     let label = Self::decode_header_label(decoder)?;
-                    let value = Self::decode_header_value(decoder)?;
+                    let value = Self::decode_header_value(decoder, 0)?;
                     headers.insert(label, value);
                 }
             }
@@ -1073,7 +1079,7 @@ impl CoseSign1Message {
                         break;
                     }
                     let label = Self::decode_header_label(decoder)?;
-                    let value = Self::decode_header_value(decoder)?;
+                    let value = Self::decode_header_value(decoder, 0)?;
                     headers.insert(label, value);
                 }
             }
@@ -1111,7 +1117,14 @@ impl CoseSign1Message {
 
     fn decode_header_value(
         decoder: &mut crate::provider::Decoder<'_>,
+        depth: usize,
     ) -> Result<CoseHeaderValue, CoseSign1Error> {
+        if depth >= MAX_CBOR_DEPTH {
+            return Err(CoseSign1Error::InvalidMessage(
+                "CBOR nesting depth exceeds maximum allowed depth".into(),
+            ));
+        }
+
         let typ = decoder
             .peek_type()
             .map_err(|e| CoseSign1Error::CborError(e.to_string()))?;
@@ -1154,7 +1167,7 @@ impl CoseSign1Message {
                 match len {
                     Some(n) => {
                         for _ in 0..n {
-                            arr.push(Self::decode_header_value(decoder)?);
+                            arr.push(Self::decode_header_value(decoder, depth + 1)?);
                         }
                     }
                     None => loop {
@@ -1167,7 +1180,7 @@ impl CoseSign1Message {
                                 .map_err(|e| CoseSign1Error::CborError(e.to_string()))?;
                             break;
                         }
-                        arr.push(Self::decode_header_value(decoder)?);
+                        arr.push(Self::decode_header_value(decoder, depth + 1)?);
                     },
                 }
                 Ok(CoseHeaderValue::Array(arr))
@@ -1182,7 +1195,7 @@ impl CoseSign1Message {
                     Some(n) => {
                         for _ in 0..n {
                             let k = Self::decode_header_label(decoder)?;
-                            let v = Self::decode_header_value(decoder)?;
+                            let v = Self::decode_header_value(decoder, depth + 1)?;
                             pairs.push((k, v));
                         }
                     }
@@ -1197,7 +1210,7 @@ impl CoseSign1Message {
                             break;
                         }
                         let k = Self::decode_header_label(decoder)?;
-                        let v = Self::decode_header_value(decoder)?;
+                        let v = Self::decode_header_value(decoder, depth + 1)?;
                         pairs.push((k, v));
                     },
                 }
@@ -1207,7 +1220,7 @@ impl CoseSign1Message {
                 let tag = decoder
                     .decode_tag()
                     .map_err(|e| CoseSign1Error::CborError(e.to_string()))?;
-                let inner = Self::decode_header_value(decoder)?;
+                let inner = Self::decode_header_value(decoder, depth + 1)?;
                 Ok(CoseHeaderValue::Tagged(tag, Box::new(inner)))
             }
             CborType::Bool => {

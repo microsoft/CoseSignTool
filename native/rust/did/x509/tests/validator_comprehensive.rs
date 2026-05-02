@@ -3,75 +3,71 @@
 
 //! Additional validator coverage tests
 
+use cose_sign1_certificates_local::{
+    CertificateFactory, CertificateOptions, EphemeralCertificateFactory, SoftwareKeyProvider,
+};
 use did_x509::builder::DidX509Builder;
 use did_x509::error::DidX509Error;
 use did_x509::models::policy::DidX509Policy;
 use did_x509::models::SanType;
 use did_x509::validator::DidX509Validator;
-use rcgen::string::Ia5String;
-use rcgen::{CertificateParams, DnType, ExtendedKeyUsagePurpose, KeyPair, SanType as RcgenSanType};
 use std::borrow::Cow;
 
 /// Generate certificate with code signing EKU
 fn generate_code_signing_cert() -> Vec<u8> {
-    let mut params = CertificateParams::default();
-    params
-        .distinguished_name
-        .push(DnType::CommonName, "Test Certificate");
-    params.extended_key_usages = vec![ExtendedKeyUsagePurpose::CodeSigning];
-
-    let key = KeyPair::generate().unwrap();
-    let cert = params.self_signed(&key).unwrap();
-    cert.der().to_vec()
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let cert = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=Test Certificate")
+                .with_enhanced_key_usages(vec!["1.3.6.1.5.5.7.3.3".to_string()]),
+        )
+        .unwrap();
+    cert.cert_der
 }
 
 /// Generate certificate with multiple EKUs
 fn generate_multi_eku_cert() -> Vec<u8> {
-    let mut params = CertificateParams::default();
-    params
-        .distinguished_name
-        .push(DnType::CommonName, "Multi EKU Test");
-    params.extended_key_usages = vec![
-        ExtendedKeyUsagePurpose::CodeSigning,
-        ExtendedKeyUsagePurpose::ServerAuth,
-    ];
-
-    let key = KeyPair::generate().unwrap();
-    let cert = params.self_signed(&key).unwrap();
-    cert.der().to_vec()
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let cert = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=Multi EKU Test")
+                .with_enhanced_key_usages(vec![
+                    "1.3.6.1.5.5.7.3.3".to_string(),
+                    "1.3.6.1.5.5.7.3.1".to_string(),
+                ]),
+        )
+        .unwrap();
+    cert.cert_der
 }
 
 /// Generate certificate with subject attributes
 fn generate_cert_with_subject() -> Vec<u8> {
-    let mut params = CertificateParams::default();
-    params
-        .distinguished_name
-        .push(DnType::CommonName, "Subject Test");
-    params
-        .distinguished_name
-        .push(DnType::OrganizationName, "Test Org");
-    params.extended_key_usages = vec![ExtendedKeyUsagePurpose::CodeSigning];
-
-    let key = KeyPair::generate().unwrap();
-    let cert = params.self_signed(&key).unwrap();
-    cert.der().to_vec()
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let cert = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=Subject Test")
+                .with_enhanced_key_usages(vec!["1.3.6.1.5.5.7.3.3".to_string()]),
+        )
+        .unwrap();
+    cert.cert_der
 }
 
 /// Generate certificate with SAN
 fn generate_cert_with_san() -> Vec<u8> {
-    let mut params = CertificateParams::default();
-    params
-        .distinguished_name
-        .push(DnType::CommonName, "SAN Test");
-    params.extended_key_usages = vec![ExtendedKeyUsagePurpose::CodeSigning];
-    params.subject_alt_names = vec![
-        RcgenSanType::DnsName(Ia5String::try_from("example.com").unwrap()),
-        RcgenSanType::Rfc822Name(Ia5String::try_from("test@example.com").unwrap()),
-    ];
-
-    let key = KeyPair::generate().unwrap();
-    let cert = params.self_signed(&key).unwrap();
-    cert.der().to_vec()
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let cert = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=SAN Test")
+                .with_enhanced_key_usages(vec!["1.3.6.1.5.5.7.3.3".to_string()])
+                .add_subject_alternative_name("example.com")
+                .add_subject_alternative_name("email:test@example.com"),
+        )
+        .unwrap();
+    cert.cert_der
 }
 
 #[test]
@@ -95,15 +91,15 @@ fn test_validate_with_eku_policy() {
 #[test]
 fn test_validate_with_wrong_eku() {
     // Create cert with Server Auth, validate for Code Signing
-    let mut params = CertificateParams::default();
-    params
-        .distinguished_name
-        .push(DnType::CommonName, "Wrong EKU Test");
-    params.extended_key_usages = vec![ExtendedKeyUsagePurpose::ServerAuth];
-
-    let key = KeyPair::generate().unwrap();
-    let cert = params.self_signed(&key).unwrap();
-    let cert_der = cert.der().to_vec();
+    let factory = EphemeralCertificateFactory::new(Box::new(SoftwareKeyProvider::new()));
+    let cert = factory
+        .create_certificate(
+            CertificateOptions::new()
+                .with_subject_name("CN=Wrong EKU Test")
+                .with_enhanced_key_usages(vec!["1.3.6.1.5.5.7.3.1".to_string()]),
+        )
+        .unwrap();
+    let cert_der = cert.cert_der;
 
     // Build DID requiring code signing using proper builder
     let policy = DidX509Policy::Eku(vec!["1.3.6.1.5.5.7.3.3".to_string().into()]);

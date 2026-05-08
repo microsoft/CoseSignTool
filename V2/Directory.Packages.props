@@ -21,6 +21,8 @@
     <!-- Runtime packages -->
     <PackageVersion Include="System.Runtime.Caching" Version="10.0.0" />
     <PackageVersion Include="System.Text.Json" Version="10.0.0" />
+    <!-- Trust-policy frontend (JSON Schema validation, draft 2020-12). -->
+    <PackageVersion Include="JsonSchema.Net" Version="9.2.0" />
     <!-- High Performance packages -->
     <PackageVersion Include="CommunityToolkit.HighPerformance" Version="8.4.0" />
     <PackageVersion Include="Microsoft.IO.RecyclableMemoryStream" Version="3.0.1" />

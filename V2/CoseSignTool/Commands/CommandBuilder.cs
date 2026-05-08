@@ -101,6 +101,20 @@ public class CommandBuilder
             "  For indirect signatures, this verifies the signature over the hash\n",
             "  envelope without checking if a payload matches the hash.");
 
+        // Trust-policy override (D8). When --trust-policy is supplied, trust-pack defaults are
+        // bypassed and the document is the sole source of trust requirements for the invocation.
+        public static readonly string OptionTrustPolicy = "--trust-policy";
+        public static readonly string OptionTrustPolicyDescription = string.Concat(
+            "Path or URL to a .coseTrustPolicy.json document. When provided, the document\n",
+            "  overrides any trust-pack default contributions; pack fact producers remain\n",
+            "  registered so RequireFact references resolve at evaluation time.");
+        public static readonly string OptionTrustPolicyParam = "--trust-policy-param";
+        public static readonly string OptionTrustPolicyParamDescription = string.Concat(
+            "Bind a parameter referenced in the trust-policy document. Format: name=jsonValue.\n",
+            "  May be supplied multiple times. Values are parsed as JSON (use 'name=\"value\"'\n",
+            "  for strings; use 'name=[1,2,3]' for arrays). Missing parameters with no in-document\n",
+            "  default cause a TPX400 error.");
+
         // Sign command
         public static readonly string CommandSign = "sign";
         public static readonly string SignDescription = "Sign a payload";
@@ -571,6 +585,20 @@ public class CommandBuilder
                 description: ClassStrings.OptionSignatureOnlyDescription);
             command.AddOption(signatureOnlyOption);
 
+            // --trust-policy <path-or-url>: override pack defaults with a user-authored document.
+            var trustPolicyOption = new Option<string?>(
+                name: ClassStrings.OptionTrustPolicy,
+                description: ClassStrings.OptionTrustPolicyDescription);
+            command.AddOption(trustPolicyOption);
+
+            var trustPolicyParamOption = new Option<string[]>(
+                name: ClassStrings.OptionTrustPolicyParam,
+                description: ClassStrings.OptionTrustPolicyParamDescription)
+            {
+                AllowMultipleArgumentsPerToken = false,
+            };
+            command.AddOption(trustPolicyParamOption);
+
             foreach (var provider in providers)
             {
                 provider.AddVerificationOptions(command);
@@ -580,11 +608,13 @@ public class CommandBuilder
             {
                 var payloadFile = context.ParseResult.GetValueForOption(payloadOption);
                 var signatureOnly = context.ParseResult.GetValueForOption(signatureOnlyOption);
+                var trustPolicy = context.ParseResult.GetValueForOption(trustPolicyOption);
+                var trustPolicyParams = context.ParseResult.GetValueForOption(trustPolicyParamOption);
 
                 var outputFormat = GetOutputFormat(context);
                 var formatter = OutputFormatterFactory.Create(outputFormat, Console.StandardOutput, Console.StandardError);
                 var handler = new VerifyCommandHandler(Console, formatter, providers, LoggerFactory);
-                var exitCode = await handler.HandleAsync(context, payloadFile, signatureOnly);
+                var exitCode = await handler.HandleAsync(context, payloadFile, signatureOnly, trustPolicy, trustPolicyParams);
                 context.ExitCode = exitCode;
             });
         }

@@ -16,6 +16,7 @@ using CoseSign1.Validation.Trust.Plan;
 using CoseSignTool.Abstractions;
 using CoseSignTool.Abstractions.IO;
 using CoseSignTool.Output;
+using CoseSignTool.TrustPolicy;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -74,6 +75,8 @@ public class VerifyCommandHandler
 
         public static readonly string ErrorNoVerifyRootSelected =
             "No verification root was selected. Invoke 'verify <root>' (e.g., 'verify x509' or 'verify scitt').";
+
+        public static readonly string ErrorTrustPolicyTranslationAborted = "Trust-policy document translation aborted; refusing to verify with an undefined trust plan.";
     }
 
 
@@ -114,7 +117,7 @@ public class VerifyCommandHandler
     /// <returns>Exit code indicating success or failure.</returns>
     public Task<int> HandleAsync(InvocationContext context)
     {
-        return HandleAsync(context, payloadFile: null, signatureOnly: false);
+        return HandleAsync(context, payloadFile: null, signatureOnly: false, trustPolicyPath: null, trustPolicyParams: null);
     }
 
     /// <summary>
@@ -125,6 +128,39 @@ public class VerifyCommandHandler
     /// <param name="signatureOnly">If true, only verify the signature without payload verification.</param>
     /// <returns>Exit code indicating success or failure.</returns>
     public Task<int> HandleAsync(InvocationContext context, FileInfo? payloadFile, bool signatureOnly)
+    {
+        return HandleAsync(context, payloadFile, signatureOnly, trustPolicyPath: null, trustPolicyParams: null);
+    }
+
+    /// <summary>
+    /// Handles the verify command asynchronously with full option set including the optional
+    /// <c>--trust-policy</c> override (D8).
+    /// </summary>
+    /// <param name="context">The invocation context containing command arguments and options.</param>
+    /// <param name="payloadFile">Optional payload file for detached/indirect signature verification.</param>
+    /// <param name="signatureOnly">If true, only verify the signature without payload verification.</param>
+    /// <param name="trustPolicyPath">Optional path or URL to a <c>.coseTrustPolicy.json</c> document.</param>
+    /// <param name="trustPolicyParams">Optional <c>name=jsonValue</c> parameter bindings for the trust-policy document.</param>
+    /// <returns>Exit code indicating success or failure.</returns>
+    public Task<int> HandleAsync(
+        InvocationContext context,
+        FileInfo? payloadFile,
+        bool signatureOnly,
+        string? trustPolicyPath,
+        IReadOnlyList<string>? trustPolicyParams)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+
+        // Stash for the inner pipeline. Original method body follows.
+        return HandleCoreAsync(context, payloadFile, signatureOnly, trustPolicyPath, trustPolicyParams);
+    }
+
+    private Task<int> HandleCoreAsync(
+        InvocationContext context,
+        FileInfo? payloadFile,
+        bool signatureOnly,
+        string? trustPolicyPath,
+        IReadOnlyList<string>? trustPolicyParams)
     {
         ArgumentNullException.ThrowIfNull(context);
 
@@ -350,6 +386,15 @@ public class VerifyCommandHandler
                 }
             }
 
+            // Build a single service provider used by both the trust-policy override path (D8)
+            // and the default-pack path. The provider's lifetime spans the entire verification
+            // request — CompiledTrustPlan retains a reference to it, so we MUST NOT dispose it
+            // before the validator finishes.
+            if (!string.IsNullOrEmpty(trustPolicyPath))
+            {
+                Microsoft.Extensions.DependencyInjection.AttributeDrivenFactRegistryServiceCollectionExtensions.AddAttributeDrivenFactRegistry(services);
+            }
+
             using var serviceProvider = services.BuildServiceProvider();
 
             // Always establish trust via CompiledTrustPlan rules.
@@ -379,23 +424,47 @@ public class VerifyCommandHandler
 
             CompiledTrustPlan trustPlan;
 
-            if (providerTrustPlanPolicies.Count > 1)
+            if (!string.IsNullOrEmpty(trustPolicyPath))
             {
-                Formatter.WriteWarning(ClassStrings.WarningMultipleTrustPolicies);
-            }
+                // D8 override: document is the sole source of trust requirements. Pack defaults
+                // are bypassed; pack fact producers stay registered via ConfigureValidation
+                // above so the document's RequireFact references resolve at evaluation time.
+                CompiledTrustPlan? overridePlan = TrustPolicyDocumentLoader.LoadAndCompile(
+                    trustPolicyPath!,
+                    trustPolicyParams ?? Array.Empty<string>(),
+                    serviceProvider,
+                    Console.StandardError);
 
-            if (providerTrustPlanPolicies.Count == 0)
-            {
-                // Secure-by-default: Core message facts deny trust unless a pack enables trust.
-                trustPlan = CompiledTrustPlan.CompileDefaults(serviceProvider);
+                if (overridePlan is null)
+                {
+                    Formatter.WriteError(ClassStrings.ErrorTrustPolicyTranslationAborted);
+                    Formatter.EndSection();
+                    Formatter.Flush();
+                    return Task.FromResult((int)ExitCode.InvalidArguments);
+                }
+
+                trustPlan = overridePlan;
             }
             else
             {
-                var combined = providerTrustPlanPolicies.Count == 1
-                    ? providerTrustPlanPolicies[0]
-                    : providerTrustPlanPolicies.Aggregate((a, b) => a.And(b));
+                if (providerTrustPlanPolicies.Count > 1)
+                {
+                    Formatter.WriteWarning(ClassStrings.WarningMultipleTrustPolicies);
+                }
 
-                trustPlan = combined.Compile(serviceProvider);
+                if (providerTrustPlanPolicies.Count == 0)
+                {
+                    // Secure-by-default: Core message facts deny trust unless a pack enables trust.
+                    trustPlan = CompiledTrustPlan.CompileDefaults(serviceProvider);
+                }
+                else
+                {
+                    var combined = providerTrustPlanPolicies.Count == 1
+                        ? providerTrustPlanPolicies[0]
+                        : providerTrustPlanPolicies.Aggregate((a, b) => a.And(b));
+
+                    trustPlan = combined.Compile(serviceProvider);
+                }
             }
 
             var signingKeyResolvers = serviceProvider.GetServices<ISigningKeyResolver>().ToList();

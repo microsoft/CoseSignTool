@@ -73,9 +73,14 @@ pub struct VerifyX509Args {
     #[arg(long = "allow-thumbprint", value_name = "thumbprint")]
     pub allow_thumbprint: Option<String>,
 
-    /// Path to a `.coseTrustPolicy.json` document that overrides the pack's default
-    /// trust plan (per design decision D8). When supplied, the verify command compiles
-    /// the document into a CompiledTrustPlan and runs it against the message; pack
+    /// Path to a `.coseTrustPolicy.json` or `.coseTrustPolicy.rego`
+    /// document that overrides the pack's default trust plan (per design
+    /// decision D8). Frontend dispatch is media-type-driven: the
+    /// `.coseTrustPolicy.rego` extension OR a leading
+    /// `package cose_trust_policy` header routes to the constrained
+    /// Rego subset frontend; everything else uses the canonical JSON
+    /// frontend. When supplied, the verify command compiles the document
+    /// into a CompiledTrustPlan and runs it against the message; pack
     /// fact producers stay registered so `RequireFact` references resolve.
     #[arg(long = "trust-policy", value_name = "path")]
     pub trust_policy: Option<String>,
@@ -574,6 +579,8 @@ mod tests {
             allow_untrusted: false,
             trust_embedded: false,
             allow_thumbprint: None,
+            trust_policy: None,
+            trust_policy_param: Vec::new(),
         };
         assert_eq!(describe_trust_mode(&args), "System trust roots");
     }
@@ -588,6 +595,8 @@ mod tests {
             allow_untrusted: true,
             trust_embedded: false,
             allow_thumbprint: None,
+            trust_policy: None,
+            trust_policy_param: Vec::new(),
         };
         assert_eq!(describe_trust_mode(&args), "Allow untrusted roots");
     }
@@ -602,6 +611,8 @@ mod tests {
             allow_untrusted: false,
             trust_embedded: false,
             allow_thumbprint: None,
+            trust_policy: None,
+            trust_policy_param: Vec::new(),
         };
         assert_eq!(describe_trust_mode(&args), "No trust roots");
     }
@@ -616,6 +627,8 @@ mod tests {
             allow_untrusted: false,
             trust_embedded: false,
             allow_thumbprint: Some("ABCD1234".into()),
+            trust_policy: None,
+            trust_policy_param: Vec::new(),
         };
         let mode = describe_trust_mode(&args);
         assert!(mode.contains("System trust roots"));

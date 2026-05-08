@@ -1,0 +1,21 @@
+[package]
+name = "cose_sign1_trustfrontends_rego"
+version = "0.1.0"
+edition = { workspace = true }
+license = { workspace = true }
+description = "Constrained-Rego-subset frontend (cose-tp-rego/v1) for CoseSign1 trust policies."
+
+[dependencies]
+cose_sign1_trust_policy_spec = { path = "../../trust_policy_spec" }
+cose_sign1_validation_primitives = { path = "../../primitives" }
+cose_sign1_trustfrontends_json = { path = "../json" }
+cose_sign1_trustfrontends_conformance = { path = "../conformance" }
+
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+anyhow = { workspace = true }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly)'] }

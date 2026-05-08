@@ -23,6 +23,7 @@ cose_sign1_validation = { path = "../validation/core" }
 cose_sign1_validation_primitives = { path = "../validation/primitives" }
 cose_sign1_trust_policy_spec = { path = "../validation/trust_policy_spec" }
 cose_sign1_trustfrontends_json = { path = "../validation/trustfrontends/json" }
+cose_sign1_trustfrontends_rego = { path = "../validation/trustfrontends/rego" }
 did_x509 = { path = "../did/x509" }
 
 # Optional extension packs (behind feature flags)

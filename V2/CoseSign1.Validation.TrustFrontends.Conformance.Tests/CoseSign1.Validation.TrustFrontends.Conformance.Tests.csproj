@@ -20,6 +20,7 @@
   <ItemGroup>
     <ProjectReference Include="..\CoseSign1.Validation.TrustFrontends.Conformance\CoseSign1.Validation.TrustFrontends.Conformance.csproj" />
     <ProjectReference Include="..\CoseSign1.Validation.TrustFrontends.Json\CoseSign1.Validation.TrustFrontends.Json.csproj" />
+    <ProjectReference Include="..\CoseSign1.Validation.TrustFrontends.Rego\CoseSign1.Validation.TrustFrontends.Rego.csproj" />
     <ProjectReference Include="..\CoseSign1.Validation.Trust.PlanPolicy.Spec\CoseSign1.Validation.Trust.PlanPolicy.Spec.csproj" />
   </ItemGroup>
 
@@ -31,6 +32,7 @@
   <ItemGroup>
     <None Include="fixtures\**\*.coseTrustPolicy.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="fixtures\**\*.coseTrustPolicy.malformed.txt" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="fixtures\**\*.coseTrustPolicy.rego" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

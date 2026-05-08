@@ -227,6 +227,14 @@ public sealed class TrustPolicyDocumentLoaderTests
     }
 
     [Test]
+    public void SelectFrontend_OnlyCommentsWithoutNewline_RoutesToJson()
+    {
+        // Hits the (newline < 0) branch in the comment-skipping loop: a single comment
+        // line that is the entire file with no trailing '\n'.
+        Assert.That(TrustPolicyDocumentLoader.SelectFrontend("policy.txt", "# only one line"), Is.False);
+    }
+
+    [Test]
     public void SelectFrontend_OnlyCommentsAndBlanks_RoutesToJson()
     {
         const string text = "# only a comment\n\n# another\n";

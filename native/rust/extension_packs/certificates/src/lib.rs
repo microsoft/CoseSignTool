@@ -35,3 +35,26 @@ pub use cose_key_factory::*;
 pub use error::*;
 pub use extensions::*;
 pub use thumbprint::*;
+
+// =====================================================================
+// Trust-fact registry — Phase 3 (np-fact-registry, R1).
+//
+// Enumerates the concrete trust facts this pack contributes. Expansion
+// produces `pub fn __cose_sign1_trust_facts() -> Vec<TrustFactDescriptor>`
+// which the workspace-level `HandRolledFactRegistry::from_packs(&[...])`
+// collects by name. IDs MUST stay byte-identical to Phase 1's
+// `StaticFactRegistry` baseline; the `tests/registered_facts.rs` smoke
+// check enforces it.
+// =====================================================================
+
+cose_sign1_validation_primitives::register_facts! {
+    validation::facts::CertificateSigningKeyTrustFact,
+    validation::facts::X509ChainElementIdentityFact,
+    validation::facts::X509ChainTrustedFact,
+    validation::facts::X509SigningCertificateBasicConstraintsFact,
+    validation::facts::X509SigningCertificateEkuFact,
+    validation::facts::X509SigningCertificateIdentityAllowedFact,
+    validation::facts::X509SigningCertificateIdentityFact,
+    validation::facts::X509SigningCertificateKeyUsageFact,
+    validation::facts::X509X5ChainCertificateIdentityFact,
+}

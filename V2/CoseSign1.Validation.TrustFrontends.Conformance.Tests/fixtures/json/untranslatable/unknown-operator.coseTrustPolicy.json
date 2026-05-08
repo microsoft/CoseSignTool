@@ -1,0 +1,7 @@
+{
+  "frontend": "cose-tp-json/v1",
+  "primary_signing_key": {
+    "fact": "x509-chain-trusted/v1",
+    "predicate": { "operator": "RegexMatch", "path": "$.is_trusted", "value": ".*" }
+  }
+}

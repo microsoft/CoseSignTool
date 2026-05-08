@@ -1,0 +1,8 @@
+{
+  "frontend": "cose-tp-json/v1",
+  "any_counter_signature": {
+    "on_empty": "deny",
+    "fact": "mst-receipt-present/v1",
+    "predicate": { "operator": "Equals", "path": "$.is_present", "value": true }
+  }
+}

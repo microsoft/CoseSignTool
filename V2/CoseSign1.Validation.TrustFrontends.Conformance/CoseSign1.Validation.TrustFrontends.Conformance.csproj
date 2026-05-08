@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!--
+      Targets net10.0 because the conformance suite consumes JsonNode / JsonDocument and the
+      canonical-JSON serializer that powers byte-equality assertions, all of which require the
+      modern System.Text.Json surface (>= net8.0). All shipped frontends and test consumers are
+      net10.0; there is no netstandard2.0 consumer for the trust-policy port.
+    -->
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Description>Reusable conformance test base for CoseSign1 trust-policy frontends. Implements the eight ship-eligibility properties of §6.5.10 (determinism, attribute fidelity, reject-untranslatable, bounded runtime, capability-aware, parameter substitution, schema validation, cross-frontend equivalence). Frontend test projects derive from FrontendConformanceTestBase and supply a IConformanceFrontendAdapter; NUnit discovers the inherited [Test] methods automatically.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      The conformance package re-exposes NUnit's [Test] / Assert.That surface to downstream
+      consumers. It is referenced as a NuGet by frontend test projects, so NUnit is a
+      first-class transitive dependency, not a private one. PrivateAssets='none' is implicit.
+    -->
+    <PackageReference Include="NUnit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CoseSign1.Validation\CoseSign1.Validation.csproj" />
+    <ProjectReference Include="..\CoseSign1.Validation.Trust.PlanPolicy.Spec\CoseSign1.Validation.Trust.PlanPolicy.Spec.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>

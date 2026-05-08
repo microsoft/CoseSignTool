@@ -1,0 +1,7 @@
+{
+  "frontend": "cose-tp-json/v1",
+  "message": {
+    "fact": "counter-signature-subject/v1",
+    "predicate": { "is_protected_header": true }
+  }
+}

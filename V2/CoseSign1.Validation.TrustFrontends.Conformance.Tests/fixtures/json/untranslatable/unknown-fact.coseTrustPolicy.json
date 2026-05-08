@@ -1,0 +1,7 @@
+{
+  "frontend": "cose-tp-json/v1",
+  "primary_signing_key": {
+    "fact": "totally-not-a-real-fact-id/v1",
+    "predicate": { "operator": "Equals", "path": "$.foo", "value": true }
+  }
+}

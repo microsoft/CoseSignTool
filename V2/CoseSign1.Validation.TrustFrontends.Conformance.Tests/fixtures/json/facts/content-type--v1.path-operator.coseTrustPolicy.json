@@ -1,0 +1,7 @@
+{
+  "frontend": "cose-tp-json/v1",
+  "message": {
+    "fact": "content-type/v1",
+    "predicate": { "operator": "Equals", "path": "$.content_type", "value": "application/cose" }
+  }
+}

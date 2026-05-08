@@ -1,0 +1,11 @@
+{
+  "frontend": "cose-tp-json/v1",
+  "primary_signing_key": {
+    "fact": "x509-cert-identity/v1",
+    "predicate": {
+      "operator": "Equals",
+      "path": "$.subject",
+      "value": { "$param": "trusted_host", "default": "alternate.example.com" }
+    }
+  }
+}

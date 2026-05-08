@@ -8,6 +8,7 @@ using CoseSign1.Validation.Trust.Facts;
 /// <summary>
 /// Counter-signature-scoped fact exposing candidate issuer hosts found in an MST receipt.
 /// </summary>
+[TrustFactId(AssemblyStrings.FactIdMstReceiptIssuerHost)]
 public sealed record MstReceiptIssuerHostFact(IReadOnlyList<string> Hosts) : ICounterSignatureFact
 {
     /// <inheritdoc />

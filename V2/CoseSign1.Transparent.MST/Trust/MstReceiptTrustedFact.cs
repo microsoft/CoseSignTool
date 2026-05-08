@@ -12,6 +12,7 @@ using CoseSign1.Validation.Trust.Facts;
 /// When receipt verification is not enabled, this fact may be produced as "unavailable" (no values).
 /// Policies should not require this fact unless verification is explicitly enabled.
 /// </remarks>
+[TrustFactId(AssemblyStrings.FactIdMstReceiptTrusted)]
 public sealed record MstReceiptTrustedFact(bool IsTrusted, string? Details = null) : ICounterSignatureFact
 {
     /// <inheritdoc />

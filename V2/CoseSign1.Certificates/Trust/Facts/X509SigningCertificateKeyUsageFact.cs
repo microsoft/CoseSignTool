@@ -10,6 +10,7 @@ using CoseSign1.Validation.Trust.Facts;
 /// <summary>
 /// Fact representing the key usage flags present on the signing certificate.
 /// </summary>
+[TrustFactId(AssemblyStrings.FactIdX509SigningCertificateKeyUsage)]
 public sealed class X509SigningCertificateKeyUsageFact : ISigningKeyFact
 {
     /// <inheritdoc />

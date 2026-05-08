@@ -6,6 +6,7 @@ namespace CoseSign1.Validation.Trust.Facts;
 /// <summary>
 /// Indicates whether a COSE Sign1 message has a detached payload (no embedded content).
 /// </summary>
+[TrustFactId(AssemblyStrings.FactIdDetachedPayloadPresent)]
 public sealed class DetachedPayloadPresentFact : IMessageFact
 {
     /// <inheritdoc />

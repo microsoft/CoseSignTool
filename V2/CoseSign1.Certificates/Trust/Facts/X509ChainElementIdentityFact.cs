@@ -12,6 +12,7 @@ using CoseSign1.Validation.Trust.Facts;
 /// <remarks>
 /// Depth 0 is the leaf (signing) certificate. Depth increases toward the root.
 /// </remarks>
+[TrustFactId(AssemblyStrings.FactIdX509ChainElementIdentity)]
 public sealed class X509ChainElementIdentityFact : ISigningKeyFact
 {
     /// <inheritdoc />

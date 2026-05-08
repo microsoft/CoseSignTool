@@ -9,6 +9,7 @@ using CoseSign1.Validation.Trust.Facts;
 /// <summary>
 /// Fact indicating whether the signing certificate identity satisfies the configured allow-list.
 /// </summary>
+[TrustFactId(AssemblyStrings.FactIdX509SigningCertificateIdentityAllowed)]
 public sealed class X509SigningCertificateIdentityAllowedFact : ISigningKeyFact
 {
     /// <inheritdoc />

@@ -40,10 +40,10 @@ public sealed class TrustFactIdAttribute : Attribute
     /// <summary>
     /// Regular-expression source the constructor enforces against incoming ids.
     /// </summary>
-    public const string IdPattern = ClassStrings.TrustFactIdPattern;
+    public const string IdPattern = AssemblyStrings.TrustFactIdPattern;
 
     private static readonly Regex IdRegex = new(
-        ClassStrings.TrustFactIdPattern,
+        AssemblyStrings.TrustFactIdPattern,
         RegexOptions.CultureInvariant | RegexOptions.Compiled,
         TimeSpan.FromSeconds(1));
 
@@ -61,7 +61,7 @@ public sealed class TrustFactIdAttribute : Attribute
         if (!IdRegex.IsMatch(id))
         {
             throw new ArgumentException(
-                string.Format(CultureInfo.InvariantCulture, ClassStrings.ErrTrustFactIdMalformedFormat, id, ClassStrings.TrustFactIdPattern),
+                string.Format(CultureInfo.InvariantCulture, AssemblyStrings.ErrTrustFactIdMalformedFormat, id, AssemblyStrings.TrustFactIdPattern),
                 nameof(id));
         }
 

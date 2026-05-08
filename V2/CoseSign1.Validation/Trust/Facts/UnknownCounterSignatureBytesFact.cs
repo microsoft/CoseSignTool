@@ -8,6 +8,7 @@ using CoseSign1.Validation.Trust.Subjects;
 /// <summary>
 /// Provides the raw bytes of a counter-signature structure when its type is unknown or unsupported.
 /// </summary>
+[TrustFactId(AssemblyStrings.FactIdUnknownCounterSignatureBytes)]
 public sealed class UnknownCounterSignatureBytesFact : ICounterSignatureFact
 {
     /// <inheritdoc />

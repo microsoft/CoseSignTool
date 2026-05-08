@@ -5,6 +5,7 @@ namespace CoseSign1.Validation.Trust.Facts;
 /// <summary>
 /// Provides the logical content type of the payload being protected by a COSE Sign1 message.
 /// </summary>
+[TrustFactId(AssemblyStrings.FactIdContentType)]
 public sealed class ContentTypeFact : IMessageFact
 {
     /// <inheritdoc />

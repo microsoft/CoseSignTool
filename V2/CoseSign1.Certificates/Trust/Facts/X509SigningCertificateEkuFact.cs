@@ -9,6 +9,7 @@ using CoseSign1.Validation.Trust.Facts;
 /// <summary>
 /// Fact representing an EKU OID on the signing certificate.
 /// </summary>
+[TrustFactId(AssemblyStrings.FactIdX509SigningCertificateEku)]
 public sealed class X509SigningCertificateEkuFact : ISigningKeyFact
 {
     /// <inheritdoc />

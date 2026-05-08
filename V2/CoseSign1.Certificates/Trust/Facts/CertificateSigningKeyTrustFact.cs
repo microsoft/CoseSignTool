@@ -10,6 +10,7 @@ using CoseSign1.Validation.Trust.Facts;
 /// <summary>
 /// Fact summarizing certificate identity and trust evaluation for a message's signing key.
 /// </summary>
+[TrustFactId(AssemblyStrings.FactIdCertificateSigningKeyTrust)]
 public sealed class CertificateSigningKeyTrustFact : ISigningKeyFact
 {
     /// <inheritdoc />

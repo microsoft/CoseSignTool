@@ -120,6 +120,12 @@ serde = "Serde derive for fixture loaders + parameter maps"
 serde_json = "JSON fixture parsing + canonical-IR comparison"
 criterion = "Optional Criterion bench harness for the §6.5.10 #4 statistical perf gate (feature-gated via `criterion-perf`)"
 
+[crate.rego]
+# Phase 5a (np-frontend-rego) — cose_sign1_trustfrontends_rego crate.
+# Constrained Rego subset (cose-tp-rego/v1) frontend; lowers to JSON IR via the JSON frontend.
+serde = "Serde derive for translator types"
+serde_json = "JSON construction for the Rego→JSON lowering target"
+
 [crate.cose_sign1_transparent_mst]
 serde = "Deserialize JWKS responses"
 serde_json = "JSON parsing for JWKS"

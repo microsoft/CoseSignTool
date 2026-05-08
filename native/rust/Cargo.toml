@@ -24,6 +24,7 @@ members = [
   "validation/trust_policy_spec/ffi",
   "validation/trustfrontends/json",
   "validation/trustfrontends/conformance",
+  "validation/trustfrontends/rego",
   "did/x509",
   "did/x509/ffi",
   "extension_packs/certificates",

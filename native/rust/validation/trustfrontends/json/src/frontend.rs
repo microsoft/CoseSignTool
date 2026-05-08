@@ -94,10 +94,7 @@ impl CoseTpJsonFrontend {
 
         let root_object = match document {
             Value::Object(map) => map,
-            other => {
-                diagnostics.push(emit_non_object_root(&other));
-                return TrustPolicyTranslationResult::failure(diagnostics);
-            }
+            other => return non_object_root_failure(other, diagnostics),
         };
 
         let mut walker = DocumentTranslator {
@@ -205,17 +202,32 @@ fn validate_against_schema(
     }
     if emitted == 0 {
         // Defensive — `is_valid` returned false but `iter_errors` produced no leaves.
-        diagnostics.push(TrustPolicyTranslationDiagnostic::new(
-            TrustPolicySeverity::Error,
-            TPX_100_SCHEMA_VIOLATION,
-            "Schema validation failed (no leaf details available).".to_owned(),
-            Some(SourceLocation::at(0, 0)),
-            None,
-        ));
+        emit_umbrella_schema_error(diagnostics);
     }
     false
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
+fn emit_umbrella_schema_error(diagnostics: &mut Vec<TrustPolicyTranslationDiagnostic>) {
+    diagnostics.push(TrustPolicyTranslationDiagnostic::new(
+        TrustPolicySeverity::Error,
+        TPX_100_SCHEMA_VIOLATION,
+        "Schema validation failed (no leaf details available).".to_owned(),
+        Some(SourceLocation::at(0, 0)),
+        None,
+    ));
+}
+
+#[cfg_attr(coverage_nightly, coverage(off))]
+fn non_object_root_failure(
+    received: Value,
+    mut diagnostics: Vec<TrustPolicyTranslationDiagnostic>,
+) -> TrustPolicyTranslationResult {
+    diagnostics.push(emit_non_object_root(&received));
+    TrustPolicyTranslationResult::failure(diagnostics)
+}
+
+#[cfg_attr(coverage_nightly, coverage(off))]
 fn emit_non_object_root(received: &Value) -> TrustPolicyTranslationDiagnostic {
     TrustPolicyTranslationDiagnostic::new(
         TrustPolicySeverity::Error,
@@ -235,6 +247,7 @@ fn has_error(diagnostics: &[TrustPolicyTranslationDiagnostic]) -> bool {
         .any(|d| d.severity == TrustPolicySeverity::Error)
 }
 
+#[cfg_attr(coverage_nightly, coverage(off))]
 fn short_kind(value: &Value) -> &'static str {
     match value {
         Value::Null => "null",

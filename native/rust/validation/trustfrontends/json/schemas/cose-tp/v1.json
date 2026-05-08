@@ -29,7 +29,7 @@
     },
     "operator": {
       "type": "string",
-      "description": "Predicate operator. Accepted in PascalCase (e.g. Equals) per ┬º6.5.5; the translator is case-insensitive at parse time and emits canonical snake_case in the IR.",
+      "description": "Predicate operator. Accepted in PascalCase (e.g. Equals) per §6.5.5; the translator is case-insensitive at parse time and emits canonical snake_case in the IR.",
       "enum": [
         "Exists",
         "Equals",

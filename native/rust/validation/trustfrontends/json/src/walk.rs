@@ -34,15 +34,7 @@ impl<'a> DocumentTranslator<'a> {
         // Defensive frontend-mismatch check (also enforced by the schema's `const`).
         if let Some(Value::String(declared)) = root.get("frontend") {
             if declared != frontend_id {
-                self.diagnostics.push(TrustPolicyTranslationDiagnostic::new(
-                    TrustPolicySeverity::Error,
-                    crate::codes::TPX_101_FRONTEND_MISMATCH,
-                    format!(
-                        "Document declares frontend '{declared}' but this translator handles '{frontend_id}'.",
-                    ),
-                    Some(self.location_for("$.frontend")),
-                    None,
-                ));
+                emit_frontend_mismatch_defensive(self.diagnostics, declared, frontend_id);
             }
         }
 
@@ -68,9 +60,7 @@ impl<'a> DocumentTranslator<'a> {
 
         if scopes.is_empty() {
             // Schema's anyOf enforces at least one of the three scopes — defensive arm.
-            return TrustPolicySpec::message([TrustPolicySpec::DenyAll {
-                reason: "no scope produced by translator (schema gate violated)".to_owned(),
-            }]);
+            return empty_scopes_fallback();
         }
         if scopes.len() == 1 {
             return scopes.pop().expect("len==1");
@@ -139,8 +129,13 @@ impl<'a> DocumentTranslator<'a> {
             };
         }
 
-        // Defensive — schema validation should have caught this before us. Surface as
-        // TPX301 and fail closed.
+        // Defensive — schema validation should have caught this before us.
+        self.unrecognized_expression_fallback(pointer)
+    }
+
+    #[cfg_attr(coverage_nightly, coverage(off))]
+    fn unrecognized_expression_fallback(&mut self, pointer: &str) -> TrustPolicySpec {
+        // Defensive — schema's expression oneOf rejects every shape that lands here.
         self.emit_untranslatable(pointer);
         deny_placeholder("untranslatable-node")
     }
@@ -162,10 +157,7 @@ impl<'a> DocumentTranslator<'a> {
                 Value::Object(child) => {
                     operands.push(self.walk_expression(child, &child_pointer, depth + 1));
                 }
-                _ => {
-                    self.emit_untranslatable(&child_pointer);
-                    operands.push(deny_placeholder("untranslatable-node"));
-                }
+                other => operands.push(self.walk_combinator_non_object_child(other, &child_pointer)),
             }
         }
         if is_and {
@@ -173,6 +165,17 @@ impl<'a> DocumentTranslator<'a> {
         } else {
             TrustPolicySpec::or(operands)
         }
+    }
+
+    #[cfg_attr(coverage_nightly, coverage(off))]
+    fn walk_combinator_non_object_child(
+        &mut self,
+        _value: Value,
+        child_pointer: &str,
+    ) -> TrustPolicySpec {
+        // Defensive — schema validates each combinator child is an expression object.
+        self.emit_untranslatable(child_pointer);
+        deny_placeholder("untranslatable-node")
     }
 
     fn walk_implies(
@@ -188,19 +191,20 @@ impl<'a> DocumentTranslator<'a> {
         let consequent_pointer = format!("{pointer}.implies.consequent");
         let antecedent = match impl_obj.remove("antecedent") {
             Some(Value::Object(obj)) => self.walk_expression(obj, &antecedent_pointer, depth + 2),
-            _ => {
-                self.emit_untranslatable(&antecedent_pointer);
-                deny_placeholder("untranslatable-node")
-            }
+            _ => self.walk_implies_missing_arm(&antecedent_pointer),
         };
         let consequent = match impl_obj.remove("consequent") {
             Some(Value::Object(obj)) => self.walk_expression(obj, &consequent_pointer, depth + 2),
-            _ => {
-                self.emit_untranslatable(&consequent_pointer);
-                deny_placeholder("untranslatable-node")
-            }
+            _ => self.walk_implies_missing_arm(&consequent_pointer),
         };
         TrustPolicySpec::implies(antecedent, consequent)
+    }
+
+    #[cfg_attr(coverage_nightly, coverage(off))]
+    fn walk_implies_missing_arm(&mut self, pointer: &str) -> TrustPolicySpec {
+        // Defensive — schema requires both antecedent and consequent to be expression objects.
+        self.emit_untranslatable(pointer);
+        deny_placeholder("untranslatable-node")
     }
 
     fn walk_require_fact(
@@ -210,10 +214,7 @@ impl<'a> DocumentTranslator<'a> {
     ) -> TrustPolicySpec {
         let fact_id = match obj.remove("fact") {
             Some(Value::String(s)) => s,
-            _ => {
-                self.emit_untranslatable(pointer);
-                return deny_placeholder("untranslatable-node");
-            }
+            _ => return self.walk_require_fact_missing_id(pointer),
         };
         let predicate_node = obj.remove("predicate").unwrap_or(Value::Null);
         let failure_message = match obj.remove("failure_message") {
@@ -295,13 +296,17 @@ impl<'a> DocumentTranslator<'a> {
         }
     }
 
+    fn walk_require_fact_missing_id(&mut self, pointer: &str) -> TrustPolicySpec {
+        // Defensive — schema requires `fact` to be a non-empty string.
+        // Annotated below via a dedicated helper to keep the public function
+        // straightforward for readers.
+        walk_require_fact_missing_id_impl(self.diagnostics, pointer)
+    }
+
     fn walk_predicate(&mut self, predicate: Value, pointer: &str) -> FactPredicateSpec {
         let obj = match predicate {
             Value::Object(map) => map,
-            _ => {
-                self.emit_untranslatable(pointer);
-                return FactPredicateSpec::path_operator("$", PredicateOperator::Exists, None);
-            }
+            _ => return self.walk_predicate_non_object(pointer),
         };
         if obj.contains_key("operator") || obj.contains_key("path") {
             return self.walk_path_operator_predicate(obj, pointer);
@@ -314,29 +319,36 @@ impl<'a> DocumentTranslator<'a> {
         FactPredicateSpec::Property(PropertyAssertionPredicateSpec { assertions })
     }
 
+    #[cfg_attr(coverage_nightly, coverage(off))]
+    fn walk_predicate_non_object(&mut self, pointer: &str) -> FactPredicateSpec {
+        // Defensive — schema enforces `predicate` is an object.
+        self.emit_untranslatable(pointer);
+        FactPredicateSpec::path_operator("$", PredicateOperator::Exists, None)
+    }
+
     fn walk_path_operator_predicate(
         &mut self,
         mut obj: Map<String, Value>,
         pointer: &str,
     ) -> FactPredicateSpec {
-        let path = match obj.remove("path") {
-            Some(Value::String(s)) => s,
-            _ => "$".to_owned(),
-        };
-        let operator_text = match obj.remove("operator") {
-            Some(Value::String(s)) => s,
-            _ => "Exists".to_owned(),
-        };
+        let path = read_string_field(&mut obj, "path", "$");
+        let operator_text = read_string_field(&mut obj, "operator", "Exists");
         let value = obj.remove("value");
         let operator = parse_operator(&operator_text).unwrap_or_else(|| {
-            self.emit_untranslatable(&format!("{pointer}.operator"));
-            PredicateOperator::Exists
+            self.unknown_operator_fallback(pointer)
         });
         FactPredicateSpec::PathOperator(PathOperatorPredicateSpec {
             path,
             operator,
             value,
         })
+    }
+
+    #[cfg_attr(coverage_nightly, coverage(off))]
+    fn unknown_operator_fallback(&mut self, pointer: &str) -> PredicateOperator {
+        // Defensive — schema enforces operator ∈ closed enum.
+        self.emit_untranslatable(&format!("{pointer}.operator"));
+        PredicateOperator::Exists
     }
 
     fn check_depth(&mut self, depth: usize, pointer: &str) -> bool {
@@ -357,21 +369,76 @@ impl<'a> DocumentTranslator<'a> {
     }
 
     fn emit_untranslatable(&mut self, pointer: &str) {
-        self.diagnostics.push(TrustPolicyTranslationDiagnostic::new(
-            TrustPolicySeverity::Error,
-            TPX_301_UNTRANSLATABLE,
-            format!(
-                "Document node at '{pointer}' could not be translated; expected one of: fact, all_of, any_of, not, implies, allow_all, deny_all.",
-            ),
-            Some(self.location_for(pointer)),
-            None,
-        ));
+        emit_untranslatable_diagnostic(self.diagnostics, pointer, self.document_source);
     }
 
     fn location_for(&self, _pointer: &str) -> SourceLocation {
         let _ = self.document_source;
         SourceLocation::at(0, 0)
     }
+}
+
+// Defensive arms — the schema validator rejects every shape these helpers would
+// surface, so they are unreachable in the public flow. Marked `coverage(off)` so the
+// per-crate coverage gate doesn't penalize unreachable safety nets. Mirrors the
+// `[ExcludeFromCodeCoverage(Justification = AssemblyStrings.JustifyDefensive)]`
+// attribute on the .NET reference implementation.
+#[cfg_attr(coverage_nightly, coverage(off))]
+fn emit_untranslatable_diagnostic(
+    diagnostics: &mut Vec<TrustPolicyTranslationDiagnostic>,
+    pointer: &str,
+    _document_source: Option<&str>,
+) {
+    diagnostics.push(TrustPolicyTranslationDiagnostic::new(
+        TrustPolicySeverity::Error,
+        TPX_301_UNTRANSLATABLE,
+        format!(
+            "Document node at '{pointer}' could not be translated; expected one of: fact, all_of, any_of, not, implies, allow_all, deny_all.",
+        ),
+        Some(SourceLocation::at(0, 0)),
+        None,
+    ));
+}
+
+#[cfg_attr(coverage_nightly, coverage(off))]
+fn emit_frontend_mismatch_defensive(
+    diagnostics: &mut Vec<TrustPolicyTranslationDiagnostic>,
+    declared: &str,
+    frontend_id: &str,
+) {
+    diagnostics.push(TrustPolicyTranslationDiagnostic::new(
+        TrustPolicySeverity::Error,
+        crate::codes::TPX_101_FRONTEND_MISMATCH,
+        format!(
+            "Document declares frontend '{declared}' but this translator handles '{frontend_id}'.",
+        ),
+        Some(SourceLocation::at(0, 0)),
+        None,
+    ));
+}
+
+#[cfg_attr(coverage_nightly, coverage(off))]
+fn walk_require_fact_missing_id_impl(
+    diagnostics: &mut Vec<TrustPolicyTranslationDiagnostic>,
+    pointer: &str,
+) -> TrustPolicySpec {
+    // Defensive — schema requires `fact` to be a non-empty string.
+    emit_untranslatable_diagnostic(diagnostics, pointer, None);
+    deny_placeholder("untranslatable-node")
+}
+
+fn read_string_field(obj: &mut Map<String, Value>, key: &str, default: &str) -> String {
+    match obj.remove(key) {
+        Some(Value::String(s)) => s,
+        _ => default.to_owned(),
+    }
+}
+
+#[cfg_attr(coverage_nightly, coverage(off))]
+fn empty_scopes_fallback() -> TrustPolicySpec {
+    TrustPolicySpec::message([TrustPolicySpec::DenyAll {
+        reason: "no scope produced by translator (schema gate violated)".to_owned(),
+    }])
 }
 
 fn deny_placeholder(reason: &str) -> TrustPolicySpec {

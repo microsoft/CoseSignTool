@@ -140,6 +140,9 @@ internal static class ClassStrings
 
     public const string JoinSeparator = ", ";
 
+    public const string ErrCanonicalDepthExceeded = "Canonical JSON serialization exceeded the configured maximum depth. The spec is too deeply nested or has a recursive cycle.";
+    public const string ErrBindingDepthExceeded = "Parameter binding exceeded the configured maximum depth. The spec is too deeply nested or has a recursive cycle.";
+
     // ---------------- Coverage-suppression justifications ----------------
 
     public const string JustifyDefensiveSpec = "Defensive arm for future TrustPolicySpec / FactPredicateSpec subtypes; the closed discriminated union makes it unreachable today.";

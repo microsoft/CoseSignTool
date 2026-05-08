@@ -310,7 +310,17 @@ public static class TrustPolicySpecCompiler
     /// by <see cref="TrustRules.AnyFact{TFact}"/>. Internal — used by the compiler only.
     /// </summary>
     /// <typeparam name="TFact">The fact CLR type.</typeparam>
+    /// <remarks>
+    /// The adapter is constructed once per <see cref="RequireFactSpec"/> at compile time and
+    /// invoked once per fact value at evaluation time. The runtime null check matches the
+    /// defensive-validation pattern used throughout the package — the
+    /// <see cref="TrustRules.AnyFact{TFact}"/> rule never feeds null into the predicate today,
+    /// but a future refactoring of <see cref="CoseSign1.Validation.Trust.Engine.TrustFactSet{TFact}"/>
+    /// could; relying on a null-forgiving operator here would mask the resulting bug as a
+    /// <see cref="System.NullReferenceException"/> deep inside user-supplied logic.
+    /// </remarks>
     internal sealed class TypedPredicateAdapter<TFact>
+        where TFact : notnull
     {
         private readonly Func<object, bool> Inner;
 
@@ -320,6 +330,10 @@ public static class TrustPolicySpecCompiler
             Inner = inner;
         }
 
-        public bool Evaluate(TFact fact) => Inner(fact!);
+        public bool Evaluate(TFact fact)
+        {
+            Cose.Abstractions.Guard.ThrowIfNull(fact);
+            return Inner(fact);
+        }
     }
 }

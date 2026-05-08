@@ -99,6 +99,13 @@ public static class TrustPolicySpecSerializer
             // canonical writes never emit trailing commas.
             AllowTrailingCommas = true,
 
+            // Bound deserialization recursion. The default of 64 is generous — trust-policy specs
+            // are typically 4–6 levels deep; values above this depth are almost certainly an
+            // attacker probing the parser for stack-exhaustion (DoS via deeply nested arrays /
+            // objects). The limit applies to inbound JSON in FromCanonicalJson; the outbound
+            // canonical writer enforces its own depth budget independently.
+            MaxDepth = MaxSerializationDepth,
+
             // UnsafeRelaxedJsonEscaping is used so non-ASCII fact-id components and host strings
             // serialize identically across frontends (the JSON spec allows raw codepoints; STJ's
             // default escapes them, which would diverge from the Rego/CEL projections).
@@ -108,9 +115,17 @@ public static class TrustPolicySpecSerializer
         // Enum values serialize as snake_case strings so the canonical JSON matches §6.5.5 examples
         // (e.g. "primary_signing_key", "any_counter_signature", "starts_with").
         options.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseLower));
-        options.Converters.Add(new CanonicalJsonNodeConverter());
+        options.Converters.Add(new CanonicalJsonNodeConverter(MaxSerializationDepth));
         options.Converters.Add(new CanonicalPredicateAssertionsConverter());
 
         return options;
     }
+
+    /// <summary>
+    /// Maximum recursion depth for canonical JSON serialisation. Bounds the writer against
+    /// stack-exhaustion when fed a programmatically-constructed deeply nested
+    /// <see cref="JsonNode"/>; the matching <see cref="JsonSerializerOptions.MaxDepth"/> bounds
+    /// the reader.
+    /// </summary>
+    public const int MaxSerializationDepth = 64;
 }

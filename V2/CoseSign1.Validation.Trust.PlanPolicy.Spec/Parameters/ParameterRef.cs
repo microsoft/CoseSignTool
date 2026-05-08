@@ -117,6 +117,13 @@ public sealed record ParameterRef
     }
 
     /// <summary>
+    /// Maximum recursion depth permitted by <see cref="Bind"/> when walking a parameterised
+    /// <see cref="JsonNode"/> tree. Bounds the binder against stack-exhaustion DoS when fed a
+    /// programmatically-constructed pathological spec.
+    /// </summary>
+    public const int MaxBindingDepth = 64;
+
+    /// <summary>
     /// Substitutes every parameter-ref occurrence reachable from <paramref name="root"/> with the
     /// corresponding entry in <paramref name="bindings"/> or its default.
     /// </summary>
@@ -126,15 +133,28 @@ public sealed record ParameterRef
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="bindings"/> is null.</exception>
     /// <exception cref="TrustPolicySpecCompilationException">
     /// Thrown with code <see cref="TrustPolicyDiagnosticCodes.UnboundParameter"/> when a parameter
-    /// has no binding and no default.
+    /// has no binding and no default. Also thrown when <paramref name="root"/> nests deeper than
+    /// <see cref="MaxBindingDepth"/>.
     /// </exception>
     public static JsonNode? Bind(JsonNode? root, IReadOnlyDictionary<string, JsonNode?> bindings)
     {
         Cose.Abstractions.Guard.ThrowIfNull(bindings);
 
+        return BindCore(root, bindings, MaxBindingDepth);
+    }
+
+    private static JsonNode? BindCore(JsonNode? root, IReadOnlyDictionary<string, JsonNode?> bindings, int remainingDepth)
+    {
         if (root is null)
         {
             return null;
+        }
+
+        if (remainingDepth <= 0)
+        {
+            throw new TrustPolicySpecCompilationException(
+                TrustPolicyDiagnosticCodes.UnboundParameter,
+                ClassStrings.ErrBindingDepthExceeded);
         }
 
         if (TryParse(root, out var paramRef) && paramRef is not null)
@@ -159,26 +179,26 @@ public sealed record ParameterRef
 
         return root switch
         {
-            JsonObject obj => BindObject(obj, bindings),
-            JsonArray arr => BindArray(arr, bindings),
+            JsonObject obj => BindObject(obj, bindings, remainingDepth - 1),
+            JsonArray arr => BindArray(arr, bindings, remainingDepth - 1),
             _ => root.DeepClone(),
         };
     }
 
-    private static JsonObject BindObject(JsonObject obj, IReadOnlyDictionary<string, JsonNode?> bindings)
+    private static JsonObject BindObject(JsonObject obj, IReadOnlyDictionary<string, JsonNode?> bindings, int remainingDepth)
     {
         var result = new JsonObject();
         foreach (var kvp in obj)
         {
-            result[kvp.Key] = Bind(kvp.Value, bindings);
+            result[kvp.Key] = BindCore(kvp.Value, bindings, remainingDepth);
         }
 
         return result;
     }
 
-    private static JsonArray BindArray(JsonArray arr, IReadOnlyDictionary<string, JsonNode?> bindings)
+    private static JsonArray BindArray(JsonArray arr, IReadOnlyDictionary<string, JsonNode?> bindings, int remainingDepth)
     {
-        var bound = arr.Select(item => Bind(item, bindings)).ToArray();
+        var bound = arr.Select(item => BindCore(item, bindings, remainingDepth)).ToArray();
         return new JsonArray(bound);
     }
 }

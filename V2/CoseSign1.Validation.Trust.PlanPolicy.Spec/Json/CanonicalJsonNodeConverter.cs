@@ -27,6 +27,13 @@ using System.Text.Json.Serialization;
 /// </remarks>
 internal sealed class CanonicalJsonNodeConverter : JsonConverter<JsonNode?>
 {
+    private readonly int MaxDepth;
+
+    public CanonicalJsonNodeConverter(int maxDepth = 64)
+    {
+        MaxDepth = maxDepth;
+    }
+
     public override JsonNode? Read(ref Utf8JsonReader reader, System.Type typeToConvert, JsonSerializerOptions options)
     {
         return JsonNode.Parse(ref reader);
@@ -40,11 +47,20 @@ internal sealed class CanonicalJsonNodeConverter : JsonConverter<JsonNode?>
             return;
         }
 
-        WriteCanonical(writer, value);
+        WriteCanonical(writer, value, MaxDepth);
     }
 
-    private static void WriteCanonical(Utf8JsonWriter writer, JsonNode node)
+    private static void WriteCanonical(Utf8JsonWriter writer, JsonNode node, int remainingDepth)
     {
+        if (remainingDepth <= 0)
+        {
+            // Defensive — JsonSerializerOptions.MaxDepth bounds the matching reader, but a
+            // programmatically constructed JsonNode can still nest beyond the writer's safe
+            // recursion budget. Surface the failure as a typed exception rather than a stack
+            // overflow.
+            throw new JsonException(ClassStrings.ErrCanonicalDepthExceeded);
+        }
+
         switch (node)
         {
             case JsonObject obj:
@@ -64,7 +80,7 @@ internal sealed class CanonicalJsonNodeConverter : JsonConverter<JsonNode?>
                     }
                     else
                     {
-                        WriteCanonical(writer, kvp.Value);
+                        WriteCanonical(writer, kvp.Value, remainingDepth - 1);
                     }
                 }
 
@@ -81,7 +97,7 @@ internal sealed class CanonicalJsonNodeConverter : JsonConverter<JsonNode?>
                     }
                     else
                     {
-                        WriteCanonical(writer, item);
+                        WriteCanonical(writer, item, remainingDepth - 1);
                     }
                 }
 

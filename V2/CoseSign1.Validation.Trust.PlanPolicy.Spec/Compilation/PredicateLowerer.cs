@@ -148,12 +148,17 @@ internal static class PredicateLowerer
 
     private static JsonNode? ProjectFact(object fact, Type factType)
     {
-        // Pre-build a JsonSerializerOptions per-fact at first projection. We use property-name
-        // case-insensitive matching is unnecessary because the canonical JSON converter writes
-        // declared-property casing. Use camelCase to match the §6.5.5 examples (`is_trusted`
-        // vs CLR `IsTrusted`). Use snake_case to be uniform with the spec itself.
-        var options = ProjectionOptions;
-        return JsonSerializer.SerializeToNode(fact, factType, options);
+        // PERFORMANCE: this projection is invoked ONCE PER FACT during trust evaluation —
+        // hot path on the COSE verify pipeline. Each call allocates a fresh JsonNode tree
+        // proportional to the fact's surface area; for facts with ~10 properties that is
+        // ~1–3 KB of Gen0 garbage per call. Phase 4 adds a CI gate (1 KB doc → ≤10 ms
+        // translation) and is the right place to introduce optimisations: per-fact-instance
+        // JsonNode caching (ConditionalWeakTable when fact instances are reused), or a
+        // fast-path predicate that operates directly on CLR properties via compiled
+        // expression trees for simple `$.property` paths. We keep the JsonNode projection
+        // here because it is the only path that delivers the byte-identical D1 invariant
+        // for both PathOperatorPredicateSpec and PropertyAssertionPredicateSpec.
+        return JsonSerializer.SerializeToNode(fact, factType, ProjectionOptions);
     }
 
     private static readonly JsonSerializerOptions ProjectionOptions = new(JsonSerializerDefaults.Web)

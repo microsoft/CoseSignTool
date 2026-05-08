@@ -7,7 +7,6 @@ using System;
 using System.Collections.Generic;
 using System.Text.Json.Nodes;
 using CoseSign1.Validation.Trust.PlanPolicy.Spec;
-using CoseSign1.Validation.Trust.PlanPolicy.Spec.Combinators;
 using CoseSign1.Validation.Trust.PlanPolicy.Spec.Diagnostics;
 using CoseSign1.Validation.Trust.PlanPolicy.Spec.Parameters;
 using CoseSign1.Validation.Trust.PlanPolicy.Spec.Predicates;
@@ -200,9 +199,31 @@ public sealed class ParameterRefTests
     }
 
     [Test]
-    public void TrustPolicySpecExtensions_Bind_NullBindings_Throws()
+    public void Bind_DeepRecursion_ThrowsTPX400()
     {
-        TrustPolicySpec spec = new AllowAllSpec();
-        Assert.Throws<ArgumentNullException>(() => spec.Bind(null!));
+        // Build a JSON object nested 200 levels deep (well past the MaxBindingDepth of 64) and
+        // ensure Bind surfaces a typed exception rather than overflowing the stack.
+        JsonNode current = JsonValue.Create("leaf");
+        for (int i = 0; i < 200; i++)
+        {
+            current = new JsonObject { ["nested"] = current };
+        }
+
+        var ex = Assert.Throws<TrustPolicySpecCompilationException>(
+            () => ParameterRef.Bind(current, new Dictionary<string, JsonNode?>()));
+        Assert.That(ex!.Code, Is.EqualTo(TrustPolicyDiagnosticCodes.UnboundParameter));
+    }
+
+    [Test]
+    public void Bind_AtBoundaryDepth_DoesNotThrow()
+    {
+        // Stay within the depth budget — Bind must complete normally.
+        JsonNode current = JsonValue.Create("leaf");
+        for (int i = 0; i < ParameterRef.MaxBindingDepth - 2; i++)
+        {
+            current = new JsonObject { ["nested"] = current };
+        }
+
+        Assert.DoesNotThrow(() => ParameterRef.Bind(current, new Dictionary<string, JsonNode?>()));
     }
 }

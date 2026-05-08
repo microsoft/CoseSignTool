@@ -353,6 +353,47 @@ public sealed class CoverageEdgeTests
     }
 
     [Test]
+    public void FromCanonicalJson_DeeplyNested_ThrowsBeforeStackOverflow()
+    {
+        // Construct a JSON document that nests a `nested` property well past the configured
+        // MaxDepth. STJ should raise a JsonException long before the stack overflows.
+        var sb = new StringBuilder();
+        sb.Append("{\"type\":\"deny_all\",\"reason\":\"x\"");
+        for (int i = 0; i < 200; i++)
+        {
+            sb.Append(",\"nested\":{");
+        }
+
+        for (int i = 0; i < 200; i++)
+        {
+            sb.Append('}');
+        }
+
+        sb.Append('}');
+
+        Assert.Throws<JsonException>(() => TrustPolicySpecSerializer.FromCanonicalJson(sb.ToString()));
+    }
+
+    [Test]
+    public void ToCanonicalJson_DeeplyNestedJsonNode_ThrowsBeforeStackOverflow()
+    {
+        // Build a deeply nested JsonObject that is well past the writer's depth budget.
+        JsonNode current = JsonValue.Create("leaf");
+        for (int i = 0; i < 200; i++)
+        {
+            current = new JsonObject { ["nested"] = current };
+        }
+
+        var pred = new PropertyAssertionPredicateSpec(new Dictionary<string, JsonNode?>
+        {
+            ["complex"] = current,
+        });
+        var spec = new MessageRequirementSpec(new RequireFactSpec(TestFactRegistry.TestMessage, pred, "msg"));
+
+        Assert.Throws<JsonException>(() => TrustPolicySpecSerializer.ToCanonicalJson(spec));
+    }
+
+    [Test]
     public void DeepPath_MidSegmentMissing_StopsResolutionEarly()
     {
         // Path like `$.does_not_exist.foo` causes ResolvePath to enter the loop with

@@ -465,6 +465,33 @@ public sealed class TrustPolicySpecCompilerTests
     }
 
     [Test]
+    public void Compile_NullFactToTypedPredicateAdapter_RuntimeGuardThrows()
+    {
+        // Build a property-assertion predicate that always returns true regardless of input,
+        // wrap it in a RequireFact, compile, then drive the predicate with a null fact via
+        // reflection on the compiled adapter to confirm the runtime null guard fires rather
+        // than a NullReferenceException leaking out.
+        var spec = new MessageRequirementSpec(new RequireFactSpec(
+            TestFactRegistry.TestMessage,
+            new PropertyAssertionPredicateSpec(new Dictionary<string, JsonNode?>
+            {
+                ["content_type"] = JsonValue.Create("application/json"),
+            }),
+            "fail"));
+
+        var adapterType = typeof(TrustPolicySpecCompiler)
+            .GetNestedType("TypedPredicateAdapter`1", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Static)
+            !.MakeGenericType(typeof(TestMessageFact));
+
+        object adapter = System.Activator.CreateInstance(adapterType, new System.Func<object, bool>(_ => true))!;
+        var evalMethod = adapterType.GetMethod("Evaluate")!;
+        var ex = Assert.Throws<System.Reflection.TargetInvocationException>(
+            () => evalMethod.Invoke(adapter, new object?[] { null }));
+        Assert.That(ex!.InnerException, Is.InstanceOf<ArgumentNullException>());
+        TrustPolicySpecCompiler.Compile(spec, Registry);
+    }
+
+    [Test]
     public void Compile_PropertyAssertion_ListValue_LowersToInOperator()
     {
         // Putting a JsonArray as the value for a property-assertion entry triggers the In-style

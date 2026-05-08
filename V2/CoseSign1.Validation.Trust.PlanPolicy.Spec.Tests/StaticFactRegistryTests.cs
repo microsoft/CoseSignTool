@@ -12,6 +12,7 @@ using CoseSign1.Validation.Trust.PlanPolicy.Spec.Registry;
 /// </summary>
 [TestFixture]
 [Category("TrustPolicySpec")]
+#pragma warning disable CS0618 // Phase 3: StaticFactRegistry is [Obsolete] but remains the conformance baseline; tests must keep exercising it.
 public sealed class StaticFactRegistryTests
 {
     [Test]
@@ -131,3 +132,4 @@ public sealed class StaticFactRegistryTests
         Assert.That(second, Has.Count.EqualTo(first.Count));
     }
 }
+#pragma warning restore CS0618

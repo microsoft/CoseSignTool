@@ -135,26 +135,28 @@ public sealed class AttributeDrivenFactRegistry : IFactRegistry
     /// </remarks>
     public static AttributeDrivenFactRegistry FromLoadedAssemblies()
     {
-        // Force-load the three known fact-host assemblies by touching a representative type.
-        // This guarantees discovery succeeds even when the consumer hasn't already used a fact
-        // type from the assembly (lazy-load on first reference). Using known types keeps the
-        // dependency explicit instead of relying on assembly probing.
-        _ = typeof(IMessageFact);
-        _ = typeof(CoseSign1.Certificates.Trust.Facts.X509ChainTrustedFact);
-        _ = typeof(CoseSign1.Transparent.MST.Trust.MstReceiptPresentFact);
+        // Explicitly capture the three known fact-host assemblies via Type.Assembly. This is
+        // stronger than `_ = typeof(...)` because the JIT cannot elide an Assembly value that is
+        // observed in a collection. It also guarantees that even if the host hasn't already
+        // touched a fact type, the registry sees every shipped fact pack.
+        var explicitAssemblies = new HashSet<Assembly>
+        {
+            typeof(IMessageFact).Assembly,
+            typeof(CoseSign1.Certificates.Trust.Facts.X509ChainTrustedFact).Assembly,
+            typeof(CoseSign1.Transparent.MST.Trust.MstReceiptPresentFact).Assembly,
+        };
 
         Assembly[] loaded = AppDomain.CurrentDomain.GetAssemblies();
-        var matched = new List<Assembly>(loaded.Length);
         foreach (Assembly asm in loaded)
         {
             string? simpleName = asm.GetName().Name;
             if (simpleName is not null && simpleName.StartsWith(ClassStrings.AttributeDrivenAssemblyPrefix, StringComparison.Ordinal))
             {
-                matched.Add(asm);
+                explicitAssemblies.Add(asm);
             }
         }
 
-        return new AttributeDrivenFactRegistry(matched);
+        return new AttributeDrivenFactRegistry(explicitAssemblies);
     }
 
     /// <inheritdoc />

@@ -27,6 +27,7 @@
 //! from this reserved keyword (e.g. by validating that user values conform to a schema
 //! that forbids `$`-prefixed keys).
 
+use crate::diagnostic_codes;
 use crate::predicate::{FactPredicateSpec, PathOperatorPredicateSpec, PropertyAssertionPredicateSpec};
 use crate::spec::TrustPolicySpec;
 use serde::{Deserialize, Serialize};
@@ -101,10 +102,9 @@ impl ParameterRef {
         let serde_json::Value::Object(obj) = value else {
             return Ok(None);
         };
-        if !obj.contains_key(PARAM_KEY) {
+        let Some(name_value) = obj.get(PARAM_KEY) else {
             return Ok(None);
-        }
-        let name_value = obj.get(PARAM_KEY).expect("contains_key returned true");
+        };
         let serde_json::Value::String(name) = name_value else {
             return Err(BindError::Malformed {
                 detail: format!(
@@ -129,9 +129,14 @@ impl ParameterRef {
 }
 
 /// Errors produced by [`bind`].
+///
+/// Every variant carries a stable diagnostic code from [`crate::diagnostic_codes`] (TPX400 /
+/// TPX401 / TPX301), surfaced verbatim in the [`std::fmt::Display`] impl so log scrapers
+/// and audit pipelines can grep/correlate without parsing free-form text.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum BindError {
-    /// A `$param` reference has neither a binding nor a default.
+    /// A `$param` reference has neither a binding nor a default. (`TPX400`)
     MissingParameter {
         /// Parameter name that could not be resolved.
         name: String,
@@ -140,11 +145,27 @@ pub enum BindError {
         location: String,
     },
     /// A `$param` literal is structurally malformed (e.g. non-string `$param` value or
-    /// extra co-keys).
+    /// extra co-keys). (`TPX401`)
     Malformed {
         /// Human-readable description of the malformation.
         detail: String,
     },
+    /// Recursion depth cap exceeded during the bind walk. (`TPX301`)
+    RecursionLimitExceeded {
+        /// Configured depth limit.
+        limit: usize,
+    },
+}
+
+impl BindError {
+    /// Stable diagnostic code for this error.
+    pub fn code(&self) -> &'static str {
+        match self {
+            Self::MissingParameter { .. } => diagnostic_codes::TPX_400_PARAMETER_BIND_FAILED,
+            Self::Malformed { .. } => diagnostic_codes::TPX_401_PARAMETER_REF_MALFORMED,
+            Self::RecursionLimitExceeded { .. } => diagnostic_codes::TPX_301_RECURSION_LIMIT,
+        }
+    }
 }
 
 impl std::fmt::Display for BindError {
@@ -152,17 +173,57 @@ impl std::fmt::Display for BindError {
         match self {
             Self::MissingParameter { name, location } => {
                 if location.is_empty() {
-                    write!(f, "missing parameter '{name}' (no default)")
+                    write!(f, "[{}] missing parameter '{name}' (no default)", self.code())
                 } else {
-                    write!(f, "missing parameter '{name}' at {location} (no default)")
+                    write!(
+                        f,
+                        "[{}] missing parameter '{name}' at {location} (no default)",
+                        self.code()
+                    )
                 }
             }
-            Self::Malformed { detail } => write!(f, "malformed parameter literal: {detail}"),
+            Self::Malformed { detail } => {
+                write!(f, "[{}] malformed parameter literal: {detail}", self.code())
+            }
+            Self::RecursionLimitExceeded { limit } => {
+                write!(
+                    f,
+                    "[{}] bind recursion limit {limit} exceeded",
+                    self.code()
+                )
+            }
         }
     }
 }
 
 impl std::error::Error for BindError {}
+
+/// Default maximum recursion depth honored by [`bind`]. Same default as
+/// [`crate::compile::DEFAULT_MAX_DEPTH`] for symmetry.
+pub const DEFAULT_MAX_DEPTH: usize = 256;
+
+/// Configuration for [`bind_with_options`].
+#[derive(Clone, Debug)]
+#[non_exhaustive]
+pub struct BindOptions {
+    /// Maximum recursion depth honored when walking nested specs and JSON values.
+    pub max_depth: usize,
+}
+
+impl BindOptions {
+    /// Construct options with the given recursion depth cap.
+    pub fn with_max_depth(max_depth: usize) -> Self {
+        Self { max_depth }
+    }
+}
+
+impl Default for BindOptions {
+    fn default() -> Self {
+        Self {
+            max_depth: DEFAULT_MAX_DEPTH,
+        }
+    }
+}
 
 /// Substitute every [`ParameterRef`] in `spec` with a concrete value from `parameters`.
 ///
@@ -172,37 +233,94 @@ impl std::error::Error for BindError {}
 /// Errors:
 /// - [`BindError::MissingParameter`] — a referenced parameter has no binding and no default.
 /// - [`BindError::Malformed`] — a `$param` literal is structurally invalid.
+/// - [`BindError::RecursionLimitExceeded`] — input nesting depth exceeded
+///   [`DEFAULT_MAX_DEPTH`]. Use [`bind_with_options`] to override.
 pub fn bind(
     spec: TrustPolicySpec,
     parameters: &BTreeMap<String, serde_json::Value>,
 ) -> Result<TrustPolicySpec, BindError> {
-    let mut walker = SpecWalker { parameters };
-    walker.walk_spec(spec, "")
+    bind_with_options(spec, parameters, &BindOptions::default())
+}
+
+/// As [`bind`], but with caller-supplied [`BindOptions`].
+pub fn bind_with_options(
+    spec: TrustPolicySpec,
+    parameters: &BTreeMap<String, serde_json::Value>,
+    options: &BindOptions,
+) -> Result<TrustPolicySpec, BindError> {
+    let mut walker = SpecWalker {
+        parameters,
+        max_depth: options.max_depth,
+        breadcrumb: BreadcrumbStack::new(),
+    };
+    walker.walk_spec(spec, 0)
 }
 
 struct SpecWalker<'a> {
     parameters: &'a BTreeMap<String, serde_json::Value>,
+    max_depth: usize,
+    breadcrumb: BreadcrumbStack,
+}
+
+/// Reusable breadcrumb stack — pushes are in-place and only materialize a string when an
+/// error is constructed. Avoids the per-recursive-step `format!` allocations the original
+/// implementation incurred.
+struct BreadcrumbStack {
+    segments: Vec<String>,
+}
+
+impl BreadcrumbStack {
+    fn new() -> Self {
+        Self {
+            segments: Vec::new(),
+        }
+    }
+
+    fn push(&mut self, segment: String) {
+        self.segments.push(segment);
+    }
+
+    fn pop(&mut self) {
+        self.segments.pop();
+    }
+
+    /// Render the current breadcrumb as a dotted path. Allocates only when called.
+    fn render(&self) -> String {
+        self.segments.join(".")
+    }
 }
 
 impl<'a> SpecWalker<'a> {
+    fn check_depth(&self, depth: usize) -> Result<(), BindError> {
+        if depth >= self.max_depth {
+            return Err(BindError::RecursionLimitExceeded {
+                limit: self.max_depth,
+            });
+        }
+        Ok(())
+    }
+
     fn walk_spec(
         &mut self,
         spec: TrustPolicySpec,
-        location: &str,
+        depth: usize,
     ) -> Result<TrustPolicySpec, BindError> {
+        self.check_depth(depth)?;
         match spec {
             TrustPolicySpec::AllowAll => Ok(TrustPolicySpec::AllowAll),
             TrustPolicySpec::DenyAll { reason } => Ok(TrustPolicySpec::DenyAll { reason }),
             TrustPolicySpec::And { specs } => Ok(TrustPolicySpec::And {
-                specs: self.walk_vec(specs, location, "and")?,
+                specs: self.walk_vec(specs, "and", depth + 1)?,
             }),
             TrustPolicySpec::Or { specs } => Ok(TrustPolicySpec::Or {
-                specs: self.walk_vec(specs, location, "or")?,
+                specs: self.walk_vec(specs, "or", depth + 1)?,
             }),
             TrustPolicySpec::Not { spec, reason } => {
-                let inner = self.walk_spec(*spec, &push(location, "not"))?;
+                self.breadcrumb.push("not".to_owned());
+                let inner = self.walk_spec(*spec, depth + 1);
+                self.breadcrumb.pop();
                 Ok(TrustPolicySpec::Not {
-                    spec: Box::new(inner),
+                    spec: Box::new(inner?),
                     reason,
                 })
             }
@@ -210,19 +328,24 @@ impl<'a> SpecWalker<'a> {
                 antecedent,
                 consequent,
             } => {
-                let a = self.walk_spec(*antecedent, &push(location, "implies.antecedent"))?;
-                let c = self.walk_spec(*consequent, &push(location, "implies.consequent"))?;
+                self.breadcrumb.push("implies.antecedent".to_owned());
+                let a = self.walk_spec(*antecedent, depth + 1);
+                self.breadcrumb.pop();
+                let a = a?;
+                self.breadcrumb.push("implies.consequent".to_owned());
+                let c = self.walk_spec(*consequent, depth + 1);
+                self.breadcrumb.pop();
                 Ok(TrustPolicySpec::Implies {
                     antecedent: Box::new(a),
-                    consequent: Box::new(c),
+                    consequent: Box::new(c?),
                 })
             }
             TrustPolicySpec::Message { requirements } => Ok(TrustPolicySpec::Message {
-                requirements: self.walk_vec(requirements, location, "message")?,
+                requirements: self.walk_vec(requirements, "message", depth + 1)?,
             }),
             TrustPolicySpec::PrimarySigningKey { requirements } => {
                 Ok(TrustPolicySpec::PrimarySigningKey {
-                    requirements: self.walk_vec(requirements, location, "primary_signing_key")?,
+                    requirements: self.walk_vec(requirements, "primary_signing_key", depth + 1)?,
                 })
             }
             TrustPolicySpec::AnyCounterSignature {
@@ -230,32 +353,37 @@ impl<'a> SpecWalker<'a> {
                 requirements,
             } => Ok(TrustPolicySpec::AnyCounterSignature {
                 on_empty,
-                requirements: self.walk_vec(requirements, location, "any_counter_signature")?,
+                requirements: self.walk_vec(requirements, "any_counter_signature", depth + 1)?,
             }),
             TrustPolicySpec::RequireFact {
                 fact_id,
                 predicate,
                 failure_message,
-            } => Ok(TrustPolicySpec::RequireFact {
-                fact_id,
-                predicate: self.walk_predicate(
-                    predicate,
-                    &push(location, "require_fact.predicate"),
-                )?,
-                failure_message,
-            }),
+            } => {
+                self.breadcrumb.push("require_fact.predicate".to_owned());
+                let predicate = self.walk_predicate(predicate, depth + 1);
+                self.breadcrumb.pop();
+                Ok(TrustPolicySpec::RequireFact {
+                    fact_id,
+                    predicate: predicate?,
+                    failure_message,
+                })
+            }
         }
     }
 
     fn walk_vec(
         &mut self,
         specs: Vec<TrustPolicySpec>,
-        location: &str,
         kind: &str,
+        depth: usize,
     ) -> Result<Vec<TrustPolicySpec>, BindError> {
         let mut out = Vec::with_capacity(specs.len());
         for (i, s) in specs.into_iter().enumerate() {
-            out.push(self.walk_spec(s, &push(location, &format!("{kind}[{i}]")))?);
+            self.breadcrumb.push(format!("{kind}[{i}]"));
+            let walked = self.walk_spec(s, depth);
+            self.breadcrumb.pop();
+            out.push(walked?);
         }
         Ok(out)
     }
@@ -263,14 +391,17 @@ impl<'a> SpecWalker<'a> {
     fn walk_predicate(
         &mut self,
         predicate: FactPredicateSpec,
-        location: &str,
+        depth: usize,
     ) -> Result<FactPredicateSpec, BindError> {
+        self.check_depth(depth)?;
         match predicate {
             FactPredicateSpec::Property(PropertyAssertionPredicateSpec { assertions }) => {
                 let mut out = BTreeMap::new();
                 for (k, v) in assertions {
-                    let key_loc = push(location, &format!("assertions[{k}]"));
-                    out.insert(k, self.walk_value(v, &key_loc)?);
+                    self.breadcrumb.push(format!("assertions[{k}]"));
+                    let walked = self.walk_value(v, depth + 1);
+                    self.breadcrumb.pop();
+                    out.insert(k, walked?);
                 }
                 Ok(FactPredicateSpec::Property(PropertyAssertionPredicateSpec {
                     assertions: out,
@@ -282,7 +413,12 @@ impl<'a> SpecWalker<'a> {
                 value,
             }) => {
                 let value = match value {
-                    Some(v) => Some(self.walk_value(v, &push(location, "value"))?),
+                    Some(v) => {
+                        self.breadcrumb.push("value".to_owned());
+                        let walked = self.walk_value(v, depth + 1);
+                        self.breadcrumb.pop();
+                        Some(walked?)
+                    }
                     None => None,
                 };
                 Ok(FactPredicateSpec::PathOperator(PathOperatorPredicateSpec {
@@ -297,24 +433,30 @@ impl<'a> SpecWalker<'a> {
     fn walk_value(
         &mut self,
         value: serde_json::Value,
-        location: &str,
+        depth: usize,
     ) -> Result<serde_json::Value, BindError> {
+        self.check_depth(depth)?;
         if let Some(param) = ParameterRef::try_recognize(&value)? {
-            return self.resolve(&param, location);
+            return self.resolve(&param);
         }
         match value {
             serde_json::Value::Array(items) => {
                 let mut out = Vec::with_capacity(items.len());
                 for (i, item) in items.into_iter().enumerate() {
-                    out.push(self.walk_value(item, &push(location, &format!("[{i}]")))?);
+                    self.breadcrumb.push(format!("[{i}]"));
+                    let walked = self.walk_value(item, depth + 1);
+                    self.breadcrumb.pop();
+                    out.push(walked?);
                 }
                 Ok(serde_json::Value::Array(out))
             }
             serde_json::Value::Object(map) => {
                 let mut out = serde_json::Map::with_capacity(map.len());
                 for (k, v) in map {
-                    let key_loc = push(location, &format!(".{k}"));
-                    out.insert(k, self.walk_value(v, &key_loc)?);
+                    self.breadcrumb.push(k.clone());
+                    let walked = self.walk_value(v, depth + 1);
+                    self.breadcrumb.pop();
+                    out.insert(k, walked?);
                 }
                 Ok(serde_json::Value::Object(out))
             }
@@ -322,11 +464,7 @@ impl<'a> SpecWalker<'a> {
         }
     }
 
-    fn resolve(
-        &self,
-        param: &ParameterRef,
-        location: &str,
-    ) -> Result<serde_json::Value, BindError> {
+    fn resolve(&self, param: &ParameterRef) -> Result<serde_json::Value, BindError> {
         if let Some(v) = self.parameters.get(&param.name) {
             return Ok(v.clone());
         }
@@ -335,16 +473,8 @@ impl<'a> SpecWalker<'a> {
         }
         Err(BindError::MissingParameter {
             name: param.name.clone(),
-            location: location.to_owned(),
+            location: self.breadcrumb.render(),
         })
-    }
-}
-
-fn push(prefix: &str, segment: &str) -> String {
-    if prefix.is_empty() {
-        segment.to_owned()
-    } else {
-        format!("{prefix}.{segment}")
     }
 }
 

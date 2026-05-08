@@ -89,6 +89,18 @@ fn smoke_not_negates_inner_trusted() {
     let (trusted, reasons) = evaluate(&spec);
     assert!(!trusted);
     assert!(!reasons.is_empty());
+    // Authored reason is preserved through lowering.
+    assert!(
+        reasons.iter().any(|r| r.contains("user reason")),
+        "authored reason preserved: {reasons:?}"
+    );
+}
+
+#[test]
+fn smoke_not_without_authored_reason_emits_default() {
+    let spec = TrustPolicySpec::not(TrustPolicySpec::AllowAll, None);
+    let (_trusted, reasons) = evaluate(&spec);
+    assert!(reasons.iter().any(|r| r.contains("Negated rule was satisfied")));
 }
 
 #[test]
@@ -271,7 +283,7 @@ fn smoke_recursion_limit_respected() {
     }
     let deep = nest(60);
     let registry = StaticFactRegistry::default_mappings();
-    let err = match compile_with_options(&deep, &registry, &CompileOptions { max_depth: 32 }) {
+    let err = match compile_with_options(&deep, &registry, &CompileOptions::with_max_depth(32)) {
         Ok(_) => panic!("expected recursion-limit error"),
         Err(e) => e,
     };

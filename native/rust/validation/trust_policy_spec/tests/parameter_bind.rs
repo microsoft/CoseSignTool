@@ -43,10 +43,24 @@ fn bind_replaces_param_with_value() {
 fn bind_uses_default_when_param_missing() {
     let spec = require_fact_with_param_default("not_supplied", json!("fallback"));
     let bound = bind(spec, &BTreeMap::new()).expect("bind uses default");
-    if let TrustPolicySpec::RequireFact { predicate, .. } = bound {
+    // Structural assertion: the outer variant + sibling fields must remain unchanged.
+    if let TrustPolicySpec::RequireFact {
+        fact_id,
+        predicate,
+        failure_message,
+    } = bound
+    {
+        assert_eq!(fact_id, "x509-chain-trusted/v1");
+        assert_eq!(failure_message, "fail");
         if let FactPredicateSpec::PathOperator(p) = predicate {
+            assert_eq!(p.path, "is_trusted");
+            assert_eq!(p.operator, PredicateOperator::Equals);
             assert_eq!(p.value, Some(json!("fallback")));
+        } else {
+            panic!("expected PathOperator");
         }
+    } else {
+        panic!("expected RequireFact");
     }
 }
 
@@ -195,6 +209,8 @@ fn bind_error_display_emits_location() {
     let s = format!("{err}");
     assert!(s.contains("p"));
     assert!(s.contains("require_fact.predicate.value"));
+    assert!(s.contains("TPX400"), "TPX code present: {s}");
+    assert_eq!(err.code(), "TPX400");
 
     let no_loc = BindError::MissingParameter {
         name: "p".into(),
@@ -202,11 +218,19 @@ fn bind_error_display_emits_location() {
     };
     let s2 = format!("{no_loc}");
     assert!(s2.contains("p") && !s2.contains(" at "));
+    assert!(s2.contains("TPX400"));
 
     let malformed = BindError::Malformed {
         detail: "bad".into(),
     };
     assert!(format!("{malformed}").contains("bad"));
+    assert!(format!("{malformed}").contains("TPX401"));
+    assert_eq!(malformed.code(), "TPX401");
+
+    let recursion = BindError::RecursionLimitExceeded { limit: 5 };
+    let s3 = format!("{recursion}");
+    assert!(s3.contains("TPX301") && s3.contains("5"));
+    assert_eq!(recursion.code(), "TPX301");
 }
 
 #[test]
@@ -232,6 +256,65 @@ fn allow_deny_allowall_specs_unchanged_by_bind() {
         let bound = bind(spec.clone(), &BTreeMap::new()).expect("bind no-op");
         assert_eq!(spec, bound);
     }
+}
+
+#[test]
+fn bind_recursion_limit_enforced() {
+    use cose_sign1_trust_policy_spec::{bind_with_options, BindOptions};
+
+    fn nest(n: usize) -> TrustPolicySpec {
+        if n == 0 {
+            TrustPolicySpec::AllowAll
+        } else {
+            TrustPolicySpec::and([nest(n - 1)])
+        }
+    }
+    let deep = nest(50);
+    let err = match bind_with_options(deep, &BTreeMap::new(), &BindOptions::with_max_depth(16)) {
+        Ok(_) => panic!("expected RecursionLimitExceeded"),
+        Err(e) => e,
+    };
+    assert!(matches!(err, BindError::RecursionLimitExceeded { .. }));
+    assert_eq!(err.code(), "TPX301");
+}
+
+#[test]
+fn bind_recursion_limit_via_deeply_nested_value() {
+    // A deeply nested JSON Value should also trip the depth cap.
+    use cose_sign1_trust_policy_spec::{bind_with_options, BindOptions, FactPredicateSpec, PathOperatorPredicateSpec, PredicateOperator};
+
+    let mut value = serde_json::json!(0);
+    for _ in 0..100 {
+        value = serde_json::Value::Array(vec![value]);
+    }
+    let spec = TrustPolicySpec::require_fact(
+        "x509-chain-trusted/v1",
+        FactPredicateSpec::PathOperator(PathOperatorPredicateSpec {
+            path: "p".into(),
+            operator: PredicateOperator::Equals,
+            value: Some(value),
+        }),
+        "x",
+    );
+    let err = match bind_with_options(spec, &BTreeMap::new(), &BindOptions::with_max_depth(32)) {
+        Ok(_) => panic!("expected RecursionLimitExceeded"),
+        Err(e) => e,
+    };
+    assert!(matches!(err, BindError::RecursionLimitExceeded { .. }));
+}
+
+#[test]
+fn bind_options_default_matches_const() {
+    use cose_sign1_trust_policy_spec::{BindOptions, BIND_DEFAULT_MAX_DEPTH};
+    assert_eq!(BindOptions::default().max_depth, BIND_DEFAULT_MAX_DEPTH);
+}
+
+#[test]
+fn parameter_ref_object_with_marker_but_no_object_passes_through() {
+    // serde_json::Value::Bool isn't an object so try_recognize returns Ok(None).
+    use cose_sign1_trust_policy_spec::ParameterRef;
+    let recognized = ParameterRef::try_recognize(&serde_json::json!(true)).unwrap();
+    assert!(recognized.is_none());
 }
 
 #[test]

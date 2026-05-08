@@ -26,6 +26,14 @@ use std::collections::BTreeSet;
 /// messages); Phase 3 will introduce a richer descriptor (TypeId, property accessor) so the
 /// compiler can lower [`crate::spec::TrustPolicySpec::RequireFact`] into typed
 /// `Field<TFact, T>` checks.
+///
+/// # API stability strategy
+///
+/// This trait is intentionally minimal in Phase 1. Phase 3 (`np-fact-registry`) extends it
+/// via the [`FactRegistryExt`] companion trait — Phase 3 implementors layer the additional
+/// resolution shape on the same registry without breaking existing consumers. Adding
+/// methods to `IFactRegistry` itself would be a source-breaking change for downstream
+/// implementors and is therefore avoided.
 pub trait IFactRegistry: Send + Sync {
     /// Returns the runtime type name that satisfies `fact_id`, or `None` when `fact_id`
     /// is not registered.
@@ -40,6 +48,27 @@ pub trait IFactRegistry: Send + Sync {
     /// All registered fact ids, in deterministic (sorted) iteration order.
     fn all_fact_ids(&self) -> &BTreeSet<String>;
 }
+
+/// Forward-compatible extension surface for [`IFactRegistry`] consumers.
+///
+/// Phase 3 adds methods here (e.g. `try_get_fact_type_id`, `try_get_property_accessor`)
+/// without disturbing the Phase 1 [`IFactRegistry`] contract. Consumers that only need
+/// id↔name resolution depend on [`IFactRegistry`]; consumers that need richer access
+/// require this trait.
+///
+/// Phase 1 ships an empty default — every method is provided with a default implementation
+/// that returns `None` / empty so blanket-implementing this trait on every Phase 1
+/// `IFactRegistry` is a one-liner.
+pub trait FactRegistryExt: IFactRegistry {
+    /// Returns the count of registered fact ids. Default implementation reads
+    /// [`IFactRegistry::all_fact_ids`].
+    fn fact_id_count(&self) -> usize {
+        self.all_fact_ids().len()
+    }
+}
+
+// Blanket impl: every IFactRegistry is automatically a FactRegistryExt.
+impl<T: IFactRegistry + ?Sized> FactRegistryExt for T {}
 
 /// Hand-rolled fact-id mapping mirroring the .NET `StaticFactRegistry.BuildDefaultMappings()`.
 ///

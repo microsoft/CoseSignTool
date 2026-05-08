@@ -47,8 +47,7 @@ use cose_sign1_validation_primitives::fluent::{
 };
 use cose_sign1_validation_primitives::plan::CompiledTrustPlan;
 use cose_sign1_validation_primitives::rules::{
-    all_of, allow_all, any_of, not_with_reason, FnRule, OnEmptyBehavior as RuleOnEmptyBehavior,
-    TrustRuleRef,
+    all_of, allow_all, any_of, FnRule, OnEmptyBehavior as RuleOnEmptyBehavior, TrustRuleRef,
 };
 use cose_sign1_validation_primitives::subject::TrustSubject;
 use std::borrow::Cow;
@@ -62,6 +61,7 @@ pub const DEFAULT_MAX_DEPTH: usize = 256;
 /// Every variant carries a stable `code()` from [`crate::diagnostic_codes`] and an optional
 /// [`SourceLocation`] (frontends populate this; the bare IR compile path leaves it `None`).
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum CompileError {
     /// `RequireFact.fact_id` is not registered in the configured [`IFactRegistry`]. (`TPX200`)
     UnknownFactId {
@@ -127,10 +127,18 @@ impl std::error::Error for CompileError {}
 
 /// Compile-time options.
 #[derive(Clone, Debug)]
+#[non_exhaustive]
 pub struct CompileOptions {
     /// Maximum recursion depth honored when walking nested specs. Defaults to
     /// [`DEFAULT_MAX_DEPTH`].
     pub max_depth: usize,
+}
+
+impl CompileOptions {
+    /// Construct options with the given recursion depth cap.
+    pub fn with_max_depth(max_depth: usize) -> Self {
+        Self { max_depth }
+    }
 }
 
 impl Default for CompileOptions {
@@ -202,16 +210,7 @@ impl<'a> LowerCtx<'a> {
             }
             TrustPolicySpec::Not { spec, reason } => {
                 let inner = self.lower(spec, depth + 1)?;
-                let reason: &'static str = match reason.as_deref() {
-                    Some(_) => "Negated rule was satisfied",
-                    None => "Negated rule was satisfied",
-                };
-                // We deliberately use the `not_with_reason` helper here so the rule name is
-                // stable; the dynamic user-supplied reason (when present) is preserved on
-                // the spec itself but is lost from the rule output. Phase 2 frontends carry
-                // the original reason via diagnostics; Phase 3 will route the dynamic reason
-                // through a richer rule type.
-                Ok(not_with_reason("not", inner, reason))
+                Ok(not_with_dynamic_reason(inner, reason.clone()))
             }
             TrustPolicySpec::Implies {
                 antecedent,
@@ -320,6 +319,29 @@ fn deny_with_reason(reason: String) -> TrustRuleRef {
         "deny_all",
         move |_: &TrustFactEngine, _: &TrustSubject| -> Result<TrustDecision, TrustError> {
             Ok(TrustDecision::denied(vec![Cow::Owned(reason.to_string())]))
+        },
+    ))
+}
+
+/// Negation rule that preserves the user-authored deny reason when present.
+///
+/// `cose_sign1_validation_primitives::rules::not_with_reason` requires `&'static str`, so
+/// preserving a dynamic [`String`] reason from [`TrustPolicySpec::Not`] requires a
+/// closure-backed rule. Falls back to a generic message when `reason == None`.
+fn not_with_dynamic_reason(inner: TrustRuleRef, reason: Option<String>) -> TrustRuleRef {
+    let reason: Arc<str> = match reason {
+        Some(r) => Arc::<str>::from(r),
+        None => Arc::<str>::from("Negated rule was satisfied"),
+    };
+    Arc::new(FnRule::new(
+        "not",
+        move |engine: &TrustFactEngine, subject: &TrustSubject| -> Result<TrustDecision, TrustError> {
+            let d = inner.evaluate(engine, subject)?;
+            Ok(if d.is_trusted {
+                TrustDecision::denied(vec![Cow::Owned(reason.to_string())])
+            } else {
+                TrustDecision::trusted()
+            })
         },
     ))
 }

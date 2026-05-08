@@ -69,10 +69,13 @@ pub use compile::{
     compile, compile_with_options, from_rule_on_empty, into_rule_on_empty, CompileError,
     CompileOptions, DEFAULT_MAX_DEPTH,
 };
-pub use parameter::{bind, BindError, ParameterRef, PARAM_KEY};
+pub use parameter::{
+    bind, bind_with_options, BindError, BindOptions, ParameterRef, DEFAULT_MAX_DEPTH as BIND_DEFAULT_MAX_DEPTH,
+    PARAM_KEY,
+};
 pub use predicate::{
     FactPredicateSpec, PathOperatorPredicateSpec, PredicateOperator, PropertyAssertionPredicateSpec,
 };
-pub use registry::{IFactRegistry, StaticFactRegistry};
+pub use registry::{FactRegistryExt, IFactRegistry, StaticFactRegistry};
 pub use source_location::SourceLocation;
 pub use spec::{OnEmptyBehavior, TrustPolicySpec};

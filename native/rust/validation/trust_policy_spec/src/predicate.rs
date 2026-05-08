@@ -66,8 +66,13 @@ pub struct PathOperatorPredicateSpec {
 /// Closed enum of supported predicate operators.
 ///
 /// Stable identifiers; values must round-trip through serde without alias drift.
+///
+/// Marked `#[non_exhaustive]` so future operator additions (e.g. case-insensitive variants)
+/// can land in a minor-version bump without breaking source compatibility for downstream
+/// pattern matches.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[non_exhaustive]
 pub enum PredicateOperator {
     /// The path resolves to a present (non-null) value. `value` MUST be `None`.
     Exists,
@@ -104,8 +109,12 @@ impl PredicateOperator {
 ///
 /// Serialized untagged: serde tries the variants in order. Use [`Self::is_property_assertion`]
 /// or pattern-match to disambiguate after deserialization.
+///
+/// Marked `#[non_exhaustive]` so a future "richer" predicate variant (e.g. cross-fact join
+/// predicates added in a Phase 6 enhancement) is non-breaking for downstream matches.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
+#[non_exhaustive]
 pub enum FactPredicateSpec {
     /// Sugar variant: AND of property-equality assertions.
     Property(PropertyAssertionPredicateSpec),

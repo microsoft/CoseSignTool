@@ -18,6 +18,7 @@ use serde::{Deserialize, Serialize};
 /// runtime. Conversion is lossless: see [`crate::compile`].
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[non_exhaustive]
 pub enum OnEmptyBehavior {
     /// Treat an empty subject set as success — the scope is effectively optional.
     Allow,
@@ -50,8 +51,16 @@ impl Default for OnEmptyBehavior {
 /// configuration on the enum and the inner field shape) — frontends are required to reject
 /// typos in user documents at parse time so they surface as `TPX100` rather than as silent
 /// behavioral drift.
+///
+/// # API stability — `#[non_exhaustive]`
+///
+/// Marked `#[non_exhaustive]`: downstream consumers must include a wildcard arm in
+/// pattern matches over this enum. New variants can be added in a minor-version bump
+/// without breaking source compatibility for those consumers. (See the API stability
+/// review captured at `eval-trust-policy-translation-contract-rust.md` Phase 1.)
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
+#[non_exhaustive]
 pub enum TrustPolicySpec {
     /// Always trust. Useful for tests; never appropriate in production policies.
     AllowAll,

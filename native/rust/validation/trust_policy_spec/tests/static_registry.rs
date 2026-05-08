@@ -89,6 +89,15 @@ fn registry_default_matches_default_mappings() {
 }
 
 #[test]
+fn fact_registry_ext_blanket_impl_provides_count() {
+    use cose_sign1_trust_policy_spec::FactRegistryExt;
+    let registry = StaticFactRegistry::default_mappings();
+    let count = registry.fact_id_count();
+    assert_eq!(count, registry.all_fact_ids().len());
+    assert!(count > 0);
+}
+
+#[test]
 fn pattern_validator_self_check() {
     // Sanity-check the regex-stand-in itself.
     let good = [

@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Test-only helper assembly intentionally named WITHOUT a CoseSign1 prefix so
+    AttributeDrivenFactRegistry.FromLoadedAssemblies() (which restricts to assemblies whose
+    simple name starts with 'CoseSign1.') ignores it. The helper hosts synthetic
+    [TrustFactId]-decorated types — including a deliberately colliding pair — that the
+    AttributeDrivenFactRegistry tests pass explicitly via `new AttributeDrivenFactRegistry(...)`
+    to exercise the duplicate-id (TPX300) and untagged-type code paths without polluting the
+    shipped fact catalog observed by FromLoadedAssemblies.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <SignAssembly>True</SignAssembly>
+    <DelaySign>True</DelaySign>
+    <AssemblyOriginatorKeyFile>..\StrongNameKeys\35MSSharedLib1024.snk</AssemblyOriginatorKeyFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CoseSign1.Validation\CoseSign1.Validation.csproj" />
+  </ItemGroup>
+
+</Project>

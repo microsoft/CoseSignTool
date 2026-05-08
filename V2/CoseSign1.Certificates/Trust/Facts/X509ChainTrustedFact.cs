@@ -9,6 +9,7 @@ using CoseSign1.Validation.Trust.Facts;
 /// <summary>
 /// Fact summarizing X.509 chain trust evaluation for the primary signing key certificate.
 /// </summary>
+[TrustFactId(AssemblyStrings.FactIdX509ChainTrusted)]
 public sealed class X509ChainTrustedFact : ISigningKeyFact
 {
     /// <inheritdoc />

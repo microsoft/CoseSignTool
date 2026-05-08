@@ -8,6 +8,7 @@ using CoseSign1.Validation.Trust.Facts;
 /// <summary>
 /// Counter-signature-scoped fact indicating whether an MST receipt header is present.
 /// </summary>
+[TrustFactId(AssemblyStrings.FactIdMstReceiptPresent)]
 public sealed record MstReceiptPresentFact(bool IsPresent) : ICounterSignatureFact
 {
     /// <inheritdoc />

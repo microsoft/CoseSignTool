@@ -8,6 +8,7 @@ using CoseSign1.Validation.Trust.Subjects;
 /// <summary>
 /// Represents a counter-signature subject discovered on a message.
 /// </summary>
+[TrustFactId(AssemblyStrings.FactIdCounterSignatureSubject)]
 public sealed class CounterSignatureSubjectFact : IMessageFact
 {
     /// <inheritdoc />

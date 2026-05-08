@@ -9,6 +9,7 @@ using CoseSign1.Validation.Trust.Facts;
 /// <summary>
 /// Fact describing the basic constraints of the signing certificate.
 /// </summary>
+[TrustFactId(AssemblyStrings.FactIdX509SigningCertificateBasicConstraints)]
 public sealed class X509SigningCertificateBasicConstraintsFact : ISigningKeyFact
 {
     /// <inheritdoc />

@@ -66,6 +66,7 @@ internal static class ClassStrings
     public const string CodeUnsupportedPredicatePath = "TPX203";
     public const string CodeFactScopeMismatch = "TPX204";
     public const string CodeUnboundParameter = "TPX400";
+    public const string CodeFactRegistryDuplicate = "TPX300";
 
     // ---------------- Argument-validation messages ----------------
 
@@ -73,6 +74,11 @@ internal static class ClassStrings
     public const string ErrOrOperandsNull = "OrSpec operands must not contain null entries.";
     public const string ErrFactIdNullOrWhitespace = "Fact id must not be null or whitespace.";
     public const string ErrFactClrTypeNull = "Fact CLR type must not be null.";
+    public const string ErrTrustFactIdDuplicateFormat = "[TPX300] Duplicate [TrustFactId] '{0}' on types '{1}' and '{2}'. Fact ids must be unique across all assemblies scanned by AttributeDrivenFactRegistry.";
+    public const string ErrAttributeDrivenScanAssembliesNull = "Assembly enumeration must not contain null entries.";
+    public const string AttributeDrivenAssemblyPrefix = "CoseSign1.";
+    public const string ObsoleteStaticFactRegistry = "Use AttributeDrivenFactRegistry.FromLoadedAssemblies(). Will be removed in Phase 4 if no consumers remain.";
+    public const string JustifySafeGetTypesCatch = "ReflectionTypeLoadException requires a partially-loadable assembly which cannot be synthesised in a normal NUnit run; the recovery arm is exercised by integration when a host loads a malformed plugin.";
     public const string ErrDuplicateFactIdFormat = "Duplicate fact id '{0}'.";
     public const string ErrDuplicateFactClrTypeFormat = "Fact CLR type '{0}' is already registered as '{1}'.";
     public const string ErrCanonicalJsonNullSpec = "Trust-policy spec JSON deserialized to null.";

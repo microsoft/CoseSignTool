@@ -51,6 +51,7 @@ public sealed class CoverageEdgeTests
 
     private static StaticFactRegistry RegistryWithListFact()
     {
+#pragma warning disable CS0618 // StaticFactRegistry remains the conformance baseline; tests must keep exercising it through Phase 4.
         var entries = new List<KeyValuePair<string, Type>>(StaticFactRegistry.BuildDefaultMappings())
         {
             new KeyValuePair<string, Type>(TestFactRegistry.TestMessage, typeof(TestMessageFact)),
@@ -59,6 +60,7 @@ public sealed class CoverageEdgeTests
             new KeyValuePair<string, Type>(TestListFactId, typeof(TestListFact)),
         };
         return new StaticFactRegistry(entries);
+#pragma warning restore CS0618
     }
 
     [Test]

@@ -19,6 +19,7 @@ internal static class TestFactRegistry
 
     public static StaticFactRegistry Build()
     {
+#pragma warning disable CS0618 // StaticFactRegistry remains the conformance baseline; tests must keep exercising it through Phase 4.
         var defaults = new List<KeyValuePair<string, Type>>(StaticFactRegistry.BuildDefaultMappings())
         {
             new KeyValuePair<string, Type>(TestMessage, typeof(TestMessageFact)),
@@ -27,5 +28,6 @@ internal static class TestFactRegistry
         };
 
         return new StaticFactRegistry(defaults);
+#pragma warning restore CS0618
     }
 }

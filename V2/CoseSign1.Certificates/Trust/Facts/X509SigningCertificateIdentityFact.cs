@@ -9,6 +9,7 @@ using CoseSign1.Validation.Trust.Facts;
 /// <summary>
 /// Fact describing the signing certificate used for a message's signing key.
 /// </summary>
+[TrustFactId(AssemblyStrings.FactIdX509SigningCertificateIdentity)]
 public sealed class X509SigningCertificateIdentityFact : ISigningKeyFact
 {
     /// <inheritdoc />

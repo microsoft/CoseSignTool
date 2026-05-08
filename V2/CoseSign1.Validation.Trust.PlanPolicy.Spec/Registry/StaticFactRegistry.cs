@@ -37,6 +37,7 @@ public sealed class StaticFactRegistry : IFactRegistry
     /// Initializes a new instance of the <see cref="StaticFactRegistry"/> class with the default
     /// V2 mappings.
     /// </summary>
+    [Obsolete(ClassStrings.ObsoleteStaticFactRegistry, error: false)]
     public StaticFactRegistry()
         : this(BuildDefaultMappings())
     {
@@ -49,6 +50,7 @@ public sealed class StaticFactRegistry : IFactRegistry
     /// <param name="mappings">Stable fact id → CLR type map. Both directions are validated.</param>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="mappings"/> is null.</exception>
     /// <exception cref="ArgumentException">Thrown when an id is empty / whitespace, or a CLR type is referenced under two different ids.</exception>
+    [Obsolete(ClassStrings.ObsoleteStaticFactRegistry, error: false)]
     public StaticFactRegistry(IEnumerable<KeyValuePair<string, Type>> mappings)
     {
         Cose.Abstractions.Guard.ThrowIfNull(mappings);

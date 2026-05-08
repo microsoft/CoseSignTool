@@ -250,31 +250,15 @@ public static class TrustPolicySpecCompiler
 
     private static IReadOnlyList<string> ExtractReferencedPropertyNames(FactPredicateSpec predicate)
     {
-        switch (predicate)
+        // Path-operator forms describe JSON-traversal expressions; their leading property accessor
+        // is a navigation step, not an assertion of property presence. Compile-time validation is
+        // limited to property-assertion forms where every key is an explicit property name on the
+        // fact's JSON projection.
+        return predicate switch
         {
-            case PathOperatorPredicateSpec path:
-                // Extract a single property name when the path is `$.<name>` (no nested accessors).
-                // For deeper paths or array accessors we cannot validate at compile time without
-                // executing reflection on a generic JsonNode shape — defer to runtime in that case.
-                if (path.Path.Length > 2 && path.Path[0] == '$' && path.Path[1] == '.')
-                {
-                    int end = 2;
-                    while (end < path.Path.Length && path.Path[end] != '.' && path.Path[end] != '[')
-                    {
-                        end++;
-                    }
-
-                    return new[] { path.Path.Substring(2, end - 2) };
-                }
-
-                return Array.Empty<string>();
-
-            case PropertyAssertionPredicateSpec pa:
-                return pa.Assertions.Keys.ToArray();
-
-            default:
-                return Array.Empty<string>();
-        }
+            PropertyAssertionPredicateSpec pa => pa.Assertions.Keys.ToArray(),
+            _ => Array.Empty<string>(),
+        };
     }
 
     private static void AssertScopeMatches(Type factType, string factTypeId, FactScope scope)

@@ -319,7 +319,7 @@ internal static class PredicateLowerer
 
     private static int? CompareNumbers(JsonNode? a, JsonNode? b)
     {
-        if (a is JsonValue av && b is JsonValue bv && av.TryGetValue(out double ad) && bv.TryGetValue(out double bd))
+        if (a is JsonValue av && b is JsonValue bv && TryGetNumber(av, out double ad) && TryGetNumber(bv, out double bd))
         {
             return ad.CompareTo(bd);
         }
@@ -331,6 +331,48 @@ internal static class PredicateLowerer
         }
 
         return null;
+    }
+
+    private static bool TryGetNumber(JsonValue value, out double result)
+    {
+        // STJ's JsonValue<T>.TryGetValue<double> only succeeds when T is exactly double. The
+        // canonical numeric path is via the underlying JsonElement, which round-trips integers
+        // and decimals correctly through GetDouble().
+        if (value.TryGetValue(out double d))
+        {
+            result = d;
+            return true;
+        }
+
+        if (value.TryGetValue(out long l))
+        {
+            result = l;
+            return true;
+        }
+
+        if (value.TryGetValue(out int i))
+        {
+            result = i;
+            return true;
+        }
+
+        if (value.TryGetValue(out decimal m))
+        {
+            result = (double)m;
+            return true;
+        }
+
+        if (value.TryGetValue(out JsonElement element) && element.ValueKind == JsonValueKind.Number)
+        {
+            if (element.TryGetDouble(out double ed))
+            {
+                result = ed;
+                return true;
+            }
+        }
+
+        result = default;
+        return false;
     }
 
     private static bool DeepEquals(JsonNode? a, JsonNode? b)

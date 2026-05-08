@@ -22,6 +22,7 @@
   <ItemGroup>
     <ProjectReference Include="..\CoseSign1.Validation.Trust.PlanPolicy.Spec\CoseSign1.Validation.Trust.PlanPolicy.Spec.csproj" />
     <ProjectReference Include="..\CoseSign1.Tests.Common\CoseSign1.Tests.Common.csproj" />
+    <ProjectReference Include="..\TrustFactRegistryTestHelpers\TrustFactRegistryTestHelpers.csproj" />
   </ItemGroup>
 
 </Project>

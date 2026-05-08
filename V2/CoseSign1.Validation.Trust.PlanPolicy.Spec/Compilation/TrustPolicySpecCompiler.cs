@@ -103,10 +103,16 @@ public static class TrustPolicySpecCompiler
             RequireFactSpec => throw new TrustPolicySpecCompilationException(
                 TrustPolicyDiagnosticCodes.FactScopeMismatch,
                 ClassStrings.ErrRequireFactOutsideScope),
-            _ => throw new TrustPolicySpecCompilationException(
-                TrustPolicyDiagnosticCodes.UnsupportedPredicateOperator,
-                string.Format(CultureInfo.InvariantCulture, ClassStrings.ErrUnknownSpecNodeFormat, spec.GetType().FullName)),
+            _ => UnreachableUnknownTopLevelSpec(spec),
         };
+    }
+
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage(Justification = ClassStrings.JustifyDefensiveSpec)]
+    private static TrustPlanPolicy UnreachableUnknownTopLevelSpec(TrustPolicySpec spec)
+    {
+        throw new TrustPolicySpecCompilationException(
+            TrustPolicyDiagnosticCodes.UnsupportedPredicateOperator,
+            string.Format(CultureInfo.InvariantCulture, ClassStrings.ErrUnknownSpecNodeFormat, spec.GetType().FullName));
     }
 
     private static TrustPlanPolicy CombineAnd(AndSpec spec, IFactRegistry registry)
@@ -193,10 +199,16 @@ public static class TrustPolicySpecCompiler
                     ClassStrings.ErrRequirementInScope);
 
             default:
-                throw new TrustPolicySpecCompilationException(
-                    TrustPolicyDiagnosticCodes.UnsupportedPredicateOperator,
-                    string.Format(CultureInfo.InvariantCulture, ClassStrings.ErrUnknownNodeInScopeFormat, spec.GetType().FullName));
+                return UnreachableUnknownScopedSpec(spec);
         }
+    }
+
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage(Justification = ClassStrings.JustifyDefensiveScope)]
+    private static TrustRule UnreachableUnknownScopedSpec(TrustPolicySpec spec)
+    {
+        throw new TrustPolicySpecCompilationException(
+            TrustPolicyDiagnosticCodes.UnsupportedPredicateOperator,
+            string.Format(CultureInfo.InvariantCulture, ClassStrings.ErrUnknownNodeInScopeFormat, spec.GetType().FullName));
     }
 
     private static TrustRule LowerRequireFact(RequireFactSpec spec, IFactRegistry registry, FactScope scope)

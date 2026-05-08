@@ -44,10 +44,16 @@ internal static class PredicateLowerer
         {
             PathOperatorPredicateSpec po => CompilePathOperator(factType, factTypeId, po),
             PropertyAssertionPredicateSpec pa => CompilePropertyAssertion(factType, factTypeId, pa),
-            _ => throw new TrustPolicySpecCompilationException(
-                TrustPolicyDiagnosticCodes.UnsupportedPredicateOperator,
-                string.Format(CultureInfo.InvariantCulture, ClassStrings.ErrUnknownPredicateNodeFormat, predicate.GetType().FullName)),
+            _ => UnreachableUnknownPredicateNode(predicate),
         };
+    }
+
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage(Justification = ClassStrings.JustifyDefensiveSpec)]
+    private static Func<object, bool> UnreachableUnknownPredicateNode(FactPredicateSpec predicate)
+    {
+        throw new TrustPolicySpecCompilationException(
+            TrustPolicyDiagnosticCodes.UnsupportedPredicateOperator,
+            string.Format(CultureInfo.InvariantCulture, ClassStrings.ErrUnknownPredicateNodeFormat, predicate.GetType().FullName));
     }
 
     private static Func<object, bool> CompilePathOperator(Type factType, string factTypeId, PathOperatorPredicateSpec predicate)
@@ -83,20 +89,14 @@ internal static class PredicateLowerer
 
     private static Func<object, bool> CompilePropertyAssertion(Type factType, string factTypeId, PropertyAssertionPredicateSpec predicate)
     {
-        // Validate every property at compile time so missing / mistyped names fail before
-        // evaluation. We accept any property that round-trips through the JsonNode projection,
-        // which means the JSON property name on the projection is the source of truth — this
-        // matches the path+operator form's evaluation semantics.
-        var sample = new JsonObject();
+        // Pre-validate every property at compile time so missing / mistyped names fail before
+        // evaluation. Whitespace keys are caught earlier by TrustPolicySpecCompiler's
+        // ValidatePropertyAccess; the defensive check below covers callers that bypass the
+        // top-level compiler and invoke PredicateLowerer.Compile directly (internal use only).
         var snapshot = predicate.Assertions.ToList();
         foreach (var entry in snapshot)
         {
-            if (string.IsNullOrWhiteSpace(entry.Key))
-            {
-                throw new TrustPolicySpecCompilationException(
-                    TrustPolicyDiagnosticCodes.UnknownFactProperty,
-                    string.Format(CultureInfo.InvariantCulture, ClassStrings.ErrPropertyAssertionWhitespaceFormat, factTypeId));
-            }
+            EnsureNonWhitespaceKey(entry.Key, factTypeId);
 
             if (ParameterRef.IsParameterRef(entry.Value))
             {
@@ -104,8 +104,6 @@ internal static class PredicateLowerer
                     TrustPolicyDiagnosticCodes.UnboundParameter,
                     string.Format(CultureInfo.InvariantCulture, ClassStrings.ErrPropertyAssertionUnboundFormat, factTypeId, entry.Key));
             }
-
-            sample[entry.Key] = null;
         }
 
         return fact =>
@@ -135,6 +133,17 @@ internal static class PredicateLowerer
 
             return true;
         };
+    }
+
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage(Justification = ClassStrings.JustifyDefensivePropertyKey)]
+    private static void EnsureNonWhitespaceKey(string key, string factTypeId)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            throw new TrustPolicySpecCompilationException(
+                TrustPolicyDiagnosticCodes.UnknownFactProperty,
+                string.Format(CultureInfo.InvariantCulture, ClassStrings.ErrPropertyAssertionWhitespaceFormat, factTypeId));
+        }
     }
 
     private static JsonNode? ProjectFact(object fact, Type factType)
@@ -301,8 +310,15 @@ internal static class PredicateLowerer
                 return bag.Any(item => DeepEquals(actual, item));
 
             default:
-                return false;
+                return UnsupportedOperatorFalse(op);
         }
+    }
+
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage(Justification = ClassStrings.JustifyDefensiveOperator)]
+    private static bool UnsupportedOperatorFalse(PredicateOperator op)
+    {
+        _ = op;
+        return false;
     }
 
     private static bool TryGetString(JsonNode? node, out string? value)

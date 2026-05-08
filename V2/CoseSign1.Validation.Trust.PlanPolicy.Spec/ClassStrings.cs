@@ -139,4 +139,11 @@ internal static class ClassStrings
     // ---------------- Misc ----------------
 
     public const string JoinSeparator = ", ";
+
+    // ---------------- Coverage-suppression justifications ----------------
+
+    public const string JustifyDefensiveSpec = "Defensive arm for future TrustPolicySpec / FactPredicateSpec subtypes; the closed discriminated union makes it unreachable today.";
+    public const string JustifyDefensiveOperator = "Defensive — switch covers every PredicateOperator enum value explicitly.";
+    public const string JustifyDefensiveScope = "Defensive — closed discriminated union covers every TrustPolicySpec subtype reachable in scoped context.";
+    public const string JustifyDefensivePropertyKey = "Defensive — TrustPolicySpecCompiler.ValidatePropertyAccess catches whitespace keys before reaching PredicateLowerer.Compile in the public flow.";
 }

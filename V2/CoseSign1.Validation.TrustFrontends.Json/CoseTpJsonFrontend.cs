@@ -168,17 +168,10 @@ public sealed class CoseTpJsonFrontend : ICoseTrustPolicyFrontend<JsonDocument>
             return new TrustPolicyTranslationResult { Spec = null, Diagnostics = diagnostics };
         }
 
-        JsonNode? root = JsonNode.Parse(document.RootElement.GetRawText());
+        JsonNode? root = JsonNode.Parse(document.RootElement.GetRawText(), nodeOptions: null, CoseTpJsonOptions.ParseOptions);
         if (root is not JsonObject rootObj)
         {
-            diagnostics.Add(new TrustPolicyTranslationDiagnostic
-            {
-                Severity = TrustPolicySeverity.Error,
-                Code = AssemblyStrings.CodeMalformedJson,
-                Message = AssemblyStrings.ErrUnsupportedDocumentNullSpec,
-                Location = new SourceLocation(documentSource, 0, 0, 0),
-            });
-            return new TrustPolicyTranslationResult { Spec = null, Diagnostics = diagnostics };
+            return EmitNonObjectRootError(documentSource, diagnostics);
         }
 
         var translator = new DocumentTranslator(ctx, documentSource, diagnostics);
@@ -190,6 +183,19 @@ public sealed class CoseTpJsonFrontend : ICoseTrustPolicyFrontend<JsonDocument>
         }
 
         return new TrustPolicyTranslationResult { Spec = spec, Diagnostics = diagnostics };
+    }
+
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage(Justification = AssemblyStrings.JustifyDefensive)]
+    private static TrustPolicyTranslationResult EmitNonObjectRootError(string? documentSource, List<TrustPolicyTranslationDiagnostic> diagnostics)
+    {
+        diagnostics.Add(new TrustPolicyTranslationDiagnostic
+        {
+            Severity = TrustPolicySeverity.Error,
+            Code = AssemblyStrings.CodeMalformedJson,
+            Message = AssemblyStrings.ErrUnsupportedDocumentNullSpec,
+            Location = new SourceLocation(documentSource, 0, 0, 0),
+        });
+        return new TrustPolicyTranslationResult { Spec = null, Diagnostics = diagnostics };
     }
 
     private static bool HasError(IReadOnlyList<TrustPolicyTranslationDiagnostic> diagnostics)

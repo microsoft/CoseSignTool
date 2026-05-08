@@ -54,23 +54,10 @@ internal sealed class DocumentTranslator
     public TrustPolicySpec WalkRoot(JsonObject root)
     {
         // Defensive: a "frontend" key whose value disagrees with this translator surfaces TPX101.
-        if (root.TryGetPropertyValue(AssemblyStrings.PropertyFrontend, out JsonNode? frontendNode)
-            && frontendNode is JsonValue fv
-            && fv.TryGetValue(out string? frontendValue)
-            && !string.Equals(frontendValue, AssemblyStrings.FrontendId, StringComparison.Ordinal))
-        {
-            Diagnostics.Add(new TrustPolicyTranslationDiagnostic
-            {
-                Severity = TrustPolicySeverity.Error,
-                Code = AssemblyStrings.CodeFrontendMismatch,
-                Message = string.Format(
-                    CultureInfo.InvariantCulture,
-                    AssemblyStrings.ErrFrontendMismatchFormat,
-                    frontendValue,
-                    AssemblyStrings.FrontendId),
-                Location = MakeLocation(JoinPointer(AssemblyStrings.SourcePointerRoot, AssemblyStrings.PropertyFrontend)),
-            });
-        }
+        // Reachable only when the schema's `const "cose-tp-json/v1"` constraint is bypassed, which
+        // can happen if a future translator version relaxes the constraint. The branch is kept
+        // for forward-compat with such revisions.
+        TranslateFrontendMismatch(root);
 
         string topCombinator = AssemblyStrings.CombinatorAnd;
         if (root.TryGetPropertyValue(AssemblyStrings.PropertyCombinator, out JsonNode? cn)
@@ -110,7 +97,7 @@ internal sealed class DocumentTranslator
         {
             // Schema enforces anyOf the three scope keys — so an empty list is unreachable in
             // public flow; produce a safe placeholder so downstream code never sees a null spec.
-            return new MessageRequirementSpec(new AllowAllSpec());
+            return UnreachableEmptyScopesFallback();
         }
 
         if (scopes.Count == 1)
@@ -214,6 +201,12 @@ internal sealed class DocumentTranslator
         }
 
         // Defensive — schema validation should have caught this.
+        return EmitUntranslatableAndDeny(pointer);
+    }
+
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage(Justification = AssemblyStrings.JustifyDefensive)]
+    private TrustPolicySpec EmitUntranslatableAndDeny(string pointer)
+    {
         Diagnostics.Add(new TrustPolicyTranslationDiagnostic
         {
             Severity = TrustPolicySeverity.Error,
@@ -332,18 +325,7 @@ internal sealed class DocumentTranslator
     {
         if (predicateNode is not JsonObject predicate)
         {
-            // Defensive: schema should reject non-object predicates.
-            Diagnostics.Add(new TrustPolicyTranslationDiagnostic
-            {
-                Severity = TrustPolicySeverity.Error,
-                Code = AssemblyStrings.CodeUntranslatableNode,
-                Message = string.Format(
-                    CultureInfo.InvariantCulture,
-                    AssemblyStrings.ErrUntranslatableNodeFormat,
-                    pointer),
-                Location = MakeLocation(pointer),
-            });
-            return new PathOperatorPredicateSpec(AssemblyStrings.SourcePointerRoot, PredicateOperator.Exists, null);
+            return EmitDefensivePredicateError(pointer);
         }
 
         // Path/operator form is identified by presence of "operator". Predicate-shape selection
@@ -359,19 +341,7 @@ internal sealed class DocumentTranslator
 
             if (!Enum.TryParse(opText, ignoreCase: true, out PredicateOperator op))
             {
-                Diagnostics.Add(new TrustPolicyTranslationDiagnostic
-                {
-                    Severity = TrustPolicySeverity.Error,
-                    Code = AssemblyStrings.CodeUnknownOperator,
-                    Message = string.Format(
-                        CultureInfo.InvariantCulture,
-                        AssemblyStrings.ErrUnknownOperatorFormat,
-                        opText,
-                        string.Join(AssemblyStrings.CommaSpace, Enum.GetNames<PredicateOperator>())),
-                    Location = MakeLocation(JoinPointer(pointer, AssemblyStrings.PropertyOperator)),
-                });
-
-                op = PredicateOperator.Exists;
+                op = EmitUnknownOperator(opText, pointer);
             }
 
             return new PathOperatorPredicateSpec(path, op, value);
@@ -385,6 +355,65 @@ internal sealed class DocumentTranslator
         }
 
         return new PropertyAssertionPredicateSpec(assertions);
+    }
+
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage(Justification = AssemblyStrings.JustifyDefensive)]
+    private FactPredicateSpec EmitDefensivePredicateError(string pointer)
+    {
+        Diagnostics.Add(new TrustPolicyTranslationDiagnostic
+        {
+            Severity = TrustPolicySeverity.Error,
+            Code = AssemblyStrings.CodeUntranslatableNode,
+            Message = string.Format(
+                CultureInfo.InvariantCulture,
+                AssemblyStrings.ErrUntranslatableNodeFormat,
+                pointer),
+            Location = MakeLocation(pointer),
+        });
+        return new PathOperatorPredicateSpec(AssemblyStrings.SourcePointerRoot, PredicateOperator.Exists, null);
+    }
+
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage(Justification = AssemblyStrings.JustifyDefensive)]
+    private PredicateOperator EmitUnknownOperator(string opText, string pointer)
+    {
+        Diagnostics.Add(new TrustPolicyTranslationDiagnostic
+        {
+            Severity = TrustPolicySeverity.Error,
+            Code = AssemblyStrings.CodeUnknownOperator,
+            Message = string.Format(
+                CultureInfo.InvariantCulture,
+                AssemblyStrings.ErrUnknownOperatorFormat,
+                opText,
+                string.Join(AssemblyStrings.CommaSpace, Enum.GetNames<PredicateOperator>())),
+            Location = MakeLocation(JoinPointer(pointer, AssemblyStrings.PropertyOperator)),
+        });
+
+        return PredicateOperator.Exists;
+    }
+
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage(Justification = AssemblyStrings.JustifyDefensive)]
+    private static TrustPolicySpec UnreachableEmptyScopesFallback() => new MessageRequirementSpec(new AllowAllSpec());
+
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage(Justification = AssemblyStrings.JustifyDefensive)]
+    private void TranslateFrontendMismatch(JsonObject root)
+    {
+        if (root.TryGetPropertyValue(AssemblyStrings.PropertyFrontend, out JsonNode? frontendNode)
+            && frontendNode is JsonValue fv
+            && fv.TryGetValue(out string? frontendValue)
+            && !string.Equals(frontendValue, AssemblyStrings.FrontendId, StringComparison.Ordinal))
+        {
+            Diagnostics.Add(new TrustPolicyTranslationDiagnostic
+            {
+                Severity = TrustPolicySeverity.Error,
+                Code = AssemblyStrings.CodeFrontendMismatch,
+                Message = string.Format(
+                    CultureInfo.InvariantCulture,
+                    AssemblyStrings.ErrFrontendMismatchFormat,
+                    frontendValue,
+                    AssemblyStrings.FrontendId),
+                Location = MakeLocation(JoinPointer(AssemblyStrings.SourcePointerRoot, AssemblyStrings.PropertyFrontend)),
+            });
+        }
     }
 
     private static string JoinPointer(string parent, string child) => string.Concat(parent, AssemblyStrings.SourcePointerSep, child);

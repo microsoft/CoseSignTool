@@ -107,4 +107,5 @@ internal static class AssemblyStrings
 
     // Coverage justification
     public const string JustifyDefensive = "Defensive arm; the closed grammar from the JSON Schema validator + the closed TrustPolicySpec discriminated union make this branch unreachable in the public flow.";
+    public const string JustifyDefensiveBindCatch = "Defensive — the Spec project's binder only throws TrustPolicySpecCompilationException with TPX400; this arm exists to guard against future spec changes that introduce other failure shapes.";
 }

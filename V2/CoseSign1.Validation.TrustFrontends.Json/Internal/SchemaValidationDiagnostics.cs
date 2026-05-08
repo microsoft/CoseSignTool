@@ -41,25 +41,33 @@ internal static class SchemaValidationDiagnostics
 
         AppendLeafFailures(results, AssemblyStrings.CodeSchemaValidation, factId: null, predicatePointerOverride: null, documentSource, diagnostics);
 
-        if (!HasError(diagnostics))
-        {
-            // Defensive: JsonSchema.Net invariably populates leaf errors for !IsValid, but if a
-            // future version inverts that contract, surface a single umbrella error so totality
-            // (§6.5.4 #2) is preserved.
-            diagnostics.Add(new TrustPolicyTranslationDiagnostic
-            {
-                Severity = TrustPolicySeverity.Error,
-                Code = AssemblyStrings.CodeSchemaValidation,
-                Message = string.Format(
-                    CultureInfo.InvariantCulture,
-                    AssemblyStrings.ErrSchemaValidationFormat,
-                    AssemblyStrings.SourcePointerRoot,
-                    AssemblyStrings.CodeSchemaValidation),
-                Location = MakeLocation(documentSource, AssemblyStrings.SourcePointerRoot),
-            });
-        }
+        EnsureUmbrellaError(documentSource, diagnostics);
 
         return false;
+    }
+
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage(Justification = AssemblyStrings.JustifyDefensive)]
+    private static void EnsureUmbrellaError(string? documentSource, List<TrustPolicyTranslationDiagnostic> diagnostics)
+    {
+        if (HasError(diagnostics))
+        {
+            return;
+        }
+
+        // Defensive: JsonSchema.Net invariably populates leaf errors for !IsValid, but if a
+        // future version inverts that contract, surface a single umbrella error so totality
+        // (§6.5.4 #2) is preserved.
+        diagnostics.Add(new TrustPolicyTranslationDiagnostic
+        {
+            Severity = TrustPolicySeverity.Error,
+            Code = AssemblyStrings.CodeSchemaValidation,
+            Message = string.Format(
+                CultureInfo.InvariantCulture,
+                AssemblyStrings.ErrSchemaValidationFormat,
+                AssemblyStrings.SourcePointerRoot,
+                AssemblyStrings.CodeSchemaValidation),
+            Location = MakeLocation(documentSource, AssemblyStrings.SourcePointerRoot),
+        });
     }
 
     /// <summary>
@@ -86,7 +94,7 @@ internal static class SchemaValidationDiagnostics
         {
             schema = JsonSchema.FromText(predicateSchemaNode.ToJsonString());
         }
-        catch (Exception ex) when (ex is FormatException or JsonException)
+        catch (Exception ex) when (ex is FormatException or JsonException or global::Json.Schema.JsonSchemaException)
         {
             diagnostics.Add(new TrustPolicyTranslationDiagnostic
             {

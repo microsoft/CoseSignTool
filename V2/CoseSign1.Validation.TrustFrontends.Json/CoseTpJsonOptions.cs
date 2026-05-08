@@ -4,7 +4,6 @@
 namespace CoseSign1.Validation.TrustFrontends.Json;
 
 using System.Text.Json;
-using System.Text.Json.Nodes;
 
 /// <summary>
 /// Public-facing constants for the cose-tp-json/v1 frontend (frontend id, media types, file
@@ -35,15 +34,6 @@ public static class CoseTpJsonOptions
         CommentHandling = JsonCommentHandling.Skip,
         AllowTrailingCommas = true,
         MaxDepth = MaximumDocumentDepth,
-    };
-
-    /// <summary>
-    /// Gets the recommended <see cref="JsonNodeOptions"/> for the <see cref="System.Text.Json.Nodes.JsonNode"/>
-    /// projection. Mirrors <see cref="ParseOptions"/> in case-sensitive property handling.
-    /// </summary>
-    public static JsonNodeOptions NodeOptions => new()
-    {
-        PropertyNameCaseInsensitive = false,
     };
 
     /// <summary>

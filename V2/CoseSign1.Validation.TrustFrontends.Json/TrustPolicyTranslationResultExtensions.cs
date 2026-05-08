@@ -5,8 +5,6 @@ namespace CoseSign1.Validation.TrustFrontends.Json;
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
-using System.Text.Json;
 using System.Text.Json.Nodes;
 using CoseSign1.Validation.Trust.Frontends;
 using CoseSign1.Validation.Trust.PlanPolicy.Spec;
@@ -29,8 +27,9 @@ public static class TrustPolicyTranslationResultExtensions
     /// <remarks>
     /// <list type="bullet">
     ///   <item>Missing-without-default → <c>TPX400</c> (<see cref="TrustPolicyDiagnosticCodes.UnboundParameter"/>).</item>
-    ///   <item>Bind-time structural errors (e.g. a parameter substitution that breaks the spec
-    ///         shape) → <c>TPX401</c>.</item>
+    ///   <item><c>TPX401</c> is reserved for future strict-typed binding (e.g., when a fact
+    ///         publishes a typed parameter schema and a supplied value fails it). v1 does not
+    ///         emit the code; the diagnostic numbering remains stable for forward-compat.</item>
     ///   <item>If <paramref name="result"/> already carries an Error diagnostic, the same result
     ///         is returned untouched — Bind never papers over a translation error.</item>
     /// </list>
@@ -60,23 +59,6 @@ public static class TrustPolicyTranslationResultExtensions
                 Severity = TrustPolicySeverity.Error,
                 Code = TrustPolicyDiagnosticCodes.UnboundParameter,
                 Message = ex.Message,
-                Location = null,
-            });
-            return new TrustPolicyTranslationResult { Spec = null, Diagnostics = diagnostics };
-        }
-        catch (Exception ex) when (ex is JsonException
-                                   or TrustPolicySpecCompilationException
-                                   or InvalidOperationException
-                                   or ArgumentException)
-        {
-            diagnostics.Add(new TrustPolicyTranslationDiagnostic
-            {
-                Severity = TrustPolicySeverity.Error,
-                Code = AssemblyStrings.CodeTypeMismatchAfterBind,
-                Message = string.Format(
-                    CultureInfo.InvariantCulture,
-                    AssemblyStrings.ErrTypeMismatchAfterBindFormat,
-                    ex.Message),
                 Location = null,
             });
             return new TrustPolicyTranslationResult { Spec = null, Diagnostics = diagnostics };

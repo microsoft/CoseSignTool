@@ -97,6 +97,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TrustFactRegistryTestHelper
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSign1.Validation.TrustFrontends.Json", "CoseSign1.Validation.TrustFrontends.Json\CoseSign1.Validation.TrustFrontends.Json.csproj", "{618DE925-6039-4AFC-8DCC-9A8FE6E97ADD}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSign1.Validation.TrustFrontends.Json.Tests", "CoseSign1.Validation.TrustFrontends.Json.Tests\CoseSign1.Validation.TrustFrontends.Json.Tests.csproj", "{473DEBD1-EF01-4A25-B7E9-8E59F207FF3E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -671,6 +673,18 @@ Global
 		{618DE925-6039-4AFC-8DCC-9A8FE6E97ADD}.Release|x64.Build.0 = Release|Any CPU
 		{618DE925-6039-4AFC-8DCC-9A8FE6E97ADD}.Release|x86.ActiveCfg = Release|Any CPU
 		{618DE925-6039-4AFC-8DCC-9A8FE6E97ADD}.Release|x86.Build.0 = Release|Any CPU
+		{473DEBD1-EF01-4A25-B7E9-8E59F207FF3E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{473DEBD1-EF01-4A25-B7E9-8E59F207FF3E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{473DEBD1-EF01-4A25-B7E9-8E59F207FF3E}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{473DEBD1-EF01-4A25-B7E9-8E59F207FF3E}.Debug|x64.Build.0 = Debug|Any CPU
+		{473DEBD1-EF01-4A25-B7E9-8E59F207FF3E}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{473DEBD1-EF01-4A25-B7E9-8E59F207FF3E}.Debug|x86.Build.0 = Debug|Any CPU
+		{473DEBD1-EF01-4A25-B7E9-8E59F207FF3E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{473DEBD1-EF01-4A25-B7E9-8E59F207FF3E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{473DEBD1-EF01-4A25-B7E9-8E59F207FF3E}.Release|x64.ActiveCfg = Release|Any CPU
+		{473DEBD1-EF01-4A25-B7E9-8E59F207FF3E}.Release|x64.Build.0 = Release|Any CPU
+		{473DEBD1-EF01-4A25-B7E9-8E59F207FF3E}.Release|x86.ActiveCfg = Release|Any CPU
+		{473DEBD1-EF01-4A25-B7E9-8E59F207FF3E}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

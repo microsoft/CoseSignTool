@@ -53,8 +53,11 @@ internal static class EmbeddedSchema
         }
 
         _ = Get();
-        return LoadedBytes ?? throw new InvalidOperationException(AssemblyStrings.SchemaResourceName);
+        return LoadedBytes ?? UnreachableLoadedBytesNull();
     }
+
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage(Justification = AssemblyStrings.JustifyDefensive)]
+    private static byte[] UnreachableLoadedBytesNull() => throw new InvalidOperationException(AssemblyStrings.SchemaResourceName);
 
     private static byte[] ReadResourceBytes()
     {
@@ -62,11 +65,14 @@ internal static class EmbeddedSchema
         using Stream? stream = asm.GetManifestResourceStream(AssemblyStrings.SchemaResourceName);
         if (stream is null)
         {
-            throw new InvalidOperationException(AssemblyStrings.SchemaResourceName);
+            return UnreachableMissingResource();
         }
 
         using var ms = new MemoryStream(checked((int)stream.Length));
         stream.CopyTo(ms);
         return ms.ToArray();
     }
+
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage(Justification = AssemblyStrings.JustifyDefensive)]
+    private static byte[] UnreachableMissingResource() => throw new InvalidOperationException(AssemblyStrings.SchemaResourceName);
 }

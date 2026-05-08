@@ -103,6 +103,16 @@ regex = "Predicate pattern matching"
 serde = "Serde derive for the serializable TrustPolicySpec IR"
 serde_json = "Canonical JSON serialization + opaque predicate value carrier"
 
+[crate.json]
+# Phase 2 (np-frontend-json) — cose_sign1_trustfrontends_json crate.
+# Allowlist key follows the per-crate-directory convention used by
+# Assert-AllowedDependencies (the dir name for this crate is `json`).
+serde = "Serde derive for translator types"
+serde_json = "JSON parsing + canonical document representation"
+jsonschema = "JSON-Schema (Draft 2020-12) validator for the embedded cose-tp/v1 schema (R3 decision: 2026-05-08)"
+moka = "In-process LRU translator cache, sync API (R4 decision: 2026-05-08)"
+blake3 = "Cache-key hashing over canonical document + parameter bytes (R5 decision: 2026-05-08)"
+
 [crate.cose_sign1_transparent_mst]
 serde = "Deserialize JWKS responses"
 serde_json = "JSON parsing for JWKS"

@@ -1,0 +1,227 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/microsoft/CoseSignTool/main/V2/schemas/cose-tp/v1.json",
+  "title": "cose-tp-json/v1",
+  "description": "Canonical user-authored document schema for the CoseSignTool trust-policy JSON frontend (cose-tp-json/v1). The translator validates every document against this schema before walking it into a TrustPolicySpec.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "frontend": { "const": "cose-tp-json/v1" },
+    "combinator": { "$ref": "#/$defs/top_combinator" },
+    "message": { "$ref": "#/$defs/expression" },
+    "primary_signing_key": { "$ref": "#/$defs/expression" },
+    "any_counter_signature": { "$ref": "#/$defs/counter_signature_scope" }
+  },
+  "anyOf": [
+    { "required": ["message"] },
+    { "required": ["primary_signing_key"] },
+    { "required": ["any_counter_signature"] }
+  ],
+  "$defs": {
+    "top_combinator": {
+      "type": "string",
+      "enum": ["and", "or"]
+    },
+    "on_empty": {
+      "type": "string",
+      "enum": ["allow", "deny"]
+    },
+    "operator": {
+      "type": "string",
+      "description": "Predicate operator. Accepted in PascalCase (e.g. Equals) per §6.5.5; the translator is case-insensitive at parse time and emits canonical snake_case in the IR.",
+      "enum": [
+        "Exists",
+        "Equals",
+        "NotEquals",
+        "LessThan",
+        "LessThanOrEqual",
+        "GreaterThan",
+        "GreaterThanOrEqual",
+        "StartsWith",
+        "EndsWith",
+        "Contains",
+        "In"
+      ]
+    },
+    "path": {
+      "type": "string",
+      "description": "Constrained JSONPath rooted at the fact's JSON projection. Must start with '$'.",
+      "pattern": "^\\$(\\.[A-Za-z_][A-Za-z0-9_]*|\\[[0-9]+\\])*$"
+    },
+    "param_ref": {
+      "type": "object",
+      "description": "Reserved $param shape. Replaced by the post-translate Bind pass (D5).",
+      "required": ["$param"],
+      "properties": {
+        "$param": { "type": "string", "minLength": 1 },
+        "default": true
+      },
+      "additionalProperties": false
+    },
+    "predicate_value": {
+      "description": "Value position in a predicate. Any JSON value is allowed; objects matching the $param shape are recognised by the translator's binder.",
+      "anyOf": [
+        { "type": "null" },
+        { "type": "boolean" },
+        { "type": "number" },
+        { "type": "string" },
+        { "type": "array" },
+        { "$ref": "#/$defs/param_ref" },
+        { "type": "object" }
+      ]
+    },
+    "path_operator_predicate": {
+      "type": "object",
+      "description": "Universal path+operator predicate (D1). Available for every registered fact via reflection-based lowering.",
+      "required": ["operator", "path"],
+      "properties": {
+        "operator": { "$ref": "#/$defs/operator" },
+        "path": { "$ref": "#/$defs/path" },
+        "value": { "$ref": "#/$defs/predicate_value" }
+      },
+      "additionalProperties": false
+    },
+    "property_assertion_predicate": {
+      "type": "object",
+      "description": "Per-fact property-shorthand sugar (D1). Each entry asserts the named fact property is structurally equal to the supplied JSON value.",
+      "minProperties": 1,
+      "not": { "required": ["operator"] },
+      "patternProperties": {
+        "^[A-Za-z_][A-Za-z0-9_]*$": { "$ref": "#/$defs/predicate_value" }
+      },
+      "additionalProperties": false
+    },
+    "predicate": {
+      "oneOf": [
+        { "$ref": "#/$defs/path_operator_predicate" },
+        { "$ref": "#/$defs/property_assertion_predicate" }
+      ]
+    },
+    "require_fact": {
+      "type": "object",
+      "required": ["fact", "predicate"],
+      "properties": {
+        "fact": { "type": "string", "minLength": 1 },
+        "predicate": { "$ref": "#/$defs/predicate" },
+        "failure_message": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "and_node": {
+      "type": "object",
+      "required": ["all_of"],
+      "properties": {
+        "all_of": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/expression" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "or_node": {
+      "type": "object",
+      "required": ["any_of"],
+      "properties": {
+        "any_of": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/expression" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "not_node": {
+      "type": "object",
+      "required": ["not"],
+      "properties": {
+        "not": { "$ref": "#/$defs/expression" },
+        "reason": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "implies_node": {
+      "type": "object",
+      "required": ["implies"],
+      "properties": {
+        "implies": {
+          "type": "object",
+          "required": ["antecedent", "consequent"],
+          "properties": {
+            "antecedent": { "$ref": "#/$defs/expression" },
+            "consequent": { "$ref": "#/$defs/expression" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "allow_all_node": {
+      "type": "object",
+      "required": ["allow_all"],
+      "properties": {
+        "allow_all": { "const": true }
+      },
+      "additionalProperties": false
+    },
+    "deny_all_node": {
+      "type": "object",
+      "required": ["deny_all"],
+      "properties": {
+        "deny_all": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "expression": {
+      "oneOf": [
+        { "$ref": "#/$defs/require_fact" },
+        { "$ref": "#/$defs/and_node" },
+        { "$ref": "#/$defs/or_node" },
+        { "$ref": "#/$defs/not_node" },
+        { "$ref": "#/$defs/implies_node" },
+        { "$ref": "#/$defs/allow_all_node" },
+        { "$ref": "#/$defs/deny_all_node" }
+      ]
+    },
+    "counter_signature_scope": {
+      "description": "any_counter_signature scope. Same shape as a generic expression but additionally allows an on_empty sibling key.",
+      "type": "object",
+      "anyOf": [
+        { "required": ["fact"] },
+        { "required": ["all_of"] },
+        { "required": ["any_of"] },
+        { "required": ["not"] },
+        { "required": ["implies"] },
+        { "required": ["allow_all"] },
+        { "required": ["deny_all"] }
+      ],
+      "properties": {
+        "on_empty": { "$ref": "#/$defs/on_empty" },
+        "fact": { "type": "string", "minLength": 1 },
+        "predicate": { "$ref": "#/$defs/predicate" },
+        "failure_message": { "type": "string", "minLength": 1 },
+        "all_of": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/expression" }
+        },
+        "any_of": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/expression" }
+        },
+        "not": { "$ref": "#/$defs/expression" },
+        "reason": { "type": "string", "minLength": 1 },
+        "implies": {
+          "type": "object",
+          "required": ["antecedent", "consequent"],
+          "properties": {
+            "antecedent": { "$ref": "#/$defs/expression" },
+            "consequent": { "$ref": "#/$defs/expression" }
+          },
+          "additionalProperties": false
+        },
+        "allow_all": { "const": true },
+        "deny_all": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    }
+  }
+}

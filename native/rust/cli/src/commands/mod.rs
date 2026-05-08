@@ -5,6 +5,7 @@
 
 pub mod inspect;
 pub mod sign;
+pub mod trust_policy_override;
 pub mod verify;
 
 use crate::output::OutputFormat;

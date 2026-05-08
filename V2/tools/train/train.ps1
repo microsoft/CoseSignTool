@@ -16,9 +16,11 @@
 #   .\train.ps1 list                     # show all phase worktrees and ahead/behind
 #   .\train.ps1 gate    <phase> [-Filter <project>]
 #                                        # run collect-coverage.ps1 inside the phase worktree
-#   .\train.ps1 merge   <phase> [-Project <name>]
+#   .\train.ps1 merge   <phase> [-Project <name>] [-NoRegress]
 #                                        # gate(s) + git merge --no-ff back into integration; remove worktree
-#                                        # -Project triggers D11 double-gate: per-project gate THEN full-solution gate
+#                                        # -Project triggers D11 per-project gate (≥95% absolute)
+#                                        # -NoRegress triggers D11 (amended) full-solution non-regression check
+#                                        #   instead of ≥95% absolute (use when integration baseline is below 95%)
 #   .\train.ps1 remove  <phase>          # discard worktree without merging (DESTRUCTIVE; requires -Force)
 #
 # Coverage gate is non-negotiable: the script refuses to merge if the gate fails.
@@ -35,7 +37,8 @@ param(
     [string]$Filter = '',
     [string]$Project = '',
     [switch]$Force,
-    [switch]$SkipGate
+    [switch]$SkipGate,
+    [switch]$NoRegress
 )
 
 $ErrorActionPreference = 'Stop'
@@ -162,6 +165,59 @@ function Invoke-Gate {
     }
 }
 
+function Get-CoverageFromSummary {
+    param([string]$ReportDir)
+    $summary = Join-Path $ReportDir 'Summary.txt'
+    if (-not (Test-Path $summary)) { return $null }
+    $line = (Get-Content $summary | Select-String 'Line coverage:' | Select-Object -First 1)
+    if (-not $line) { return $null }
+    $match = [regex]::Match($line.ToString(), 'Line coverage:\s*(\d+(?:\.\d+)?)%')
+    if ($match.Success) { return [double]$match.Groups[1].Value }
+    return $null
+}
+
+function Invoke-NoRegressFullGate {
+    param([string]$WorktreePath)
+
+    Write-Host "Running NoRegress full-solution gate (vs integration baseline)..." -ForegroundColor Cyan
+
+    $integrationV2 = Join-Path $RepoRoot 'V2'
+    $worktreeV2 = Join-Path $WorktreePath 'V2'
+
+    Write-Host "  [1/2] Capturing baseline coverage at $IntegrationBranch..." -ForegroundColor Gray
+    Push-Location $integrationV2
+    try {
+        & .\collect-coverage.ps1 2>&1 | Tee-Object -FilePath "$env:TEMP\train-baseline-cov.txt" | Out-Null
+    } finally { Pop-Location }
+    $baseline = Get-CoverageFromSummary (Join-Path $integrationV2 'coverage-report')
+    if ($null -eq $baseline) {
+        Write-Host "  Could not parse baseline coverage. Refusing to merge." -ForegroundColor Red
+        return $false
+    }
+
+    Write-Host "  [2/2] Capturing post-merge coverage at phase worktree..." -ForegroundColor Gray
+    Push-Location $worktreeV2
+    try {
+        & .\collect-coverage.ps1 2>&1 | Tee-Object -FilePath "$env:TEMP\train-phase-cov.txt" | Out-Null
+    } finally { Pop-Location }
+    $phase = Get-CoverageFromSummary (Join-Path $worktreeV2 'coverage-report')
+    if ($null -eq $phase) {
+        Write-Host "  Could not parse phase coverage. Refusing to merge." -ForegroundColor Red
+        return $false
+    }
+
+    $delta = [math]::Round($phase - $baseline, 2)
+    $arrow = if ($delta -ge 0) { "↑" } else { "↓" }
+    Write-Host "  Baseline: $baseline%  |  Phase: $phase%  |  Delta: $arrow $([math]::Abs($delta))%" -ForegroundColor Cyan
+
+    if ($phase -lt $baseline) {
+        Write-Host "  NoRegress gate FAILED: phase regresses full-solution coverage." -ForegroundColor Red
+        return $false
+    }
+    Write-Host "  NoRegress gate PASSED." -ForegroundColor Green
+    return $true
+}
+
 function Invoke-Merge {
     Assert-PhaseName $Phase
     $worktreePath = Get-PhaseWorktreePath $Phase
@@ -183,9 +239,9 @@ function Invoke-Merge {
     }
 
     if (-not $SkipGate) {
-        # D11 — double-gate: when -Project supplied, run filter gate first; always run full-solution gate.
+        # D11 (amended) — per-project gate must hit ≥95% absolute; full-solution gate must not regress.
         if ($Project) {
-            Write-Host "Double-gate: per-project ($Project) gate first, then full-solution gate." -ForegroundColor Cyan
+            Write-Host "Per-project gate ($Project) — requires ≥95% absolute." -ForegroundColor Cyan
             $savedFilter = $script:Filter
             $script:Filter = $Project
             try {
@@ -198,11 +254,18 @@ function Invoke-Merge {
             }
         }
 
-        # Full-solution gate (always required by D11).
-        $script:Filter = ''
-        $fullPassed = Invoke-Gate
-        if (-not $fullPassed) {
-            throw "Refusing to merge: full-solution coverage gate failed for phase '$Phase'."
+        if ($NoRegress) {
+            $fullPassed = Invoke-NoRegressFullGate -WorktreePath $worktreePath
+            if (-not $fullPassed) {
+                throw "Refusing to merge: full-solution coverage regressed vs integration baseline."
+            }
+        } else {
+            # Legacy path: full-solution must hit ≥95% absolute.
+            $script:Filter = ''
+            $fullPassed = Invoke-Gate
+            if (-not $fullPassed) {
+                throw "Refusing to merge: full-solution coverage gate failed for phase '$Phase'. Add -NoRegress to enforce non-regression vs baseline instead of ≥95% absolute."
+            }
         }
     } else {
         Write-Host "WARNING: -SkipGate specified — gate not enforced." -ForegroundColor Yellow

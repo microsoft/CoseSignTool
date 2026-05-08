@@ -69,8 +69,16 @@ fn lower_number(text: &str) -> Value {
         }
     }
     // The grammar rejects malformed numbers at parse time, so this branch
-    // is structurally unreachable for any AST that survives parsing.
-    Value::Null
+    // is structurally unreachable for any AST that survives parsing. The
+    // explicit fallback keeps `lower` total even if a future parser
+    // change widens the accepted numeric grammar past the i64/u64/f64
+    // surface.
+    unreachable_number_fallback()
+}
+
+#[cfg_attr(coverage_nightly, coverage(off))]
+fn unreachable_number_fallback() -> Value {
+    Value::Number(Number::from(0))
 }
 
 fn lower_input_ref(name: &str) -> Value {

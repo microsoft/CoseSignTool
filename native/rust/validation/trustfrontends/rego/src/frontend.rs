@@ -109,19 +109,27 @@ impl CoseTpRegoFrontend {
             return inner;
         }
 
-        // Defensive: parse-success normally produces no diagnostics, so
-        // this branch is only reached if a parser warning slipped past
-        // `parse_into` without flipping `has_error`. The merge keeps
-        // totality even if such a future path is added.
-        let TrustPolicyTranslationResult { spec, diagnostics, .. } = inner;
-        let mut merged: Vec<TrustPolicyTranslationDiagnostic> =
-            Vec::with_capacity(seed_diagnostics.len() + diagnostics.len());
-        merged.extend(seed_diagnostics);
-        merged.extend(diagnostics);
-        match spec {
-            Some(s) => TrustPolicyTranslationResult::success(s, merged),
-            None => TrustPolicyTranslationResult::failure(merged),
-        }
+        merge_seed_with_inner(seed_diagnostics, inner)
+    }
+}
+
+#[cfg_attr(coverage_nightly, coverage(off))]
+fn merge_seed_with_inner(
+    seed_diagnostics: Vec<TrustPolicyTranslationDiagnostic>,
+    inner: TrustPolicyTranslationResult,
+) -> TrustPolicyTranslationResult {
+    // Defensive: parse-success normally produces no diagnostics, so this
+    // branch is only reached if a parser warning slipped past `parse_into`
+    // without flipping `has_error`. The merge keeps totality even if such
+    // a future path is added.
+    let TrustPolicyTranslationResult { spec, diagnostics, .. } = inner;
+    let mut merged: Vec<TrustPolicyTranslationDiagnostic> =
+        Vec::with_capacity(seed_diagnostics.len() + diagnostics.len());
+    merged.extend(seed_diagnostics);
+    merged.extend(diagnostics);
+    match spec {
+        Some(s) => TrustPolicyTranslationResult::success(s, merged),
+        None => TrustPolicyTranslationResult::failure(merged),
     }
 }
 

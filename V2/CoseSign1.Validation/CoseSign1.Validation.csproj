@@ -24,6 +24,18 @@
     <ProjectReference Include="..\CoseSign1.Abstractions\CoseSign1.Abstractions.csproj" />
   </ItemGroup>
 
+  <!--
+    Expose internals to the Phase 1 trust-policy spec compiler so it can drive the existing
+    fluent builder via TrustPlanPolicy.SubjectPolicyBuilder<TSelf>.AddRule (internal). The
+    public fluent API is unchanged — the spec compiler only uses internal entry points to
+    inject pre-built rule trees that the fluent builder already supports.
+  -->
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>CoseSign1.Validation.Trust.PlanPolicy.Spec, PublicKey=$(StrongNamePublicKey)</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
   <!--Files to include in the package-->
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="\" />

@@ -61,6 +61,7 @@
 pub mod canonical_json;
 pub mod compile;
 pub mod diagnostic_codes;
+pub mod frontend;
 pub mod parameter;
 pub mod predicate;
 pub mod registry;
@@ -71,6 +72,11 @@ pub use canonical_json::{to_canonical_json, to_canonical_pretty};
 pub use compile::{
     compile, compile_with_options, from_rule_on_empty, into_rule_on_empty, CompileError,
     CompileOptions, DEFAULT_MAX_DEPTH,
+};
+pub use frontend::{
+    CoseTrustPolicyFrontend, FactCapabilities, TrustPolicySeverity,
+    TrustPolicyTranslationContext, TrustPolicyTranslationDiagnostic,
+    TrustPolicyTranslationResult,
 };
 pub use parameter::{
     bind, bind_with_options, BindError, BindOptions, ParameterRef, DEFAULT_MAX_DEPTH as BIND_DEFAULT_MAX_DEPTH,

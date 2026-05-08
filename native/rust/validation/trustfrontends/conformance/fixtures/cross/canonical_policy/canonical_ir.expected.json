@@ -1,0 +1,66 @@
+{
+  "type": "and",
+  "specs": [
+    {
+      "type": "message",
+      "requirements": [
+        {
+          "type": "require_fact",
+          "fact_id": "content-type/v1",
+          "predicate": {
+            "assertions": {
+              "matches": "application/cose"
+            }
+          },
+          "failure_message": "Fact requirement on 'content-type/v1' was not satisfied."
+        }
+      ]
+    },
+    {
+      "type": "primary_signing_key",
+      "requirements": [
+        {
+          "type": "and",
+          "specs": [
+            {
+              "type": "require_fact",
+              "fact_id": "x509-chain-trusted/v1",
+              "predicate": {
+                "assertions": {
+                  "is_trusted": true
+                }
+              },
+              "failure_message": "Fact requirement on 'x509-chain-trusted/v1' was not satisfied."
+            },
+            {
+              "type": "require_fact",
+              "fact_id": "x509-cert-identity-allowed/v1",
+              "predicate": {
+                "assertions": {
+                  "is_allowed": true
+                }
+              },
+              "failure_message": "Fact requirement on 'x509-cert-identity-allowed/v1' was not satisfied."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "any_counter_signature",
+      "on_empty": "deny",
+      "requirements": [
+        {
+          "type": "require_fact",
+          "fact_id": "mst-receipt-trusted/v1",
+          "predicate": {
+            "assertions": {
+              "is_trusted": true
+            }
+          },
+          "failure_message": "Fact requirement on 'mst-receipt-trusted/v1' was not satisfied."
+        }
+      ]
+    }
+  ]
+}

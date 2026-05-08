@@ -22,6 +22,7 @@ members = [
   "validation/test_utils",
   "validation/trust_policy_spec",
   "validation/trustfrontends/json",
+  "validation/trustfrontends/conformance",
   "did/x509",
   "did/x509/ffi",
   "extension_packs/certificates",

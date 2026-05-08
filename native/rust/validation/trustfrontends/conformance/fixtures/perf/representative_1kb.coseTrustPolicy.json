@@ -1,0 +1,24 @@
+{
+  "frontend": "cose-tp-json/v1",
+  "combinator": "and",
+  "message": {
+    "all_of": [
+      { "fact": "content-type/v1", "predicate": { "matches": "application/cose" } },
+      { "fact": "detached-payload-present/v1", "predicate": { "is_present": false } }
+    ]
+  },
+  "primary_signing_key": {
+    "all_of": [
+      { "fact": "x509-chain-trusted/v1",         "predicate": { "is_trusted": true } },
+      { "fact": "x509-cert-identity-allowed/v1", "predicate": { "is_allowed": true } },
+      { "fact": "x509-cert-eku/v1",              "predicate": { "has_codesigning": true } }
+    ]
+  },
+  "any_counter_signature": {
+    "on_empty": "deny",
+    "all_of": [
+      { "fact": "mst-receipt-trusted/v1", "predicate": { "is_trusted": true } },
+      { "fact": "mst-receipt-issuer-host/v1", "predicate": { "host_matches": "log.example" } }
+    ]
+  }
+}

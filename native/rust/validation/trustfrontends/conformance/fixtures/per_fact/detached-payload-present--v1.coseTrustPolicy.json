@@ -1,0 +1,7 @@
+{
+  "frontend": "cose-tp-json/v1",
+  "message": {
+    "fact": "detached-payload-present/v1",
+    "predicate": { "is_present": false }
+  }
+}

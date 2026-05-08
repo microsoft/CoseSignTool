@@ -1,0 +1,8 @@
+{
+  "frontend": "cose-tp-json/v1",
+  "any_counter_signature": {
+    "on_empty": "allow",
+    "fact": "counter-signature-subject/v1",
+    "predicate": { "matches": true }
+  }
+}

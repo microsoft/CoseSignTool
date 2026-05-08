@@ -1,0 +1,7 @@
+{
+  "frontend": "cose-tp-json/v1",
+  "primary_signing_key": {
+    "fact": "mst-receipt-trusted/v1",
+    "predicate": { "is_trusted": true }
+  }
+}

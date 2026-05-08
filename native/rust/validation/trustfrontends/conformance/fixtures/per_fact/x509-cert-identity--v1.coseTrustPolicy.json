@@ -1,0 +1,7 @@
+{
+  "frontend": "cose-tp-json/v1",
+  "primary_signing_key": {
+    "fact": "x509-cert-identity/v1",
+    "predicate": { "thumbprint": "abc123" }
+  }
+}

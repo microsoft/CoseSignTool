@@ -1,0 +1,7 @@
+{
+  "frontend": "cose-tp-json/v1",
+  "message": {
+    "fact": "x509-chain-trusted/v1",
+    "predicate": [ "this should be an object, not an array" ]
+  }
+}

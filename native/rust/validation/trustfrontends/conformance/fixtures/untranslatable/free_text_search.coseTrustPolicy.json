@@ -1,0 +1,6 @@
+{
+  "frontend": "cose-tp-json/v1",
+  "primary_signing_key": {
+    "free_text_search": "trust everything that mentions 'good'"
+  }
+}

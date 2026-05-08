@@ -1,0 +1,38 @@
+[package]
+name = "cose_sign1_trust_policy_spec_ffi"
+version = "0.1.0"
+edition = { workspace = true }
+license = { workspace = true }
+description = "C-ABI projection for cose_sign1_trust_policy_spec — load, translate, bind, and compile .coseTrustPolicy.json documents from C/C++/.NET/Node/Go/Rust consumers."
+
+[lib]
+crate-type = ["staticlib", "cdylib", "rlib"]
+test = false
+
+[dependencies]
+# Base FFI: shared cose_status_t, with_catch_unwind, last-error TLS, validator builder.
+cose_sign1_validation_ffi = { path = "../../core/ffi" }
+
+# Trust policy IR + JSON frontend wrapped behind the C ABI.
+cose_sign1_trust_policy_spec = { path = ".." }
+cose_sign1_trustfrontends_json = { path = "../../trustfrontends/json" }
+
+# Validation primitives — CompiledTrustPlan owned by the compiled-plan handle.
+cose_sign1_validation_primitives = { path = "../../primitives" }
+
+# Canonical pack contributors. The FFI consumer cannot hand-thread fact descriptors across
+# the ABI boundary, so the FFI links the workspace's standard pack set statically and
+# constructs a HandRolledFactRegistry covering certificates + MST + validation core.
+cose_sign1_certificates = { path = "../../../extension_packs/certificates" }
+cose_sign1_transparent_mst = { path = "../../../extension_packs/mst" }
+cose_sign1_validation = { path = "../../core" }
+
+anyhow = { workspace = true }
+serde_json = { workspace = true }
+libc = "0.2"
+
+[dev-dependencies]
+cose_sign1_trust_policy_spec = { path = ".." }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }

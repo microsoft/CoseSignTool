@@ -21,6 +21,7 @@ members = [
   "validation/primitives/ffi",
   "validation/test_utils",
   "validation/trust_policy_spec",
+  "validation/trust_policy_spec/ffi",
   "validation/trustfrontends/json",
   "validation/trustfrontends/conformance",
   "did/x509",

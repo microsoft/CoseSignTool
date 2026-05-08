@@ -88,6 +88,11 @@ find_library(COSE_FFI_TRUST_LIB
     PATHS ${RUST_FFI_DIR}
 )
 
+find_library(COSE_FFI_TRUST_POLICY_LIB
+    NAMES cose_sign1_trust_policy_spec_ffi
+    PATHS ${RUST_FFI_DIR}
+)
+
 # Additional FFI libraries (optional)
 find_library(COSE_FFI_PRIMITIVES_LIB
     NAMES cose_sign1_primitives_ffi
@@ -178,6 +183,12 @@ if(COSE_FFI_TRUST_LIB)
     message(STATUS "Found trust pack: ${COSE_FFI_TRUST_LIB}")
     target_link_libraries(cose_sign1 INTERFACE ${COSE_FFI_TRUST_LIB})
     target_compile_definitions(cose_sign1 INTERFACE COSE_HAS_TRUST_PACK)
+endif()
+
+if(COSE_FFI_TRUST_POLICY_LIB)
+    message(STATUS "Found trust-policy translator: ${COSE_FFI_TRUST_POLICY_LIB}")
+    target_link_libraries(cose_sign1 INTERFACE ${COSE_FFI_TRUST_POLICY_LIB})
+    target_compile_definitions(cose_sign1 INTERFACE COSE_HAS_TRUST_POLICY)
 endif()
 
 # Additional optional FFI library targets

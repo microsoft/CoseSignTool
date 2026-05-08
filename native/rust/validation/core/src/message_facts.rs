@@ -538,3 +538,44 @@ impl FactProperties for CounterSignatureEnvelopeIntegrityFact {
         }
     }
 }
+
+// =====================================================================
+// TrustFactWithId — Phase 3 (np-fact-registry, R1).
+//
+// IDs MUST be byte-identical to Phase 1's StaticFactRegistry baseline.
+// Only the four baseline message-level facts are tagged; the remaining
+// facts (CoseSign1MessagePartsFact, CoseSign1MessageBytesFact,
+// CwtClaimsPresentFact, CwtClaimsFact, PrimarySigningKeySubjectFact,
+// CounterSignatureSigningKeySubjectFact, CounterSignatureEnvelopeIntegrityFact)
+// are surfaced in the Phase 3 final report as Phase 1 baseline gaps.
+// =====================================================================
+
+use cose_sign1_validation_primitives::{validate_fact_id, TrustFactWithId};
+
+impl TrustFactWithId for ContentTypeFact {
+    const FACT_ID: &'static str = "content-type/v1";
+}
+const _: () = assert!(validate_fact_id(
+    <ContentTypeFact as TrustFactWithId>::FACT_ID
+));
+
+impl TrustFactWithId for DetachedPayloadPresentFact {
+    const FACT_ID: &'static str = "detached-payload-present/v1";
+}
+const _: () = assert!(validate_fact_id(
+    <DetachedPayloadPresentFact as TrustFactWithId>::FACT_ID
+));
+
+impl TrustFactWithId for CounterSignatureSubjectFact {
+    const FACT_ID: &'static str = "counter-signature-subject/v1";
+}
+const _: () = assert!(validate_fact_id(
+    <CounterSignatureSubjectFact as TrustFactWithId>::FACT_ID
+));
+
+impl TrustFactWithId for UnknownCounterSignatureBytesFact {
+    const FACT_ID: &'static str = "unknown-counter-signature-bytes/v1";
+}
+const _: () = assert!(validate_fact_id(
+    <UnknownCounterSignatureBytesFact as TrustFactWithId>::FACT_ID
+));

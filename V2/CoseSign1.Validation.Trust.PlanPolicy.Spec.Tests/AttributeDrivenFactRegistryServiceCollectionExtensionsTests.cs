@@ -80,4 +80,19 @@ public sealed class AttributeDrivenFactRegistryServiceCollectionExtensionsTests
         var ret = services.AddAttributeDrivenFactRegistry();
         Assert.That(ret, Is.SameAs(services));
     }
+
+    [Test]
+    public void AddAttributeDrivenFactRegistry_WithUnrelatedRegistrations_StillRegisters()
+    {
+        // Existing registrations that are NOT IFactRegistry must be skipped over by the dedupe
+        // loop without short-circuiting. Exercises both branches of the for-loop predicate.
+        var services = new ServiceCollection();
+        services.AddSingleton<string>("not-a-fact-registry");
+        services.AddSingleton<object>(new object());
+        services.AddAttributeDrivenFactRegistry();
+        using var sp = services.BuildServiceProvider();
+
+        Assert.That(sp.GetRequiredService<IFactRegistry>(), Is.InstanceOf<AttributeDrivenFactRegistry>());
+        Assert.That(sp.GetRequiredService<string>(), Is.EqualTo("not-a-fact-registry"));
+    }
 }

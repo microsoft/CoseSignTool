@@ -156,6 +156,19 @@ public sealed class AttributeDrivenFactRegistryTests
     }
 
     [Test]
+    public void Constructor_SameAssemblyTwice_DoesNotDuplicateFacts()
+    {
+        // Pass a known fact-host assembly twice. The second pass observes every (id, type) pair
+        // already registered → exercises the same-type idempotency continue branch in the
+        // duplicate check.
+        Assembly certs = typeof(CoseSign1.Certificates.Trust.Facts.X509ChainTrustedFact).Assembly;
+        var registry = new AttributeDrivenFactRegistry(new[] { certs, certs });
+        Assert.That(registry.AllFactIds, Contains.Item("x509-chain-trusted/v1"));
+        // Cert pack ships 9 tagged facts; idempotent re-scan must not double-count.
+        Assert.That(registry.AllFactIds.Count, Is.EqualTo(9));
+    }
+
+    [Test]
     public void Constructor_AssemblyWithoutTaggedTypes_BuildsEmptyRegistry()
     {
         var registry = new AttributeDrivenFactRegistry(new[] { EmptyAsm });

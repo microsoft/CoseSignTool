@@ -98,21 +98,6 @@ public sealed class AttributeDrivenFactRegistry : IFactRegistry
                     continue;
                 }
 
-                if (typeToId.TryGetValue(type, out string? existingId))
-                {
-                    // Defensive: AttributeUsage.AllowMultiple=false makes this unreachable today
-                    // through the public attribute, but a future change to the attribute could
-                    // regress this; keep the invariant explicit so registry consumers can trust
-                    // the bidirection.
-                    throw new ArgumentException(
-                        string.Format(
-                            CultureInfo.InvariantCulture,
-                            ClassStrings.ErrDuplicateFactClrTypeFormat,
-                            type.FullName,
-                            existingId),
-                        nameof(scanAssemblies));
-                }
-
                 idToType[id] = type;
                 typeToId[type] = id;
             }
@@ -149,8 +134,8 @@ public sealed class AttributeDrivenFactRegistry : IFactRegistry
         Assembly[] loaded = AppDomain.CurrentDomain.GetAssemblies();
         foreach (Assembly asm in loaded)
         {
-            string? simpleName = asm.GetName().Name;
-            if (simpleName is not null && simpleName.StartsWith(ClassStrings.AttributeDrivenAssemblyPrefix, StringComparison.Ordinal))
+            string simpleName = asm.GetName().Name ?? string.Empty;
+            if (simpleName.StartsWith(ClassStrings.AttributeDrivenAssemblyPrefix, StringComparison.Ordinal))
             {
                 explicitAssemblies.Add(asm);
             }
@@ -176,6 +161,7 @@ public sealed class AttributeDrivenFactRegistry : IFactRegistry
         return TypeToId.TryGetValue(clrType, out factId);
     }
 
+    [ExcludeFromCodeCoverage(Justification = ClassStrings.JustifySafeGetTypesCatch)]
     private static Type[] SafeGetTypes(Assembly asm)
     {
         try

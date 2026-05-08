@@ -78,6 +78,7 @@ internal static class ClassStrings
     public const string ErrAttributeDrivenScanAssembliesNull = "Assembly enumeration must not contain null entries.";
     public const string AttributeDrivenAssemblyPrefix = "CoseSign1.";
     public const string ObsoleteStaticFactRegistry = "Use AttributeDrivenFactRegistry.FromLoadedAssemblies(). Will be removed in Phase 4 if no consumers remain.";
+    public const string JustifySafeGetTypesCatch = "ReflectionTypeLoadException requires a partially-loadable assembly which cannot be synthesised in a normal NUnit run; the recovery arm is exercised by integration when a host loads a malformed plugin.";
     public const string ErrDuplicateFactIdFormat = "Duplicate fact id '{0}'.";
     public const string ErrDuplicateFactClrTypeFormat = "Fact CLR type '{0}' is already registered as '{1}'.";
     public const string ErrCanonicalJsonNullSpec = "Trust-policy spec JSON deserialized to null.";

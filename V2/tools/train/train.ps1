@@ -16,7 +16,9 @@
 #   .\train.ps1 list                     # show all phase worktrees and ahead/behind
 #   .\train.ps1 gate    <phase> [-Filter <project>]
 #                                        # run collect-coverage.ps1 inside the phase worktree
-#   .\train.ps1 merge   <phase>          # gate + git merge --no-ff back into integration; remove worktree
+#   .\train.ps1 merge   <phase> [-Project <name>]
+#                                        # gate(s) + git merge --no-ff back into integration; remove worktree
+#                                        # -Project triggers D11 double-gate: per-project gate THEN full-solution gate
 #   .\train.ps1 remove  <phase>          # discard worktree without merging (DESTRUCTIVE; requires -Force)
 #
 # Coverage gate is non-negotiable: the script refuses to merge if the gate fails.
@@ -31,6 +33,7 @@ param(
     [string]$Phase,
 
     [string]$Filter = '',
+    [string]$Project = '',
     [switch]$Force,
     [switch]$SkipGate
 )
@@ -180,9 +183,26 @@ function Invoke-Merge {
     }
 
     if (-not $SkipGate) {
-        $gatePassed = Invoke-Gate
-        if (-not $gatePassed) {
-            throw "Refusing to merge: coverage gate failed for phase '$Phase'."
+        # D11 — double-gate: when -Project supplied, run filter gate first; always run full-solution gate.
+        if ($Project) {
+            Write-Host "Double-gate: per-project ($Project) gate first, then full-solution gate." -ForegroundColor Cyan
+            $savedFilter = $script:Filter
+            $script:Filter = $Project
+            try {
+                $perProjectPassed = Invoke-Gate
+                if (-not $perProjectPassed) {
+                    throw "Refusing to merge: per-project coverage gate failed for '$Project'."
+                }
+            } finally {
+                $script:Filter = $savedFilter
+            }
+        }
+
+        # Full-solution gate (always required by D11).
+        $script:Filter = ''
+        $fullPassed = Invoke-Gate
+        if (-not $fullPassed) {
+            throw "Refusing to merge: full-solution coverage gate failed for phase '$Phase'."
         }
     } else {
         Write-Host "WARNING: -SkipGate specified — gate not enforced." -ForegroundColor Yellow

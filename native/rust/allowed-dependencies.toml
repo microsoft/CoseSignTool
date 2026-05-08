@@ -99,6 +99,10 @@ regex = "Content-type pattern matching"
 parking_lot = "Fast Mutex for validation engine state"
 regex = "Predicate pattern matching"
 
+[crate.trust_policy_spec]
+serde = "Serde derive for the serializable TrustPolicySpec IR"
+serde_json = "Canonical JSON serialization + opaque predicate value carrier"
+
 [crate.cose_sign1_transparent_mst]
 serde = "Deserialize JWKS responses"
 serde_json = "JSON parsing for JWKS"

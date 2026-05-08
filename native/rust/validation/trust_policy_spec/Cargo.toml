@@ -1,0 +1,17 @@
+[package]
+name = "cose_sign1_trust_policy_spec"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Serializable, deterministic IR (TrustPolicySpec) for COSE_Sign1 trust policies. Phase 1 of the native Rust trust-policy port."
+
+[lints]
+workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+cose_sign1_validation_primitives = { path = "../primitives" }
+
+[dev-dependencies]
+serde_json = { workspace = true }

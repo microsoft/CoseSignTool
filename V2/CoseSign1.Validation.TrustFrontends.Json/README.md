@@ -17,6 +17,58 @@ The frontend satisfies the eight translation guarantees of §6.5.4: determinism,
 attribute fidelity, reject-what-you-can't-translate, capability-aware, no code execution,
 bounded runtime, schema-checked output.
 
+## Installation
+
+```xml
+<PackageReference Include="CoseSign1.Validation.TrustFrontends.Json" Version="2.0.0-preview" />
+```
+
+## Quickstart — translate, bind, compile
+
+```csharp
+using CoseSign1.Validation.Trust.Frontends;
+using CoseSign1.Validation.Trust.PlanPolicy.Spec.Compilation;
+using CoseSign1.Validation.Trust.PlanPolicy.Spec.Registry;
+using CoseSign1.Validation.TrustFrontends.Json;
+using Microsoft.Extensions.DependencyInjection;
+using System.Text.Json.Nodes;
+
+// 1. Wire the frontend + translator cache into DI.
+var services = new ServiceCollection()
+    .AddCoseTpJsonFrontend()
+    .AddAttributeDrivenFactRegistry()
+    .BuildServiceProvider();
+
+var frontend = services.GetRequiredService<CoseTpJsonFrontend>();
+var registry = services.GetRequiredService<IFactRegistry>();
+
+// 2. Translate the document. Diagnostics carry JSON-pointer source locations.
+string documentText = File.ReadAllText("trust.coseTrustPolicy.json");
+TrustPolicyTranslationResult result = frontend.TranslateText(
+    documentText,
+    new TrustPolicyTranslationContext
+    {
+        AvailableFacts = new FactCapabilities { AvailableFactIds = registry.AllFactIds },
+    },
+    documentSource: "file:///etc/myapp/trust.coseTrustPolicy.json");
+
+if (!result.IsSuccess)
+{
+    foreach (var d in result.Diagnostics)
+        Console.Error.WriteLine($"[{d.Code}] {d.Message} (at {d.Location?.Source})");
+    return;
+}
+
+// 3. Bind any $param references the document carries.
+TrustPolicyTranslationResult bound = result.Bind(new Dictionary<string, JsonNode?>
+{
+    ["trusted_log_hosts"] = JsonNode.Parse("[\"dataplane.codetransparency.azure.net\"]"),
+});
+
+// 4. Compile to a CompiledTrustPlan that bypasses pack defaults (D8 override semantics).
+var plan = CompiledTrustPlanFromSpec.CompileFromSpec(bound.Spec!, registry, services);
+```
+
 ## Frontend grammar (cose-tp-json/v1)
 
 ```jsonc
@@ -39,8 +91,23 @@ bounded runtime, schema-checked output.
 }
 ```
 
-JSONC comments (`//` and `/* … */`) are accepted; the translator strips them before
-schema-validating the document.
+JSONC comments (`//` and `/* … */`) and trailing commas are accepted.
+
+## Diagnostic codes
+
+| Code     | Meaning                                                                          |
+|----------|----------------------------------------------------------------------------------|
+| `TPX001` | Malformed JSON (parser error).                                                   |
+| `TPX100` | JSON-Schema validation failure.                                                  |
+| `TPX101` | `frontend` discriminator does not match `cose-tp-json/v1`.                       |
+| `TPX200` | Unknown fact id (fact not advertised in `FactCapabilities.AvailableFactIds`).    |
+| `TPX201` | Predicate fails the host-supplied per-fact predicate schema.                     |
+| `TPX300` | Predicate operator is not in the closed `PredicateOperator` set.                 |
+| `TPX301` | Document node is structurally untranslatable (defensive — schema rejects first). |
+| `TPX302` | Reserved property name (e.g. `$param`) used in a fact-property assertion.        |
+| `TPX400` | `$param` reference is unbound and has no in-document `default`.                  |
+| `TPX401` | (Reserved) Future strict-typed parameter binding type-mismatch.                  |
 
 See the design doc (`eval-trust-policy-translation-contract.md`) §6.5.5 for the full
 specification.
+

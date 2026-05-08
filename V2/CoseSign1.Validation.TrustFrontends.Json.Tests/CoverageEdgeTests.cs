@@ -110,6 +110,17 @@ public sealed class CoverageEdgeTests
     }
 
     [Test]
+    public void Translate_AllOfNonObjectChild_EmitsTpx301()
+    {
+        TrustPolicyTranslationResult r = new CoseTpJsonFrontend().Translate(
+            JsonDocument.Parse("""{"primary_signing_key":{"all_of":[{"allow_all":true},"not-an-object"]}}""", CoseTpJsonOptions.ParseOptions),
+            new TrustPolicyTranslationContext());
+
+        // Schema rejects mixed array entries → TPX100 schema error.
+        Assert.That(r.IsSuccess, Is.False);
+    }
+
+    [Test]
     public void Constants_FrontendIdAndSchemaUrl_Match()
     {
         Assert.That(CoseTpJsonOptions.FrontendId, Is.EqualTo("cose-tp-json/v1"));

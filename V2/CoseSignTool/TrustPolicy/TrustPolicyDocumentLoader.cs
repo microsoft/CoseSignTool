@@ -48,6 +48,7 @@ internal static class TrustPolicyDocumentLoader
         public const string DocumentSourcePrefixFile = "file://";
         public const char PathSlashWindows = '\\';
         public const char PathSlashUnix = '/';
+        public static readonly TimeSpan HttpTimeout = TimeSpan.FromSeconds(15);
     }
 
     /// <summary>
@@ -81,7 +82,8 @@ internal static class TrustPolicyDocumentLoader
             return null;
         }
 
-        var frontend = new CoseTpJsonFrontend();
+        var frontend = (services.GetService(typeof(CoseTpJsonFrontend)) as CoseTpJsonFrontend)
+            ?? new CoseTpJsonFrontend();
 
         IFactRegistry? registry = services.GetService(typeof(IFactRegistry)) as IFactRegistry
             ?? AttributeDrivenFactRegistry.FromLoadedAssemblies();
@@ -134,11 +136,12 @@ internal static class TrustPolicyDocumentLoader
         {
             try
             {
-                using var client = new HttpClient();
+                using var handler = new HttpClientHandler { AllowAutoRedirect = false };
+                using var client = new HttpClient(handler) { Timeout = ClassStrings.HttpTimeout };
                 text = client.GetStringAsync(pathOrUrl).GetAwaiter().GetResult();
                 return true;
             }
-            catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or TaskCanceledException)
+            catch (Exception ex) when (ex is HttpRequestException or InvalidOperationException or TaskCanceledException or UriFormatException)
             {
                 errorWriter.WriteLine(string.Format(CultureInfo.InvariantCulture, ClassStrings.ErrTrustPolicyHttpFailedFormat, pathOrUrl, ex.Message));
                 return false;
@@ -148,16 +151,27 @@ internal static class TrustPolicyDocumentLoader
         string filePath = pathOrUrl;
         if (filePath.StartsWith(ClassStrings.SchemeFile, StringComparison.OrdinalIgnoreCase))
         {
-            filePath = new Uri(pathOrUrl).LocalPath;
+            try
+            {
+                filePath = new Uri(pathOrUrl).LocalPath;
+            }
+            catch (UriFormatException ex)
+            {
+                errorWriter.WriteLine(string.Format(CultureInfo.InvariantCulture, ClassStrings.ErrTrustPolicyFileNotFound, ex.Message));
+                return false;
+            }
         }
 
-        if (!File.Exists(filePath))
+        try
+        {
+            text = File.ReadAllText(filePath, Encoding.UTF8);
+        }
+        catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException or IOException or UnauthorizedAccessException)
         {
             errorWriter.WriteLine(string.Format(CultureInfo.InvariantCulture, ClassStrings.ErrTrustPolicyFileNotFound, filePath));
             return false;
         }
 
-        text = File.ReadAllText(filePath, Encoding.UTF8);
         sourceUri = string.Concat(ClassStrings.DocumentSourcePrefixFile, filePath.Replace(ClassStrings.PathSlashWindows, ClassStrings.PathSlashUnix));
         return true;
     }

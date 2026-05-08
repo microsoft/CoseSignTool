@@ -226,10 +226,7 @@ internal sealed class DocumentTranslator
         var operands = new List<TrustPolicySpec>(arr.Count);
         for (int i = 0; i < arr.Count; i++)
         {
-            if (arr[i] is JsonObject child)
-            {
-                operands.Add(WalkExpression(child, FormatIndexPointer(pointer, i)));
-            }
+            operands.Add(WalkArrayChild(arr[i], FormatIndexPointer(pointer, i)));
         }
 
         return new AndSpec(operands);
@@ -240,13 +237,26 @@ internal sealed class DocumentTranslator
         var operands = new List<TrustPolicySpec>(arr.Count);
         for (int i = 0; i < arr.Count; i++)
         {
-            if (arr[i] is JsonObject child)
-            {
-                operands.Add(WalkExpression(child, FormatIndexPointer(pointer, i)));
-            }
+            operands.Add(WalkArrayChild(arr[i], FormatIndexPointer(pointer, i)));
         }
 
         return new OrSpec(operands);
+    }
+
+    private TrustPolicySpec WalkArrayChild(JsonNode? child, string childPointer)
+    {
+        return child is JsonObject obj
+            ? WalkExpression(obj, childPointer)
+            : DefensiveNonObjectArrayElement(childPointer);
+    }
+
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage(Justification = AssemblyStrings.JustifyDefensive)]
+    private TrustPolicySpec DefensiveNonObjectArrayElement(string childPointer)
+    {
+        // Defensive: schema validates each element of `all_of`/`any_of` is an expression object,
+        // so a non-object element is unreachable in the public flow. Failing closed with a
+        // TPX301 diagnostic preserves the totality contract per §6.5.4 #2.
+        return EmitUntranslatableAndDeny(childPointer);
     }
 
     private static string FormatIndexPointer(string pointer, int index) =>
@@ -392,7 +402,11 @@ internal sealed class DocumentTranslator
     }
 
     [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage(Justification = AssemblyStrings.JustifyDefensive)]
-    private static TrustPolicySpec UnreachableEmptyScopesFallback() => new MessageRequirementSpec(new AllowAllSpec());
+    private static TrustPolicySpec UnreachableEmptyScopesFallback() =>
+        // Schema enforces anyOf the three scope keys at the document boundary, so an empty
+        // list is unreachable in the public flow. Defensive choice: fail closed
+        // (DenyAllSpec) rather than fail open (AllowAllSpec) per Red-Team / Correctness review.
+        new MessageRequirementSpec(new DenyAllSpec(AssemblyStrings.CodeUntranslatableNode));
 
     [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage(Justification = AssemblyStrings.JustifyDefensive)]
     private void TranslateFrontendMismatch(JsonObject root)

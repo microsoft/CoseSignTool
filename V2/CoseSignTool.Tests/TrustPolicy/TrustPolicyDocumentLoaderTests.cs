@@ -296,7 +296,7 @@ public sealed class TrustPolicyDocumentLoaderTests
             var sw = new StringWriter();
             var result = TrustPolicyDocumentLoader.LoadAndCompile(regoPath, Array.Empty<string>(), BuildServices(), sw);
             Assert.That(result, Is.Null);
-            Assert.That(sw.ToString(), Does.Contain("TPX300"));
+            Assert.That(sw.ToString(), Does.Contain("TPX301"));
         }
         finally
         {

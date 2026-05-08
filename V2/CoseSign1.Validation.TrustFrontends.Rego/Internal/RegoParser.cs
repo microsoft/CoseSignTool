@@ -44,6 +44,7 @@ internal sealed class RegoParser
     private readonly List<TrustPolicyTranslationDiagnostic> Diagnostics;
     private readonly string? DocumentSource;
     private int Index;
+    private int NestingDepth;
 
     public RegoParser(List<RegoToken> tokens, List<TrustPolicyTranslationDiagnostic> diagnostics, string? documentSource)
     {
@@ -51,6 +52,7 @@ internal sealed class RegoParser
         Diagnostics = diagnostics;
         DocumentSource = documentSource;
         Index = 0;
+        NestingDepth = 0;
     }
 
     /// <summary>
@@ -150,10 +152,10 @@ internal sealed class RegoParser
         // TPX300 rather than the generic missing-policy-rule TPX003 so the diagnostic is
         // an accurate description of the offending construct (closes the
         // unconstrained-iteration / http-send fixture contracts).
-        if (IsForbiddenIdentifier(nameTok.Text, out string forbiddenSuggestion))
+        if (IsForbiddenIdentifier(nameTok.Text, out string forbiddenSuggestion, out string forbiddenCode))
         {
             EmitError(
-                AssemblyStrings.CodeUntranslatableConstruct,
+                forbiddenCode,
                 string.Format(CultureInfo.InvariantCulture, AssemblyStrings.ErrForbiddenIdentifierFormat, nameTok.Text),
                 nameTok.Line,
                 nameTok.Column,
@@ -238,7 +240,7 @@ internal sealed class RegoParser
                 return ParseIdentifierTerm(tok);
             case RegoTokenKind.UnsupportedSymbol:
                 Consume();
-                EmitError(AssemblyStrings.CodeUntranslatableConstruct, string.Format(CultureInfo.InvariantCulture, AssemblyStrings.ErrUnconstrainedIterationFormat, tok.Text), tok.Line, tok.Column);
+                EmitError(AssemblyStrings.CodeComprehensionRejected, string.Format(CultureInfo.InvariantCulture, AssemblyStrings.ErrUnconstrainedIterationFormat, tok.Text), tok.Line, tok.Column);
                 return null;
             default:
                 Consume();
@@ -274,8 +276,10 @@ internal sealed class RegoParser
             return ParseInputReference(tok);
         }
 
-        // Forbidden identifiers — closed reject-list. Each surfaces a TPX300.
-        if (IsForbiddenIdentifier(tok.Text, out string forbiddenSuggestion))
+        // Forbidden identifiers — closed reject-list. Each surfaces a per-cause TPX3xx
+        // sub-code (TPX301 builtin / TPX302 iteration / TPX303 data-ref) so blue-team
+        // telemetry can attribute rejection rates to the offending construct class.
+        if (IsForbiddenIdentifier(tok.Text, out string forbiddenSuggestion, out string code))
         {
             Consume();
             // If the next token is a '.', also consume the qualifier so the diagnostic message
@@ -290,7 +294,6 @@ internal sealed class RegoParser
                 }
             }
 
-            string code = AssemblyStrings.CodeUntranslatableConstruct;
             string message = qualifier.Length > 0
                 ? string.Format(CultureInfo.InvariantCulture, AssemblyStrings.ErrForbiddenBuiltinFormat, tok.Text, qualifier)
                 : string.Format(CultureInfo.InvariantCulture, AssemblyStrings.ErrForbiddenIdentifierFormat, tok.Text);
@@ -345,6 +348,20 @@ internal sealed class RegoParser
     private RegoValueNode? ParseObjectOrComprehension()
     {
         RegoToken open = Consume(); // consume '{'
+        if (++NestingDepth > AssemblyStrings.MaxNestingDepth)
+        {
+            // Reject before recursing further (RT-MAJ-1 / TPX305). The depth counter is
+            // decremented in the success arms and kept incremented on rejection so a
+            // parent recovery path also short-circuits.
+            EmitError(
+                AssemblyStrings.CodeMaxNestingDepthExceeded,
+                string.Format(CultureInfo.InvariantCulture, AssemblyStrings.ErrMaxNestingDepthExceededFormat, open.Line, open.Column, AssemblyStrings.MaxNestingDepth),
+                open.Line,
+                open.Column,
+                AssemblyStrings.SuggestionFlattenNesting);
+            return null;
+        }
+
         var entries = new List<RegoObjectEntry>();
         var seenKeys = new HashSet<string>(System.StringComparer.Ordinal);
 
@@ -352,6 +369,7 @@ internal sealed class RegoParser
         if (Peek().Kind == RegoTokenKind.RightBrace)
         {
             Consume();
+            NestingDepth--;
             return new RegoObjectNode(entries, open.Line, open.Column);
         }
 
@@ -360,6 +378,16 @@ internal sealed class RegoParser
             RegoToken keyTok = Peek();
             if (keyTok.Kind != RegoTokenKind.String)
             {
+                // A comprehension `{ x | y }` would land here with x as an Identifier and a
+                // following `|` UnsupportedSymbol. Peek ahead to surface the more accurate
+                // TPX304 (comprehension rejected) when we can detect the comprehension shape
+                // rather than the bland 'expected string key'. Improves UX-MIN-2.
+                if (keyTok.Kind == RegoTokenKind.Identifier && PeekAfterIdentifierIsPipe())
+                {
+                    EmitError(AssemblyStrings.CodeComprehensionRejected, AssemblyStrings.ErrComprehensionRejected, keyTok.Line, keyTok.Column);
+                    return null;
+                }
+
                 EmitError(AssemblyStrings.CodeMalformedRego, string.Format(CultureInfo.InvariantCulture, AssemblyStrings.ErrUnexpectedTokenFormat, RenderToken(keyTok), keyTok.Line, keyTok.Column, AssemblyStrings.ExpectedTokenStringKey), keyTok.Line, keyTok.Column);
                 return null;
             }
@@ -396,6 +424,7 @@ internal sealed class RegoParser
                 if (Peek().Kind == RegoTokenKind.RightBrace)
                 {
                     Consume();
+                    NestingDepth--;
                     return new RegoObjectNode(entries, open.Line, open.Column);
                 }
 
@@ -405,24 +434,50 @@ internal sealed class RegoParser
             if (sep.Kind == RegoTokenKind.RightBrace)
             {
                 Consume();
+                NestingDepth--;
                 return new RegoObjectNode(entries, open.Line, open.Column);
             }
 
             // A `|` would indicate a comprehension; the unsupported-symbol token would surface
-            // here. Either way it's a TPX300.
-            EmitError(AssemblyStrings.CodeUntranslatableConstruct, AssemblyStrings.ErrComprehensionRejected, sep.Line, sep.Column);
+            // here. Either way it's a TPX304.
+            EmitError(AssemblyStrings.CodeComprehensionRejected, AssemblyStrings.ErrComprehensionRejected, sep.Line, sep.Column);
             return null;
         }
+    }
+
+    private bool PeekAfterIdentifierIsPipe()
+    {
+        // Look one token past the current one. A peek-ahead for the comprehension
+        // detection in object position; lightweight (no extra tokenization).
+        if (Index + 1 >= Tokens.Count)
+        {
+            return false;
+        }
+
+        RegoToken next = Tokens[Index + 1];
+        return next.Kind == RegoTokenKind.UnsupportedSymbol && next.Text == AssemblyStrings.PipeChar;
     }
 
     private RegoValueNode? ParseArrayOrComprehension()
     {
         RegoToken open = Consume(); // consume '['
+        if (++NestingDepth > AssemblyStrings.MaxNestingDepth)
+        {
+            EmitError(
+                AssemblyStrings.CodeMaxNestingDepthExceeded,
+                string.Format(CultureInfo.InvariantCulture, AssemblyStrings.ErrMaxNestingDepthExceededFormat, open.Line, open.Column, AssemblyStrings.MaxNestingDepth),
+                open.Line,
+                open.Column,
+                AssemblyStrings.SuggestionFlattenNesting);
+            return null;
+        }
+
         var items = new List<RegoValueNode>();
 
         if (Peek().Kind == RegoTokenKind.RightBracket)
         {
             Consume();
+            NestingDepth--;
             return new RegoArrayNode(items, open.Line, open.Column);
         }
 
@@ -443,6 +498,7 @@ internal sealed class RegoParser
                 if (Peek().Kind == RegoTokenKind.RightBracket)
                 {
                     Consume();
+                    NestingDepth--;
                     return new RegoArrayNode(items, open.Line, open.Column);
                 }
 
@@ -452,10 +508,11 @@ internal sealed class RegoParser
             if (sep.Kind == RegoTokenKind.RightBracket)
             {
                 Consume();
+                NestingDepth--;
                 return new RegoArrayNode(items, open.Line, open.Column);
             }
 
-            EmitError(AssemblyStrings.CodeUntranslatableConstruct, AssemblyStrings.ErrComprehensionRejected, sep.Line, sep.Column);
+            EmitError(AssemblyStrings.CodeComprehensionRejected, AssemblyStrings.ErrComprehensionRejected, sep.Line, sep.Column);
             return null;
         }
     }
@@ -515,10 +572,12 @@ internal sealed class RegoParser
     private static bool IsKeyword(RegoToken t, string keyword) =>
         t.Kind == RegoTokenKind.Identifier && string.Equals(t.Text, keyword, System.StringComparison.Ordinal);
 
-    private static bool IsForbiddenIdentifier(string text, out string suggestion)
+    private static bool IsForbiddenIdentifier(string text, out string suggestion, out string code)
     {
         // Closed reject-list; mirrors the README accept-list inversely. A new forbidden
         // identifier requires a code change here (and a fixture under untranslatable/).
+        // Returns the per-cause sub-code so blue-team telemetry attributes rejection rates
+        // accurately (TPX301 builtin / TPX302 iteration / TPX303 data-ref).
         switch (text)
         {
             case AssemblyStrings.ForbiddenNamespaceHttp:
@@ -530,10 +589,12 @@ internal sealed class RegoParser
             case AssemblyStrings.ForbiddenNamespaceNet:
             case AssemblyStrings.ForbiddenNamespaceTime:
             case AssemblyStrings.ForbiddenNamespaceOpa:
-                suggestion = AssemblyStrings.SuggestionUseLiteralArray;
+                suggestion = AssemblyStrings.SuggestionRemoveSideEffectingBuiltin;
+                code = AssemblyStrings.CodeForbiddenBuiltin;
                 return true;
             case AssemblyStrings.ForbiddenIdentData:
                 suggestion = AssemblyStrings.SuggestionUseInput;
+                code = AssemblyStrings.CodeReservedDataReference;
                 return true;
             case AssemblyStrings.ForbiddenIdentSome:
             case AssemblyStrings.ForbiddenIdentEvery:
@@ -542,9 +603,11 @@ internal sealed class RegoParser
             case AssemblyStrings.ForbiddenIdentNot:
             case AssemblyStrings.ForbiddenIdentEval:
                 suggestion = AssemblyStrings.SuggestionUseProperty;
+                code = AssemblyStrings.CodeUnconstrainedIteration;
                 return true;
             default:
                 suggestion = string.Empty;
+                code = AssemblyStrings.CodeUntranslatableConstruct;
                 return false;
         }
     }

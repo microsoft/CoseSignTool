@@ -49,16 +49,25 @@ internal static class AssemblyStrings
     public const string ForbiddenNamespaceOpa = "opa";
 
     // Diagnostic codes (extend the TPX namespace; consistent with cose-tp-json/v1 wherever
-    // the same condition is reported).
+    // the same condition is reported). Sub-codes inside the TPX300 band are split per-cause
+    // so blue-team telemetry can attribute rejection rates to the specific construct
+    // class without parsing the human-readable message.
     public const string CodeMalformedRego = "TPX001";          // parse / syntax error
     public const string CodeMissingPackage = "TPX002";         // missing or wrong `package` declaration
     public const string CodeMissingPolicyRule = "TPX003";      // no `policy := ...` rule
     public const string CodeForbiddenImport = "TPX004";        // unsupported `import`
     public const string CodeMultipleRules = "TPX005";          // more than one rule per package
-    public const string CodeUntranslatableConstruct = "TPX300"; // constrained-subset reject
-    public const string CodeForbiddenBuiltin = "TPX300";        // shares the translation-error band
-    public const string CodeUnconstrainedIteration = "TPX300";
-    public const string CodeReservedDataReference = "TPX300";
+    public const string CodeUntranslatableConstruct = "TPX300"; // catch-all (unknown identifier, generic comprehension)
+    public const string CodeForbiddenBuiltin = "TPX301";        // http.* / regex.* / file.* / io.* / os.* / crypto.* / net.* / time.* / opa.*
+    public const string CodeUnconstrainedIteration = "TPX302";  // some / every / with / default / not / eval
+    public const string CodeReservedDataReference = "TPX303";   // data.<...>
+    public const string CodeComprehensionRejected = "TPX304";   // `{ … | … }` / `[ … | … ]`
+    public const string CodeMaxNestingDepthExceeded = "TPX305"; // depth-guard tripped — DoS protection (RT-MAJ-1)
+
+    // Maximum allowed nesting depth for object / array literals. The §6.5.6 example sits at
+    // depth ~4; 64 is comfortably above any realistic cose-tp/v1 policy and well below the
+    // ~10000 frame depth where .NET's 1MB default stack starts being at risk. Closes RT-MAJ-1.
+    public const int MaxNestingDepth = 64;
 
     // Diagnostic message formats
     public const string ErrParseFormat = "Malformed Rego document at line {0}, column {1}: {2}";
@@ -77,6 +86,7 @@ internal static class AssemblyStrings
     public const string ErrUnconstrainedIterationFormat = "Construct '{0}' is rejected by cose-tp-rego/v1: unconstrained iteration / quantification is forbidden by the constrained-subset contract.";
     public const string ErrComprehensionRejected = "Comprehension expressions ('|') are rejected by cose-tp-rego/v1; the constrained subset only accepts literal arrays / objects.";
     public const string ErrDataReferenceRejected = "References to 'data.<...>' are rejected by cose-tp-rego/v1; the constrained subset only accepts 'input.<...>' parameter references.";
+    public const string ErrMaxNestingDepthExceededFormat = "Nesting depth at line {0}, column {1} exceeded the cose-tp-rego/v1 maximum of {2}; reject as a defense-in-depth measure against stack-exhaustion DoS.";
     public const string ErrPolicyValueNotObjectFormat = "The '{0}' rule must be assigned an object literal; got token '{1}' at line {2}, column {3}.";
     public const string ErrInputDotMissingIdentifier = "'input' must be followed by '.<name>' to reference a parameter.";
     public const string ErrDuplicateObjectKeyFormat = "Duplicate object key '{0}' at line {1}, column {2}.";
@@ -122,6 +132,7 @@ internal static class AssemblyStrings
     public const string TokenAssign = ":=";
     public const string TokenEquals = "=";
     public const string EscapeUnicodePrefix = "u";
+    public const string PipeChar = "|";
 
     // Parser-expected-token tags emitted into ErrUnexpectedTokenFormat.
     public const string ExpectedAssignOrEquals = "':=' or '='";
@@ -136,4 +147,6 @@ internal static class AssemblyStrings
     public const string SuggestionRemoveImport = "Remove the import or use 'import future.keywords.in' (the only currently-allowed import).";
     public const string SuggestionUseLiteralArray = "Express the value as a literal array (e.g. [\"a\", \"b\"]) or as an 'input.<name>' parameter reference.";
     public const string SuggestionUseProperty = "Use the JSON property-shorthand or path/operator predicate forms (see cose-tp-json/v1 §6.5.5).";
+    public const string SuggestionRemoveSideEffectingBuiltin = "Side-effecting / non-deterministic builtins (HTTP, regex, filesystem, network, cryptography, time, OPA) are not permitted in cose-tp-rego/v1. Express the equivalent value as a literal or pass it via 'input.<name>'.";
+    public const string SuggestionFlattenNesting = "Reduce object / array nesting depth (current limit is 64). Real-world cose-tp/v1 policies fit comfortably; deeply nested input here is treated as a DoS signal.";
 }

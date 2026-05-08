@@ -57,7 +57,7 @@ public sealed class CoverageBranchTests
         // After `policy := {`, parse begins. Object key parsing requires a string. Use an
         // inner `;` to surface UnsupportedSymbol at term position via the inner array.
         var diags = Parse("package cose_trust_policy\n\npolicy := { \"x\": [;] }");
-        Assert.That(diags.Any(d => d.Code == "TPX300"), Is.True);
+        Assert.That(diags.Any(d => d.Code.StartsWith("TPX3")), Is.True);
     }
 
     [Test]
@@ -92,7 +92,7 @@ public sealed class CoverageBranchTests
     public void Parser_array_comprehension_is_TPX300()
     {
         var diags = Parse("package cose_trust_policy\n\npolicy := { \"x\": [1 | 2] }");
-        Assert.That(diags.Any(d => d.Code == "TPX300"), Is.True);
+        Assert.That(diags.Any(d => d.Code.StartsWith("TPX3")), Is.True);
     }
 
     [Test]
@@ -336,7 +336,7 @@ public sealed class CoverageBranchTests
         const string text = "package cose_trust_policy\n\nsome host";
         var diagnostics = new List<TrustPolicyTranslationDiagnostic>();
         _ = CoseTpRegoFrontend.TryParse(text, null, diagnostics);
-        Assert.That(diagnostics.Any(d => d.Code == "TPX300"), Is.True);
+        Assert.That(diagnostics.Any(d => d.Code.StartsWith("TPX3")), Is.True);
     }
 
     [Test]
@@ -352,7 +352,7 @@ public sealed class CoverageBranchTests
     {
         // A bare identifier that's neither a keyword nor in the forbidden list is rejected.
         var diags = Parse("package cose_trust_policy\n\npolicy := { \"x\": foo }");
-        Assert.That(diags.Any(d => d.Code == "TPX300"), Is.True);
+        Assert.That(diags.Any(d => d.Code.StartsWith("TPX3")), Is.True);
     }
 
     [Test]

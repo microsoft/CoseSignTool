@@ -112,7 +112,16 @@ policy := {
 | `TPX005` | Error | Multiple rules per package. |
 | `TPX100` | Error | Schema validation failure on the lowered JSON shape (forwarded from the JSON frontend). |
 | `TPX200` | Error | Unknown fact id (forwarded from the JSON frontend's capability-aware translation). |
-| `TPX300` | Error | Untranslatable construct: forbidden builtin, unconstrained iteration, comprehension, `data.*` reference. |
+| `TPX300` | Error | Untranslatable construct (catch-all: unknown identifier, generic comprehension fallback). |
+| `TPX301` | Error | Forbidden builtin: `http.*`, `regex.*`, `file.*`, `io.*`, `os.*`, `crypto.*`, `net.*`, `time.*`, `opa.*`. |
+| `TPX302` | Error | Unconstrained iteration / quantification: `some`, `every`, `with`, `default`, `not`, `eval`. |
+| `TPX303` | Error | Reserved `data.<...>` reference (only `input.<...>` is allowed). |
+| `TPX304` | Error | Comprehension expression (`[x | y]`, `{x | y}`, `{k: v | y}`). |
+| `TPX305` | Error | Maximum nesting depth exceeded (cap is 64 — defense-in-depth against stack-exhaustion DoS). |
+
+The `TPX301`–`TPX305` sub-codes split the broader `TPX300` translation-error band so
+blue-team telemetry can attribute rejection rates to the specific construct class without
+parsing the human-readable message.
 
 `TPX100` and `TPX200` are emitted by the JSON frontend on the lowered tree — the Rego
 frontend never duplicates that logic, so the diagnostic vocabulary is identical between

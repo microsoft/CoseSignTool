@@ -26,7 +26,7 @@ public sealed class RegoUntranslatableFixtureTests
         TrustPolicyTranslationResult result = adapter.TranslateText(adapter.LoadFixtureText(logicalName), new TrustPolicyTranslationContext());
 
         Assert.That(result.IsSuccess, Is.False, $"Untranslatable fixture '{logicalName}' should be rejected.");
-        Assert.That(result.Diagnostics.Any(d => d.Severity == TrustPolicySeverity.Error && d.Code == "TPX300"), Is.True, () =>
+        Assert.That(result.Diagnostics.Any(d => d.Severity == TrustPolicySeverity.Error && d.Code.StartsWith("TPX3")), Is.True, () =>
             "Diagnostics: " + string.Join("; ", result.Diagnostics.Select(d => d.Code + ":" + d.Message)));
     }
 

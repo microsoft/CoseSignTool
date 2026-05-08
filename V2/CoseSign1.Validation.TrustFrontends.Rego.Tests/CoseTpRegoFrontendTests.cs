@@ -205,7 +205,7 @@ public sealed class CoseTpRegoFrontendTests
         var diagnostics = new List<TrustPolicyTranslationDiagnostic>();
         RegoDocument? doc = CoseTpRegoFrontend.TryParse(text, documentSource: null, diagnostics);
         Assert.That(doc, Is.Null);
-        Assert.That(diagnostics.Any(d => d.Code == "TPX300"), Is.True, () => string.Join("; ", diagnostics.Select(d => d.Code + ":" + d.Message)));
+        Assert.That(diagnostics.Any(d => d.Code.StartsWith("TPX3")), Is.True, () => string.Join("; ", diagnostics.Select(d => d.Code + ":" + d.Message)));
     }
 
     [Test]
@@ -215,7 +215,7 @@ public sealed class CoseTpRegoFrontendTests
         var diagnostics = new List<TrustPolicyTranslationDiagnostic>();
         RegoDocument? doc = CoseTpRegoFrontend.TryParse(text, documentSource: null, diagnostics);
         Assert.That(doc, Is.Null);
-        Assert.That(diagnostics.Any(d => d.Code == "TPX300"), Is.True);
+        Assert.That(diagnostics.Any(d => d.Code.StartsWith("TPX3")), Is.True);
     }
 
     [Test]
@@ -224,7 +224,7 @@ public sealed class CoseTpRegoFrontendTests
         const string text = "package cose_trust_policy\n\npolicy := { \"value\": some }";
         var diagnostics = new List<TrustPolicyTranslationDiagnostic>();
         _ = CoseTpRegoFrontend.TryParse(text, documentSource: null, diagnostics);
-        Assert.That(diagnostics.Any(d => d.Code == "TPX300"), Is.True);
+        Assert.That(diagnostics.Any(d => d.Code.StartsWith("TPX3")), Is.True);
     }
 
     [Test]
@@ -233,7 +233,7 @@ public sealed class CoseTpRegoFrontendTests
         const string text = "package cose_trust_policy\n\npolicy := { \"value\": [1 | 2] }";
         var diagnostics = new List<TrustPolicyTranslationDiagnostic>();
         _ = CoseTpRegoFrontend.TryParse(text, documentSource: null, diagnostics);
-        Assert.That(diagnostics.Any(d => d.Code == "TPX300"), Is.True);
+        Assert.That(diagnostics.Any(d => d.Code.StartsWith("TPX3")), Is.True);
     }
 
     [Test]
@@ -244,7 +244,7 @@ public sealed class CoseTpRegoFrontendTests
         const string text = "package cose_trust_policy\n\npolicy := { \"x\": 1 | 2 }";
         var diagnostics = new List<TrustPolicyTranslationDiagnostic>();
         _ = CoseTpRegoFrontend.TryParse(text, documentSource: null, diagnostics);
-        Assert.That(diagnostics.Any(d => d.Code == "TPX300"), Is.True, () => string.Join("; ", diagnostics.Select(d => d.Code + ":" + d.Message)));
+        Assert.That(diagnostics.Any(d => d.Code.StartsWith("TPX3")), Is.True, () => string.Join("; ", diagnostics.Select(d => d.Code + ":" + d.Message)));
     }
 
     [Test]

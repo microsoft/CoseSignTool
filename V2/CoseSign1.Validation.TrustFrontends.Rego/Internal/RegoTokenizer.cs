@@ -126,7 +126,7 @@ internal sealed class RegoTokenizer
         while (Position < Source.Length)
         {
             char c = Source[Position];
-            if (c == ' ' || c == '\t' || c == '\r')
+            if (c == ' ' || c == '\t')
             {
                 Advance();
                 continue;
@@ -140,9 +140,26 @@ internal sealed class RegoTokenizer
                 continue;
             }
 
+            if (c == '\r')
+            {
+                // Handle '\r\n', bare '\r' (legacy MacOS), and '\r…<not-LF>' uniformly:
+                // each is one logical line terminator. Without this branch a Windows
+                // CRLF document was indistinguishable from LF, but a bare-CR document
+                // would drift line/column anchors in diagnostics (RT-MIN-1).
+                Position++;
+                if (Position < Source.Length && Source[Position] == '\n')
+                {
+                    Position++;
+                }
+
+                Line++;
+                Column = 1;
+                continue;
+            }
+
             if (c == '#')
             {
-                while (Position < Source.Length && Source[Position] != '\n')
+                while (Position < Source.Length && Source[Position] != '\n' && Source[Position] != '\r')
                 {
                     Position++;
                     Column++;
@@ -280,10 +297,11 @@ internal sealed class RegoTokenizer
             Advance();
         }
 
-        bool sawDot = false;
+        // Optional fractional part — only when '.' is followed by another digit so we
+        // don't accidentally swallow object-member access like `input.5` (handled in the
+        // parser) or accidental `.` punctuation.
         if (Position < Source.Length && Source[Position] == '.' && Position + 1 < Source.Length && IsDigit(Source[Position + 1]))
         {
-            sawDot = true;
             Advance(); // consume '.'
             while (Position < Source.Length && IsDigit(Source[Position]))
             {
@@ -313,7 +331,6 @@ internal sealed class RegoTokenizer
         }
 
         string text = Source.Substring(start, Position - start);
-        _ = sawDot;
         return new RegoToken(RegoTokenKind.Number, text, startLine, startCol);
     }
 

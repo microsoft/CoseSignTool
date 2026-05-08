@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+#![allow(deprecated)] // intentionally drives the deprecated StaticFactRegistry baseline
+
 //! Smoke tests that exercise [`compile`] end-to-end against a [`TrustFactEngine`].
 //!
 //! The smoke suite covers ≥5 representative spec trees and asserts the lowered

@@ -15,6 +15,7 @@
 //! # Quickstart
 //!
 //! ```
+//! # #![allow(deprecated)] // doc example uses StaticFactRegistry as the conformance baseline
 //! use cose_sign1_trust_policy_spec::{
 //!     compile, FactPredicateSpec, IFactRegistry, PredicateOperator, StaticFactRegistry,
 //!     TrustPolicySpec,
@@ -38,7 +39,9 @@
 //! let parsed: TrustPolicySpec = serde_json::from_str(&json).unwrap();
 //! assert_eq!(spec, parsed);
 //!
-//! // Lowers against a fact registry to a CompiledTrustPlan:
+//! // Lowers against a fact registry to a CompiledTrustPlan. Phase 3 callers should
+//! // prefer `HandRolledFactRegistry::from_packs(&[...])`; the static baseline below
+//! // is retained only as the conformance anchor and is `#[deprecated]`.
 //! let registry = StaticFactRegistry::default_mappings();
 //! let _plan = compile(&spec, &registry).expect("structural compile");
 //! ```
@@ -76,6 +79,8 @@ pub use parameter::{
 pub use predicate::{
     FactPredicateSpec, PathOperatorPredicateSpec, PredicateOperator, PropertyAssertionPredicateSpec,
 };
-pub use registry::{FactRegistryExt, IFactRegistry, StaticFactRegistry};
+pub use registry::{FactRegistryExt, HandRolledFactRegistry, IFactRegistry, RegistryError};
+#[allow(deprecated)]
+pub use registry::StaticFactRegistry;
 pub use source_location::SourceLocation;
 pub use spec::{OnEmptyBehavior, TrustPolicySpec};

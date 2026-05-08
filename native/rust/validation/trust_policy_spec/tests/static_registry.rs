@@ -1,13 +1,16 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+#![allow(deprecated)] // baseline-conformance tests intentionally use the deprecated registry
+
 //! Conformance tests for [`StaticFactRegistry`].
 //!
 //! Every registered fact id MUST match the canonical `^[a-z][a-z0-9-]*/v[0-9]+$` regex —
 //! the version-suffix discipline that makes fact-id evolution composable across packs.
 //!
-//! Phase 3 will replace this static registry with a hand-rolled `register_facts!()` macro
-//! per pack; the same regex check moves to the macro's compile-time emit step.
+//! Phase 3 supersedes this static registry with the hand-rolled `register_facts!{}` macro
+//! per pack; this fixture is retained as the immutable baseline that
+//! [`tests/conformance_baseline.rs`] diff-checks the new registry against.
 
 use cose_sign1_trust_policy_spec::{IFactRegistry, StaticFactRegistry};
 

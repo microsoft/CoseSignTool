@@ -15,3 +15,6 @@ cose_sign1_validation_primitives = { path = "../primitives" }
 
 [dev-dependencies]
 serde_json = { workspace = true }
+cose_sign1_certificates = { path = "../../extension_packs/certificates" }
+cose_sign1_transparent_mst = { path = "../../extension_packs/mst" }
+cose_sign1_validation = { path = "../core" }

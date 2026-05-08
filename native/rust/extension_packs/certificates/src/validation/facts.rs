@@ -312,3 +312,77 @@ pub(crate) struct ParsedCert {
     pub not_before_unix_seconds: i64,
     pub not_after_unix_seconds: i64,
 }
+
+// =====================================================================
+// TrustFactWithId — Phase 3 (np-fact-registry, R1).
+//
+// IDs MUST be byte-identical to Phase 1's StaticFactRegistry baseline.
+// Renaming a v1 id is forbidden — breaking shape changes ship as a
+// new /v2 id, never a mutation of /v1. Compile-time format checks are
+// wired via validate_fact_id() one-liners below.
+// =====================================================================
+
+use cose_sign1_validation_primitives::{validate_fact_id, TrustFactWithId};
+
+impl TrustFactWithId for X509SigningCertificateIdentityFact {
+    const FACT_ID: &'static str = "x509-cert-identity/v1";
+}
+const _: () = assert!(validate_fact_id(
+    <X509SigningCertificateIdentityFact as TrustFactWithId>::FACT_ID
+));
+
+impl TrustFactWithId for X509SigningCertificateIdentityAllowedFact {
+    const FACT_ID: &'static str = "x509-cert-identity-allowed/v1";
+}
+const _: () = assert!(validate_fact_id(
+    <X509SigningCertificateIdentityAllowedFact as TrustFactWithId>::FACT_ID
+));
+
+impl TrustFactWithId for X509SigningCertificateEkuFact {
+    const FACT_ID: &'static str = "x509-cert-eku/v1";
+}
+const _: () = assert!(validate_fact_id(
+    <X509SigningCertificateEkuFact as TrustFactWithId>::FACT_ID
+));
+
+impl TrustFactWithId for X509SigningCertificateKeyUsageFact {
+    const FACT_ID: &'static str = "x509-cert-key-usage/v1";
+}
+const _: () = assert!(validate_fact_id(
+    <X509SigningCertificateKeyUsageFact as TrustFactWithId>::FACT_ID
+));
+
+impl TrustFactWithId for X509SigningCertificateBasicConstraintsFact {
+    const FACT_ID: &'static str = "x509-cert-basic-constraints/v1";
+}
+const _: () = assert!(validate_fact_id(
+    <X509SigningCertificateBasicConstraintsFact as TrustFactWithId>::FACT_ID
+));
+
+impl TrustFactWithId for X509X5ChainCertificateIdentityFact {
+    const FACT_ID: &'static str = "x509-x5chain-cert-identity/v1";
+}
+const _: () = assert!(validate_fact_id(
+    <X509X5ChainCertificateIdentityFact as TrustFactWithId>::FACT_ID
+));
+
+impl TrustFactWithId for X509ChainElementIdentityFact {
+    const FACT_ID: &'static str = "x509-chain-element-identity/v1";
+}
+const _: () = assert!(validate_fact_id(
+    <X509ChainElementIdentityFact as TrustFactWithId>::FACT_ID
+));
+
+impl TrustFactWithId for X509ChainTrustedFact {
+    const FACT_ID: &'static str = "x509-chain-trusted/v1";
+}
+const _: () = assert!(validate_fact_id(
+    <X509ChainTrustedFact as TrustFactWithId>::FACT_ID
+));
+
+impl TrustFactWithId for CertificateSigningKeyTrustFact {
+    const FACT_ID: &'static str = "certificate-signing-key-trust/v1";
+}
+const _: () = assert!(validate_fact_id(
+    <CertificateSigningKeyTrustFact as TrustFactWithId>::FACT_ID
+));

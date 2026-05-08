@@ -22,3 +22,19 @@ pub mod signing;
 
 // Validation support
 pub mod validation;
+
+// =====================================================================
+// Trust-fact registry — Phase 3 (np-fact-registry, R1).
+//
+// Enumerates the MST trust facts contributed by this pack. Only the
+// three baseline facts (present / trusted / issuer-host) ship with
+// stable ids in Phase 1's contract; the remaining receipt-detail facts
+// (kid, statement-sha256, statement-coverage, signature-verified) are
+// flagged in the Phase 3 final report as Phase 1 baseline gaps.
+// =====================================================================
+
+cose_sign1_validation_primitives::register_facts! {
+    validation::facts::MstReceiptIssuerFact,
+    validation::facts::MstReceiptPresentFact,
+    validation::facts::MstReceiptTrustedFact,
+}

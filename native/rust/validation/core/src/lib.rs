@@ -58,3 +58,19 @@ mod trust_plan_builder;
 mod validator;
 
 mod indirect_signature;
+
+// =====================================================================
+// Trust-fact registry — Phase 3 (np-fact-registry, R1).
+//
+// Enumerates the message-level trust facts contributed by validation/core.
+// Only the four facts from Phase 1's StaticFactRegistry baseline are
+// tagged; the remaining message_facts entries are flagged in the
+// Phase 3 final report as Phase 1 baseline gaps.
+// =====================================================================
+
+cose_sign1_validation_primitives::register_facts! {
+    crate::message_facts::ContentTypeFact,
+    crate::message_facts::CounterSignatureSubjectFact,
+    crate::message_facts::DetachedPayloadPresentFact,
+    crate::message_facts::UnknownCounterSignatureBytesFact,
+}

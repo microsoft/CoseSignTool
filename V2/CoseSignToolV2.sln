@@ -95,6 +95,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSign1.Validation.Trust.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TrustFactRegistryTestHelpers", "TrustFactRegistryTestHelpers\TrustFactRegistryTestHelpers.csproj", "{216BDB9B-9681-4CE3-99FF-B90A9BBF04D5}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CoseSign1.Validation.TrustFrontends.Json", "CoseSign1.Validation.TrustFrontends.Json\CoseSign1.Validation.TrustFrontends.Json.csproj", "{618DE925-6039-4AFC-8DCC-9A8FE6E97ADD}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -657,6 +659,18 @@ Global
 		{216BDB9B-9681-4CE3-99FF-B90A9BBF04D5}.Release|x64.Build.0 = Release|Any CPU
 		{216BDB9B-9681-4CE3-99FF-B90A9BBF04D5}.Release|x86.ActiveCfg = Release|Any CPU
 		{216BDB9B-9681-4CE3-99FF-B90A9BBF04D5}.Release|x86.Build.0 = Release|Any CPU
+		{618DE925-6039-4AFC-8DCC-9A8FE6E97ADD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{618DE925-6039-4AFC-8DCC-9A8FE6E97ADD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{618DE925-6039-4AFC-8DCC-9A8FE6E97ADD}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{618DE925-6039-4AFC-8DCC-9A8FE6E97ADD}.Debug|x64.Build.0 = Debug|Any CPU
+		{618DE925-6039-4AFC-8DCC-9A8FE6E97ADD}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{618DE925-6039-4AFC-8DCC-9A8FE6E97ADD}.Debug|x86.Build.0 = Debug|Any CPU
+		{618DE925-6039-4AFC-8DCC-9A8FE6E97ADD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{618DE925-6039-4AFC-8DCC-9A8FE6E97ADD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{618DE925-6039-4AFC-8DCC-9A8FE6E97ADD}.Release|x64.ActiveCfg = Release|Any CPU
+		{618DE925-6039-4AFC-8DCC-9A8FE6E97ADD}.Release|x64.Build.0 = Release|Any CPU
+		{618DE925-6039-4AFC-8DCC-9A8FE6E97ADD}.Release|x86.ActiveCfg = Release|Any CPU
+		{618DE925-6039-4AFC-8DCC-9A8FE6E97ADD}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

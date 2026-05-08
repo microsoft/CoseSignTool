@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!--
+      The frontend lives on net10.0 only because it consumes JsonNode + [JsonPolymorphic]
+      and JsonSchema.Net's draft 2020-12 surface, all of which are net8+ semantics. The CLI
+      and trust-policy IR are likewise net10.0; there is no netstandard2.0 consumer.
+    -->
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Description>Canonical reference frontend (cose-tp-json/v1) for CoseSign1 trust policies. Parses, JSON-Schema-validates, and translates user-authored .coseTrustPolicy.json documents into a TrustPolicySpec.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="JsonSchema.Net" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CoseSign1.Validation\CoseSign1.Validation.csproj" />
+    <ProjectReference Include="..\CoseSign1.Validation.Trust.PlanPolicy.Spec\CoseSign1.Validation.Trust.PlanPolicy.Spec.csproj" />
+  </ItemGroup>
+
+  <!--
+    Embed the on-disk schema as a manifest resource so the translator validates without
+    network access at runtime. The drift assertion in the test project checks that the
+    embedded bytes equal V2/schemas/cose-tp/v1.json — drift = build break.
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\schemas\cose-tp\v1.json"
+                      LogicalName="CoseSign1.Validation.TrustFrontends.Json.Schema.cose-tp.v1.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>

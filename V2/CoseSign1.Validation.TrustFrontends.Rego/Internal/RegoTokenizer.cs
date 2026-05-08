@@ -226,6 +226,38 @@ internal sealed class RegoTokenizer
                             return new RegoToken(RegoTokenKind.String, sb.ToString(), startLine, startCol);
                         }
 
+                        // Reject lone surrogates: a high surrogate (D800-DBFF) MUST be
+                        // followed by a low-surrogate `\uDCxx` escape pair; a bare low
+                        // surrogate (DC00-DFFF) is malformed UTF-16. Strict rejection
+                        // preserves byte-equality with the JSON frontend's IR.
+                        if (char.IsHighSurrogate(unicode))
+                        {
+                            if (Position + 2 > Source.Length || Source[Position] != '\\' || Source[Position + 1] != 'u')
+                            {
+                                LexicalErrors.Add(new RegoLexicalDiagnostic(string.Format(CultureInfo.InvariantCulture, AssemblyStrings.ErrLoneSurrogateFormat, (int)unicode, Line, Column), Line, Column));
+                                return new RegoToken(RegoTokenKind.String, sb.ToString(), startLine, startCol);
+                            }
+
+                            // consume the '\u' for the trailing pair
+                            Advance();
+                            Advance();
+                            if (!TryReadUnicodeEscape(out char low) || !char.IsLowSurrogate(low))
+                            {
+                                LexicalErrors.Add(new RegoLexicalDiagnostic(string.Format(CultureInfo.InvariantCulture, AssemblyStrings.ErrLoneSurrogateFormat, (int)unicode, Line, Column), Line, Column));
+                                return new RegoToken(RegoTokenKind.String, sb.ToString(), startLine, startCol);
+                            }
+
+                            sb.Append(unicode);
+                            sb.Append(low);
+                            break;
+                        }
+
+                        if (char.IsLowSurrogate(unicode))
+                        {
+                            LexicalErrors.Add(new RegoLexicalDiagnostic(string.Format(CultureInfo.InvariantCulture, AssemblyStrings.ErrLoneSurrogateFormat, (int)unicode, Line, Column), Line, Column));
+                            return new RegoToken(RegoTokenKind.String, sb.ToString(), startLine, startCol);
+                        }
+
                         sb.Append(unicode);
                         break;
                     default:
@@ -240,6 +272,15 @@ internal sealed class RegoTokenizer
             if (c == '\n')
             {
                 LexicalErrors.Add(new RegoLexicalDiagnostic(string.Format(CultureInfo.InvariantCulture, AssemblyStrings.ErrUnterminatedString, startLine, startCol), startLine, startCol));
+                return new RegoToken(RegoTokenKind.String, sb.ToString(), startLine, startCol);
+            }
+
+            // Reject unescaped control characters (U+0000 — U+001F except \t/\n which are
+            // handled above). RFC 8259 forbids them in JSON string contents and so does the
+            // canonical IR.
+            if (c < 0x20 && c != '\t')
+            {
+                LexicalErrors.Add(new RegoLexicalDiagnostic(string.Format(CultureInfo.InvariantCulture, AssemblyStrings.ErrControlCharFormat, (int)c, Line, Column), Line, Column));
                 return new RegoToken(RegoTokenKind.String, sb.ToString(), startLine, startCol);
             }
 

@@ -185,4 +185,95 @@ public sealed class HardeningTests
         var doc = CoseTpRegoFrontend.TryParse(text, null, diagnostics);
         Assert.That(doc, Is.Not.Null);
     }
+
+    [Test]
+    public void InputSizeGuard_OversizeDocumentRejected()
+    {
+        // 2 MiB of trailing comment characters guarantees a > 1 MiB UTF-16 length AND a
+        // > 1 MiB UTF-8 length so the soft byte estimate trips. Wall-time budget < 50 ms.
+        var sb = new StringBuilder("package cose_trust_policy\n\npolicy := {}\n");
+        sb.Append('#');
+        sb.Append('a', 2 * 1024 * 1024);
+
+        var diagnostics = new List<TrustPolicyTranslationDiagnostic>();
+        var sw = Stopwatch.StartNew();
+        var doc = CoseTpRegoFrontend.TryParse(sb.ToString(), null, diagnostics);
+        sw.Stop();
+
+        Assert.That(doc, Is.Null);
+        Assert.That(diagnostics.Any(d => d.Severity == TrustPolicySeverity.Error), Is.True);
+        Assert.That(sw.ElapsedMilliseconds, Is.LessThan(500));
+    }
+
+    [Test]
+    public void Tokenizer_LoneHighSurrogate_Rejected()
+    {
+        // \uD83D without a paired low-surrogate is malformed UTF-16. Strict rejection.
+        const string text = "package cose_trust_policy\n\npolicy := { \"x\": \"\\uD83D\" }";
+        var diagnostics = new List<TrustPolicyTranslationDiagnostic>();
+        var doc = CoseTpRegoFrontend.TryParse(text, null, diagnostics);
+        Assert.That(doc, Is.Null);
+        Assert.That(diagnostics.Count, Is.GreaterThan(0));
+    }
+
+    [Test]
+    public void Tokenizer_LoneLowSurrogate_Rejected()
+    {
+        // \uDC00 (low-surrogate) without a preceding high-surrogate is malformed UTF-16.
+        const string text = "package cose_trust_policy\n\npolicy := { \"x\": \"\\uDC00\" }";
+        var diagnostics = new List<TrustPolicyTranslationDiagnostic>();
+        var doc = CoseTpRegoFrontend.TryParse(text, null, diagnostics);
+        Assert.That(doc, Is.Null);
+        Assert.That(diagnostics.Count, Is.GreaterThan(0));
+    }
+
+    [Test]
+    public void Tokenizer_HighSurrogateWithoutEscapePair_Rejected()
+    {
+        // High surrogate followed by a non-\u sequence — also malformed.
+        const string text = "package cose_trust_policy\n\npolicy := { \"x\": \"\\uD83Dabc\" }";
+        var diagnostics = new List<TrustPolicyTranslationDiagnostic>();
+        var doc = CoseTpRegoFrontend.TryParse(text, null, diagnostics);
+        Assert.That(doc, Is.Null);
+    }
+
+    [Test]
+    public void Tokenizer_HighSurrogateWithBadLowSurrogate_Rejected()
+    {
+        // High surrogate followed by \u escape that is NOT a low surrogate.
+        const string text = "package cose_trust_policy\n\npolicy := { \"x\": \"\\uD83D\\u0041\" }";
+        var diagnostics = new List<TrustPolicyTranslationDiagnostic>();
+        var doc = CoseTpRegoFrontend.TryParse(text, null, diagnostics);
+        Assert.That(doc, Is.Null);
+    }
+
+    [Test]
+    public void Tokenizer_WellFormedSurrogatePair_Accepted()
+    {
+        // \uD83D\uDE00 is the surrogate-pair encoding of U+1F600 (😀).
+        const string text = "package cose_trust_policy\n\npolicy := { \"x\": \"\\uD83D\\uDE00\" }";
+        var diagnostics = new List<TrustPolicyTranslationDiagnostic>();
+        var doc = CoseTpRegoFrontend.TryParse(text, null, diagnostics);
+        Assert.That(doc, Is.Not.Null);
+    }
+
+    [Test]
+    public void Tokenizer_ControlCharInString_Rejected()
+    {
+        // A bare U+0001 (SOH) inside a string is RFC 8259 invalid.
+        string text = "package cose_trust_policy\n\npolicy := { \"x\": \"a\u0001b\" }";
+        var diagnostics = new List<TrustPolicyTranslationDiagnostic>();
+        var doc = CoseTpRegoFrontend.TryParse(text, null, diagnostics);
+        Assert.That(doc, Is.Null);
+    }
+
+    [Test]
+    public void Tokenizer_TabInsideString_Accepted()
+    {
+        // U+0009 (tab) is a permitted whitespace inside JSON strings.
+        string text = "package cose_trust_policy\n\npolicy := { \"x\": \"a\tb\" }";
+        var diagnostics = new List<TrustPolicyTranslationDiagnostic>();
+        var doc = CoseTpRegoFrontend.TryParse(text, null, diagnostics);
+        Assert.That(doc, Is.Not.Null);
+    }
 }

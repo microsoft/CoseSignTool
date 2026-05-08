@@ -69,6 +69,13 @@ internal static class AssemblyStrings
     // ~10000 frame depth where .NET's 1MB default stack starts being at risk. Closes RT-MAJ-1.
     public const int MaxNestingDepth = 64;
 
+    // Maximum allowed input size in bytes (UTF-8 length). Tokenization materialises the full
+    // token stream before parsing, so a multi-megabyte hostile input would be a memory-DoS
+    // vector even if the parser is depth-bounded. 1 MiB is comfortably above any plausible
+    // real-world cose-tp-rego/v1 document; the §6.5.6 example is ~600 bytes. Closes
+    // TST-MIN-1.
+    public const int MaxInputBytes = 1024 * 1024;
+
     // Diagnostic message formats
     public const string ErrParseFormat = "Malformed Rego document at line {0}, column {1}: {2}";
     public const string ErrUnexpectedTokenFormat = "Unexpected token '{0}' at line {1}, column {2}; expected {3}.";
@@ -87,6 +94,9 @@ internal static class AssemblyStrings
     public const string ErrComprehensionRejected = "Comprehension expressions ('|') are rejected by cose-tp-rego/v1; the constrained subset only accepts literal arrays / objects.";
     public const string ErrDataReferenceRejected = "References to 'data.<...>' are rejected by cose-tp-rego/v1; the constrained subset only accepts 'input.<...>' parameter references.";
     public const string ErrMaxNestingDepthExceededFormat = "Nesting depth at line {0}, column {1} exceeded the cose-tp-rego/v1 maximum of {2}; reject as a defense-in-depth measure against stack-exhaustion DoS.";
+    public const string ErrInputTooLargeFormat = "Document size {0} bytes exceeds the cose-tp-rego/v1 maximum of {1} bytes; reject as a defense-in-depth measure against memory-exhaustion DoS. Real-world cose-tp/v1 policies are <1 KB.";
+    public const string ErrLoneSurrogateFormat = "Unicode escape '\\u{0:X4}' at line {1}, column {2} produced an unpaired surrogate code unit. Strings in cose-tp-rego/v1 must encode well-formed UTF-16 so the canonical IR survives JSON round-trip.";
+    public const string ErrControlCharFormat = "Unescaped control character U+{0:X4} at line {1}, column {2} is rejected; encode as '\\u{0:X4}' if the value is intentional.";
     public const string ErrPolicyValueNotObjectFormat = "The '{0}' rule must be assigned an object literal; got token '{1}' at line {2}, column {3}.";
     public const string ErrInputDotMissingIdentifier = "'input' must be followed by '.<name>' to reference a parameter.";
     public const string ErrDuplicateObjectKeyFormat = "Duplicate object key '{0}' at line {1}, column {2}.";

@@ -79,6 +79,22 @@ public sealed class CoseTpRegoFrontend : ICoseTrustPolicyFrontend<RegoDocument>
         Cose.Abstractions.Guard.ThrowIfNull(text);
         Cose.Abstractions.Guard.ThrowIfNull(diagnostics);
 
+        // Defense-in-depth: bound the input size so a multi-megabyte hostile document does
+        // not cause memory pressure during tokenization. The cap is a soft byte-count
+        // estimate (UTF-16 length × 2) — exact UTF-8 length would require a full encode.
+        int approxBytes = checked(text.Length * 2);
+        if (approxBytes > AssemblyStrings.MaxInputBytes)
+        {
+            diagnostics.Add(new TrustPolicyTranslationDiagnostic
+            {
+                Severity = TrustPolicySeverity.Error,
+                Code = AssemblyStrings.CodeMaxNestingDepthExceeded,
+                Message = string.Format(System.Globalization.CultureInfo.InvariantCulture, AssemblyStrings.ErrInputTooLargeFormat, approxBytes, AssemblyStrings.MaxInputBytes),
+                Location = MakeLocation(documentSource, 1, 1),
+            });
+            return null;
+        }
+
         var tokenizer = new RegoTokenizer(text);
         List<RegoToken> tokens = tokenizer.Tokenize();
         foreach (RegoLexicalDiagnostic le in tokenizer.Errors)

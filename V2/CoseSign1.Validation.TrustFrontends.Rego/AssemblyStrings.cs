@@ -63,6 +63,7 @@ internal static class AssemblyStrings
     public const string CodeReservedDataReference = "TPX303";   // data.<...>
     public const string CodeComprehensionRejected = "TPX304";   // `{ … | … }` / `[ … | … ]`
     public const string CodeMaxNestingDepthExceeded = "TPX305"; // depth-guard tripped — DoS protection (RT-MAJ-1)
+    public const string CodeInputTooLarge = "TPX306";           // input-size cap tripped — memory-DoS protection (BLUE-MIN-1)
 
     // Maximum allowed nesting depth for object / array literals. The §6.5.6 example sits at
     // depth ~4; 64 is comfortably above any realistic cose-tp/v1 policy and well below the

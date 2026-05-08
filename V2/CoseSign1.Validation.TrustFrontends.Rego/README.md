@@ -118,8 +118,9 @@ policy := {
 | `TPX303` | Error | Reserved `data.<...>` reference (only `input.<...>` is allowed). |
 | `TPX304` | Error | Comprehension expression (`[x | y]`, `{x | y}`, `{k: v | y}`). |
 | `TPX305` | Error | Maximum nesting depth exceeded (cap is 64 — defense-in-depth against stack-exhaustion DoS). |
+| `TPX306` | Error | Maximum input size exceeded (cap is 1 MiB — defense-in-depth against memory-exhaustion DoS). |
 
-The `TPX301`–`TPX305` sub-codes split the broader `TPX300` translation-error band so
+The `TPX301`–`TPX306` sub-codes split the broader `TPX300` translation-error band so
 blue-team telemetry can attribute rejection rates to the specific construct class without
 parsing the human-readable message.
 

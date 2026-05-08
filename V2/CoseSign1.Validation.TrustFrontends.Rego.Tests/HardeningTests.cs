@@ -50,6 +50,8 @@ public sealed class HardeningTests
 
         Assert.That(doc, Is.Null);
         Assert.That(diagnostics.Any(d => d.Code == "TPX305"), Is.True, () => string.Join("; ", diagnostics.Select(d => d.Code + ":" + d.Message)));
+        // Cross-pin: depth-guard MUST NOT collide with the input-size guard (TPX306).
+        Assert.That(diagnostics.Any(d => d.Code == "TPX306"), Is.False);
         // The acceptance criterion in the review: parse + reject in well under 50 ms.
         Assert.That(sw.ElapsedMilliseconds, Is.LessThan(500));
     }
@@ -201,7 +203,9 @@ public sealed class HardeningTests
         sw.Stop();
 
         Assert.That(doc, Is.Null);
-        Assert.That(diagnostics.Any(d => d.Severity == TrustPolicySeverity.Error), Is.True);
+        // Cross-pin to TPX306 (input-size) — must NOT collide with TPX305 (nesting depth).
+        Assert.That(diagnostics.Any(d => d.Code == "TPX306"), Is.True, () => string.Join("; ", diagnostics.Select(d => d.Code + ":" + d.Message)));
+        Assert.That(diagnostics.Any(d => d.Code == "TPX305"), Is.False);
         Assert.That(sw.ElapsedMilliseconds, Is.LessThan(500));
     }
 

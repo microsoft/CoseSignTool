@@ -82,13 +82,15 @@ public sealed class CoseTpRegoFrontend : ICoseTrustPolicyFrontend<RegoDocument>
         // Defense-in-depth: bound the input size so a multi-megabyte hostile document does
         // not cause memory pressure during tokenization. The cap is a soft byte-count
         // estimate (UTF-16 length × 2) — exact UTF-8 length would require a full encode.
-        int approxBytes = checked(text.Length * 2);
+        // Use long arithmetic to avoid theoretical overflow on a 1B+-character input
+        // (REL-NIT-2 from review pass 3).
+        long approxBytes = (long)text.Length * 2L;
         if (approxBytes > AssemblyStrings.MaxInputBytes)
         {
             diagnostics.Add(new TrustPolicyTranslationDiagnostic
             {
                 Severity = TrustPolicySeverity.Error,
-                Code = AssemblyStrings.CodeMaxNestingDepthExceeded,
+                Code = AssemblyStrings.CodeInputTooLarge,
                 Message = string.Format(System.Globalization.CultureInfo.InvariantCulture, AssemblyStrings.ErrInputTooLargeFormat, approxBytes, AssemblyStrings.MaxInputBytes),
                 Location = MakeLocation(documentSource, 1, 1),
             });

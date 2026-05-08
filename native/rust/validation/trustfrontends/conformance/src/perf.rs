@@ -110,6 +110,11 @@ where
 
 /// Nearest-rank percentile over an already-sorted slice of [`Duration`]s.
 ///
+/// Uses [`usize::div_ceil`] so the rank computation is `ceil(pct/100 * n)` for
+/// any 0 ≤ pct ≤ 100 — the canonical nearest-rank formula. The conformance
+/// harness only calls this with `pct = 99`, but the helper is generic and
+/// unit-tested across the percentile range.
+///
 /// Exposed for direct unit testing (the no-tests-in-src gate forbids in-line
 /// `#[cfg(test)]` modules under `src/`; integration tests in `tests/` cover
 /// this helper end-to-end).
@@ -121,7 +126,7 @@ pub fn nearest_rank_percentile(sorted: &[Duration], pct: u32) -> Duration {
         return Duration::ZERO;
     }
     let n = sorted.len();
-    let rank = ((pct as usize * n) + 99) / 100;
+    let rank = (pct as usize * n).div_ceil(100);
     let idx = rank.saturating_sub(1).min(n - 1);
     sorted[idx]
 }

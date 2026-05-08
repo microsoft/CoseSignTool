@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <LangVersion>latest</LangVersion>
+        <IsPackable>false</IsPackable>
+        <EnablePreviewFeatures>true</EnablePreviewFeatures>
+        <!--
+          Test-support library: opt out of the documentation/string-literal analyzers that
+          target production code. The helpers here exist exclusively to drive the integration
+          tests; centralising literals into a ClassStrings helper would obscure rather than
+          improve the test fixtures. Mirrors the CoseSign1.Benchmarks pattern.
+        -->
+        <NoWarn>$(NoWarn);CSTDOC001;CSTSTR001;CSTGUARD001;CA2252;SYSLIB5006;CS1591;SA1600;SA1611;SA1615;SA1623;SA1633</NoWarn>
+        <RootNamespace>CoseSign1.Trust.Integration</RootNamespace>
+        <AssemblyName>CoseSign1.Trust.Integration</AssemblyName>
+    </PropertyGroup>
+
+    <!--
+      Test-support library for the trust-policy integration test suite.
+
+      Why a separate library: the per-project coverage gate must measure the integration
+      surface — the helpers that build signed fixtures, drive the CLI in-process, author
+      policy documents, and shape assertions. coverlet's vstest data-collector silently
+      excludes test assemblies from instrumentation (vstest filters them before coverlet
+      sees them), so housing the helpers in a regular library produces an instrumentable
+      assembly that the standard `collect-coverage.ps1 -ProjectFilter <name>.Tests`
+      pipeline measures correctly via the canonical `.Tests` strip-and-match flow.
+    -->
+
+    <ItemGroup>
+        <PackageReference Include="NUnit" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\CoseSignTool\CoseSignTool.csproj" />
+        <ProjectReference Include="..\CoseSign1.Certificates\CoseSign1.Certificates.csproj" />
+        <ProjectReference Include="..\CoseSign1.Factories\CoseSign1.Factories.csproj" />
+        <ProjectReference Include="..\CoseSign1.Tests.Common\CoseSign1.Tests.Common.csproj" />
+    </ItemGroup>
+
+    <!-- Documentation analyzers target production code; opt out for this test-support library. -->
+    <ItemGroup>
+        <ProjectReference Remove="$(MSBuildThisFileDirectory)..\CoseSignTool.DocumentationAnalyzers\CoseSignTool.DocumentationAnalyzers.csproj" />
+    </ItemGroup>
+
+</Project>

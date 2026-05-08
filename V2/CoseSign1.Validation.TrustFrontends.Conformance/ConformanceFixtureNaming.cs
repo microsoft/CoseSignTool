@@ -49,7 +49,11 @@ public static class ConformanceFixtureNaming
 
     /// <summary>
     /// Translates a fact id (e.g. <c>x509-chain-trusted/v1</c>) into the logical fixture name
-    /// for the supplied predicate form.
+    /// for the supplied predicate form. The fact id is escaped using a percent-encoding-like
+    /// scheme on the slash separator: <c>/</c> becomes <c>--</c>. <c>--</c> is reserved as
+    /// the escape sequence and never appears in a valid fact id (the id pattern
+    /// <c>^[a-z][a-z0-9-]*\/v[0-9]+$</c> forbids consecutive hyphens), so the mapping is
+    /// injective and the reverse parse in <see cref="FixtureNameToFactId"/> is deterministic.
     /// </summary>
     /// <param name="factId">The stable fact id.</param>
     /// <param name="form">Either <see cref="PropertyFormSuffix"/> or <see cref="PathOperatorFormSuffix"/>.</param>
@@ -60,10 +64,11 @@ public static class ConformanceFixtureNaming
         Cose.Abstractions.Guard.ThrowIfNull(factId);
         Cose.Abstractions.Guard.ThrowIfNull(form);
 
-        // Replace '/' (kebab-versioned id separator) with '_' so the logical name maps cleanly
-        // to a file-system path. The substitution is injective — no two distinct fact ids
-        // collide.
-        string fileSafe = factId.Replace('/', '_');
+        // The fact-id pattern '^[a-z][a-z0-9-]*\/v[0-9]+$' allows a single '/' but never the
+        // sequence '--'; escaping '/' to '--' is therefore reversible without ambiguity.
+        // This avoids the brittleness of the prior '_' substitution, which would have
+        // collided with any future fact id containing an underscore in its body.
+        string fileSafe = factId.Replace(AssemblyStrings.FactIdSlashSeparator, AssemblyStrings.FactIdEscapedSlash);
         return string.Format(CultureInfo.InvariantCulture, AssemblyStrings.FormatFactFixtureNamePattern, AssemblyStrings.FactsFolder, fileSafe, form);
     }
 
@@ -72,7 +77,7 @@ public static class ConformanceFixtureNaming
     /// <see langword="null"/> when the name is not a per-fact fixture.
     /// </summary>
     /// <param name="logicalName">The logical fixture name.</param>
-    /// <returns>The fact id (with the <c>_</c> separator restored to <c>/</c>) or <see langword="null"/>.</returns>
+    /// <returns>The fact id (with <c>--</c> decoded back to <c>/</c>) or <see langword="null"/>.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="logicalName"/> is null.</exception>
     public static string? FixtureNameToFactId(string logicalName)
     {
@@ -96,7 +101,7 @@ public static class ConformanceFixtureNaming
         }
 
         string body = trimmed.Substring(0, trimmed.Length - suffix.Length);
-        return body.Replace('_', '/');
+        return body.Replace(AssemblyStrings.FactIdEscapedSlash, AssemblyStrings.FactIdSlashSeparator);
     }
 
     /// <summary>

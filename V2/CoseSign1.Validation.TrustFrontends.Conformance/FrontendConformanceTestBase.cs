@@ -227,11 +227,13 @@ public abstract class FrontendConformanceTestBase<TDocument>
         TDocument doc = LoadOrFail(AssemblyStrings.FixtureCapabilityMissingFact);
 
         // Empty capability set: no fact ids advertised at all, so the fixture's referenced
-        // fact id is by definition missing. AllowUnknownFacts defaults to false — the
-        // capability gate fires.
+        // fact id is by definition missing. AllowUnknownFacts is set explicitly to false so
+        // the test does not silently rely on a framework default that may drift between
+        // releases — operability win, no behaviour change.
         TrustPolicyTranslationContext ctx = new()
         {
             AvailableFacts = new FactCapabilities { AvailableFactIds = new HashSet<string>(StringComparer.Ordinal) },
+            AllowUnknownFacts = false,
         };
 
         TrustPolicyTranslationResult result = Adapter.Translate(doc, ctx);
@@ -580,6 +582,17 @@ public abstract class FrontendConformanceTestBase<TDocument>
         // $.<property> path, so the synthetic projections vary that one key.
         PropertyAssertionPredicateSpec property = (PropertyAssertionPredicateSpec)propertyForm.Predicate;
         PathOperatorPredicateSpec pathOperator = (PathOperatorPredicateSpec)pathOperatorForm.Predicate;
+
+        // Defensive: a frontend that emits an empty PropertyAssertionPredicateSpec would slip
+        // through schema (the JSON schema enforces minProperties: 1, but other frontends may
+        // have looser shapes). We surface the malformed-fixture case as a clear assertion
+        // failure rather than letting LINQ's First() throw an InvalidOperationException with
+        // no fixture context.
+        if (property.Assertions.Count == 0)
+        {
+            Assert.Fail(string.Format(CultureInfo.InvariantCulture, AssemblyStrings.ErrFactSpecScopeMismatchFormat, factId, ConformanceFixtureNaming.PropertyFormSuffix, AssemblyStrings.DocSummaryEmpty));
+            return;
+        }
 
         // Use the first asserted (key, value) pair as the synthesis pivot — fixtures use a
         // single-property shorthand to keep the equivalence reasoning simple.

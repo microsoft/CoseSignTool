@@ -237,6 +237,16 @@ public sealed class FrontendConformanceTestBaseInternalsTests
     }
 
     [Test]
+    public void EvaluatePathOperatorForm_Equals_TrueOnMatchFalseOnMiss()
+    {
+        var spec = new PathOperatorPredicateSpec("$.x", PredicateOperator.Equals, JsonValue.Create(true));
+
+        Assert.That(FrontendConformanceTestBase<JsonDocument>.EvaluatePathOperatorForm(spec, new JsonObject { ["x"] = JsonValue.Create(true) }), Is.True);
+        Assert.That(FrontendConformanceTestBase<JsonDocument>.EvaluatePathOperatorForm(spec, new JsonObject { ["x"] = JsonValue.Create(false) }), Is.False);
+        Assert.That(FrontendConformanceTestBase<JsonDocument>.EvaluatePathOperatorForm(spec, new JsonObject()), Is.False);
+    }
+
+    [Test]
     public void EvaluatePathOperatorForm_Exists_TrueWhenPresent()
     {
         var spec = new PathOperatorPredicateSpec("$.x", PredicateOperator.Exists, null);

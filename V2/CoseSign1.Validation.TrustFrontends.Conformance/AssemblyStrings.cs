@@ -150,4 +150,6 @@ internal static class AssemblyStrings
     internal const string PerfStatsFormat = "mean={0:F2}ms p99={1:F2}ms min={2:F2}ms max={3:F2}ms n={4}";
     internal const string DiagnosticListSeparatorChar = "; ";
     internal const string JustifyDefensiveLoadOrFail = "Defensive — adapter contract guarantees a non-null parsed document for every advertised fixture; this branch fires only on adapter implementation bugs and surfaces them as test failures.";
+    internal const string FactIdSlashSeparator = "/";
+    internal const string FactIdEscapedSlash = "--";
 }

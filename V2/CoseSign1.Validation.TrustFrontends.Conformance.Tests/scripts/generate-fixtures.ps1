@@ -47,7 +47,10 @@ function Wrap-Counter($scope, $body) {
 
 foreach ($f in $facts) {
     $id = $f[0]; $scope = $f[1]; $prop = $f[2]; $val = $f[3]
-    $fileSafe = $id -replace '/', '_'
+    # Match ConformanceFixtureNaming.FactFixtureName: '/' is escaped to '--' (the fact-id
+    # pattern '^[a-z][a-z0-9-]*\/v[0-9]+$' guarantees '--' never appears in a valid id, so
+    # the encoding is reversible).
+    $fileSafe = $id -replace '/', '--'
 
     $propPred = "{ `"$prop`": $val }"
     $pathPred = "{ `"operator`": `"Equals`", `"path`": `"`$.$prop`", `"value`": $val }"

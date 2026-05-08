@@ -10,24 +10,25 @@ using CoseSign1.Validation.Trust.PlanPolicy.Spec.Json;
 using NUnit.Framework;
 
 /// <summary>
-/// Reusable cross-frontend equivalence harness (§6.5.10 #8). Frontend test projects derive
-/// concrete fixtures from this base to assert that two frontends translate the same logical
-/// fixture name into byte-identical canonical IRs.
+/// Reusable cross-frontend equivalence harness implementing the byte-equal IR contract from
+/// §6.5.10 #8. Frontend test projects derive concrete fixtures from this base to assert that
+/// two frontends translate the same logical fixture name into byte-identical canonical IRs.
 /// </summary>
 /// <typeparam name="TDocumentA">Document type for frontend A.</typeparam>
 /// <typeparam name="TDocumentB">Document type for frontend B.</typeparam>
 /// <remarks>
 /// <para>
-/// Phase 4 ships only the JSON frontend, so the only concrete derivation is a degenerate
-/// (json, json) pair (see <see cref="FrontendConformanceTestBase{TDocument}.Conformance_8_CrossFrontendEquivalence_LocksHarnessAtSingleFrontend"/>).
-/// When Phase 5a Rego frontend lands, a new test fixture
-/// <c>JsonRegoCrossEquivalenceTests : CrossFrontendEquivalenceTestBase&lt;JsonDocument, RegoDocument&gt;</c>
-/// supplies its own adapters and the matrix expands automatically.
-/// </para>
-/// <para>
 /// The matrix is defined by overriding <see cref="LogicalFixtureNames"/>. Each name is a
 /// logical concept the conformance suite expects every frontend to ship; the equivalence
 /// guarantee is that all participating frontends translate to byte-identical canonical IRs.
+/// A degenerate (frontend X, frontend X) pairing is the canonical sanity check during the
+/// initial frontend's bring-up; a heterogeneous pairing (frontend X, frontend Y) is the real
+/// equivalence test.
+/// </para>
+/// <para>
+/// The pairing pattern is heterogeneous-frontend-friendly: the two type parameters are
+/// independent, so a JSON ↔ Rego pair compiles cleanly without leaking any one frontend's
+/// document type into the other's adapter. Adding a new frontend pairing is purely additive.
 /// </para>
 /// </remarks>
 public abstract class CrossFrontendEquivalenceTestBase<TDocumentA, TDocumentB>
@@ -67,6 +68,11 @@ public abstract class CrossFrontendEquivalenceTestBase<TDocumentA, TDocumentB>
 
         foreach (string logicalName in LogicalFixtureNames())
         {
+            // Front-load the missing-fixture case so a triage engineer reading CI output
+            // sees "frontend X did not advertise fixture Y" before any translation noise.
+            EnsureFixtureProvidedBy(a, logicalName);
+            EnsureFixtureProvidedBy(b, logicalName);
+
             TDocumentA? docA = a.LoadFixture(logicalName);
             TDocumentB? docB = b.LoadFixture(logicalName);
 
@@ -86,6 +92,15 @@ public abstract class CrossFrontendEquivalenceTestBase<TDocumentA, TDocumentB>
             string canonicalB = TrustPolicySpecSerializer.ToCanonicalJson(resultB.Spec!);
 
             Assert.That(canonicalB, Is.EqualTo(canonicalA), () => string.Format(CultureInfo.InvariantCulture, AssemblyStrings.ErrCrossFrontendDriftFormat, a.FrontendId, b.FrontendId, logicalName, canonicalA, canonicalB));
+        }
+    }
+
+    [System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage(Justification = AssemblyStrings.JustifyDefensiveLoadOrFail)]
+    private static void EnsureFixtureProvidedBy<TDoc>(IConformanceFrontendAdapter<TDoc> adapter, string logicalName)
+    {
+        if (!adapter.ProvidedFixtureNames.Contains(logicalName))
+        {
+            Assert.Fail(string.Format(CultureInfo.InvariantCulture, AssemblyStrings.ErrFixtureNotFound, logicalName, adapter.FrontendId));
         }
     }
 }

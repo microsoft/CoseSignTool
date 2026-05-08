@@ -53,16 +53,18 @@ public static class PerfBudget
         }
 
         double[] samples = new double[AssemblyStrings.PerfMeasuredIterations];
-        long ticksPerMs = Stopwatch.Frequency / 1000;
+        // Compute the per-tick conversion factor in double space so the perf gate doesn't
+        // truncate sub-ms precision on platforms whose Stopwatch.Frequency is not an exact
+        // multiple of 1000 (the Linux clocksource case is 1_000_000_000 hz, which is fine,
+        // but the contract should hold for ARM and embedded clocks as well).
+        double msPerTick = 1000.0 / Stopwatch.Frequency;
 
         for (int i = 0; i < samples.Length; i++)
         {
             long start = Stopwatch.GetTimestamp();
             action();
             long end = Stopwatch.GetTimestamp();
-            // Compute in double space because Stopwatch.Frequency is on the order of 10^7
-            // and ticks-per-ms truncation would lose sub-ms resolution otherwise.
-            samples[i] = (double)(end - start) / ticksPerMs;
+            samples[i] = (end - start) * msPerTick;
         }
 
         return samples;

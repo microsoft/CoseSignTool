@@ -10,11 +10,11 @@ using System.Linq;
 public sealed class ConformanceFixtureNamingTests
 {
     [Test]
-    public void FactFixtureName_PropertyForm_ProducesUnderscoreSeparatedFileSafeName()
+    public void FactFixtureName_PropertyForm_ProducesEscapedSlashFileSafeName()
     {
         string actual = ConformanceFixtureNaming.FactFixtureName("x509-chain-trusted/v1", ConformanceFixtureNaming.PropertyFormSuffix);
 
-        Assert.That(actual, Is.EqualTo("facts/x509-chain-trusted_v1.property"));
+        Assert.That(actual, Is.EqualTo("facts/x509-chain-trusted--v1.property"));
     }
 
     [Test]
@@ -22,7 +22,7 @@ public sealed class ConformanceFixtureNamingTests
     {
         string actual = ConformanceFixtureNaming.FactFixtureName("mst-receipt-trusted/v1", ConformanceFixtureNaming.PathOperatorFormSuffix);
 
-        Assert.That(actual, Is.EqualTo("facts/mst-receipt-trusted_v1.path-operator"));
+        Assert.That(actual, Is.EqualTo("facts/mst-receipt-trusted--v1.path-operator"));
     }
 
     [Test]
@@ -40,7 +40,7 @@ public sealed class ConformanceFixtureNamingTests
     [Test]
     public void FixtureNameToFactId_PropertyForm_RecoversFactId()
     {
-        string? actual = ConformanceFixtureNaming.FixtureNameToFactId("facts/x509-chain-trusted_v1.property");
+        string? actual = ConformanceFixtureNaming.FixtureNameToFactId("facts/x509-chain-trusted--v1.property");
 
         Assert.That(actual, Is.EqualTo("x509-chain-trusted/v1"));
     }
@@ -48,9 +48,23 @@ public sealed class ConformanceFixtureNamingTests
     [Test]
     public void FixtureNameToFactId_PathOperatorForm_RecoversFactId()
     {
-        string? actual = ConformanceFixtureNaming.FixtureNameToFactId("facts/mst-receipt-trusted_v1.path-operator");
+        string? actual = ConformanceFixtureNaming.FixtureNameToFactId("facts/mst-receipt-trusted--v1.path-operator");
 
         Assert.That(actual, Is.EqualTo("mst-receipt-trusted/v1"));
+    }
+
+    [Test]
+    public void FactFixtureName_RoundTrips_ForValidFactIds()
+    {
+        // Fact-id pattern guarantees '--' never appears in a valid id, so the escape is
+        // injective and reverse-parseable for every shipped fact id.
+        foreach (string id in new[] { "x509-chain-trusted/v1", "x509-cert-eku/v1", "mst-receipt-issuer-host/v1", "content-type/v1" })
+        {
+            string fixtureName = ConformanceFixtureNaming.FactFixtureName(id, ConformanceFixtureNaming.PropertyFormSuffix);
+            string? recovered = ConformanceFixtureNaming.FixtureNameToFactId(fixtureName);
+
+            Assert.That(recovered, Is.EqualTo(id), $"Round-trip failed for fact id '{id}'.");
+        }
     }
 
     [Test]

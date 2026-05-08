@@ -953,6 +953,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "cose_sign1_trust_policy_spec_ffi"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cose_sign1_certificates",
+ "cose_sign1_transparent_mst",
+ "cose_sign1_trust_policy_spec",
+ "cose_sign1_trustfrontends_json",
+ "cose_sign1_validation",
+ "cose_sign1_validation_ffi",
+ "cose_sign1_validation_primitives",
+ "libc",
+ "serde_json",
+]
+
+[[package]]
 name = "cose_sign1_trustfrontends_conformance"
 version = "0.1.0"
 dependencies = [

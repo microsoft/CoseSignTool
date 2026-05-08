@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!--
+      cose-tp-rego/v1 frontend. Targets net10.0 for parity with the JSON frontend;
+      shares JsonNode + JsonSchema.Net surfaces because the Rego AST is lowered to a
+      JsonObject and validated against the canonical cose-tp/v1 schema (parity with the
+      JSON frontend by construction — see README §"Why a constrained subset").
+    -->
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <Description>Constrained Rego subset frontend (cose-tp-rego/v1) for CoseSign1 trust policies. Parses an OPA-compatible Rego document, rejects forbidden builtins / unconstrained iteration, and lowers the constrained subset into a TrustPolicySpec via the canonical cose-tp/v1 JSON pipeline.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CoseSign1.Validation\CoseSign1.Validation.csproj" />
+    <ProjectReference Include="..\CoseSign1.Validation.Trust.PlanPolicy.Spec\CoseSign1.Validation.Trust.PlanPolicy.Spec.csproj" />
+    <!--
+      The Rego frontend reuses the JSON frontend's schema validation + document walker by
+      lowering the parsed Rego AST to the same JsonNode shape and forwarding to
+      CoseTpJsonFrontend.Translate. This guarantees byte-identical canonical IR for any
+      logical policy expressible in both frontends — the §6.5.10 #8 contract.
+    -->
+    <ProjectReference Include="..\CoseSign1.Validation.TrustFrontends.Json\CoseSign1.Validation.TrustFrontends.Json.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>

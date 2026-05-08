@@ -184,4 +184,133 @@ public sealed class TrustPolicyDocumentLoaderTests
         var result = TrustPolicyDocumentLoader.LoadAndCompile(TempPath, Array.Empty<string>(), services, sw);
         Assert.That(result, Is.Not.Null, sw.ToString());
     }
+
+    [Test]
+    public void SelectFrontend_RegoExtension_RoutesToRego()
+    {
+        Assert.That(TrustPolicyDocumentLoader.SelectFrontend("policy.coseTrustPolicy.rego", string.Empty), Is.True);
+    }
+
+    [Test]
+    public void SelectFrontend_JsonExtension_RoutesToJson()
+    {
+        Assert.That(TrustPolicyDocumentLoader.SelectFrontend("policy.coseTrustPolicy.json", string.Empty), Is.False);
+    }
+
+    [Test]
+    public void SelectFrontend_DocumentLeadingPackageMarker_RoutesToRego()
+    {
+        const string text = "package cose_trust_policy\n\npolicy := {}\n";
+        Assert.That(TrustPolicyDocumentLoader.SelectFrontend("policy.txt", text), Is.True);
+    }
+
+    [Test]
+    public void SelectFrontend_HeaderCommentBeforePackage_RoutesToRego()
+    {
+        // Comments and blank lines before the package declaration should not mask the
+        // marker.
+        const string text = "# my-validation\n\npackage cose_trust_policy\n";
+        Assert.That(TrustPolicyDocumentLoader.SelectFrontend("policy.txt", text), Is.True);
+    }
+
+    [Test]
+    public void SelectFrontend_DocumentWithoutMarker_RoutesToJson()
+    {
+        const string text = """{"frontend":"cose-tp-json/v1"}""";
+        Assert.That(TrustPolicyDocumentLoader.SelectFrontend("policy.txt", text), Is.False);
+    }
+
+    [Test]
+    public void SelectFrontend_EmptyText_RoutesToJson()
+    {
+        Assert.That(TrustPolicyDocumentLoader.SelectFrontend("policy.txt", string.Empty), Is.False);
+    }
+
+    [Test]
+    public void SelectFrontend_OnlyCommentsWithoutNewline_RoutesToJson()
+    {
+        // Hits the (newline < 0) branch in the comment-skipping loop: a single comment
+        // line that is the entire file with no trailing '\n'.
+        Assert.That(TrustPolicyDocumentLoader.SelectFrontend("policy.txt", "# only one line"), Is.False);
+    }
+
+    [Test]
+    public void SelectFrontend_OnlyCommentsAndBlanks_RoutesToJson()
+    {
+        const string text = "# only a comment\n\n# another\n";
+        Assert.That(TrustPolicyDocumentLoader.SelectFrontend("policy.txt", text), Is.False);
+    }
+
+    [Test]
+    public void LoadAndCompile_RegoFileExtension_LoadsViaRegoFrontend()
+    {
+        string regoPath = Path.Combine(Path.GetTempPath(), $"tp-{Guid.NewGuid():N}.coseTrustPolicy.rego");
+        try
+        {
+            File.WriteAllText(regoPath, """
+                package cose_trust_policy
+
+                policy := {
+                    "primary_signing_key": {
+                        "fact": "x509-chain-trusted/v1",
+                        "predicate": {"is_trusted": true}
+                    }
+                }
+                """);
+            var sw = new StringWriter();
+            var result = TrustPolicyDocumentLoader.LoadAndCompile(regoPath, Array.Empty<string>(), BuildServices(), sw);
+            Assert.That(result, Is.Not.Null, sw.ToString());
+        }
+        finally
+        {
+            try
+            {
+                if (File.Exists(regoPath))
+                {
+                    File.Delete(regoPath);
+                }
+            }
+            catch
+            {
+                // Best effort.
+            }
+        }
+    }
+
+    [Test]
+    public void LoadAndCompile_RegoDocumentRejected_ReportsTPX300Diagnostic()
+    {
+        string regoPath = Path.Combine(Path.GetTempPath(), $"tp-{Guid.NewGuid():N}.coseTrustPolicy.rego");
+        try
+        {
+            File.WriteAllText(regoPath, """
+                package cose_trust_policy
+
+                policy := {
+                    "primary_signing_key": {
+                        "fact": "x509-chain-trusted/v1",
+                        "predicate": {"value": http.send({"url": "https://example"})}
+                    }
+                }
+                """);
+            var sw = new StringWriter();
+            var result = TrustPolicyDocumentLoader.LoadAndCompile(regoPath, Array.Empty<string>(), BuildServices(), sw);
+            Assert.That(result, Is.Null);
+            Assert.That(sw.ToString(), Does.Contain("TPX301"));
+        }
+        finally
+        {
+            try
+            {
+                if (File.Exists(regoPath))
+                {
+                    File.Delete(regoPath);
+                }
+            }
+            catch
+            {
+                // Best effort.
+            }
+        }
+    }
 }

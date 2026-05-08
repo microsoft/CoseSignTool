@@ -43,14 +43,14 @@
 //! `cross_port_schema` integration test asserts this; drifting either side is a CI gate
 //! failure.
 
-// pub mod cache;  // landed in next commit
+pub mod cache;
 pub mod codes;
 pub mod frontend;
 pub mod options;
 pub mod schema;
 mod walk;
 
-// pub use cache::{TranslatorCache, TranslatorCacheError};
+pub use cache::{TranslatorCache, TranslatorCacheError};
 pub use frontend::{CoseTpJsonFrontend, FRONTEND_ID};
 pub use options::CoseTpJsonOptions;
 pub use schema::{embedded_schema_bytes, EMBEDDED_SCHEMA_RESOURCE_NAME};

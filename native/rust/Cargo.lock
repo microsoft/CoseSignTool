@@ -869,6 +869,9 @@ dependencies = [
 name = "cose_sign1_trust_policy_spec"
 version = "0.1.0"
 dependencies = [
+ "cose_sign1_certificates",
+ "cose_sign1_transparent_mst",
+ "cose_sign1_validation",
  "cose_sign1_validation_primitives",
  "serde",
  "serde_json",

@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+#![allow(deprecated)] // intentionally drives the deprecated StaticFactRegistry baseline
+
 //! Hybrid-predicate equivalence — `PropertyAssertionPredicateSpec` and
 //! `PathOperatorPredicateSpec` expressing the same logical assertion compile to plans that
 //! agree on `is_trusted` for the same input.

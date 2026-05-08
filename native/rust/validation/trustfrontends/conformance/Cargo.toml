@@ -1,0 +1,31 @@
+[package]
+name = "cose_sign1_trustfrontends_conformance"
+version = "0.1.0"
+edition = { workspace = true }
+license = { workspace = true }
+description = "Reusable conformance test harness for CoseSign1 trust-policy frontends. Implements the §6.5.10 8-property contract."
+
+[dependencies]
+cose_sign1_trust_policy_spec = { path = "../../trust_policy_spec" }
+cose_sign1_validation_primitives = { path = "../../primitives" }
+cose_sign1_trustfrontends_json = { path = "../json" }
+
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Opt-in Criterion bench harness (perf-gate, §6.5.10 #4).
+# Default `cargo test` does NOT pull Criterion; it ships only when
+# the `criterion-perf` feature is requested.
+criterion = { workspace = true, optional = true }
+
+[features]
+default = []
+criterion-perf = ["dep:criterion"]
+
+[[bench]]
+name = "translate_p99"
+harness = false
+required-features = ["criterion-perf"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage,coverage_nightly)'] }

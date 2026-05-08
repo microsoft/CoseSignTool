@@ -113,6 +113,13 @@ jsonschema = "JSON-Schema (Draft 2020-12) validator for the embedded cose-tp/v1 
 moka = "In-process LRU translator cache, sync API (R4 decision: 2026-05-08)"
 blake3 = "Cache-key hashing over canonical document + parameter bytes (R5 decision: 2026-05-08)"
 
+[crate.conformance]
+# Phase 4 (np-conformance) — cose_sign1_trustfrontends_conformance crate.
+# Reusable conformance harness implementing the 8-property contract from §6.5.10.
+serde = "Serde derive for fixture loaders + parameter maps"
+serde_json = "JSON fixture parsing + canonical-IR comparison"
+criterion = "Optional Criterion bench harness for the §6.5.10 #4 statistical perf gate (feature-gated via `criterion-perf`)"
+
 [crate.cose_sign1_transparent_mst]
 serde = "Deserialize JWKS responses"
 serde_json = "JSON parsing for JWKS"

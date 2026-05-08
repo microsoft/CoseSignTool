@@ -19,6 +19,7 @@ using CoseSign1.Validation.Trust.Plan;
 using CoseSign1.Validation.Trust.PlanPolicy.Spec.Compilation;
 using CoseSign1.Validation.Trust.PlanPolicy.Spec.Registry;
 using CoseSign1.Validation.TrustFrontends.Json;
+using CoseSign1.Validation.TrustFrontends.Rego;
 
 /// <summary>
 /// CLI helper that loads a <c>.coseTrustPolicy.json</c> document, runs it through the
@@ -48,6 +49,11 @@ internal static class TrustPolicyDocumentLoader
         public const string DocumentSourcePrefixFile = "file://";
         public const char PathSlashWindows = '\\';
         public const char PathSlashUnix = '/';
+        public const string FrontendIdJson = "cose-tp-json/v1";
+        public const string FrontendIdRego = "cose-tp-rego/v1";
+        public const string RegoPackageMarker = "package cose_trust_policy";
+        public const string RegoFrontendDocumentSourceTag = "rego";
+        public const string JsonFrontendDocumentSourceTag = "json";
         public static readonly TimeSpan HttpTimeout = TimeSpan.FromSeconds(15);
     }
 
@@ -82,8 +88,10 @@ internal static class TrustPolicyDocumentLoader
             return null;
         }
 
-        var frontend = (services.GetService(typeof(CoseTpJsonFrontend)) as CoseTpJsonFrontend)
+        var jsonFrontend = (services.GetService(typeof(CoseTpJsonFrontend)) as CoseTpJsonFrontend)
             ?? new CoseTpJsonFrontend();
+        var regoFrontend = (services.GetService(typeof(CoseTpRegoFrontend)) as CoseTpRegoFrontend)
+            ?? new CoseTpRegoFrontend(jsonFrontend);
 
         IFactRegistry? registry = services.GetService(typeof(IFactRegistry)) as IFactRegistry
             ?? AttributeDrivenFactRegistry.FromLoadedAssemblies();
@@ -96,7 +104,15 @@ internal static class TrustPolicyDocumentLoader
             AllowUnknownFacts = false,
         };
 
-        TrustPolicyTranslationResult result = frontend.TranslateText(text, ctx, sourceUri);
+        // Frontend dispatch (D8). Recognises:
+        //   1. Explicit file extension (.coseTrustPolicy.rego / .coseTrustPolicy.json)
+        //   2. MIME type via document-source URI extension
+        //   3. Document leading-line marker ('package cose_trust_policy' → Rego)
+        // Pack defaults are bypassed because --trust-policy was supplied; pack fact
+        // producers stay registered via `services` so RequireFact references resolve.
+        TrustPolicyTranslationResult result = SelectFrontend(pathOrUrl, text)
+            ? regoFrontend.TranslateText(text, ctx, sourceUri)
+            : jsonFrontend.TranslateText(text, ctx, sourceUri);
         if (!result.IsSuccess || result.Spec is null)
         {
             WriteDiagnostics(result.Diagnostics, errorWriter);
@@ -111,6 +127,57 @@ internal static class TrustPolicyDocumentLoader
         }
 
         return CompiledTrustPlanFromSpec.CompileFromSpec(bound.Spec, registry, services);
+    }
+
+    /// <summary>
+    /// Returns <see langword="true"/> when the document should be routed through the Rego
+    /// frontend per D8: file extension <c>.coseTrustPolicy.rego</c>, MIME hint via the
+    /// source URI, OR a leading <c>package cose_trust_policy</c> declaration after
+    /// optional shebang / blank lines / Rego comments.
+    /// </summary>
+    /// <param name="pathOrUrl">The raw caller-supplied path or URL.</param>
+    /// <param name="text">The fully loaded document text.</param>
+    /// <returns><see langword="true"/> when the Rego frontend should handle this document.</returns>
+    public static bool SelectFrontend(string pathOrUrl, string text)
+    {
+        if (pathOrUrl is not null && pathOrUrl.EndsWith(CoseTpRegoOptions.FileExtension, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (pathOrUrl is not null && pathOrUrl.EndsWith(CoseTpJsonOptions.FileExtension, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        // Document-leading marker. Walk past blank lines and Rego comments so a header
+        // comment doesn't mask the marker.
+        if (string.IsNullOrEmpty(text))
+        {
+            return false;
+        }
+
+        ReadOnlySpan<char> remaining = text.AsSpan();
+        while (!remaining.IsEmpty)
+        {
+            int newline = remaining.IndexOf('\n');
+            ReadOnlySpan<char> line = newline >= 0 ? remaining[..newline] : remaining;
+            ReadOnlySpan<char> trimmed = line.Trim();
+            if (trimmed.IsEmpty || trimmed[0] == '#')
+            {
+                if (newline < 0)
+                {
+                    return false;
+                }
+
+                remaining = remaining[(newline + 1)..];
+                continue;
+            }
+
+            return trimmed.StartsWith(ClassStrings.RegoPackageMarker.AsSpan(), StringComparison.Ordinal);
+        }
+
+        return false;
     }
 
     private static void WriteDiagnostics(IReadOnlyList<TrustPolicyTranslationDiagnostic> diagnostics, TextWriter errorWriter)

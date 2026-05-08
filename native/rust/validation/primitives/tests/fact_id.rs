@@ -68,6 +68,12 @@ fn validate_fact_id_accepts_canonical_inputs() {
         "abc/v999",
         "abc-def-ghi/v1",
         "abc123/v1",
+        // Boundary cases — single-letter ids and large versions.
+        "a/v1",
+        "a/v123456789",
+        "a-b/v1",
+        // Trailing digit in id segment is fine.
+        "name1/v2",
     ];
     for s in good {
         assert!(validate_fact_id(s), "should match: {s:?}");
@@ -81,8 +87,8 @@ fn validate_fact_id_rejects_malformed_inputs() {
         "X509",                 // uppercase
         "/v1",                  // empty id
         "name/v",               // no digits
-        "name/V1",              // capital V
         "name",                 // no version
+        "name/V1",              // capital V
         "name/v1.0",            // dot in version
         "1leading-digit/v1",    // starts with digit
         "name with space/v1",   // space
@@ -93,10 +99,24 @@ fn validate_fact_id_rejects_malformed_inputs() {
         "name/v1a",             // non-digit after version digits
         "name/",                // truncated
         "name/v1/v2",           // second slash inside version
+        // Additional boundary cases — wrong sigils, partial matches.
+        "name/V",               // capital V no digits
+        "name/v",               // truncated again
+        "/",                    // bare slash
+        "//v1",                 // empty id then slash
+        " name/v1",             // leading space
+        "name/v1 ",             // trailing space
+        "ünicode/v1",           // non-ASCII
+        "name/v01",             // leading zero technically allowed by regex
     ];
-    for s in bad {
+    // Note: "name/v01" — the documented regex `^[a-z][a-z0-9-]*/v[0-9]+$`
+    // does accept leading zeros. Strip the trailing test to match the
+    // documented contract:
+    for s in bad.iter().filter(|s| **s != "name/v01") {
         assert!(!validate_fact_id(s), "should NOT match: {s:?}");
     }
+    // Documented contract intentionally permits leading-zero versions.
+    assert!(validate_fact_id("name/v01"));
 }
 
 #[test]

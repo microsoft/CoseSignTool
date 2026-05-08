@@ -231,7 +231,12 @@ impl IFactRegistry for StaticFactRegistry {
 /// All registration errors are diagnostic-coded under the `TPX3xx`
 /// family so emitters in the rest of the trust-policy pipeline can
 /// route them consistently.
+///
+/// `#[non_exhaustive]` permits future additive `TPX3xx` variants
+/// (e.g. cross-pack capability conflicts) without breaking
+/// downstream `match` consumers.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum RegistryError {
     /// Two distinct concrete fact types attempted to claim the same
     /// `FACT_ID`. Diagnostic code `TPX300`.
@@ -251,6 +256,23 @@ pub enum RegistryError {
         /// Type name that registered the malformed id.
         type_name: String,
     },
+    /// Two distinct `FACT_ID`s mapped to the same concrete `type_name`.
+    /// Forbidden because the reverse (`try_get_fact_id`) lookup would
+    /// silently lose one mapping. Diagnostic code `TPX302`.
+    ///
+    /// In practice this is unreachable through [`register_facts!`]
+    /// (each Rust type has exactly one `TrustFactWithId` impl with a
+    /// single `FACT_ID`), but [`HandRolledFactRegistry::from_packs`]
+    /// accepts arbitrary [`TrustFactDescriptor`]s, so the public
+    /// constructor has to defend the invariant.
+    DuplicateTypeName {
+        /// The type name claimed by two distinct ids.
+        type_name: String,
+        /// The id registered first against this type name.
+        first_id: String,
+        /// The id that tried to re-register.
+        second_id: String,
+    },
 }
 
 impl RegistryError {
@@ -259,6 +281,7 @@ impl RegistryError {
         match self {
             RegistryError::DuplicateId { .. } => "TPX300",
             RegistryError::InvalidIdFormat { .. } => "TPX301",
+            RegistryError::DuplicateTypeName { .. } => "TPX302",
         }
     }
 }
@@ -277,6 +300,14 @@ impl std::fmt::Display for RegistryError {
             RegistryError::InvalidIdFormat { id, type_name } => write!(
                 f,
                 "[TPX301] trust-fact id {id:?} (registered by {type_name}) does not match ^[a-z][a-z0-9-]*/v[0-9]+$ — every fact id must start with a lowercase letter, contain only [a-z0-9-], and end with /vN"
+            ),
+            RegistryError::DuplicateTypeName {
+                type_name,
+                first_id,
+                second_id,
+            } => write!(
+                f,
+                "[TPX302] trust-fact type {type_name:?} mapped to two ids: first registered as {first_id:?}, attempted to re-register as {second_id:?}"
             ),
         }
     }
@@ -309,25 +340,38 @@ impl std::error::Error for RegistryError {}
 ///
 /// Internal storage uses [`BTreeMap`] keyed by id, so iteration is
 /// stable and sorted regardless of the order packs are passed in.
+/// Lookup is O(log n) — appropriate for the single-digit-thousands
+/// upper bound on registered facts. The Phase 1 baseline is 16 facts;
+/// performance below the noise floor for any realistic registry size.
+///
+/// # Memory
+///
+/// The lookup maps are keyed by `&'static str` borrowed directly from
+/// each descriptor — fact ids and type names live in the binary's
+/// rodata via `const FACT_ID: &'static str` and `std::any::type_name`,
+/// so the registry pays no extra allocation per id beyond the single
+/// owned-String mirror that [`IFactRegistry::all_fact_ids`] returns.
 ///
 /// # Validation
 ///
 /// Construction rejects:
 /// - duplicate ids ([`RegistryError::DuplicateId`], `TPX300`),
-/// - malformed ids ([`RegistryError::InvalidIdFormat`], `TPX301`).
+/// - malformed ids ([`RegistryError::InvalidIdFormat`], `TPX301`),
+/// - duplicate type names ([`RegistryError::DuplicateTypeName`], `TPX302`).
 ///
 /// A fact type missing the `TrustFactWithId` impl is statically
 /// uncallable in `register_facts!{}` — that's a compile error, not a
 /// runtime check.
 #[derive(Debug, Clone)]
 pub struct HandRolledFactRegistry {
-    /// Forward index, id → descriptor.
-    by_id: BTreeMap<String, TrustFactDescriptor>,
-    /// Reverse index, type_name → descriptor. Type names are unique by
-    /// construction; conflicting names from two packs are rejected on
-    /// id check first (a duplicated type cannot also share a unique id).
-    by_type_name: BTreeMap<String, TrustFactDescriptor>,
-    /// Owned id set returned by [`IFactRegistry::all_fact_ids`].
+    /// Forward index, id → descriptor. Keys are `&'static str` borrows
+    /// of `descriptor.id`, so no per-id String allocation.
+    by_id: BTreeMap<&'static str, TrustFactDescriptor>,
+    /// Reverse index, type_name → descriptor. Uniqueness is enforced
+    /// at construction time ([`RegistryError::DuplicateTypeName`]).
+    by_type_name: BTreeMap<&'static str, TrustFactDescriptor>,
+    /// Owned id mirror returned by [`IFactRegistry::all_fact_ids`].
+    /// Kept owned to honor the Phase 1 trait contract.
     all_ids: BTreeSet<String>,
 }
 
@@ -347,14 +391,17 @@ impl HandRolledFactRegistry {
     ///
     /// # Errors
     ///
-    /// Returns a [`RegistryError`] when two descriptors share an id
-    /// (`TPX300`) or when any descriptor's id fails the canonical
-    /// regex (`TPX301`).
+    /// Returns a [`RegistryError`] when:
+    /// - two descriptors share an id ([`RegistryError::DuplicateId`], `TPX300`),
+    /// - a descriptor's id fails the canonical regex
+    ///   ([`RegistryError::InvalidIdFormat`], `TPX301`),
+    /// - two descriptors share a `type_name`
+    ///   ([`RegistryError::DuplicateTypeName`], `TPX302`).
     pub fn from_packs(
         pack_descriptors: &[Vec<TrustFactDescriptor>],
     ) -> Result<Self, RegistryError> {
-        let mut by_id: BTreeMap<String, TrustFactDescriptor> = BTreeMap::new();
-        let mut by_type_name: BTreeMap<String, TrustFactDescriptor> = BTreeMap::new();
+        let mut by_id: BTreeMap<&'static str, TrustFactDescriptor> = BTreeMap::new();
+        let mut by_type_name: BTreeMap<&'static str, TrustFactDescriptor> = BTreeMap::new();
         let mut all_ids: BTreeSet<String> = BTreeSet::new();
 
         for pack in pack_descriptors {
@@ -372,8 +419,15 @@ impl HandRolledFactRegistry {
                         second_type_name: descriptor.type_name.to_string(),
                     });
                 }
-                by_id.insert(descriptor.id.to_string(), descriptor.clone());
-                by_type_name.insert(descriptor.type_name.to_string(), descriptor.clone());
+                if let Some(existing) = by_type_name.get(descriptor.type_name) {
+                    return Err(RegistryError::DuplicateTypeName {
+                        type_name: descriptor.type_name.to_string(),
+                        first_id: existing.id.to_string(),
+                        second_id: descriptor.id.to_string(),
+                    });
+                }
+                by_id.insert(descriptor.id, descriptor.clone());
+                by_type_name.insert(descriptor.type_name, descriptor.clone());
                 all_ids.insert(descriptor.id.to_string());
             }
         }

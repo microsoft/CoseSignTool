@@ -203,3 +203,54 @@ fn debug_formats_for_registry_and_error() {
     let dbg = format!("{err:?}");
     assert!(dbg.contains("DuplicateId"));
 }
+
+#[test]
+fn from_packs_rejects_duplicate_type_name() {
+    // Two distinct ids mapping to the same concrete type name —
+    // public from_packs API must reject because the reverse-lookup
+    // index would otherwise silently lose one mapping.
+    let pack = vec![
+        descriptor("alpha/v1", "Same::Type"),
+        descriptor("beta/v1", "Same::Type"),
+    ];
+    let err = HandRolledFactRegistry::from_packs(&[pack]).unwrap_err();
+    match err {
+        RegistryError::DuplicateTypeName {
+            ref type_name,
+            ref first_id,
+            ref second_id,
+        } => {
+            assert_eq!(type_name, "Same::Type");
+            assert_eq!(first_id, "alpha/v1");
+            assert_eq!(second_id, "beta/v1");
+        }
+        other => panic!("expected DuplicateTypeName, got {other:?}"),
+    }
+    assert_eq!(err.diagnostic_code(), "TPX302");
+    let display = format!("{err}");
+    assert!(display.contains("TPX302"));
+    assert!(display.contains("Same::Type"));
+}
+
+#[test]
+fn registry_error_diagnostic_codes_are_stable() {
+    // Lock the TPX3xx code surface so changing it requires explicit
+    // contract review.
+    let dup = RegistryError::DuplicateId {
+        id: "x".into(),
+        first_type_name: "A".into(),
+        second_type_name: "B".into(),
+    };
+    let bad = RegistryError::InvalidIdFormat {
+        id: "x".into(),
+        type_name: "A".into(),
+    };
+    let dup_ty = RegistryError::DuplicateTypeName {
+        type_name: "A".into(),
+        first_id: "x/v1".into(),
+        second_id: "y/v1".into(),
+    };
+    assert_eq!(dup.diagnostic_code(), "TPX300");
+    assert_eq!(bad.diagnostic_code(), "TPX301");
+    assert_eq!(dup_ty.diagnostic_code(), "TPX302");
+}

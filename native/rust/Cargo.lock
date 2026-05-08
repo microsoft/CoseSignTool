@@ -866,6 +866,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "cose_sign1_trust_policy_spec"
+version = "0.1.0"
+dependencies = [
+ "cose_sign1_validation_primitives",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "cose_sign1_validation"
 version = "0.1.0"
 dependencies = [

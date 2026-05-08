@@ -20,6 +20,7 @@ members = [
   "validation/primitives",
   "validation/primitives/ffi",
   "validation/test_utils",
+  "validation/trust_policy_spec",
   "did/x509",
   "did/x509/ffi",
   "extension_packs/certificates",

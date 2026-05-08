@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <SignAssembly>True</SignAssembly>
+    <DelaySign>True</DelaySign>
+    <AssemblyOriginatorKeyFile>..\StrongNameKeys\35MSSharedLib1024.snk</AssemblyOriginatorKeyFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="NUnit" />
+    <PackageReference Include="NUnit.Analyzers" />
+    <PackageReference Include="NUnit3TestAdapter" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CoseSign1.Validation.TrustFrontends.Conformance\CoseSign1.Validation.TrustFrontends.Conformance.csproj" />
+    <ProjectReference Include="..\CoseSign1.Validation.TrustFrontends.Json\CoseSign1.Validation.TrustFrontends.Json.csproj" />
+    <ProjectReference Include="..\CoseSign1.Validation.Trust.PlanPolicy.Spec\CoseSign1.Validation.Trust.PlanPolicy.Spec.csproj" />
+  </ItemGroup>
+
+  <!--
+    Fixtures are deployed alongside the test assembly so the JsonConformanceAdapter can
+    resolve them at test time without depending on a working-directory convention. CopyToOutputDirectory
+    keeps the on-disk layout (fixtures/json/<sub>/<name>.coseTrustPolicy.json).
+  -->
+  <ItemGroup>
+    <None Include="fixtures\**\*.coseTrustPolicy.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="fixtures\**\*.coseTrustPolicy.malformed.txt" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

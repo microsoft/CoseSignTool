@@ -93,16 +93,17 @@ impl CoseTpRegoFrontend {
         seed_diagnostics: Vec<TrustPolicyTranslationDiagnostic>,
     ) -> TrustPolicyTranslationResult {
         // The lowered tree is structurally identical to the JSON frontend's
-        // expected shape. We serialise-and-reparse so the JSON frontend can
-        // drive its standard schema + walker pipeline over the same
-        // `&str` API path that real `.coseTrustPolicy.json` documents flow
-        // through. The round-trip cost is bounded by the document size.
-        let canonical_text = serde_json::to_string(&document.lowered)
-            .expect("serde_json::Value cannot fail to serialise");
-        let inner = self.json_frontend.translate_text(
-            &canonical_text,
+        // expected shape. We hand it to the JSON frontend as a typed
+        // `serde_json::Value` so the schema validator + walker run
+        // directly on the tree we materialised — no `to_string` +
+        // re-parse round-trip, and the `document_source` anchor still
+        // flows through the JSON walker for diagnostics.
+        let RegoDocument { lowered, document_source: doc_src, .. } = document;
+        let source = document_source.or(doc_src.as_deref());
+        let inner = self.json_frontend.translate_value_with_source(
+            lowered,
             ctx,
-            document_source.or_else(|| document.document_source()),
+            source,
         );
 
         if seed_diagnostics.is_empty() {
@@ -177,10 +178,14 @@ pub(crate) fn parse_into(
     let tokenizer = crate::tokenizer::Tokenizer::new(text);
     let (tokens, lex_errors) = tokenizer.tokenize();
     for le in lex_errors {
+        let prefixed = match document_source {
+            Some(src) if !src.is_empty() => format!("{}:{}:{}: {}", src, le.line, le.column, le.message),
+            _ => le.message,
+        };
         diagnostics.push(TrustPolicyTranslationDiagnostic::new(
             TrustPolicySeverity::Error,
             TPX_001_MALFORMED_REGO,
-            le.message,
+            prefixed,
             Some(SourceLocation::at(le.line, le.column)),
             None,
         ));
@@ -190,7 +195,7 @@ pub(crate) fn parse_into(
         return None;
     }
 
-    let mut parser = crate::parser::Parser::new(tokens);
+    let mut parser = crate::parser::Parser::new(tokens, document_source);
     let ast = parser.parse();
     diagnostics.extend(parser.take_diagnostics());
 

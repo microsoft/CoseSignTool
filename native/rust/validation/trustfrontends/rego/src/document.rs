@@ -50,6 +50,17 @@ impl RegoDocument {
     pub fn document_source(&self) -> Option<&str> {
         self.document_source.as_deref()
     }
+
+    /// Lowered `cose-tp-json/v1` JSON tree.
+    ///
+    /// Operator-facing accessor for debugging Rego→JSON translation
+    /// mismatches: pretty-printing this value reproduces what the JSON
+    /// frontend's schema validator + walker observes. Useful when a
+    /// diagnostic surfaces a `TPX100` schema violation and the operator
+    /// needs to see exactly what shape the parser produced.
+    pub fn lowered(&self) -> &serde_json::Value {
+        &self.lowered
+    }
 }
 
 impl std::fmt::Debug for RegoDocument {

@@ -50,20 +50,24 @@ struct Forbidden {
 }
 
 /// Recursive-descent parser. Produced from a [`Vec<Token>`].
-pub(crate) struct Parser {
+pub(crate) struct Parser<'doc> {
     tokens: Vec<Token>,
     diagnostics: Vec<TrustPolicyTranslationDiagnostic>,
+    document_source: Option<&'doc str>,
     index: usize,
     nesting_depth: usize,
 }
 
-impl Parser {
+impl<'doc> Parser<'doc> {
     /// Construct a parser over the materialised token stream produced by
-    /// [`crate::tokenizer::Tokenizer::tokenize`].
-    pub fn new(tokens: Vec<Token>) -> Self {
+    /// [`crate::tokenizer::Tokenizer::tokenize`]. `document_source` is the
+    /// optional path / URI that is woven into diagnostic suggestion text
+    /// so editor tooling can navigate back to the offending document.
+    pub fn new(tokens: Vec<Token>, document_source: Option<&'doc str>) -> Self {
         Self {
             tokens,
             diagnostics: Vec::new(),
+            document_source,
             index: 0,
             nesting_depth: 0,
         }
@@ -267,6 +271,23 @@ impl Parser {
 
     fn parse_term(&mut self) -> Option<RegoValueNode> {
         let tok = self.peek().clone();
+        // Lookahead: an identifier followed by a `|` symbol is a Rego
+        // comprehension (`[x | y > 0]` / `{k: v | …}`); surface TPX304 at
+        // the comprehension head rather than letting the parser walk
+        // into a generic TPX300 / object-key mismatch downstream. The
+        // peek is bounded — single-token lookahead, no extra tokenise
+        // cost.
+        if tok.kind == TokenKind::Identifier && self.peek_after_identifier_is_pipe() {
+            self.consume();
+            self.emit(
+                TPX_304_COMPREHENSION_REJECTED,
+                "Comprehension expressions ('|') are rejected by cose-tp-rego/v1; the constrained subset only accepts literal arrays / objects.".to_owned(),
+                tok.line,
+                tok.column,
+                None,
+            );
+            return None;
+        }
         match tok.kind {
             TokenKind::LeftBrace => self.parse_object_or_comprehension(),
             TokenKind::LeftBracket => self.parse_array_or_comprehension(),
@@ -620,10 +641,22 @@ impl Parser {
     }
 
     fn emit(&mut self, code: &str, message: String, line: u32, column: u32, suggestion: Option<String>) {
+        // Embed `document_source` into the message so editor / log
+        // tooling that receives only the diagnostic message line can
+        // still navigate back to the offending file. The
+        // `SourceLocation` itself only carries line/column today
+        // (cose_sign1_trust_policy_spec::SourceLocation is a thin
+        // numeric struct); the inline `<source>:<line>:<col>` prefix is
+        // the operability bridge until the spec layer grows a
+        // path-bearing field.
+        let prefixed = match self.document_source {
+            Some(src) if !src.is_empty() => format!("{src}:{line}:{column}: {message}"),
+            _ => message,
+        };
         let mut diag = TrustPolicyTranslationDiagnostic::new(
             TrustPolicySeverity::Error,
             code,
-            message,
+            prefixed,
             Some(self.make_location(line, column)),
             None,
         );

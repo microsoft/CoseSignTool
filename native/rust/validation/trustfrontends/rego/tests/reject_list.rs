@@ -253,10 +253,10 @@ fn tpx303_data_qualifier_is_rejected() {
 fn tpx304_array_comprehension_is_rejected() {
     let doc = "package cose_trust_policy\n\npolicy := {\n    \"primary_signing_key\": {\n        \"all_of\": [x | x > 0]\n    }\n}\n";
     let diags = translate(doc);
-    assert!(
-        diags.iter().any(|(c, _)| c == "TPX304" || c == "TPX300"),
-        "comprehension surfaced unexpected diagnostic set: {diags:?}",
-    );
+    // Comprehension shape MUST surface TPX304 verbatim — accepting the
+    // generic TPX300 fallback would hide a regression that downgrades a
+    // closed-grammar comprehension to the catch-all bucket.
+    assert_code(&diags, "TPX304");
 }
 
 #[test]

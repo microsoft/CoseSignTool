@@ -38,7 +38,23 @@ use cose_sign1_trustfrontends_conformance::{ConformanceAdapter, JsonConformanceA
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
-/// Conformance adapter for the constrained `cose-tp-rego/v1` frontend.
+/// [`RegoConformanceAdapter`] — adapter that wires the constrained
+/// `cose-tp-rego/v1` frontend into the Phase 4 conformance harness.
+///
+/// The adapter ships in this crate (rather than the conformance crate)
+/// because conformance only depends on JSON; reversing the dependency to
+/// host a Rego adapter inside conformance would force conformance to
+/// pull every future frontend it knows about. Living in the rego crate
+/// keeps the dependency direction one-way and lets every shipping
+/// frontend ship its own adapter without touching conformance.
+///
+/// `fixture_extension()` returns `coseTrustPolicy.rego`; combined with
+/// the JSON adapter's `coseTrustPolicy.json`, every fixture under
+/// `conformance/fixtures/<scenario>/` gains a Rego sibling that the
+/// `(json, rego)` cross-equivalence harness compares byte-for-byte.
+/// Adding a new fact id to the canonical baseline therefore demands a
+/// matching Rego fixture, which is the §6.5.10 #2 attribute-fidelity
+/// gate.
 #[derive(Debug, Clone)]
 pub struct RegoConformanceAdapter {
     fact_ids: BTreeSet<String>,

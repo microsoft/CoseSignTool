@@ -213,16 +213,42 @@ extern. Rationale:
   tree the existing FFI extern accepts.
 - Adding a Rego extern would expand the C-ABI surface and force a
   `cbindgen` re-run plus a header-drift assertion update.
-- FFI consumers that need Rego support today can either:
-  1. Link against `cose_sign1_trustfrontends_rego` directly via the
-     `extern "C"` boundary their host language exposes, or
-  2. Lower the Rego document to JSON in the host language (every
-     `cose-tp-json/v1` document expressing a given logical policy is a
-     legal target — vocabulary and shape match), then call the JSON
-     extern.
 
-If FFI consumer demand surfaces in a later phase, the extern can be added
-additively; the absence here is forward-compatible.
+This crate currently exposes Rust APIs only — there is no shipped
+`extern "C"` boundary on the Rego frontend itself. Non-Rust hosts have
+two options:
+
+1. **Lower in the host language.** Translate the Rego document to its
+   `cose-tp-json/v1` equivalent in the host language (the vocabulary
+   matches; only the syntax differs), then call the existing
+   `cose_sign1_trust_policy_translate_json` extern.
+2. **Build their own Rust shim.** Wrap a thin
+   `extern "C" fn translate_rego(...)` over `CoseTpRegoFrontend` in a
+   purpose-built bridge crate, ship it alongside the host's binary, and
+   link against it.
+
+If FFI consumer demand surfaces in a later phase, an extern can be added
+additively in this crate without breaking either path; the absence here
+is forward-compatible.
+
+## Reading diagnostics (operator guide)
+
+Every diagnostic emitted by `CoseTpRegoFrontend` carries:
+
+| Field | Meaning |
+| --- | --- |
+| `code` | Stable `TPXxxx` identifier (see Reject-list above). Switch on this in tooling rather than the message string. |
+| `message` | Human-readable description; when a `document_source` was supplied to `translate_text`, the message is prefixed `<source>:<line>:<col>: ` so editor / log tooling can navigate back to the offending file. |
+| `severity` | Always `Error` for parse failures (totality contract — no partial successes). |
+| `location` | 1-based `(line, column)` anchoring the offending construct. |
+| `suggestion` | Optional remediation hint for the reject-list family (e.g. `Replace 'data.<name>' with 'input.<name>' …` for TPX303). |
+
+For deeper debugging — for example when a `TPX100` (JSON-shape
+violation) surfaces but the underlying Rego document looks correct — the
+crate exposes `RegoDocument::lowered()` which returns the lowered
+`serde_json::Value` exactly as it reaches the JSON walker. Pretty-print
+that tree to see what shape the parser produced and where the JSON
+schema disagrees with it.
 
 ## Cross-port note
 

@@ -111,6 +111,24 @@ impl CoseTpJsonFrontend {
             TrustPolicyTranslationResult::success(spec, diagnostics)
         }
     }
+
+    /// Translate an already-parsed [`serde_json::Value`] tree without the
+    /// text round-trip [`Self::translate_text`] performs.
+    ///
+    /// Phase 5a (Rego) materialises a `Value` from its lowered AST and
+    /// would otherwise pay an avoidable `to_string` + re-parse cost going
+    /// back through `translate_text`. Exposing the value-direct path
+    /// keeps the diagnostic anchor (`document_source`) flowing through
+    /// the JSON walker without forcing each upstream frontend to cope
+    /// with the trait's no-source `translate` overload.
+    pub fn translate_value_with_source(
+        &self,
+        document: Value,
+        ctx: &TrustPolicyTranslationContext,
+        document_source: Option<&str>,
+    ) -> TrustPolicyTranslationResult {
+        self.translate_value(document, ctx, document_source, Vec::new())
+    }
 }
 
 impl Default for CoseTpJsonFrontend {

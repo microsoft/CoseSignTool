@@ -234,6 +234,21 @@ The document's `RequireFact` entries reference stable fact ids attribute-tagged 
 - Don't put trust roots / certs / private keys inline. Trust roots flow via `ITrustPack` configuration; the document references fact ids that *describe* the assertion.
 - The full design rationale lives in the eval doc: `eval-trust-policy-translation-contract.md`. The per-frontend project READMEs (`CoseSign1.Validation.TrustFrontends.Json/README.md`, `CoseSign1.Validation.TrustFrontends.Rego/README.md`) document grammar specifics, diagnostic codes, and library-integration code samples.
 
+### Cross-port compatibility — same file, two CLIs
+
+The same `.coseTrustPolicy.json` or `.coseTrustPolicy.rego` file is portable between the .NET V2 CLI (`cosesigntool`) and the native Rust CLI (`cose-rs`) — by design. Four protection layers, each locked by a separate test in CI:
+
+| Layer | What's locked |
+|-------|---------------|
+| Schema byte-identical | `V2/schemas/cose-tp/v1.json` (.NET) and `native/rust/validation/trustfrontends/json/schemas/cose-tp/v1.json` (Rust) match byte-for-byte after CRLF→LF normalisation. |
+| Canonical IR byte-equal | Same document → byte-identical canonical-JSON IR on both sides. |
+| Fact id set identical | The 16 stable v1 ids are tagged on .NET fact types and Rust fact types via the same string literals. |
+| CLI flag identical | Both CLIs accept `--trust-policy <path>` + `--trust-policy-param key=value` with D8 override semantics. |
+
+Worked example, fixture, and reproducible demo script: [`V2/docs/examples/trust-policy/`](../examples/trust-policy/README.md).
+
+The portable surface is the **policy document** and the **canonical IR it translates to**. Diagnostic *codes* (`TPX001`, `TPX200`, etc.) are part of the contract; diagnostic message text is not. Pack fact producers are independently implemented; edge cases in chain validation, revocation handling, etc. may differ between implementations.
+
 ## Troubleshooting
 
 If trust fails, `result.Trust` contains the denial reasons from the plan evaluation:

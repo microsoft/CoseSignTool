@@ -1,0 +1,25 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/CoseSignTool/main/V2/schemas/cose-tp/v1.json",
+  "frontend": "cose-tp-json/v1",
+  "primary_signing_key": {
+    "all_of": [
+      { "fact": "x509-chain-trusted/v1",         "predicate": { "is_trusted": true } },
+      { "fact": "x509-cert-identity-allowed/v1", "predicate": { "is_allowed": true } }
+    ]
+  },
+  "any_counter_signature": {
+    "on_empty": "deny",
+    "all_of": [
+      { "fact": "mst-receipt-present/v1", "predicate": { "is_present": true } },
+      { "fact": "mst-receipt-trusted/v1", "predicate": { "is_trusted": true } },
+      { "fact": "mst-receipt-issuer-host/v1",
+        "predicate": {
+          "operator": "In",
+          "path": "$.host",
+          "value": { "$param": "trusted_log_hosts" }
+        }
+      }
+    ]
+  },
+  "combinator": "and"
+}

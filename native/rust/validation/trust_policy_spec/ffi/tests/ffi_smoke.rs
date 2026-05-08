@@ -371,47 +371,6 @@ fn compile_to_result_succeeds_and_optionally_returns_plan() {
 }
 
 #[test]
-fn compile_to_result_with_unknown_fact_id_carries_diagnostic() {
-    // The schema wouldn't accept a totally fabricated fact id at translate-time
-    // (since translation is currently capability-untyped — TPX200 is a compile-time
-    // check). Use a syntactically-valid id that isn't in the workspace registry.
-    let doc = r#"{
-        "frontend": "cose-tp-json/v1",
-        "message": [
-            {
-                "fact": "totally-not-a-real-fact/v1",
-                "predicate": { "is_real": false }
-            }
-        ]
-    }"#;
-    let result = translate(doc);
-    if cose_sign1_trust_policy_result_is_success(result) == 0 {
-        // Translation may already reject it via TPX200; that's a valid outcome.
-        cose_sign1_trust_policy_result_free(result);
-        return;
-    }
-    let spec = cose_sign1_trust_policy_result_spec(result);
-    assert!(!spec.is_null());
-
-    let mut compile_result: *mut cose_sign1_trust_policy_translation_result_t = ptr::null_mut();
-    let status = cose_sign1_trust_policy_spec_compile_to_result(
-        spec,
-        &mut compile_result,
-        ptr::null_mut(),
-    );
-    assert_eq!(status, cose_status_t::COSE_OK);
-    assert!(!compile_result.is_null());
-    assert_eq!(cose_sign1_trust_policy_result_is_success(compile_result), 0);
-    let diag = cose_sign1_trust_policy_result_diagnostic_at(compile_result, 0);
-    assert!(!diag.is_null());
-    let code = read_diag_code(diag);
-    assert_eq!(code, "TPX200");
-
-    cose_sign1_trust_policy_result_free(compile_result);
-    cose_sign1_trust_policy_spec_free(spec);
-    cose_sign1_trust_policy_result_free(result);
-}
-
 #[test]
 fn compile_to_result_null_args() {
     // Null spec — error.
@@ -506,6 +465,239 @@ fn diagnostic_read_with_partial_out_pointers() {
     assert!(msg.to_lowercase().contains("malformed") || msg.to_lowercase().contains("json"));
 
     cose_sign1_trust_policy_result_free(result);
+}
+
+#[test]
+fn bind_with_null_params_and_nonzero_len_is_an_error() {
+    let result = translate(r#"{ "frontend": "cose-tp-json/v1", "message": {"allow_all": true} }"#);
+    let spec = cose_sign1_trust_policy_result_spec(result);
+    let mut bound: *mut cose_sign1_trust_policy_translation_result_t = ptr::null_mut();
+    let status = cose_sign1_trust_policy_spec_bind(spec, ptr::null(), 42, &mut bound);
+    assert_ne!(status, cose_status_t::COSE_OK);
+    cose_sign1_trust_policy_spec_free(spec);
+    cose_sign1_trust_policy_result_free(result);
+}
+
+#[test]
+fn bind_with_malformed_json_parameters_is_an_error() {
+    let result = translate(r#"{ "frontend": "cose-tp-json/v1", "message": {"allow_all": true} }"#);
+    let spec = cose_sign1_trust_policy_result_spec(result);
+    let params = b"{ broken json";
+    let mut bound: *mut cose_sign1_trust_policy_translation_result_t = ptr::null_mut();
+    let status =
+        cose_sign1_trust_policy_spec_bind(spec, params.as_ptr(), params.len(), &mut bound);
+    assert_ne!(status, cose_status_t::COSE_OK);
+    cose_sign1_trust_policy_spec_free(spec);
+    cose_sign1_trust_policy_result_free(result);
+}
+
+#[test]
+fn compile_to_result_with_unknown_fact_id_carries_diagnostic() {
+    // The schema accepts any well-formed fact-id slug. Translation does NOT
+    // verify the id against a registry (capability gating is opt-in via
+    // TrustPolicyTranslationContext::available_facts, and we use the empty
+    // context). So translate succeeds and compile is the place that surfaces
+    // the unknown id as TPX200.
+    let doc = r#"{
+        "frontend": "cose-tp-json/v1",
+        "primary_signing_key": {
+            "fact": "totally-not-a-real-fact/v1",
+            "predicate": { "is_real": false }
+        }
+    }"#;
+    let result = translate(doc);
+    assert_eq!(
+        cose_sign1_trust_policy_result_is_success(result),
+        1,
+        "translate must succeed without capability gating; diagnostics={:?}",
+        (0..cose_sign1_trust_policy_result_diagnostic_count(result))
+            .map(|i| read_diag_code(cose_sign1_trust_policy_result_diagnostic_at(result, i)))
+            .collect::<Vec<_>>()
+    );
+    let spec = cose_sign1_trust_policy_result_spec(result);
+    assert!(!spec.is_null());
+
+    let mut compile_result: *mut cose_sign1_trust_policy_translation_result_t = ptr::null_mut();
+    let status = cose_sign1_trust_policy_spec_compile_to_result(
+        spec,
+        &mut compile_result,
+        ptr::null_mut(),
+    );
+    assert_eq!(status, cose_status_t::COSE_OK);
+    assert!(!compile_result.is_null());
+    assert_eq!(cose_sign1_trust_policy_result_is_success(compile_result), 0);
+    let diag = cose_sign1_trust_policy_result_diagnostic_at(compile_result, 0);
+    assert!(!diag.is_null());
+    let code = read_diag_code(diag);
+    assert_eq!(code, "TPX200");
+
+    cose_sign1_trust_policy_result_free(compile_result);
+    cose_sign1_trust_policy_spec_free(spec);
+    cose_sign1_trust_policy_result_free(result);
+}
+
+#[test]
+fn compile_with_unknown_fact_id_returns_error_status() {
+    let doc = r#"{
+        "frontend": "cose-tp-json/v1",
+        "primary_signing_key": {
+            "fact": "totally-not-a-real-fact/v1",
+            "predicate": { "is_real": false }
+        }
+    }"#;
+    let result = translate(doc);
+    assert_eq!(cose_sign1_trust_policy_result_is_success(result), 1);
+    let spec = cose_sign1_trust_policy_result_spec(result);
+    let mut plan: *mut cose_sign1_trust_policy_compiled_plan_t = ptr::null_mut();
+    let status = cose_sign1_trust_policy_spec_compile(spec, &mut plan);
+    assert_ne!(status, cose_status_t::COSE_OK);
+    assert!(plan.is_null());
+    cose_sign1_trust_policy_spec_free(spec);
+    cose_sign1_trust_policy_result_free(result);
+}
+
+#[test]
+fn compile_to_result_error_clears_out_plan() {
+    let doc = r#"{
+        "frontend": "cose-tp-json/v1",
+        "primary_signing_key": {
+            "fact": "totally-not-a-real-fact/v1",
+            "predicate": { "is_real": false }
+        }
+    }"#;
+    let result = translate(doc);
+    assert_eq!(cose_sign1_trust_policy_result_is_success(result), 1);
+    let spec = cose_sign1_trust_policy_result_spec(result);
+
+    // Pre-populate out_plan with a sentinel so the error path's explicit overwrite is
+    // observable.
+    let sentinel: *mut cose_sign1_trust_policy_compiled_plan_t = 0xDEADBEEF as *mut _;
+    let mut plan = sentinel;
+    let mut compile_result: *mut cose_sign1_trust_policy_translation_result_t = ptr::null_mut();
+    let status = cose_sign1_trust_policy_spec_compile_to_result(
+        spec,
+        &mut compile_result,
+        &mut plan,
+    );
+    assert_eq!(status, cose_status_t::COSE_OK);
+    assert_eq!(cose_sign1_trust_policy_result_is_success(compile_result), 0);
+    assert!(plan.is_null(), "compile-error path must reset out_plan to null");
+
+    cose_sign1_trust_policy_result_free(compile_result);
+    cose_sign1_trust_policy_spec_free(spec);
+    cose_sign1_trust_policy_result_free(result);
+}
+
+#[test]
+fn has_parameters_walks_logical_combinators() {
+    // and / or — must be inside a scope per the schema.
+    let doc_and = r#"{
+        "frontend": "cose-tp-json/v1",
+        "primary_signing_key": {
+            "all_of": [
+                { "fact": "x509-cert-identity/v1",
+                  "predicate": { "thumbprint": { "$param": "x", "default": "abc" } } },
+                { "fact": "x509-chain-trusted/v1", "predicate": { "is_trusted": true } }
+            ]
+        }
+    }"#;
+    let r = translate(doc_and);
+    assert_eq!(cose_sign1_trust_policy_result_is_success(r), 1);
+    let s = cose_sign1_trust_policy_result_spec(r);
+    assert_eq!(cose_sign1_trust_policy_spec_has_parameters(s), 1);
+    cose_sign1_trust_policy_spec_free(s);
+    cose_sign1_trust_policy_result_free(r);
+
+    let doc_or = r#"{
+        "frontend": "cose-tp-json/v1",
+        "primary_signing_key": {
+            "any_of": [
+                { "fact": "x509-chain-trusted/v1", "predicate": { "is_trusted": true } },
+                { "fact": "x509-cert-eku/v1",      "predicate": { "is_eku": true } }
+            ]
+        }
+    }"#;
+    let r = translate(doc_or);
+    assert_eq!(cose_sign1_trust_policy_result_is_success(r), 1);
+    let s = cose_sign1_trust_policy_result_spec(r);
+    assert_eq!(cose_sign1_trust_policy_spec_has_parameters(s), 0);
+    cose_sign1_trust_policy_spec_free(s);
+    cose_sign1_trust_policy_result_free(r);
+
+    // not — also inside a scope.
+    let doc_not = r#"{
+        "frontend": "cose-tp-json/v1",
+        "primary_signing_key": {
+            "not": { "fact": "x509-cert-eku/v1", "predicate": { "is_codesigning": true } },
+            "reason": "must not be code-signing"
+        }
+    }"#;
+    let r = translate(doc_not);
+    if cose_sign1_trust_policy_result_is_success(r) == 1 {
+        let s = cose_sign1_trust_policy_result_spec(r);
+        assert_eq!(cose_sign1_trust_policy_spec_has_parameters(s), 0);
+        cose_sign1_trust_policy_spec_free(s);
+    }
+    cose_sign1_trust_policy_result_free(r);
+}
+
+#[test]
+fn has_parameters_walks_property_assertion_and_path_operator_predicates() {
+    // path-operator predicate without a $param is parameter-free.
+    let doc_path = r#"{
+        "frontend": "cose-tp-json/v1",
+        "primary_signing_key": {
+            "fact": "x509-cert-identity/v1",
+            "predicate": { "path": "thumbprint", "operator": "exists" }
+        }
+    }"#;
+    let r = translate(doc_path);
+    if cose_sign1_trust_policy_result_is_success(r) == 1 {
+        let s = cose_sign1_trust_policy_result_spec(r);
+        assert_eq!(cose_sign1_trust_policy_spec_has_parameters(s), 0);
+        cose_sign1_trust_policy_spec_free(s);
+    }
+    cose_sign1_trust_policy_result_free(r);
+
+    // property-assertion predicate without a $param.
+    let doc_prop = r#"{
+        "frontend": "cose-tp-json/v1",
+        "primary_signing_key": {
+            "fact": "x509-cert-identity/v1",
+            "predicate": { "thumbprint": "abc" }
+        }
+    }"#;
+    let r = translate(doc_prop);
+    if cose_sign1_trust_policy_result_is_success(r) == 1 {
+        let s = cose_sign1_trust_policy_result_spec(r);
+        assert_eq!(cose_sign1_trust_policy_spec_has_parameters(s), 0);
+        cose_sign1_trust_policy_spec_free(s);
+    }
+    cose_sign1_trust_policy_result_free(r);
+}
+
+#[test]
+fn diagnostic_severity_mapping_is_round_trip_stable() {
+    use cose_sign1_trust_policy_spec::TrustPolicySeverity;
+    use cose_sign1_trust_policy_spec_ffi::cose_sign1_trust_policy_severity_t;
+
+    assert_eq!(
+        cose_sign1_trust_policy_severity_t::from_severity(TrustPolicySeverity::Error) as u8,
+        cose_sign1_trust_policy_severity_t::COSE_TP_SEVERITY_ERROR as u8,
+    );
+    assert_eq!(
+        cose_sign1_trust_policy_severity_t::from_severity(TrustPolicySeverity::Warning) as u8,
+        cose_sign1_trust_policy_severity_t::COSE_TP_SEVERITY_WARNING as u8,
+    );
+    assert_eq!(
+        cose_sign1_trust_policy_severity_t::from_severity(TrustPolicySeverity::Info) as u8,
+        cose_sign1_trust_policy_severity_t::COSE_TP_SEVERITY_INFO as u8,
+    );
+
+    // Discriminants are ABI-stable.
+    assert_eq!(cose_sign1_trust_policy_severity_t::COSE_TP_SEVERITY_ERROR as u8, 0);
+    assert_eq!(cose_sign1_trust_policy_severity_t::COSE_TP_SEVERITY_WARNING as u8, 1);
+    assert_eq!(cose_sign1_trust_policy_severity_t::COSE_TP_SEVERITY_INFO as u8, 2);
 }
 
 #[test]

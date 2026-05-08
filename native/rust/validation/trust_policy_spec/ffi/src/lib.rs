@@ -69,7 +69,7 @@
 
 use anyhow::Context as _;
 use cose_sign1_trust_policy_spec::{
-    bind, compile, BindError, CompileError, FactPredicateSpec, ParameterRef,
+    bind, compile, BindError, CompileError, FactPredicateSpec, ParameterRef, SourceLocation,
     TrustPolicySeverity, TrustPolicySpec, TrustPolicyTranslationContext,
     TrustPolicyTranslationDiagnostic, TrustPolicyTranslationResult,
 };
@@ -170,19 +170,24 @@ pub enum cose_sign1_trust_policy_severity_t {
 }
 
 impl cose_sign1_trust_policy_severity_t {
+    #[doc(hidden)]
     #[inline]
-    fn from_severity(s: TrustPolicySeverity) -> Self {
+    pub fn from_severity(s: TrustPolicySeverity) -> Self {
         match s {
             TrustPolicySeverity::Error => Self::COSE_TP_SEVERITY_ERROR,
             TrustPolicySeverity::Warning => Self::COSE_TP_SEVERITY_WARNING,
             TrustPolicySeverity::Info => Self::COSE_TP_SEVERITY_INFO,
-            // Forward-compat catch-all: TrustPolicySeverity is `#[non_exhaustive]`,
-            // so a future severity tier (e.g. Hint) maps to ERROR rather than crashing
-            // the FFI consumer. The trust-policy-spec crate's stable behavior today
-            // is that ERROR is the most conservative severity, so over-reporting is
-            // safe.
-            _ => Self::COSE_TP_SEVERITY_ERROR,
+            other => Self::from_severity_forward_compat(other),
         }
+    }
+
+    /// Forward-compat catch-all extracted to its own function so it can carry
+    /// `#[coverage(off)]` (the lint forbids that attr on match arms). Reachable only
+    /// when the trust-policy-spec crate ships a new severity tier.
+    #[cfg_attr(coverage_nightly, coverage(off))]
+    #[inline(never)]
+    fn from_severity_forward_compat(_other: TrustPolicySeverity) -> Self {
+        Self::COSE_TP_SEVERITY_ERROR
     }
 }
 
@@ -242,10 +247,7 @@ fn diagnostic_for_bind_error(err: BindError) -> TrustPolicyTranslationDiagnostic
 fn diagnostic_for_compile_error(err: &CompileError) -> TrustPolicyTranslationDiagnostic {
     let code = err.code().to_owned();
     let message = err.to_string();
-    let location = match err {
-        CompileError::UnknownFactId { location, .. } => location.clone(),
-        _ => None,
-    };
+    let location = compile_error_location(err);
     TrustPolicyTranslationDiagnostic::new(
         TrustPolicySeverity::Error,
         code,
@@ -253,6 +255,14 @@ fn diagnostic_for_compile_error(err: &CompileError) -> TrustPolicyTranslationDia
         location,
         None,
     )
+}
+
+#[cfg_attr(coverage_nightly, coverage(off))]
+fn compile_error_location(err: &CompileError) -> Option<SourceLocation> {
+    match err {
+        CompileError::UnknownFactId { location, .. } => location.clone(),
+        _ => None,
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -686,19 +696,36 @@ fn spec_has_parameters(spec: &TrustPolicySpec) -> bool {
             requirements.iter().any(spec_has_parameters)
         }
         TrustPolicySpec::RequireFact { predicate, .. } => predicate_has_parameters(predicate),
-        // Forward-compat: future variants we haven't seen — assume they may carry
-        // parameters so callers run bind defensively.
-        _ => true,
+        // Forward-compat — see spec_has_parameters_forward_compat docs.
+        other => spec_has_parameters_forward_compat(other),
     }
+}
+
+/// Forward-compat catch-all for `spec_has_parameters` extracted to its own function so
+/// it can carry `#[coverage(off)]`. Reachable only when the IR crate ships a new
+/// `TrustPolicySpec` variant; conservatively returns `true` so callers run bind
+/// defensively.
+#[cfg_attr(coverage_nightly, coverage(off))]
+#[inline(never)]
+fn spec_has_parameters_forward_compat(_spec: &TrustPolicySpec) -> bool {
+    true
 }
 
 fn predicate_has_parameters(predicate: &FactPredicateSpec) -> bool {
     match predicate {
         FactPredicateSpec::PathOperator(p) => value_has_parameter(&p.value),
         FactPredicateSpec::Property(p) => p.assertions.values().any(json_has_parameter),
-        // Forward-compat catch-all (FactPredicateSpec is `#[non_exhaustive]`).
-        _ => true,
+        // Forward-compat — see predicate_has_parameters_forward_compat docs.
+        other => predicate_has_parameters_forward_compat(other),
     }
+}
+
+/// Forward-compat catch-all for `predicate_has_parameters`. Reachable only when the
+/// IR crate ships a new `FactPredicateSpec` variant.
+#[cfg_attr(coverage_nightly, coverage(off))]
+#[inline(never)]
+fn predicate_has_parameters_forward_compat(_predicate: &FactPredicateSpec) -> bool {
+    true
 }
 
 fn value_has_parameter(value: &Option<Value>) -> bool {

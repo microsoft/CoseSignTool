@@ -210,3 +210,32 @@ impl FactProperties for MstReceiptSignatureVerifiedFact {
         }
     }
 }
+
+// =====================================================================
+// TrustFactWithId — Phase 3 (np-fact-registry, R1).
+//
+// IDs MUST be byte-identical to Phase 1's StaticFactRegistry baseline.
+// =====================================================================
+
+use cose_sign1_validation_primitives::{validate_fact_id, TrustFactWithId};
+
+impl TrustFactWithId for MstReceiptPresentFact {
+    const FACT_ID: &'static str = "mst-receipt-present/v1";
+}
+const _: () = assert!(validate_fact_id(
+    <MstReceiptPresentFact as TrustFactWithId>::FACT_ID
+));
+
+impl TrustFactWithId for MstReceiptTrustedFact {
+    const FACT_ID: &'static str = "mst-receipt-trusted/v1";
+}
+const _: () = assert!(validate_fact_id(
+    <MstReceiptTrustedFact as TrustFactWithId>::FACT_ID
+));
+
+impl TrustFactWithId for MstReceiptIssuerFact {
+    const FACT_ID: &'static str = "mst-receipt-issuer-host/v1";
+}
+const _: () = assert!(validate_fact_id(
+    <MstReceiptIssuerFact as TrustFactWithId>::FACT_ID
+));

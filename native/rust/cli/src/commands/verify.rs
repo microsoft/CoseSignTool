@@ -4,6 +4,7 @@
 //! `CoseSignTool verify {x509|scitt} <signature> [--payload <file>]`
 
 use crate::output::{self, OutputFormat};
+use crate::commands::trust_policy_override;
 use anyhow::{Context, Result};
 use clap::{ArgAction, Args, Command as ClapCommand, Subcommand};
 use cose_sign1_certificates::validation::facts::{
@@ -71,6 +72,23 @@ pub struct VerifyX509Args {
     /// Allow specific signing certificate thumbprint (SHA-256 hex)
     #[arg(long = "allow-thumbprint", value_name = "thumbprint")]
     pub allow_thumbprint: Option<String>,
+
+    /// Path to a `.coseTrustPolicy.json` document that overrides the pack's default
+    /// trust plan (per design decision D8). When supplied, the verify command compiles
+    /// the document into a CompiledTrustPlan and runs it against the message; pack
+    /// fact producers stay registered so `RequireFact` references resolve.
+    #[arg(long = "trust-policy", value_name = "path")]
+    pub trust_policy: Option<String>,
+
+    /// Parameter binding for the `--trust-policy` document, in `key=value` form.
+    /// May be repeated. Values are parsed as JSON literals when possible (so
+    /// numbers/booleans/arrays/objects bind correctly); otherwise treated as strings.
+    #[arg(
+        long = "trust-policy-param",
+        value_name = "key=value",
+        action = clap::ArgAction::Append
+    )]
+    pub trust_policy_param: Vec<String>,
 }
 
 /// Arguments for SCITT verification.
@@ -149,11 +167,16 @@ fn execute_x509(args: VerifyX509Args, format: OutputFormat) -> Result<i32> {
     };
     let cert_pack: Arc<dyn CoseSign1TrustPack> =
         Arc::new(X509CertificateTrustPack::new(trust_options));
-    let validator =
-        build_validator(cert_pack, args.allow_thumbprint.as_deref())?.with_options(|options| {
-            options.detached_payload = detached_payload;
-            options.skip_post_signature_validation = args.signature_only;
-        });
+    let validator = build_validator(
+        cert_pack,
+        args.allow_thumbprint.as_deref(),
+        args.trust_policy.as_deref(),
+        &args.trust_policy_param,
+    )?
+    .with_options(|options| {
+        options.detached_payload = detached_payload;
+        options.skip_post_signature_validation = args.signature_only;
+    });
 
     let result = validator
         .validate_arc(message, raw_arc)
@@ -365,8 +388,21 @@ fn build_scitt_validator(
 fn build_validator(
     cert_pack: Arc<dyn CoseSign1TrustPack>,
     allowed_thumbprint: Option<&str>,
+    trust_policy_path: Option<&str>,
+    trust_policy_params: &[String],
 ) -> Result<CoseSign1Validator> {
     let trust_packs = vec![cert_pack];
+
+    if let Some(policy_path) = trust_policy_path {
+        // D8 OVERRIDE: --trust-policy supersedes pack defaults. Pack fact producers
+        // stay registered (via trust_packs) so RequireFact references resolve.
+        let bundled = trust_policy_override::compile_override(
+            policy_path,
+            trust_policy_params,
+            trust_packs.clone(),
+        )?;
+        return Ok(CoseSign1Validator::new(bundled));
+    }
 
     if let Some(thumbprint) = allowed_thumbprint {
         let now_unix_seconds = SystemTime::now()

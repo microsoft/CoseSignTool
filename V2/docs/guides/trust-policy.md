@@ -122,6 +122,118 @@ If you need an explicit, deployment-specific requirement that is not covered by 
 In the CLI, plugin providers contribute `TrustPlanPolicy` fragments which are AND-ed together.
 In a library integration, prefer configuring packs (options) where possible; author explicit policies when you need a hard requirement.
 
+## Document-driven trust policy
+
+In addition to the code-driven fluent surface described above, V2 supports loading a trust policy from a versioned text document (`.coseTrustPolicy.json` or `.coseTrustPolicy.rego`). Compliance/security authors edit the document; the CLI loads it; the validator enforces it. Same `CompiledTrustPlan`, different input path.
+
+### CLI usage
+
+```bash
+cosesigntool verify x509 signed.cose \
+    --trust-roots ca.pem \
+    --trust-policy ./trust.coseTrustPolicy.json \
+    --trust-policy-param trusted_log_hosts='["dataplane.codetransparency.azure.net"]'
+```
+
+When `--trust-policy <path>` is supplied, the document is the **sole source of trust requirements** for that invocation. Pack default contributions (`ITrustPack.GetDefaults()`) are **bypassed**; pack fact producers stay registered so the document's `RequireFact` references resolve. This is the deliberate D8 override semantic — what the operator sees in the file is exactly what the verifier enforces, with no implicit ANDed-in defaults.
+
+Without `--trust-policy`, existing pack-default behaviour is unchanged.
+
+### JSON document format (`cose-tp-json/v1`)
+
+The canonical reference frontend. Documents validate against an embedded JSON Schema; comments and trailing commas (JSONC) are accepted. Example:
+
+```jsonc
+// trust.coseTrustPolicy.json
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/CoseSignTool/main/V2/schemas/cose-tp/v1.json",
+  "frontend": "cose-tp-json/v1",
+  "primary_signing_key": {
+    "all_of": [
+      { "fact": "x509-chain-trusted/v1",         "predicate": { "is_trusted": true } },
+      { "fact": "x509-cert-identity-allowed/v1", "predicate": { "is_allowed": true } }
+    ]
+  },
+  "any_counter_signature": {
+    "on_empty": "deny",
+    "all_of": [
+      { "fact": "mst-receipt-present/v1", "predicate": { "is_present": true } },
+      { "fact": "mst-receipt-trusted/v1", "predicate": { "is_trusted": true } },
+      { "fact": "mst-receipt-issuer-host/v1",
+        "predicate": {
+          "operator": "In",
+          "path": "$.host",
+          "value": { "$param": "trusted_log_hosts" }
+        }
+      }
+    ]
+  },
+  "combinator": "and"
+}
+```
+
+Predicates support two forms (D1 hybrid):
+
+- **Property-shorthand** (`{ "is_trusted": true }`) — terse for boolean/scalar properties of a fact.
+- **Path/operator** (`{ "path": "$.host", "operator": "In", "value": ... }`) — uniform shape for every fact; lets you assert across nested structure or use comparison operators.
+
+Both forms compile to byte-identical IR. Use whichever reads better in PR review.
+
+### Rego document format (`cose-tp-rego/v1`)
+
+For organizations standardising on OPA/Rego. The frontend parses a constrained Rego subset and lowers it onto the same IR; no Rego policy is ever executed (no built-ins, no HTTP, no filesystem, no `regex`). Example:
+
+```rego
+# trust.coseTrustPolicy.rego
+package cose_trust_policy
+
+import future.keywords.in
+
+policy := {
+    "primary_signing_key": {
+        "all_of": [
+            {"fact": "x509-chain-trusted/v1",         "predicate": {"is_trusted": true}},
+            {"fact": "x509-cert-identity-allowed/v1", "predicate": {"is_allowed": true}}
+        ]
+    },
+    "any_counter_signature": {
+        "on_empty": "deny",
+        "all_of": [
+            {"fact": "mst-receipt-trusted/v1", "predicate": {"is_trusted": true}}
+        ]
+    },
+    "combinator": "and"
+}
+```
+
+Logical policies expressed in JSON and Rego that translate to the same IR are byte-identical at the canonical-JSON level — verified by the cross-frontend conformance suite. You can pick whichever language fits your existing review pipeline.
+
+### Parameters
+
+`$param` references in JSON (and `input.<name>` in Rego) are replaced at translation time by values from `--trust-policy-param key=value` (repeatable). Unbound parameters with no in-document `default` produce diagnostic `TPX400` and the verify command fails — there is no silent default substitution.
+
+### Available fact ids
+
+The document's `RequireFact` entries reference stable fact ids attribute-tagged on each fact CLR type. The current set (16 v1 ids) is enumerated in `CoseSign1.Validation.Trust.PlanPolicy.Spec/Registry/StaticFactRegistry.cs` and exposed at runtime via `IFactRegistry.AllFactIds`. Renaming a v1 id is a v2 breaking change; new facts get new `/v1` ids and are added without disturbing existing ones.
+
+### Diagnostic codes
+
+| Code   | Meaning                                                                    |
+|--------|----------------------------------------------------------------------------|
+| TPX001 | Malformed JSON or Rego (parser error).                                     |
+| TPX100 | JSON-Schema validation failure (unknown fields, wrong types, etc.).        |
+| TPX101 | Frontend discriminator mismatch.                                           |
+| TPX200 | Unknown fact id (not in `IFactRegistry.AllFactIds`).                       |
+| TPX201 | Predicate fails the per-fact predicate schema.                             |
+| TPX300 | Rego construct outside the accept-list (e.g. `regex.match`, `some x in`). |
+| TPX400 | `$param` reference is unbound and has no in-document `default`.            |
+
+### Authoring discipline
+
+- Treat the document as the policy of record. Re-translate on each load; never store the compiled IR as the policy artifact (caching is internal-only per design D9).
+- Don't put trust roots / certs / private keys inline. Trust roots flow via `ITrustPack` configuration; the document references fact ids that *describe* the assertion.
+- The full design rationale lives in the eval doc: `eval-trust-policy-translation-contract.md`. The per-frontend project READMEs (`CoseSign1.Validation.TrustFrontends.Json/README.md`, `CoseSign1.Validation.TrustFrontends.Rego/README.md`) document grammar specifics, diagnostic codes, and library-integration code samples.
+
 ## Troubleshooting
 
 If trust fails, `result.Trust` contains the denial reasons from the plan evaluation:

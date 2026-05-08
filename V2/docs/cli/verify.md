@@ -23,6 +23,8 @@ Where `<root>` is one of:
 | `-p`, `--payload <file>` | Payload file for detached/indirect verification |
 | `--signature-only` | Verify signature only; skip payload/hash verification (indirect signatures) |
 | `-f`, `--output-format <format>` | Output format: `text`, `json`, `xml`, `quiet` |
+| `--trust-policy <path-or-url>` | Load a trust policy document (`.coseTrustPolicy.json` or `.coseTrustPolicy.rego`). When supplied, **overrides** trust-pack default contributions per design decision D8; pack fact producers stay registered. See [Document-driven trust policy](../guides/trust-policy.md#document-driven-trust-policy). |
+| `--trust-policy-param <key=value>` | Bind a `$param` reference (JSON) or `input.<key>` reference (Rego) in the loaded policy. Value is parsed as JSON. Repeatable. |
 
 ## verify x509
 
@@ -58,6 +60,12 @@ cosesigntool verify x509 signed.sig --payload payload.bin
 
 # Custom trust roots
 cosesigntool verify x509 signed.cose --trust-roots ca1.pem --trust-roots ca2.pem
+
+# Document-driven trust policy (overrides pack defaults; D8)
+cosesigntool verify x509 signed.cose \
+    --trust-roots ca.pem \
+    --trust-policy ./trust.coseTrustPolicy.json \
+    --trust-policy-param trusted_log_hosts='["dataplane.codetransparency.azure.net"]'
 ```
 
 ## verify akv

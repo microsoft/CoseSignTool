@@ -15,6 +15,44 @@ See:
 - [Trust Plan Deep Dive](../guides/trust-policy.md)
 - [Audit and Replay](../guides/audit-and-replay.md)
 
+## Document-driven trust policies
+
+In addition to the code-driven Facts + Rules surface above, V2 supports loading a trust policy from a versioned text document. The same `CompiledTrustPlan` is the runtime; only the input path differs.
+
+Architecture:
+
+```
+.coseTrustPolicy.json   ─┐
+                         │   ICoseTrustPolicyFrontend<TDocument>
+.coseTrustPolicy.rego   ─┤   (one per syntax — translates to IR)
+                         │
+                         ▼
+              TrustPolicySpec  (canonical IR: serializable, deterministic)
+                         │
+                         ▼
+              TrustPolicySpec.CompileFromSpec(IFactRegistry, IServiceProvider)
+                         │
+                         ▼
+              CompiledTrustPlan  (existing — Facts + Rules evaluator)
+```
+
+The IR is the contract every frontend MUST produce. Two frontends ship today:
+
+- `cose-tp-json/v1` — canonical reference frontend (JSON / JSONC).
+- `cose-tp-rego/v1` — constrained-Rego subset for OPA-aligned shops; translates onto the same IR via the JSON frontend's walker, so byte-equality is a property of construction.
+
+Override semantics (design decision D8): when the verify command receives `--trust-policy <path>`, the document is the **sole** source of trust requirements; pack defaults (`ITrustPack.GetDefaults()`) are bypassed. Pack fact producers remain registered so the document's `RequireFact` references resolve at evaluation time. Without `--trust-policy`, existing pack-default behaviour is unchanged.
+
+The conformance contract every frontend MUST satisfy (8 properties: determinism, attribute fidelity, reject-untranslatable, bounded runtime, capability-aware, parameter substitution, schema validation, cross-frontend equivalence) is documented in the conformance package: [CoseSign1.Validation.TrustFrontends.Conformance/README.md](../../CoseSign1.Validation.TrustFrontends.Conformance/README.md).
+
+For the full design rationale (D1–D11 decisions, IR shape, predicate language, parameter binding, audit provenance), see the eval doc that drove the implementation: [`eval-trust-policy-translation-contract.md`](https://github.com/microsoft/CoseSignTool/blob/users/jstatia/v2_clean_slate/V2/docs/architecture/eval-trust-policy-translation-contract.md) (when committed) or the project READMEs:
+
+- [CoseSign1.Validation.Trust.PlanPolicy.Spec](../../CoseSign1.Validation.Trust.PlanPolicy.Spec/README.md) — the IR + canonical JSON serialiser
+- [CoseSign1.Validation.TrustFrontends.Json](../../CoseSign1.Validation.TrustFrontends.Json/README.md) — JSON frontend grammar + diagnostic-code reference
+- [CoseSign1.Validation.TrustFrontends.Rego](../../CoseSign1.Validation.TrustFrontends.Rego/README.md) — Rego accept-list / reject-list
+
+Operator-facing usage is documented in the [Trust Plan Deep Dive guide](../guides/trust-policy.md#document-driven-trust-policy) and the [verify command reference](../cli/verify.md).
+
 ## Core identifiers
 
 These types establish stable identities for trust evaluation:

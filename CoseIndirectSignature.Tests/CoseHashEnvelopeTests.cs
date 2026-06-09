@@ -142,7 +142,7 @@ public class CoseHashEnvelopeTests
         CoseSign1MessageFactory factory = new();
         byte[] payload = Encoding.UTF8.GetBytes("payload-to-verify");
 
-        using HashAlgorithm legacyHasher = hashSuffix == "md5" ? MD5.Create() : SHA1.Create();
+        using HashAlgorithm legacyHasher = hashSuffix == "md5" ? MD5.Create() : SHA1.Create(); // CodeQL [SM02196] Negative test: MD5/SHA1 are intentional inputs verifying the library rejects legacy digest algorithms.
         byte[] payloadHash = legacyHasher.ComputeHash(payload);
 
         CoseSign1Message message = factory.CreateCoseSign1Message(

@@ -31,7 +31,7 @@ public static class CoseValidationServiceCollectionExtensions
         // Register core staged services.
         // - Counter-signature resolution is contributed by trust packs via DI.
         // - Indirect signature payload validation is secure-by-default and runs post-signature.
-        AddIfMissing<IPostSignatureValidator, IndirectSignatureValidator>(services);
+        AddIfMissing<IPostSignatureValidator, IndirectContentDigestValidator>(services);
 
         // DI convenience factory for creating a fully-wired validator.
         AddIfMissingScoped<ICoseSign1ValidatorFactory, CoseSign1ValidatorFactory>(services);

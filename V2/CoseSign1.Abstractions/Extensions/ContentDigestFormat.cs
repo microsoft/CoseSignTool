@@ -4,9 +4,9 @@
 namespace System.Security.Cryptography.Cose;
 
 /// <summary>
-/// Specifies the signature format used by a COSE Sign1 message.
+/// Specifies the content-digest format used by a COSE Sign1 message.
 /// </summary>
-public enum SignatureFormat
+public enum ContentDigestFormat
 {
     /// <summary>
     /// Standard embedded or detached signature where the payload is signed directly.

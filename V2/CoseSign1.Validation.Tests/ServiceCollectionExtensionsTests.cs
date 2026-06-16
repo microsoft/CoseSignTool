@@ -29,7 +29,7 @@ public sealed class ServiceCollectionExtensionsTests
             && sd.ImplementationType == typeof(CoreMessageFactsProducer));
 
         var postValidatorCount = services.Count(sd => sd.ServiceType == typeof(CoseSign1.Validation.Interfaces.IPostSignatureValidator)
-            && sd.ImplementationType == typeof(IndirectSignatureValidator));
+            && sd.ImplementationType == typeof(IndirectContentDigestValidator));
 
         var validatorFactoryCount = services.Count(sd => sd.ServiceType == typeof(CoseSign1.Validation.DependencyInjection.ICoseSign1ValidatorFactory));
 

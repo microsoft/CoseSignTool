@@ -31,24 +31,24 @@ public static class CoseSign1MessageExtensions
     /// <param name="message">The COSE Sign1 message to inspect.</param>
     /// <returns><see langword="true"/> if the message uses any indirect signature format; otherwise, <see langword="false"/>.</returns>
     public static bool IsIndirectSignature(this CoseSign1Message message)
-        => message.GetSignatureFormat() != SignatureFormat.Direct;
+        => message.GetContentDigestFormat() != ContentDigestFormat.Direct;
 
     /// <summary>
     /// Determines the signature format type.
     /// </summary>
     /// <param name="message">The COSE Sign1 message to inspect.</param>
-    /// <returns>The <see cref="SignatureFormat"/> for the provided message.</returns>
-    public static SignatureFormat GetSignatureFormat(this CoseSign1Message message)
+    /// <returns>The <see cref="ContentDigestFormat"/> for the provided message.</returns>
+    public static ContentDigestFormat GetContentDigestFormat(this CoseSign1Message message)
     {
         if (message == null)
         {
-            return SignatureFormat.Direct;
+            return ContentDigestFormat.Direct;
         }
 
         // Check for CoseHashEnvelope (has header 258 - payload hash algorithm)
         if (message.ProtectedHeaders.ContainsKey(IndirectSignatureHeaderLabels.PayloadHashAlg))
         {
-            return SignatureFormat.IndirectCoseHashEnvelope;
+            return ContentDigestFormat.IndirectCoseHashEnvelope;
         }
 
         // Check content-type header for indirect signature markers
@@ -57,16 +57,16 @@ public static class CoseSign1MessageExtensions
         {
             if (CoseHashVRegex.IsMatch(contentType))
             {
-                return SignatureFormat.IndirectCoseHashV;
+                return ContentDigestFormat.IndirectCoseHashV;
             }
 
             if (HashLegacyRegex.IsMatch(contentType))
             {
-                return SignatureFormat.IndirectHashLegacy;
+                return ContentDigestFormat.IndirectHashLegacy;
             }
         }
 
-        return SignatureFormat.Direct;
+        return ContentDigestFormat.Direct;
     }
 
     #endregion
@@ -91,10 +91,10 @@ public static class CoseSign1MessageExtensions
             return false;
         }
 
-        var format = message.GetSignatureFormat();
+        var format = message.GetContentDigestFormat();
 
         // For indirect signatures, get the pre-image content type
-        if (format != SignatureFormat.Direct)
+        if (format != ContentDigestFormat.Direct)
         {
             return message.TryGetIndirectContentType(format, out contentType);
         }
@@ -111,16 +111,16 @@ public static class CoseSign1MessageExtensions
     /// </summary>
     private static bool TryGetIndirectContentType(
         this CoseSign1Message message,
-        SignatureFormat format,
+        ContentDigestFormat format,
         out string? contentType)
     {
         switch (format)
         {
-            case SignatureFormat.IndirectCoseHashEnvelope:
+            case ContentDigestFormat.IndirectCoseHashEnvelope:
                 // For CoseHashEnvelope, content type is in header 259 (preimage content type)
                 return message.TryGetPreImageContentType(out contentType);
 
-            case SignatureFormat.IndirectCoseHashV:
+            case ContentDigestFormat.IndirectCoseHashV:
                 // For CoseHashV, strip the "+cose-hash-v" extension
                 if (message.TryGetHeader(CoseHeaderLabel.ContentType, out string? rawContentType))
                 {
@@ -130,7 +130,7 @@ public static class CoseSign1MessageExtensions
                 contentType = null;
                 return false;
 
-            case SignatureFormat.IndirectHashLegacy:
+            case ContentDigestFormat.IndirectHashLegacy:
                 // For legacy indirect, strip the "+hash-*" extension
                 if (message.TryGetHeader(CoseHeaderLabel.ContentType, out rawContentType))
                 {
@@ -194,7 +194,7 @@ public static class CoseSign1MessageExtensions
         }
 
         // Payload location is only meaningful for CoseHashEnvelope format
-        if (message.GetSignatureFormat() != SignatureFormat.IndirectCoseHashEnvelope)
+        if (message.GetContentDigestFormat() != ContentDigestFormat.IndirectCoseHashEnvelope)
         {
             payloadLocation = null;
             return false;

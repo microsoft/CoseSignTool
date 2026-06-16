@@ -32,29 +32,29 @@ using Microsoft.Extensions.Logging.Abstractions;
 /// after signing.
 /// </para>
 /// </remarks>
-public sealed partial class IndirectSignatureValidator : IPostSignatureValidator
+public sealed partial class IndirectContentDigestValidator : IPostSignatureValidator
 {
     [ExcludeFromCodeCoverage]
     internal static class ClassStrings
     {
-        public const string ValidatorName = "IndirectSignatureValidator";
+        public const string ValidatorName = "IndirectContentDigestValidator";
 
         // Regex pattern for extracting algorithm from content-type
         public const string HashMimeTypePattern = @"\+hash-(?<algorithm>[\w_]+)";
         public const string AlgorithmGroupName = "algorithm";
 
         // Validation result messages
-        public const string NotApplicableReason = "Message is not an indirect signature";
-        public const string ErrorPayloadMissing = "Indirect signature requires payload for hash validation, but no payload was provided";
-        public const string ErrorPayloadMismatch = "Indirect signature payload hash does not match the signed hash value";
+        public const string NotApplicableReason = "Message is not an indirect content digest";
+        public const string ErrorPayloadMissing = "Indirect content digest requires payload for hash validation, but no payload was provided";
+        public const string ErrorPayloadMismatch = "Content digest does not match the signed hash value";
 
         // Error codes
-        public const string ErrorCodePayloadMissing = "INDIRECT_SIGNATURE_PAYLOAD_MISSING";
-        public const string ErrorCodePayloadMismatch = "INDIRECT_SIGNATURE_PAYLOAD_MISMATCH";
+        public const string ErrorCodePayloadMissing = "CONTENT_DIGEST_PAYLOAD_MISSING";
+        public const string ErrorCodePayloadMismatch = "CONTENT_DIGEST_MISMATCH";
 
         // Metadata keys
-        public const string MetadataKeySignatureType = "IndirectSignatureType";
-        public const string MetadataKeyPayloadHashValidated = "PayloadHashValidated";
+        public const string MetadataKeyContentDigestType = "ContentDigestType";
+        public const string MetadataKeyContentDigestValidated = "ContentDigestValidated";
 
         // Log messages for internal diagnostics
         public const string LogHashAlgorithmFailed = "Failed to get hash algorithm from PayloadHashAlg header";
@@ -94,15 +94,15 @@ public sealed partial class IndirectSignatureValidator : IPostSignatureValidator
         ClassStrings.HashMimeTypePattern,
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
-    private readonly ILogger<IndirectSignatureValidator> Logger;
+    private readonly ILogger<IndirectContentDigestValidator> Logger;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="IndirectSignatureValidator"/> class.
+    /// Initializes a new instance of the <see cref="IndirectContentDigestValidator"/> class.
     /// </summary>
     /// <param name="logger">Optional logger for diagnostic output.</param>
-    public IndirectSignatureValidator(ILogger<IndirectSignatureValidator>? logger = null)
+    public IndirectContentDigestValidator(ILogger<IndirectContentDigestValidator>? logger = null)
     {
-        Logger = logger ?? NullLogger<IndirectSignatureValidator>.Instance;
+        Logger = logger ?? NullLogger<IndirectContentDigestValidator>.Instance;
     }
 
     /// <inheritdoc/>
@@ -115,9 +115,9 @@ public sealed partial class IndirectSignatureValidator : IPostSignatureValidator
         var options = context.Options;
 
         // Detect indirect signature type using the shared extension
-        var signatureFormat = message.GetSignatureFormat();
+        var signatureFormat = message.GetContentDigestFormat();
 
-        if (signatureFormat == SignatureFormat.Direct)
+        if (signatureFormat == ContentDigestFormat.Direct)
         {
             LogNotIndirectSignature();
             return ValidationResult.NotApplicable(ClassStrings.ValidatorName, ClassStrings.NotApplicableReason);
@@ -144,9 +144,9 @@ public sealed partial class IndirectSignatureValidator : IPostSignatureValidator
         // Validate based on signature type
         bool matches = signatureFormat switch
         {
-            SignatureFormat.IndirectCoseHashEnvelope => ValidateCoseHashEnvelope(message, options.DetachedPayload),
-            SignatureFormat.IndirectCoseHashV => ValidateCoseHashV(message, options.DetachedPayload),
-            SignatureFormat.IndirectHashLegacy => ValidateContentTypeHashExtension(message, options.DetachedPayload),
+            ContentDigestFormat.IndirectCoseHashEnvelope => ValidateCoseHashEnvelope(message, options.DetachedPayload),
+            ContentDigestFormat.IndirectCoseHashV => ValidateCoseHashV(message, options.DetachedPayload),
+            ContentDigestFormat.IndirectHashLegacy => ValidateContentTypeHashExtension(message, options.DetachedPayload),
             _ => false
         };
 
@@ -159,11 +159,11 @@ public sealed partial class IndirectSignatureValidator : IPostSignatureValidator
                 ClassStrings.ErrorCodePayloadMismatch);
         }
 
-        LogPayloadHashValidated(signatureFormat.ToString());
+        LogContentDigestValidated(signatureFormat.ToString());
         return ValidationResult.Success(ClassStrings.ValidatorName, new Dictionary<string, object>
         {
-            [ClassStrings.MetadataKeySignatureType] = signatureFormat.ToString(),
-            [ClassStrings.MetadataKeyPayloadHashValidated] = true
+            [ClassStrings.MetadataKeyContentDigestType] = signatureFormat.ToString(),
+            [ClassStrings.MetadataKeyContentDigestValidated] = true
         });
     }
 
@@ -342,7 +342,7 @@ public sealed partial class IndirectSignatureValidator : IPostSignatureValidator
 
     #region Logging
 
-    [LoggerMessage(Level = LogLevel.Debug, Message = "Message is not an indirect signature, skipping validation")]
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Message is not an indirect content digest, skipping validation")]
     private partial void LogNotIndirectSignature();
 
     [LoggerMessage(Level = LogLevel.Debug, Message = "Detected indirect signature type: {SignatureType}")]
@@ -355,7 +355,7 @@ public sealed partial class IndirectSignatureValidator : IPostSignatureValidator
     private partial void LogPayloadHashMismatch(string signatureType);
 
     [LoggerMessage(Level = LogLevel.Debug, Message = "Payload hash validated successfully for {SignatureType} indirect signature")]
-    private partial void LogPayloadHashValidated(string signatureType);
+    private partial void LogContentDigestValidated(string signatureType);
 
     #endregion
 }

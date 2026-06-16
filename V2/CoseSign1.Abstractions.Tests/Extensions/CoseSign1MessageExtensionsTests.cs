@@ -91,10 +91,10 @@ public class CoseSign1MessageExtensionsTests
 
     #endregion
 
-    #region GetSignatureFormat Tests
+    #region GetContentDigestFormat Tests
 
     [Test]
-    public void GetSignatureFormat_WithNoIndirectMarkers_ReturnsDirect()
+    public void GetContentDigestFormat_WithNoIndirectMarkers_ReturnsDirect()
     {
         var headers = new CoseHeaderMap
         {
@@ -102,11 +102,11 @@ public class CoseSign1MessageExtensionsTests
         };
         var message = CreateMessageWithHeaders(headers);
 
-        Assert.That(message.GetSignatureFormat(), Is.EqualTo(SignatureFormat.Direct));
+        Assert.That(message.GetContentDigestFormat(), Is.EqualTo(ContentDigestFormat.Direct));
     }
 
     [Test]
-    public void GetSignatureFormat_WithPayloadHashAlgHeader_ReturnsCoseHashEnvelope()
+    public void GetContentDigestFormat_WithPayloadHashAlgHeader_ReturnsCoseHashEnvelope()
     {
         var headers = new CoseHeaderMap
         {
@@ -114,11 +114,11 @@ public class CoseSign1MessageExtensionsTests
         };
         var message = CreateMessageWithHeaders(headers);
 
-        Assert.That(message.GetSignatureFormat(), Is.EqualTo(SignatureFormat.IndirectCoseHashEnvelope));
+        Assert.That(message.GetContentDigestFormat(), Is.EqualTo(ContentDigestFormat.IndirectCoseHashEnvelope));
     }
 
     [Test]
-    public void GetSignatureFormat_WithCoseHashVContentType_ReturnsCoseHashV()
+    public void GetContentDigestFormat_WithCoseHashVContentType_ReturnsCoseHashV()
     {
         var headers = new CoseHeaderMap
         {
@@ -126,11 +126,11 @@ public class CoseSign1MessageExtensionsTests
         };
         var message = CreateMessageWithHeaders(headers);
 
-        Assert.That(message.GetSignatureFormat(), Is.EqualTo(SignatureFormat.IndirectCoseHashV));
+        Assert.That(message.GetContentDigestFormat(), Is.EqualTo(ContentDigestFormat.IndirectCoseHashV));
     }
 
     [Test]
-    public void GetSignatureFormat_WithHashLegacyContentType_ReturnsHashLegacy()
+    public void GetContentDigestFormat_WithHashLegacyContentType_ReturnsHashLegacy()
     {
         var headers = new CoseHeaderMap
         {
@@ -138,21 +138,21 @@ public class CoseSign1MessageExtensionsTests
         };
         var message = CreateMessageWithHeaders(headers);
 
-        Assert.That(message.GetSignatureFormat(), Is.EqualTo(SignatureFormat.IndirectHashLegacy));
+        Assert.That(message.GetContentDigestFormat(), Is.EqualTo(ContentDigestFormat.IndirectHashLegacy));
     }
 
     [Test]
-    public void GetSignatureFormat_WithNullMessage_ReturnsDirect()
+    public void GetContentDigestFormat_WithNullMessage_ReturnsDirect()
     {
         CoseSign1Message? message = null;
 
-        Assert.That(message!.GetSignatureFormat(), Is.EqualTo(SignatureFormat.Direct));
+        Assert.That(message!.GetContentDigestFormat(), Is.EqualTo(ContentDigestFormat.Direct));
     }
 
     [TestCase("application/test+hash-sha384")]
     [TestCase("text/plain+hash-SHA512")]
     [TestCase("application/octet-stream+hash-sha_256")]
-    public void GetSignatureFormat_WithVariousHashLegacyFormats_ReturnsHashLegacy(string contentType)
+    public void GetContentDigestFormat_WithVariousHashLegacyFormats_ReturnsHashLegacy(string contentType)
     {
         var headers = new CoseHeaderMap
         {
@@ -160,7 +160,7 @@ public class CoseSign1MessageExtensionsTests
         };
         var message = CreateMessageWithHeaders(headers);
 
-        Assert.That(message.GetSignatureFormat(), Is.EqualTo(SignatureFormat.IndirectHashLegacy));
+        Assert.That(message.GetContentDigestFormat(), Is.EqualTo(ContentDigestFormat.IndirectHashLegacy));
     }
 
     #endregion

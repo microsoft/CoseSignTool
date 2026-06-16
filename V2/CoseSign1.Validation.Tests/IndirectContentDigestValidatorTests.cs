@@ -13,11 +13,11 @@ using Microsoft.Extensions.Logging;
 using Moq;
 
 /// <summary>
-/// Tests for <see cref="IndirectSignatureValidator"/>.
+/// Tests for <see cref="IndirectContentDigestValidator"/>.
 /// </summary>
 [TestFixture]
 [Category("Validation")]
-public class IndirectSignatureValidatorTests
+public class IndirectContentDigestValidatorTests
 {
     private static readonly byte[] TestPayload = Encoding.UTF8.GetBytes("test payload for validation");
 
@@ -26,7 +26,7 @@ public class IndirectSignatureValidatorTests
     [Test]
     public void Constructor_NoLogger_CreatesInstance()
     {
-        var validator = new IndirectSignatureValidator();
+        var validator = new IndirectContentDigestValidator();
 
         Assert.That(validator, Is.Not.Null);
     }
@@ -34,8 +34,8 @@ public class IndirectSignatureValidatorTests
     [Test]
     public void Constructor_WithLogger_CreatesInstance()
     {
-        var mockLogger = new Mock<ILogger<IndirectSignatureValidator>>();
-        var validator = new IndirectSignatureValidator(mockLogger.Object);
+        var mockLogger = new Mock<ILogger<IndirectContentDigestValidator>>();
+        var validator = new IndirectContentDigestValidator(mockLogger.Object);
 
         Assert.That(validator, Is.Not.Null);
     }
@@ -49,7 +49,7 @@ public class IndirectSignatureValidatorTests
     [Test]
     public void Validate_DirectSignature_ReturnsNotApplicable()
     {
-        var validator = new IndirectSignatureValidator();
+        var validator = new IndirectContentDigestValidator();
         var message = CreateDirectSignatureMessage();
         var context = CreateContext(message, null);
 
@@ -58,7 +58,7 @@ public class IndirectSignatureValidatorTests
         Assert.Multiple(() =>
         {
             Assert.That(result.IsNotApplicable, Is.True);
-            Assert.That(result.ValidatorName, Is.EqualTo("IndirectSignatureValidator"));
+            Assert.That(result.ValidatorName, Is.EqualTo("IndirectContentDigestValidator"));
         });
     }
 
@@ -69,7 +69,7 @@ public class IndirectSignatureValidatorTests
     [Test]
     public void Validate_NullContext_ThrowsArgumentNullException()
     {
-        var validator = new IndirectSignatureValidator();
+        var validator = new IndirectContentDigestValidator();
 
         Assert.Throws<ArgumentNullException>(() => validator.Validate(null!));
     }
@@ -81,7 +81,7 @@ public class IndirectSignatureValidatorTests
     [Test]
     public void Validate_CoseHashEnvelope_NoPayload_ReturnsFailure()
     {
-        var validator = new IndirectSignatureValidator();
+        var validator = new IndirectContentDigestValidator();
         var message = CreateCoseHashEnvelopeMessage(TestPayload);
         var context = CreateContext(message, null);
 
@@ -97,7 +97,7 @@ public class IndirectSignatureValidatorTests
     [Test]
     public void Validate_CoseHashEnvelope_ValidHash_ReturnsSuccess()
     {
-        var validator = new IndirectSignatureValidator();
+        var validator = new IndirectContentDigestValidator();
         var message = CreateCoseHashEnvelopeMessage(TestPayload);
         var context = CreateContext(message, new MemoryStream(TestPayload));
 
@@ -106,14 +106,14 @@ public class IndirectSignatureValidatorTests
         Assert.Multiple(() =>
         {
             Assert.That(result.IsSuccess, Is.True);
-            Assert.That(result.Metadata, Contains.Key("IndirectSignatureType"));
+            Assert.That(result.Metadata, Contains.Key("ContentDigestType"));
         });
     }
 
     [Test]
     public void Validate_CoseHashEnvelope_InvalidHash_ReturnsFailure()
     {
-        var validator = new IndirectSignatureValidator();
+        var validator = new IndirectContentDigestValidator();
         var message = CreateCoseHashEnvelopeMessage(TestPayload);
         var wrongPayload = Encoding.UTF8.GetBytes("wrong payload");
         var context = CreateContext(message, new MemoryStream(wrongPayload));
@@ -130,7 +130,7 @@ public class IndirectSignatureValidatorTests
     [Test]
     public void Validate_CoseHashEnvelope_StreamPositionResets()
     {
-        var validator = new IndirectSignatureValidator();
+        var validator = new IndirectContentDigestValidator();
         var message = CreateCoseHashEnvelopeMessage(TestPayload);
         var stream = new MemoryStream(TestPayload);
         stream.Position = 5; // Set position somewhere in the middle
@@ -148,7 +148,7 @@ public class IndirectSignatureValidatorTests
     [Test]
     public void Validate_CoseHashV_NoPayload_ReturnsFailure()
     {
-        var validator = new IndirectSignatureValidator();
+        var validator = new IndirectContentDigestValidator();
         var message = CreateCoseHashVMessage(TestPayload);
         var context = CreateContext(message, null);
 
@@ -164,7 +164,7 @@ public class IndirectSignatureValidatorTests
     [Test]
     public void Validate_CoseHashV_ValidHash_ReturnsSuccess()
     {
-        var validator = new IndirectSignatureValidator();
+        var validator = new IndirectContentDigestValidator();
         var message = CreateCoseHashVMessage(TestPayload);
         var context = CreateContext(message, new MemoryStream(TestPayload));
 
@@ -176,7 +176,7 @@ public class IndirectSignatureValidatorTests
     [Test]
     public void Validate_CoseHashV_InvalidHash_ReturnsFailure()
     {
-        var validator = new IndirectSignatureValidator();
+        var validator = new IndirectContentDigestValidator();
         var message = CreateCoseHashVMessage(TestPayload);
         var wrongPayload = Encoding.UTF8.GetBytes("wrong payload");
         var context = CreateContext(message, new MemoryStream(wrongPayload));
@@ -197,7 +197,7 @@ public class IndirectSignatureValidatorTests
     [Test]
     public void Validate_HashLegacy_NoPayload_ReturnsFailure()
     {
-        var validator = new IndirectSignatureValidator();
+        var validator = new IndirectContentDigestValidator();
         var message = CreateHashLegacyMessage(TestPayload);
         var context = CreateContext(message, null);
 
@@ -213,7 +213,7 @@ public class IndirectSignatureValidatorTests
     [Test]
     public void Validate_HashLegacy_ValidHash_ReturnsSuccess()
     {
-        var validator = new IndirectSignatureValidator();
+        var validator = new IndirectContentDigestValidator();
         var message = CreateHashLegacyMessage(TestPayload);
         var context = CreateContext(message, new MemoryStream(TestPayload));
 
@@ -225,7 +225,7 @@ public class IndirectSignatureValidatorTests
     [Test]
     public void Validate_HashLegacy_InvalidHash_ReturnsFailure()
     {
-        var validator = new IndirectSignatureValidator();
+        var validator = new IndirectContentDigestValidator();
         var message = CreateHashLegacyMessage(TestPayload);
         var wrongPayload = Encoding.UTF8.GetBytes("wrong payload");
         var context = CreateContext(message, new MemoryStream(wrongPayload));
@@ -242,7 +242,7 @@ public class IndirectSignatureValidatorTests
     [Test]
     public void Validate_HashLegacy_SHA384_ValidHash_ReturnsSuccess()
     {
-        var validator = new IndirectSignatureValidator();
+        var validator = new IndirectContentDigestValidator();
         var message = CreateHashLegacyMessage(TestPayload, "sha384");
         var context = CreateContext(message, new MemoryStream(TestPayload));
 
@@ -254,7 +254,7 @@ public class IndirectSignatureValidatorTests
     [Test]
     public void Validate_HashLegacy_SHA512_ValidHash_ReturnsSuccess()
     {
-        var validator = new IndirectSignatureValidator();
+        var validator = new IndirectContentDigestValidator();
         var message = CreateHashLegacyMessage(TestPayload, "sha512");
         var context = CreateContext(message, new MemoryStream(TestPayload));
 
@@ -266,7 +266,7 @@ public class IndirectSignatureValidatorTests
     [Test]
     public void Validate_HashLegacy_SHA1_ValidHash_ReturnsSuccess()
     {
-        var validator = new IndirectSignatureValidator();
+        var validator = new IndirectContentDigestValidator();
         var message = CreateHashLegacyMessage(TestPayload, "sha1");
         var context = CreateContext(message, new MemoryStream(TestPayload));
 
@@ -278,7 +278,7 @@ public class IndirectSignatureValidatorTests
     [Test]
     public void Validate_HashLegacy_UnsupportedAlgorithm_ReturnsFailure()
     {
-        var validator = new IndirectSignatureValidator();
+        var validator = new IndirectContentDigestValidator();
         // Create a message with an unsupported algorithm suffix
         var message = CreateHashLegacyMessageWithCustomAlgo(TestPayload, "md5");
         var context = CreateContext(message, new MemoryStream(TestPayload));
@@ -291,7 +291,7 @@ public class IndirectSignatureValidatorTests
     [Test]
     public void Validate_HashLegacy_WithDashes_ExtractsOnlyAlgoBeforeDash()
     {
-        var validator = new IndirectSignatureValidator();
+        var validator = new IndirectContentDigestValidator();
         // Test algorithm name with dashes like "sha-256"
         // The regex \+hash-(?<algorithm>[\w_]+) will only capture "sha" before the dash
         // which is not a supported algorithm, so validation fails
@@ -307,7 +307,7 @@ public class IndirectSignatureValidatorTests
     [Test]
     public void Validate_HashLegacy_WithUnderscores_ValidHash_ReturnsSuccess()
     {
-        var validator = new IndirectSignatureValidator();
+        var validator = new IndirectContentDigestValidator();
         // Test algorithm name with underscores like "sha_256"
         // Underscores ARE included in \w character class, so "sha_256" is captured
         var message = CreateHashLegacyMessage(TestPayload, "sha_256");
@@ -325,7 +325,7 @@ public class IndirectSignatureValidatorTests
     [Test]
     public void Validate_CoseHashEnvelope_SHA384_ValidHash_ReturnsSuccess()
     {
-        var validator = new IndirectSignatureValidator();
+        var validator = new IndirectContentDigestValidator();
         var message = CreateCoseHashEnvelopeMessage(TestPayload, -43); // SHA-384
         var context = CreateContext(message, new MemoryStream(TestPayload));
 
@@ -337,7 +337,7 @@ public class IndirectSignatureValidatorTests
     [Test]
     public void Validate_CoseHashEnvelope_SHA512_ValidHash_ReturnsSuccess()
     {
-        var validator = new IndirectSignatureValidator();
+        var validator = new IndirectContentDigestValidator();
         var message = CreateCoseHashEnvelopeMessage(TestPayload, -44); // SHA-512
         var context = CreateContext(message, new MemoryStream(TestPayload));
 
@@ -349,7 +349,7 @@ public class IndirectSignatureValidatorTests
     [Test]
     public void Validate_CoseHashEnvelope_UnsupportedAlgorithm_ReturnsFailure()
     {
-        var validator = new IndirectSignatureValidator();
+        var validator = new IndirectContentDigestValidator();
         var message = CreateCoseHashEnvelopeMessage(TestPayload, -99); // Unsupported
         var context = CreateContext(message, new MemoryStream(TestPayload));
 
@@ -365,7 +365,7 @@ public class IndirectSignatureValidatorTests
     [Test]
     public void Validate_CoseHashV_SHA384_ValidHash_ReturnsSuccess()
     {
-        var validator = new IndirectSignatureValidator();
+        var validator = new IndirectContentDigestValidator();
         var message = CreateCoseHashVMessage(TestPayload, -43); // SHA-384
         var context = CreateContext(message, new MemoryStream(TestPayload));
 
@@ -377,7 +377,7 @@ public class IndirectSignatureValidatorTests
     [Test]
     public void Validate_CoseHashV_SHA512_ValidHash_ReturnsSuccess()
     {
-        var validator = new IndirectSignatureValidator();
+        var validator = new IndirectContentDigestValidator();
         var message = CreateCoseHashVMessage(TestPayload, -44); // SHA-512
         var context = CreateContext(message, new MemoryStream(TestPayload));
 
@@ -389,7 +389,7 @@ public class IndirectSignatureValidatorTests
     [Test]
     public void Validate_CoseHashV_UnsupportedAlgorithm_ReturnsFailure()
     {
-        var validator = new IndirectSignatureValidator();
+        var validator = new IndirectContentDigestValidator();
         var message = CreateCoseHashVMessage(TestPayload, -99); // Unsupported
         var context = CreateContext(message, new MemoryStream(TestPayload));
 
@@ -401,7 +401,7 @@ public class IndirectSignatureValidatorTests
     [Test]
     public void Validate_CoseHashV_InvalidStructure_ReturnsFailure()
     {
-        var validator = new IndirectSignatureValidator();
+        var validator = new IndirectContentDigestValidator();
         var message = CreateCoseHashVMessageWithInvalidStructure();
         var context = CreateContext(message, new MemoryStream(TestPayload));
 
@@ -413,7 +413,7 @@ public class IndirectSignatureValidatorTests
     [Test]
     public void Validate_CoseHashV_ArrayTooShort_ReturnsFailure()
     {
-        var validator = new IndirectSignatureValidator();
+        var validator = new IndirectContentDigestValidator();
         var message = CreateCoseHashVMessageWithShortArray();
         var context = CreateContext(message, new MemoryStream(TestPayload));
 
@@ -425,7 +425,7 @@ public class IndirectSignatureValidatorTests
     [Test]
     public void Validate_HashLegacy_NoContentType_ReturnsFailure()
     {
-        var validator = new IndirectSignatureValidator();
+        var validator = new IndirectContentDigestValidator();
         var message = CreateMessageWithPayloadHashAlgButNoContent();
         var context = CreateContext(message, new MemoryStream(TestPayload));
 
@@ -441,7 +441,7 @@ public class IndirectSignatureValidatorTests
     [Test]
     public async Task ValidateAsync_ReturnsResultFromValidate()
     {
-        var validator = new IndirectSignatureValidator();
+        var validator = new IndirectContentDigestValidator();
         var message = CreateCoseHashEnvelopeMessage(TestPayload);
         var context = CreateContext(message, new MemoryStream(TestPayload));
 
@@ -453,7 +453,7 @@ public class IndirectSignatureValidatorTests
     [Test]
     public async Task ValidateAsync_NullContext_ThrowsArgumentNullException()
     {
-        var validator = new IndirectSignatureValidator();
+        var validator = new IndirectContentDigestValidator();
 
         await Task.Run(() => Assert.ThrowsAsync<ArgumentNullException>(() => validator.ValidateAsync(null!)));
     }

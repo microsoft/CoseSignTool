@@ -545,7 +545,7 @@ impl CoseSign1Validator {
 
         let mut cose_key_resolvers: Vec<Arc<dyn CoseKeyResolver>> = Vec::new();
         let mut post_signature_validators: Vec<Arc<dyn PostSignatureValidator>> = vec![Arc::new(
-            crate::indirect_signature::IndirectSignaturePostSignatureValidator,
+            crate::indirect_signature::IndirectContentDigestPostSignatureValidator,
         )];
 
         // Always include message fact production for trust plans.

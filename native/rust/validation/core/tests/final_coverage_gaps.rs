@@ -315,7 +315,7 @@ fn header_i64_uint_branch_via_cose_hash_envelope() {
     // Use Uint variant to trigger the Uint branch of header_i64.
     // SHA-256 alg id in negative form won't fit as Uint; use a dummy value
     // that represents a valid hash alg. Actually, header_i64 just returns
-    // the i64 conversion. Let's set it so detect_indirect_signature_kind
+    // the i64 conversion. Let's set it so detect_indirect_content_digest_kind
     // returns CoseHashEnvelope. We need protected.get(&258).is_some() => true.
     // Then header_i64(protected, 258) hits the Uint branch and returns Some(alg_raw).
     // alg_raw is then matched against known hash alg IDs.
@@ -331,7 +331,7 @@ fn header_i64_uint_branch_via_cose_hash_envelope() {
         .with_cose_sign1_bytes(Arc::from(cose_bytes.into_boxed_slice()))
         .with_cose_sign1_message(Arc::new(parsed));
 
-    // Trigger fact production which runs the indirect signature validator
+    // Trigger fact production which runs the indirect content digest validator
     let subject = message_subject();
     let _ = engine.get_fact_set::<ContentTypeFact>(&subject);
 }
@@ -370,13 +370,13 @@ fn header_i64_uint_branch_via_full_validation() {
 //   captures returns None if the capture group ([\w_]+) doesn't match
 //   Actually, if is_match returns true then captures will always have a match.
 //   So the only way to reach lines 296-299 is if content_type is Some after
-//   detect_indirect_signature_kind returns LegacyHashExtension, but then
+//   detect_indirect_content_digest_kind returns LegacyHashExtension, but then
 //   HASH_LEGACY.captures fails on the full string. But detect already checks
 //   HASH_LEGACY.is_match... So this path can only be hit if content_type changes
 //   between detect and the match arm. Actually, in the code:
 //     let ct = content_type.unwrap_or_default();
 //   So if content_type was None, ct="" and captures returns None.
-//   But detect_indirect_signature_kind returns None if content_type is None
+//   But detect_indirect_content_digest_kind returns None if content_type is None
 //   (because of `let ct = content_type?;`).
 //
 //   Wait: detect gets `content_type: Option<&str>` from the same variable.
@@ -395,7 +395,7 @@ fn header_i64_uint_branch_via_full_validation() {
 
 // NOTE: Item 8 (lines 296-299) is unreachable dead code — the legacy hash
 // regex path can only be entered if HASH_LEGACY.is_match() returned true in
-// detect_indirect_signature_kind, which means HASH_LEGACY.captures() will also
+// detect_indirect_content_digest_kind, which means HASH_LEGACY.captures() will also
 // succeed. No test can cover this path.
 
 // ---------------------------------------------------------------------------

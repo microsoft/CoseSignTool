@@ -31,7 +31,7 @@ fn extract_legacy_hash_alg(ct: &str) -> Option<String> {
     }
 }
 
-const VALIDATOR_NAME: &str = "Indirect Signature Content Validation";
+const VALIDATOR_NAME: &str = "Indirect Content Digest Validation";
 
 const COSE_HEADER_LABEL_CONTENT_TYPE: i64 = 3;
 
@@ -39,7 +39,7 @@ const COSE_HEADER_LABEL_CONTENT_TYPE: i64 = 3;
 const COSE_HASH_ENVELOPE_PAYLOAD_HASH_ALG: i64 = 258;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum IndirectSignatureKind {
+enum IndirectContentDigestKind {
     LegacyHashExtension,
     CoseHashV,
     CoseHashEnvelope,
@@ -113,23 +113,23 @@ fn header_i64(map: &CoseHeaderMap, label: i64) -> Option<i64> {
     }
 }
 
-fn detect_indirect_signature_kind(
+fn detect_indirect_content_digest_kind(
     protected: &CoseHeaderMap,
     content_type: Option<&str>,
-) -> Option<IndirectSignatureKind> {
+) -> Option<IndirectContentDigestKind> {
     let hash_alg_label = CoseHeaderLabel::Int(COSE_HASH_ENVELOPE_PAYLOAD_HASH_ALG);
     if protected.get(&hash_alg_label).is_some() {
-        return Some(IndirectSignatureKind::CoseHashEnvelope);
+        return Some(IndirectContentDigestKind::CoseHashEnvelope);
     }
 
     let ct = content_type?;
 
     if is_cose_hash_v(ct) {
-        return Some(IndirectSignatureKind::CoseHashV);
+        return Some(IndirectContentDigestKind::CoseHashV);
     }
 
     if extract_legacy_hash_alg(ct).is_some() {
-        return Some(IndirectSignatureKind::LegacyHashExtension);
+        return Some(IndirectContentDigestKind::LegacyHashExtension);
     }
 
     None
@@ -263,13 +263,13 @@ fn parse_cose_hash_v(payload: &[u8]) -> Result<(HashAlgorithm, Vec<u8>), String>
     Ok((alg, hash_bytes))
 }
 
-/// Post-signature validator for indirect signatures.
+/// Post-signature validator for indirect content digests.
 ///
 /// This validator verifies that detached payloads match the hash embedded
-/// in the COSE_Sign1 payload for indirect signature formats.
-pub struct IndirectSignaturePostSignatureValidator;
+/// in the COSE_Sign1 payload for indirect content digest formats.
+pub struct IndirectContentDigestPostSignatureValidator;
 
-impl PostSignatureValidator for IndirectSignaturePostSignatureValidator {
+impl PostSignatureValidator for IndirectContentDigestPostSignatureValidator {
     fn validate(&self, context: &PostSignatureValidationContext<'_>) -> ValidationResult {
         let Some(detached_payload) = context.options.detached_payload.as_ref() else {
             // Treat this as "signature-only verification".
@@ -284,7 +284,7 @@ impl PostSignatureValidator for IndirectSignaturePostSignatureValidator {
         let unprotected = message.unprotected.headers();
 
         let mut content_type = header_text_or_utf8_bytes(protected, COSE_HEADER_LABEL_CONTENT_TYPE);
-        let mut kind = detect_indirect_signature_kind(protected, content_type.as_deref());
+        let mut kind = detect_indirect_content_digest_kind(protected, content_type.as_deref());
 
         // Some producers may place Content-Type in the unprotected header. Only consult
         // unprotected headers when the caller's configuration allows it.
@@ -293,7 +293,7 @@ impl PostSignatureValidator for IndirectSignaturePostSignatureValidator {
             && content_type.is_none()
         {
             content_type = header_text_or_utf8_bytes(unprotected, COSE_HEADER_LABEL_CONTENT_TYPE);
-            kind = detect_indirect_signature_kind(protected, content_type.as_deref());
+            kind = detect_indirect_content_digest_kind(protected, content_type.as_deref());
         }
 
         let kind = match kind {
@@ -301,19 +301,19 @@ impl PostSignatureValidator for IndirectSignaturePostSignatureValidator {
             None => {
                 return ValidationResult::not_applicable(
                     VALIDATOR_NAME,
-                    Some("Not an indirect signature"),
+                    Some("Not an indirect content digest"),
                 )
             }
         };
 
         // Validate minimal envelope rules when detected (matches V1 expectations).
-        if kind == IndirectSignatureKind::CoseHashEnvelope {
+        if kind == IndirectContentDigestKind::CoseHashEnvelope {
             let hash_alg_label = CoseHeaderLabel::Int(COSE_HASH_ENVELOPE_PAYLOAD_HASH_ALG);
             if unprotected.get(&hash_alg_label).is_some() {
                 return ValidationResult::failure_message(
                     VALIDATOR_NAME,
                     "CoseHashEnvelope payload-hash-alg (258) must not be present in unprotected headers",
-                    Some("INDIRECT_SIGNATURE_INVALID_HEADERS"),
+                    Some("CONTENT_DIGEST_INVALID_HEADERS"),
                 );
             }
         }
@@ -321,22 +321,22 @@ impl PostSignatureValidator for IndirectSignaturePostSignatureValidator {
         let Some(payload) = message.payload() else {
             return ValidationResult::failure_message(
                 VALIDATOR_NAME,
-                "Indirect signature validation requires an embedded payload",
-                Some("INDIRECT_SIGNATURE_MISSING_HASH"),
+                "Indirect content digest validation requires an embedded payload",
+                Some("CONTENT_DIGEST_MISSING_HASH"),
             );
         };
 
         // Determine the hash algorithm and the stored expected hash.
         let (alg, expected_hash, format_name) = match kind {
-            IndirectSignatureKind::LegacyHashExtension => {
+            IndirectContentDigestKind::LegacyHashExtension => {
                 let ct = content_type.unwrap_or_default();
                 let alg_name = extract_legacy_hash_alg(&ct);
 
                 let Some(alg_name) = alg_name else {
                     return ValidationResult::failure_message(
                         VALIDATOR_NAME,
-                        "Indirect signature content-type did not contain a +hash-* extension",
-                        Some("INDIRECT_SIGNATURE_UNSUPPORTED_FORMAT"),
+                        "Indirect content digest content-type did not contain a +hash-* extension",
+                        Some("CONTENT_DIGEST_UNSUPPORTED_FORMAT"),
                     );
                 };
 
@@ -344,30 +344,30 @@ impl PostSignatureValidator for IndirectSignaturePostSignatureValidator {
                     return ValidationResult::failure_message(
                         VALIDATOR_NAME,
                         format!("Unsupported legacy hash algorithm '{alg_name}'"),
-                        Some("INDIRECT_SIGNATURE_UNSUPPORTED_ALGORITHM"),
+                        Some("CONTENT_DIGEST_UNSUPPORTED_ALGORITHM"),
                     );
                 };
 
                 // Structural copy: payload &[u8] must be owned for the comparison tuple.
                 (alg, payload.to_vec(), "Legacy+hash-*")
             }
-            IndirectSignatureKind::CoseHashV => match parse_cose_hash_v(payload) {
+            IndirectContentDigestKind::CoseHashV => match parse_cose_hash_v(payload) {
                 Ok((alg, hash)) => (alg, hash, "COSE_Hash_V"),
                 Err(e) => {
                     return ValidationResult::failure_message(
                         VALIDATOR_NAME,
                         e,
-                        Some("INDIRECT_SIGNATURE_INVALID_COSE_HASH_V"),
+                        Some("CONTENT_DIGEST_INVALID_COSE_HASH_V"),
                     )
                 }
             },
-            IndirectSignatureKind::CoseHashEnvelope => {
+            IndirectContentDigestKind::CoseHashEnvelope => {
                 let Some(alg_raw) = header_i64(protected, COSE_HASH_ENVELOPE_PAYLOAD_HASH_ALG)
                 else {
                     return ValidationResult::failure_message(
                         VALIDATOR_NAME,
                         "CoseHashEnvelope payload-hash-alg (258) missing from protected headers",
-                        Some("INDIRECT_SIGNATURE_INVALID_HEADERS"),
+                        Some("CONTENT_DIGEST_INVALID_HEADERS"),
                     );
                 };
 
@@ -375,7 +375,7 @@ impl PostSignatureValidator for IndirectSignaturePostSignatureValidator {
                     return ValidationResult::failure_message(
                         VALIDATOR_NAME,
                         format!("Unsupported CoseHashEnvelope hash algorithm {alg_raw}"),
-                        Some("INDIRECT_SIGNATURE_UNSUPPORTED_ALGORITHM"),
+                        Some("CONTENT_DIGEST_UNSUPPORTED_ALGORITHM"),
                     );
                 };
 
@@ -391,24 +391,24 @@ impl PostSignatureValidator for IndirectSignaturePostSignatureValidator {
                 return ValidationResult::failure_message(
                     VALIDATOR_NAME,
                     e,
-                    Some("INDIRECT_SIGNATURE_PAYLOAD_READ_FAILED"),
+                    Some("CONTENT_DIGEST_PAYLOAD_READ_FAILED"),
                 )
             }
         };
 
         if actual_hash == expected_hash {
             let mut metadata = std::collections::BTreeMap::new();
-            metadata.insert("IndirectSignature.Format".into(), format_name.into());
-            metadata.insert("IndirectSignature.HashAlgorithm".into(), alg.name().into());
+            metadata.insert("ContentDigest.Format".into(), format_name.into());
+            metadata.insert("ContentDigest.HashAlgorithm".into(), alg.name().into());
             ValidationResult::success(VALIDATOR_NAME, Some(metadata))
         } else {
             ValidationResult::failure_message(
                 VALIDATOR_NAME,
                 format!(
-                    "Indirect signature content did not match ({format_name}, {})",
+                    "Indirect content digest content did not match ({format_name}, {})",
                     alg.name()
                 ),
-                Some("INDIRECT_SIGNATURE_CONTENT_MISMATCH"),
+                Some("CONTENT_DIGEST_CONTENT_MISMATCH"),
             )
         }
     }

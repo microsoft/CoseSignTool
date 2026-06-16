@@ -61,7 +61,7 @@ public class RegisterCommand : MstCommandBase
 
         Logger.LogVerbose("Calling MakeTransparentAsync...");
         // Register with the transparency service
-        CoseSign1Message result = await transparencyService.MakeTransparentAsync(message, cancellationToken);
+        CoseSign1Message result = await transparencyService.MakeTransparentAsync(message, cancellationToken).ConfigureAwait(false);
 
         Logger.LogInformation("Registration completed successfully.");
 

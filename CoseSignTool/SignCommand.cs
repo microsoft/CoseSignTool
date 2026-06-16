@@ -64,6 +64,7 @@ public class SignCommand : CoseCommand
         ["--EnableScittCompliance"] = "EnableScittCompliance",
         ["--scitt"] = "EnableScittCompliance",
         ["--CertProvider"] = "CertProvider",
+        ["--cert-provider"] = "CertProvider",
         ["--cp"] = "CertProvider"
     };
 
@@ -977,10 +978,13 @@ public class SignCommand : CoseCommand
         // Note: We could pass a logger here if we had one available
         ICoseSigningKeyProvider provider = plugin.CreateProvider(configuration, logger: null);
 
-        // If the provider is a certificate-based provider, set the EnableScittCompliance flag
-        if (provider is CoseSign1.Certificates.CertificateCoseSigningKeyProvider certProvider)
+        // Apply SCITT compliance opt-in via the shared capability interface so the host does not
+        // depend on the concrete CertificateCoseSigningKeyProvider type. This keeps
+        // CoseSign1.Certificates plugin-local in AssemblyLoadContext isolation scenarios — only
+        // ISupportsScittCompliance (in CoseSign1.Abstractions) needs to cross the boundary.
+        if (provider is ISupportsScittCompliance scittProvider)
         {
-            certProvider.EnableScittCompliance = EnableScittCompliance;
+            scittProvider.EnableScittCompliance = EnableScittCompliance;
         }
 
         return provider;

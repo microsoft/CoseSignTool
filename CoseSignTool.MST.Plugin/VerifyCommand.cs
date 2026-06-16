@@ -109,15 +109,15 @@ public class VerifyCommand : MstCommandBase
         {
             Logger.LogVerbose($"Verifying with specific receipt from: {receiptPath}");
             // Verify with a specific receipt
-            byte[] receipt = await File.ReadAllBytesAsync(receiptPath, cancellationToken);
+            byte[] receipt = await File.ReadAllBytesAsync(receiptPath, cancellationToken).ConfigureAwait(false);
             Logger.LogVerbose($"Receipt size: {receipt.Length} bytes");
-            isValid = await transparencyService.VerifyTransparencyAsync(message, receipt, cancellationToken);
+            isValid = await transparencyService.VerifyTransparencyAsync(message, receipt, cancellationToken).ConfigureAwait(false);
         }
         else
         {
             Logger.LogVerbose("Verifying using embedded transparency information");
             // Verify using embedded transparency information
-            isValid = await message.VerifyTransparencyAsync(transparencyService, cancellationToken);
+            isValid = await message.VerifyTransparencyAsync(transparencyService, cancellationToken).ConfigureAwait(false);
         }
 
         if (isValid)

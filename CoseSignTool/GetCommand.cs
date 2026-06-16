@@ -52,7 +52,7 @@ public class GetCommand : ValidateCommand
             allowOutdated);
 
         // Write the content to the specified file, if any, or else pipe to STDOUT.
-        if (content is null)
+        if (!result.Success || content is null)
         {
             Console.Error.WriteLine("The signed payload could not be read.");
         }

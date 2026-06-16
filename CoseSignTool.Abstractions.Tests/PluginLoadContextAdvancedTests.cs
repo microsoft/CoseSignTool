@@ -47,37 +47,23 @@ public class PluginLoadContextAdvancedTests
     }
 
     /// <summary>
-    /// Tests IsSharedFrameworkAssembly with System assemblies.
+    /// Tests IsHostShared with System assemblies. Note: BCL <c>System.*</c> is no longer
+    /// pre-emptively shared — the runtime's default-context fallback handles them via TPA.
+    /// Only the bare <c>System</c> name and the dotted-prefix-less framework families remain
+    /// in the explicit prefix list. This test is retained as a documented contract.
     /// </summary>
     [TestMethod]
-    public void IsSharedFrameworkAssembly_WithSystemAssemblies_ShouldReturnTrue()
+    public void IsHostShared_WithBareSystemName_ShouldReturnTrue()
     {
-        // Arrange
-        string[] systemAssemblies = {
-            "System",
-            "System.Collections",
-            "System.Collections.Concurrent",
-            "System.IO",
-            "System.Runtime",
-            "System.Text.Json",
-            "System.Threading.Tasks",
-            "System.Reflection.Emit"
-        };
-
-        // Act & Assert
-        foreach (string assemblyName in systemAssemblies)
-        {
-            AssemblyName name = new AssemblyName(assemblyName);
-            bool result = InvokeIsSharedFrameworkAssembly(name);
-            Assert.IsTrue(result, $"'{assemblyName}' should be recognized as a shared framework assembly");
-        }
+        bool result = PluginLoadContext.IsHostShared("System");
+        Assert.IsTrue(result, "Bare 'System' assembly must be host-shared (BCL).");
     }
 
     /// <summary>
-    /// Tests IsSharedFrameworkAssembly with Microsoft.Extensions assemblies.
+    /// Tests IsHostShared with Microsoft.Extensions assemblies.
     /// </summary>
     [TestMethod]
-    public void IsSharedFrameworkAssembly_WithMicrosoftExtensionsAssemblies_ShouldReturnTrue()
+    public void IsHostShared_WithMicrosoftExtensionsAssemblies_ShouldReturnTrue()
     {
         // Arrange
         string[] extensionsAssemblies = {
@@ -92,62 +78,175 @@ public class PluginLoadContextAdvancedTests
         // Act & Assert
         foreach (string assemblyName in extensionsAssemblies)
         {
-            AssemblyName name = new AssemblyName(assemblyName);
-            bool result = InvokeIsSharedFrameworkAssembly(name);
+            bool result = PluginLoadContext.IsHostShared(assemblyName);
             Assert.IsTrue(result, $"'{assemblyName}' should be recognized as a shared framework assembly");
         }
     }
 
     /// <summary>
-    /// Tests IsSharedFrameworkAssembly with project-specific shared assemblies.
+    /// Tests IsHostShared with the curated cross-boundary contract assemblies.
+    /// These are exact-name matches; the prefix-collision smell is gone.
     /// </summary>
     [TestMethod]
-    public void IsSharedFrameworkAssembly_WithProjectSharedAssemblies_ShouldReturnTrue()
+    public void IsHostShared_WithSharedContractAssemblies_ShouldReturnTrue()
     {
-        // Arrange
-        string[] projectSharedAssemblies = {
+        string[] sharedContracts = {
             "CoseSignTool.Abstractions",
-            "CoseHandler",
-            "CoseSign1",
-            "CoseIndirectSignature"
+            "CoseSign1.Abstractions",
+            "CoseSign1.Headers",
         };
 
-        // Act & Assert
-        foreach (string assemblyName in projectSharedAssemblies)
+        foreach (string assemblyName in sharedContracts)
         {
-            AssemblyName name = new AssemblyName(assemblyName);
-            bool result = InvokeIsSharedFrameworkAssembly(name);
-            Assert.IsTrue(result, $"'{assemblyName}' should be recognized as a project shared assembly");
+            bool result = PluginLoadContext.IsHostShared(assemblyName);
+            Assert.IsTrue(result, $"'{assemblyName}' is a curated cross-boundary contract and must be host-shared");
         }
     }
 
     /// <summary>
-    /// Tests IsSharedFrameworkAssembly with third-party shared assemblies.
+    /// Tests IsHostShared with bare framework assembly names that need exact matching
+    /// (no trailing dot) to avoid collisions like "netstandardX" or "mscorlibX". Includes
+    /// bare "System" because the unprefixed System assembly is BCL-only.
     /// </summary>
     [TestMethod]
-    public void IsSharedFrameworkAssembly_WithThirdPartySharedAssemblies_ShouldReturnTrue()
+    public void IsHostShared_WithBareFrameworkNames_ShouldReturnTrue()
     {
-        // Arrange
-        string[] thirdPartySharedAssemblies = {
-            "Newtonsoft.Json",
+        string[] frameworkNames = {
+            "System",
             "netstandard",
-            "mscorlib"
+            "mscorlib",
+            "WindowsBase",
+            "Microsoft.CSharp",
+            "Microsoft.VisualBasic",
         };
 
-        // Act & Assert
-        foreach (string assemblyName in thirdPartySharedAssemblies)
+        foreach (string assemblyName in frameworkNames)
         {
-            AssemblyName name = new AssemblyName(assemblyName);
-            bool result = InvokeIsSharedFrameworkAssembly(name);
-            Assert.IsTrue(result, $"'{assemblyName}' should be recognized as a shared framework assembly");
+            bool result = PluginLoadContext.IsHostShared(assemblyName);
+            Assert.IsTrue(result, $"'{assemblyName}' is a bare framework name and must be host-shared");
         }
     }
 
     /// <summary>
-    /// Tests IsSharedFrameworkAssembly with plugin-specific assemblies.
+    /// Tests that BCL <c>System.*</c> assemblies do NOT match a shared prefix anymore. They
+    /// resolve via the runtime's default-context fallback (TPA) when <c>PluginLoadContext.Load</c>
+    /// returns null, so functional behavior is preserved. The deliberate non-listing here lets
+    /// out-of-band <c>System.*</c> NuGet packages (like <c>System.ClientModel</c>) load
+    /// plugin-locally when shipped alongside a plugin.
     /// </summary>
     [TestMethod]
-    public void IsSharedFrameworkAssembly_WithPluginSpecificAssemblies_ShouldReturnFalse()
+    public void IsHostShared_WithSystemDotPrefix_ShouldReturnFalse()
+    {
+        string[] systemDotNames = {
+            "System.Collections",
+            "System.Collections.Concurrent",
+            "System.IO",
+            "System.Runtime",
+            "System.Text.Json",
+            "System.Threading.Tasks",
+            "System.Reflection.Emit",
+            // NuGet packages with System.* names that legitimately ship as plugin-private deps:
+            "System.ClientModel",
+            "System.Memory.Data",
+            "System.IO.Pipelines",
+            "System.Diagnostics.DiagnosticSource",
+            "System.Security.Cryptography.ProtectedData",
+        };
+
+        foreach (string assemblyName in systemDotNames)
+        {
+            bool result = PluginLoadContext.IsHostShared(assemblyName);
+            Assert.IsFalse(result, $"'{assemblyName}' must NOT match a shared prefix — BCL System.* resolves via default-context fallback, NuGet System.* may be plugin-local");
+        }
+    }
+
+    /// <summary>
+    /// Tests IsHostShared with assembly names that previously matched the loose "CoseSign1" /
+    /// "CoseHandler" / "CoseIndirectSignature" prefix and would have been silently absorbed into
+    /// the host context. After the prefix removal these are plugin-local.
+    /// </summary>
+    [TestMethod]
+    public void IsHostShared_WithFormerlySharedPrefixes_ShouldReturnFalse()
+    {
+        string[] noLongerShared = {
+            "CoseHandler",                                      // host-only static usage now
+            "CoseIndirectSignature",                            // plugin-local
+            "CoseSign1",                                        // plugin-local concrete impl
+            "CoseSign1.Certificates",                           // plugin-local; Phase 3 ISupportsScittCompliance handles cross-boundary
+            "CoseSign1.Transparent.MST",                        // plugin-local; co-located with Azure SDK in plugin ALC
+            "CoseSign1.Certificates.AzureArtifactSigning",      // plugin-local; co-located with Azure SDK in plugin ALC
+        };
+
+        foreach (string assemblyName in noLongerShared)
+        {
+            bool result = PluginLoadContext.IsHostShared(assemblyName);
+            Assert.IsFalse(result, $"'{assemblyName}' must NOT be host-shared after the prefix-list cleanup — it is plugin-local");
+        }
+    }
+
+    /// <summary>
+    /// Tests that a hypothetical 3rd-party plugin assembly whose name happens to start with
+    /// "CoseSign1" is NOT silently absorbed into the host context. This is the prefix-collision
+    /// regression test that motivated the move to exact-name matching.
+    /// </summary>
+    [TestMethod]
+    public void IsHostShared_WithThirdPartyPrefixCollisions_ShouldReturnFalse()
+    {
+        string[] thirdPartyImpostors = {
+            "CoseSign1Plus",
+            "CoseSign1Extra.Plugin",
+            "CoseHandlerExtensions",
+            "CoseIndirectSignatureV2",
+            "CoseSignTool.Abstractions.Extras", // looks like an extension but is a different assembly
+        };
+
+        foreach (string assemblyName in thirdPartyImpostors)
+        {
+            bool result = PluginLoadContext.IsHostShared(assemblyName);
+            Assert.IsFalse(result, $"'{assemblyName}' must NOT match the shared list — exact-name only");
+        }
+    }
+
+    /// <summary>
+    /// Tests that Azure SDK assemblies are NOT host-shared. Before Phase 2, these were forced into
+    /// the host context as a workaround for cross-ALC type identity bugs in shared CoseSign1.* libs.
+    /// After Phase 2, those libs are plugin-local, so the SDK types co-locate with their callers
+    /// and never need to cross any boundary.
+    /// </summary>
+    [TestMethod]
+    public void IsHostShared_WithAzureSdkAssemblies_ShouldReturnFalse()
+    {
+        string[] azureSdkAssemblies = {
+            "Azure.Core",
+            "Azure.Identity",
+            "Azure.Security.CodeTransparency",
+            "Azure.CodeSigning",
+            "Azure.Developer.ArtifactSigning",
+            "Azure.Developer.ArtifactSigning.CryptoProvider",
+        };
+
+        foreach (string assemblyName in azureSdkAssemblies)
+        {
+            bool result = PluginLoadContext.IsHostShared(assemblyName);
+            Assert.IsFalse(result, $"'{assemblyName}' must NOT be host-shared — Azure SDK packages are plugin-local");
+        }
+    }
+
+    /// <summary>
+    /// Tests that Newtonsoft.Json is NOT host-shared. Plugins ship their own copy if they use it.
+    /// </summary>
+    [TestMethod]
+    public void IsHostShared_WithNewtonsoftJson_ShouldReturnFalse()
+    {
+        bool result = PluginLoadContext.IsHostShared("Newtonsoft.Json");
+        Assert.IsFalse(result, "Newtonsoft.Json must NOT be host-shared — it was a leftover prefix that introduced unwanted host coupling");
+    }
+
+    /// <summary>
+    /// Tests IsHostShared with plugin-specific assemblies.
+    /// </summary>
+    [TestMethod]
+    public void IsHostShared_WithPluginSpecificAssemblies_ShouldReturnFalse()
     {
         // Arrange
         string[] pluginSpecificAssemblies = {
@@ -161,50 +260,43 @@ public class PluginLoadContextAdvancedTests
         // Act & Assert
         foreach (string assemblyName in pluginSpecificAssemblies)
         {
-            AssemblyName name = new AssemblyName(assemblyName);
-            bool result = InvokeIsSharedFrameworkAssembly(name);
+            bool result = PluginLoadContext.IsHostShared(assemblyName);
             Assert.IsFalse(result, $"'{assemblyName}' should NOT be recognized as a shared framework assembly");
         }
     }
 
     /// <summary>
-    /// Tests IsSharedFrameworkAssembly with null assembly name.
+    /// Tests IsHostShared with null and empty assembly name.
     /// </summary>
     [TestMethod]
-    public void IsSharedFrameworkAssembly_WithNullAssemblyName_ShouldReturnFalse()
+    public void IsHostShared_WithNullOrEmptyName_ShouldReturnFalse()
     {
-        // Arrange
-        AssemblyName assemblyName = new AssemblyName();
-        // assemblyName.Name will be null
-        
-        // Act
-        bool result = InvokeIsSharedFrameworkAssembly(assemblyName);
-        
-        // Assert
-        Assert.IsFalse(result, "Assembly with null name should return false");
+        Assert.IsFalse(PluginLoadContext.IsHostShared(null), "Null name should return false");
+        Assert.IsFalse(PluginLoadContext.IsHostShared(string.Empty), "Empty name should return false");
     }
 
     /// <summary>
-    /// Tests IsSharedFrameworkAssembly with case sensitivity.
+    /// Tests IsHostShared with case sensitivity.
     /// </summary>
     [TestMethod]
-    public void IsSharedFrameworkAssembly_WithDifferentCasing_ShouldReturnTrue()
+    public void IsHostShared_WithDifferentCasing_ShouldReturnTrue()
     {
-        // Arrange
+        // Arrange — only assemblies that ARE host-shared after the cleanup
         string[] differentCasingAssemblies = {
-            "system.collections",
-            "SYSTEM.IO",
-            "Microsoft.extensions.logging",
+            "system",                       // bare framework name (exact match, case-insensitive)
+            "Microsoft.extensions.logging", // Microsoft.Extensions.* prefix
             "COSESIGNTOOL.ABSTRACTIONS",
-            "cosehandler"
+            "cosesign1.abstractions",
+            "cosesign1.HEADERS",
+            "MSCORLIB",
+            "NETSTANDARD"
         };
 
         // Act & Assert
         foreach (string assemblyName in differentCasingAssemblies)
         {
-            AssemblyName name = new AssemblyName(assemblyName);
-            bool result = InvokeIsSharedFrameworkAssembly(name);
-            Assert.IsTrue(result, $"'{assemblyName}' should be recognized as shared framework assembly regardless of casing");
+            bool result = PluginLoadContext.IsHostShared(assemblyName);
+            Assert.IsTrue(result, $"'{assemblyName}' should be recognized as shared regardless of casing");
         }
     }
 
@@ -423,29 +515,6 @@ public class PluginLoadContextAdvancedTests
             object? result = method.Invoke(context, new object[] { unmanagedDllName });
             Assert.IsInstanceOfType(result, typeof(IntPtr), "LoadUnmanagedDll should return IntPtr");
             return (IntPtr)result;
-        }
-        catch (TargetInvocationException ex) when (ex.InnerException != null)
-        {
-            // Re-throw the inner exception to preserve original exception type
-            throw ex.InnerException;
-        }
-    }
-
-    /// <summary>
-    /// Uses reflection to invoke the private IsSharedFrameworkAssembly method.
-    /// </summary>
-    private static bool InvokeIsSharedFrameworkAssembly(AssemblyName assemblyName)
-    {
-        MethodInfo? method = typeof(PluginLoadContext).GetMethod("IsSharedFrameworkAssembly", 
-            BindingFlags.NonPublic | BindingFlags.Static);
-        
-        Assert.IsNotNull(method, "IsSharedFrameworkAssembly method should exist");
-        
-        try
-        {
-            object? result = method.Invoke(null, new object[] { assemblyName });
-            Assert.IsInstanceOfType(result, typeof(bool), "IsSharedFrameworkAssembly should return bool");
-            return (bool)result;
         }
         catch (TargetInvocationException ex) when (ex.InnerException != null)
         {

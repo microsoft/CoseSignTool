@@ -78,7 +78,6 @@
         <ProjectReference Include="..\CoseHandler\CoseHandler.csproj" />
         <ProjectReference Include="..\CoseSign1.Certificates\CoseSign1.Certificates.csproj" />
         <ProjectReference Include="..\CoseSign1.Headers\CoseSign1.Headers.csproj" />
-        <ProjectReference Include="..\CoseSign1.Transparent.MST\CoseSign1.Transparent.MST.csproj" />
         <ProjectReference Include="..\CoseSignTool.Abstractions\CoseSignTool.Abstractions.csproj" />
     </ItemGroup>
 
@@ -109,11 +108,13 @@
         </ItemGroup>
         
         <!-- For subdirectory isolation: Copy ALL plugin files to create self-contained plugin directories -->
-        <!-- Exclude only .NET framework assemblies (System.*, mscorlib, netstandard, Microsoft.CSharp, etc.) to avoid duplication -->
+        <!-- Exclude only true .NET BCL assemblies that ship with the runtime. Do NOT strip System.*
+             generally — out-of-band NuGet packages with System.* names (System.ClientModel,
+             System.Memory.Data, System.IO.Pipelines, System.Text.Json polyfills, etc.) are
+             legitimate plugin-private dependencies that must be deployed alongside the plugin. -->
         <ItemGroup>
             <PluginSpecificFiles Include="@(AllPluginFiles)" 
-                Condition="!$([System.String]::new('%(Filename)').StartsWith('System.')) 
-                    AND '%(Filename)' != 'mscorlib' 
+                Condition="'%(Filename)' != 'mscorlib' 
                     AND '%(Filename)' != 'netstandard' 
                     AND '%(Filename)' != 'Microsoft.CSharp' 
                     AND '%(Filename)' != 'WindowsBase' 
@@ -169,8 +170,9 @@
         <Message Text="Removed plugins folder from publish output (plugins are bundled in single-file exe)" Importance="high" />
     </Target>
 
-    <!--Build all plugins before main build so they're ready for deployment-->
-    <Target Name="BuildPlugins" BeforeTargets="Build" Condition="'$(DeployPlugins)' == 'true'">
+    <!--Build all plugins before main build when building the app project directly.
+        Solution builds already compile plugin projects, so rebuilding them here can race on shared outputs. -->
+    <Target Name="BuildPlugins" BeforeTargets="Build" Condition="'$(DeployPlugins)' == 'true' AND '$(SolutionPath)' == ''">
         <!-- Build each plugin project using consolidated PluginProjects ItemGroup -->
         <Message Text="Building @(PluginProjects->Count()) plugin project(s)..." Importance="high" Condition="'@(PluginProjects)' != ''" />
         <MSBuild Projects="@(PluginProjects)" Properties="Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier)" Condition="'@(PluginProjects)' != ''" />

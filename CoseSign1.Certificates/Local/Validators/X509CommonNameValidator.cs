@@ -58,14 +58,29 @@ public class X509CommonNameValidator : X509Certificate2MessageValidator
     /// <param name="cert">The certificate to check.</param>
     /// <param name="commonName">The certificate Common Name to require.</param>
     /// <exception cref="CoseValidationException">The certificate did not match the required Common Name.</exception>
-    /// <remarks>The match performed by ValidateCommonName is case-sensitive.</remarks>
+    /// <remarks>
+    /// Performs a case-sensitive substring match following signtool.exe /n semantics:
+    /// the signer's CN must contain the required common name as a substring.
+    /// For example, requiring "Microsoft" matches a signer with CN="Microsoft Corporation".
+    /// The required name must be at least 3 characters to prevent trivially short matches.
+    /// </remarks>
     public static void ValidateCommonName(X509Certificate2 cert, string? commonName)
     {
         if (commonName is not null)
         {
             string signerCommonName = cert.GetNameInfo(X509NameType.SimpleName, forIssuer: false);
 
-            if (!commonName.Contains(signerCommonName))
+            // Minimum length guard: prevent trivially short pins like "o" from matching anything.
+            if (commonName.Length < 3)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(commonName),
+                    "Required common name must be at least 3 characters to prevent trivially broad matches.");
+            }
+
+            // signtool.exe /n semantics: signer CN must contain the required name.
+            // NOT the reverse — the pin must appear IN the signer's CN.
+            if (!signerCommonName.Contains(commonName, StringComparison.Ordinal))
             {
                 throw new CoseValidationException($"Signing certificate common name [{signerCommonName}] does not match [{commonName}]");
             }

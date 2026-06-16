@@ -116,4 +116,62 @@ public class CertificateCoseSigningKeyProviderEnableScittTests
         claims!.Issuer.Should().NotBeNull();
         claims.Subject.Should().Be(CwtClaims.DefaultSubject);
     }
+
+    /// <summary>
+    /// Verifies that <see cref="CertificateCoseSigningKeyProvider"/> implements the shared
+    /// <see cref="ISupportsScittCompliance"/> capability interface from
+    /// <c>CoseSign1.Abstractions</c>. This is the cross-AssemblyLoadContext contract that lets
+    /// the host toggle SCITT compliance on plugin-returned providers without referencing the
+    /// concrete provider type — keeping <c>CoseSign1.Certificates</c> plugin-local.
+    /// </summary>
+    [Test]
+    public void TestImplementsISupportsScittCompliance_ContractDefinedInAbstractions()
+    {
+        // Arrange
+        X509Certificate2 cert = TestCertificateUtils.CreateCertificate();
+        ICertificateChainBuilder chainBuilder = new TestChainBuilder();
+        ICoseSigningKeyProvider provider = new X509Certificate2CoseSigningKeyProvider(chainBuilder, cert);
+
+        // Act — host pattern: probe via shared capability interface, never via concrete type.
+        bool implementsScittCapability = provider is ISupportsScittCompliance;
+
+        // Assert
+        implementsScittCapability.Should().BeTrue(
+            "CertificateCoseSigningKeyProvider must expose the shared ISupportsScittCompliance capability so the host can toggle SCITT compliance without depending on the concrete type");
+
+        // The capability interface MUST live in CoseSign1.Abstractions so it can be host-shared
+        // across plugin AssemblyLoadContext boundaries. Verifying this stops accidental moves
+        // into a plugin-local assembly.
+        typeof(ISupportsScittCompliance).Assembly.GetName().Name.Should().Be(
+            "CoseSign1.Abstractions",
+            "ISupportsScittCompliance must remain in the host-shared CoseSign1.Abstractions assembly to preserve cross-ALC type identity");
+    }
+
+    /// <summary>
+    /// Verifies the round-trip: setting EnableScittCompliance through the
+    /// <see cref="ISupportsScittCompliance"/> interface flows through to the underlying provider's
+    /// behavior (matching the <c>SignCommand</c> downcast pattern).
+    /// </summary>
+    [Test]
+    public void TestISupportsScittCompliance_RoundTripsThroughInterface()
+    {
+        // Arrange
+        X509Certificate2 cert = TestCertificateUtils.CreateCertificate();
+        ICertificateChainBuilder chainBuilder = new TestChainBuilder();
+        ICoseSigningKeyProvider provider = new X509Certificate2CoseSigningKeyProvider(chainBuilder, cert);
+
+        // Act — exact mirror of SignCommand's host-side pattern after the Phase 3 refactor.
+        if (provider is ISupportsScittCompliance scittProvider)
+        {
+            scittProvider.EnableScittCompliance = false;
+        }
+
+        // Assert — concrete property reflects the interface-driven change.
+        ((CertificateCoseSigningKeyProvider)provider).EnableScittCompliance.Should().BeFalse(
+            "Setting EnableScittCompliance via the shared interface must affect the underlying provider behavior");
+
+        CoseHeaderMap headers = provider.GetProtectedHeaders();
+        headers.ContainsKey(CWTClaimsHeaderLabels.CWTClaims).Should().BeFalse(
+            "Disabling SCITT compliance through the shared interface must suppress default CWT claim emission");
+    }
 }

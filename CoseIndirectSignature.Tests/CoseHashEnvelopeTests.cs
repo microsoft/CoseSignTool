@@ -6,6 +6,7 @@
 namespace CoseIndirectSignature.Tests;
 
 using System.Net.Mime;
+using System.Text;
 using Microsoft.VisualStudio.TestTools.UnitTesting;     // Do not make global because it will conflict with NUnit.
 
 public class CoseHashEnvelopeTests
@@ -120,6 +121,39 @@ public class CoseHashEnvelopeTests
                 payloadLocation.Should().BeNull();
                 break;
         }
+    }
+
+    [Test]
+    [TestCase("MD5")]
+    [TestCase("SHA1")]
+    public void CreateHashAlgorithmFromNameRejectsLegacyAlgorithms(string algorithmName)
+    {
+        using HashAlgorithm? hasher = CoseSign1MessageIndirectSignatureExtensions.CreateHashAlgorithmFromName(new HashAlgorithmName(algorithmName));
+
+        hasher.Should().BeNull();
+    }
+
+    [Test]
+    [TestCase("md5")]
+    [TestCase("sha1")]
+    public void SignatureMatchesRejectsLegacyDigestAlgorithms(string hashSuffix)
+    {
+        ICoseSigningKeyProvider coseSigningKeyProvider = TestUtils.SetupMockSigningKeyProvider();
+        CoseSign1MessageFactory factory = new();
+        byte[] payload = Encoding.UTF8.GetBytes("payload-to-verify");
+
+        using HashAlgorithm legacyHasher = hashSuffix == "md5" ? MD5.Create() : SHA1.Create();
+        byte[] payloadHash = legacyHasher.ComputeHash(payload);
+
+        CoseSign1Message message = factory.CreateCoseSign1Message(
+            payloadHash,
+            coseSigningKeyProvider,
+            embedPayload: true,
+            contentType: $"application/test.payload+hash-{hashSuffix}");
+
+        message.TryGetHashAlgorithm(out HashAlgorithm? resolvedHasher).Should().BeFalse();
+        resolvedHasher.Should().BeNull();
+        message.SignatureMatches(payload).Should().BeFalse();
     }
 
     [Test]

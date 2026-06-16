@@ -8,7 +8,7 @@ using CoseSign1.Certificates.Extensions;
 /// <summary>
 /// Abstract class which contains common logic needed for all certificate based <see cref="ICoseSigningKeyProvider"/> implementations.
 /// </summary>
-public abstract class CertificateCoseSigningKeyProvider : ICoseSigningKeyProvider
+public abstract class CertificateCoseSigningKeyProvider : ICoseSigningKeyProvider, ISupportsScittCompliance
 {
     private static readonly DidX509Generator DefaultDidGenerator = new();
 

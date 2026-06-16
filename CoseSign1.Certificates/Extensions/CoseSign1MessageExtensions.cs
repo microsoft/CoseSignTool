@@ -20,6 +20,21 @@ using CoseSign1.Certificates;
 public static class CoseSign1MessageExtensions
 {
     private static readonly ConcurrentDictionary<string, object> Locks = new();
+
+    private static string GetCacheEntry(CoseSign1Message msg, string scope)
+    {
+        byte[] rawProtectedHeaders = msg.RawProtectedHeaders.ToArray();
+        byte[] signature = msg.Signature.ToArray();
+        byte[] messageBytes = new byte[rawProtectedHeaders.Length + signature.Length];
+        Buffer.BlockCopy(rawProtectedHeaders, 0, messageBytes, 0, rawProtectedHeaders.Length);
+        Buffer.BlockCopy(signature, 0, messageBytes, rawProtectedHeaders.Length, signature.Length);
+
+        using SHA256 sha256 = SHA256.Create();
+        byte[] messageHash = sha256.ComputeHash(messageBytes);
+        string hashHex = BitConverter.ToString(messageHash).Replace("-", string.Empty);
+        return $"{nameof(CoseSign1MessageExtensions)}_{scope}_{hashHex}";
+    }
+
     /// <summary>
     /// Tries to get the leaf node certificate of the current CoseSign1Message object and provides certificate chain status information.
     /// </summary>
@@ -43,7 +58,7 @@ public static class CoseSign1MessageExtensions
         }
 
         int msgHashCode = msg.GetHashCode();
-        string cacheEntry = $"{nameof(CoseSign1MessageExtensions)}_{nameof(TryGetSigningCertificate)}_{msgHashCode}";
+        string cacheEntry = GetCacheEntry(msg, nameof(TryGetSigningCertificate));
         lock (Locks.GetOrAdd(cacheEntry, _ => new object()))
         {
             try
@@ -155,7 +170,7 @@ public static class CoseSign1MessageExtensions
         }
 
         int msgHashCode = msg.GetHashCode();
-        string cacheEntry = $"{nameof(CoseSign1MessageExtensions)}_{labelForCertList.GetHashCode()}_{msgHashCode}";
+        string cacheEntry = GetCacheEntry(msg, $"{nameof(TryGetCertificateList)}_{labelForCertList.GetHashCode()}");
         lock (Locks.GetOrAdd(cacheEntry, _ => new object()))
         {
             try

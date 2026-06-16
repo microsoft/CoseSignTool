@@ -19,31 +19,54 @@ The MST plugin is automatically included with CoseSignTool releases using the en
 
 ## Authentication
 
-The plugin supports flexible authentication methods with automatic fallback:
+The plugin supports three authentication modes. The default is **anonymous** (suitable for unauthenticated MST instances such as test ledgers). Bearer token and Azure-credential paths are opt-in.
 
-### 1. Environment Variable Authentication (Recommended)
+**Precedence:** explicit access token (env var) > `--azure-auth` (DefaultAzureCredential) > anonymous.
 
-Set an access token in an environment variable:
+### 1. Anonymous (default)
+
+When no access token is supplied and `--azure-auth` is not passed, the plugin constructs the client without credentials. No `Authorization` header is sent.
 
 ```bash
-# Using the default environment variable
+# Anonymous registration against an unauthenticated test ledger
+CoseSignTool mst_register \
+    --endpoint https://your-mst-test-instance.confidential-ledger.azure.com \
+    --payload myfile.txt \
+    --signature myfile.txt.cose
+```
+
+### 2. Environment Variable Authentication
+
+Set an access token in an environment variable. When `--token-env <NAME>` is supplied explicitly, the named variable **must** contain a non-whitespace value or the command fails fast.
+
+```bash
+# Using the default environment variable (MST_TOKEN)
 export MST_TOKEN="your-access-token"
 
 # Using a custom environment variable
 export MY_MST_TOKEN="your-access-token"
+CoseSignTool mst_register ... --token-env MY_MST_TOKEN
 ```
 
-### 2. Azure DefaultCredential (Fallback)
+### 3. Azure DefaultCredential (`--azure-auth`)
 
-When no token is provided, the plugin automatically falls back to Azure DefaultCredential, which supports:
+Pass the `--azure-auth` flag to opt into [`DefaultAzureCredential`](https://docs.microsoft.com/en-us/dotnet/api/azure.identity.defaultazurecredential), which supports:
 - Azure CLI credentials (`az login`)
 - Managed Identity (in Azure environments)
 - Azure PowerShell credentials
 - Environment variables (`AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AZURE_TENANT_ID`)
-- Visual Studio credentials
-- VS Code credentials
+- Visual Studio / VS Code credentials
 
-> **⚠️ Production Security Note**: When deploying to production environments, create an environment variable named `AZURE_TOKEN_CREDENTIALS` and set its value to `"prod"`. This excludes developer tool credentials from the credential chain, ensuring only production-appropriate credentials are used. This is required when using Azure.Identity version 1.14.0 or later. For more information, see the [DefaultAzureCredential overview](https://docs.microsoft.com/en-us/dotnet/api/azure.identity.defaultazurecredential).
+```bash
+# Requires az login or other Azure authentication
+CoseSignTool mst_register \
+    --endpoint https://your-mst-instance.azure.com \
+    --payload myfile.txt \
+    --signature myfile.txt.cose \
+    --azure-auth
+```
+
+> **⚠️ Production Security Note**: When using `--azure-auth` in production, create an environment variable named `AZURE_TOKEN_CREDENTIALS` and set its value to `"prod"`. This excludes developer tool credentials from the credential chain, ensuring only production-appropriate credentials are used. This is required when using Azure.Identity version 1.14.0 or later. See the [DefaultAzureCredential overview](https://docs.microsoft.com/en-us/dotnet/api/azure.identity.defaultazurecredential).
 
 ```bash
 # In production environments, set this environment variable:
@@ -64,14 +87,23 @@ CoseSignTool mst_register [OPTIONS]
 #### Required Options
 - `--endpoint` - Azure CTS service endpoint URL
 - `--payload` - Path to the payload file
-- `--signature` - Path to the COSE Sign1 signature file
+- `--signature` - Path to the COSE Sign1 signature file (must be **embedded** — MST rejects detached payloads)
 
 #### Optional Options
-- `--token-env-var` - Environment variable name containing the access token (default: `MST_TOKEN`)
+- `--token-env` - Environment variable name containing the access token (default: `MST_TOKEN`). When passed explicitly, the named variable **must** be non-empty.
+- `--azure-auth` - Opt into Azure `DefaultAzureCredential` when no token is supplied. Default is anonymous.
 - `--output` - Output file path for the registration result
-- `--timeout` - Operation timeout in seconds (default: 30)
+- `--timeout` - Operation timeout in seconds (default: 30). The timeout covers credential acquisition as well as the registration call.
 
 #### Examples
+
+**Anonymous (test ledger):**
+```bash
+CoseSignTool mst_register \
+    --endpoint https://aasmsttest.confidential-ledger.azure.com \
+    --payload myfile.txt \
+    --signature myfile.txt.cose
+```
 
 **Using default environment variable:**
 ```bash
@@ -89,7 +121,7 @@ CoseSignTool mst_register \
     --endpoint https://your-mst-instance.azure.com \
     --payload myfile.txt \
     --signature myfile.txt.cose \
-    --token-env-var MY_MST_TOKEN
+    --token-env MY_MST_TOKEN
 ```
 
 **Using Azure DefaultCredential:**
@@ -126,10 +158,11 @@ CoseSignTool mst_verify [OPTIONS]
 - `--signature` - Path to the COSE Sign1 signature file
 
 #### Optional Options
-- `--token-env-var` - Environment variable name containing the access token (default: `MST_TOKEN`)
+- `--token-env` - Environment variable name containing the access token (default: `MST_TOKEN`). When passed explicitly, the named variable **must** be non-empty.
+- `--azure-auth` - Opt into Azure `DefaultAzureCredential` when no token is supplied. Default is anonymous.
 - `--output` - Output file path for the verification result
 - `--receipt` - Path to a specific receipt file to use for verification
-- `--timeout` - Operation timeout in seconds (default: 30)
+- `--timeout` - Operation timeout in seconds (default: 30). The timeout covers credential acquisition as well as the verification call.
 - `--authorized-domains` - Comma-separated list of authorized issuer domains for receipt verification
 - `--authorized-receipt-behavior` - Behavior for receipts from authorized domains:
   - `VerifyAnyMatching` - At least one receipt from any authorized domain must be valid

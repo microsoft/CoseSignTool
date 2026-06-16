@@ -3,8 +3,10 @@
 
 namespace CoseSignTool.AzureArtifactSigning.Plugin;
 
+using Azure.CodeSigning;
 using Azure.Core;
 using Azure.Developer.ArtifactSigning.CryptoProvider;
+using Azure.Developer.ArtifactSigning.CryptoProvider.Models;
 using Azure.Identity;
 using CoseSign1.Certificates.AzureArtifactSigning;
 using System;
@@ -103,19 +105,31 @@ public class AzureArtifactSigningCertificateProviderPlugin : ICertificateProvide
             });
 
             logger?.LogVerbose("Creating CertificateProfileClient...");
-            // Create the Certificate Profile Client
+            // Create the Certificate Profile Client with fast-retry pipeline tuning so transient
+            // Azure SDK retries do not balloon interactive signing latency. The default 800 ms
+            // exponential back-off (3 retries, ~5 s ceiling) is replaced with 250 ms fixed retries
+            // (8 retries, ~2 s ceiling). Callers can override via ConfigureAasPerformanceOptimizations.
+            CertificateProfileClientOptions clientOptions = new();
+            clientOptions.ConfigureAasPerformanceOptimizations();
+
             // Constructor: CertificateProfileClient(TokenCredential credential, Uri endpoint, options)
             Uri endpointUri = new Uri(endpoint);
-            var certificateProfileClient = new Azure.CodeSigning.CertificateProfileClient(
+            Azure.CodeSigning.CertificateProfileClient certificateProfileClient = new Azure.CodeSigning.CertificateProfileClient(
                 credential,
-                endpointUri);
+                endpointUri,
+                clientOptions);
 
             logger?.LogVerbose("Creating AzSignContext...");
-            // Create AzSignContext using the certificate profile client
+            // Create AzSignContext with explicit performance options. Defaults match the SDK
+            // baseline (3 task retries, 60 s task timeout) — surfaced here so future tuning
+            // touches a single point.
+            AzSignContextOptions signContextOptions = AasClientOptionsExtensions.ConfigureAasSigningPerformance();
             AzSignContext signContext = new AzSignContext(
-                endpoint,
                 accountName,
-                certificateProfileClient);
+                certProfileName,
+                certificateProfileClient,
+                null,
+                signContextOptions);
 
             logger?.LogVerbose("Creating AzureArtifactSigningCoseSigningKeyProvider...");
             // Create and return the key provider

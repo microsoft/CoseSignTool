@@ -1231,7 +1231,7 @@ CoseSignTool mst_register \
     --endpoint https://your-cts-instance.azure.com \
     --payload myfile.txt \
     --signature myfile.txt.cose \
-    --token-env-var MY_MST_TOKEN
+    --token-env MY_MST_TOKEN
 
 # Verify a signature with Microsoft's Signing Transparency (MST)
 export MST_TOKEN="your-access-token"
@@ -1241,25 +1241,36 @@ CoseSignTool mst_verify \
     --signature myfile.txt.cose \
     --receipt receipt.json
 
-# Using Azure DefaultCredential when no token is provided
+# Anonymous registration against an unauthenticated MST instance (default)
+CoseSignTool mst_register \
+    --endpoint https://your-mst-test-instance.confidential-ledger.azure.com \
+    --payload myfile.txt \
+    --signature myfile.txt.cose
+
+# Using Azure DefaultCredential (opt-in via --azure-auth)
 CoseSignTool mst_register \
     --endpoint https://your-cts-instance.azure.com \
     --payload myfile.txt \
-    --signature myfile.txt.cose
+    --signature myfile.txt.cose \
+    --azure-auth
 ```
 
 ### Authentication
 
-The MST plugin supports multiple authentication methods with the following priority:
+The MST plugin supports three authentication modes with the following precedence (highest first):
 
 1. **Environment Variable Token**: Uses an access token from an environment variable
-   - `--token-env-var` specifies the environment variable name
-   - If not specified, defaults to `MST_TOKEN`
+   - `--token-env` specifies the environment variable name
+   - If `--token-env` is not specified, defaults to `MST_TOKEN`
+   - When `--token-env` is supplied explicitly, the named variable **must** contain a non-whitespace value or the command fails fast
    - This is the recommended approach for CI/CD environments
 
-2. **Azure DefaultCredential**: Falls back to Azure DefaultCredential when no token is found
+2. **Azure DefaultCredential** (opt-in via `--azure-auth`): Falls back to Azure DefaultCredential when no token is provided
    - Automatically uses available Azure credentials (managed identity, Azure CLI, etc.)
    - Ideal for local development and Azure-hosted environments
+
+3. **Anonymous** (default): The client is constructed without credentials; no `Authorization` header is sent
+   - Appropriate for unauthenticated MST instances such as test ledgers
 
 #### Authentication Examples
 
@@ -1270,11 +1281,14 @@ CoseSignTool mst_register --endpoint https://your-cts-instance.azure.com --paylo
 
 # Using custom environment variable
 export MY_CUSTOM_TOKEN="your-access-token"
-CoseSignTool mst_register --endpoint https://your-mst-instance.azure.com --payload file.txt --signature file.cose --token-env-var MY_CUSTOM_TOKEN
+CoseSignTool mst_register --endpoint https://your-mst-instance.azure.com --payload file.txt --signature file.cose --token-env MY_CUSTOM_TOKEN
 
-# Using Azure DefaultCredential (no token environment variable set)
+# Anonymous (unauthenticated test ledger; default behavior)
+CoseSignTool mst_register --endpoint https://aasmsttest.confidential-ledger.azure.com --payload file.txt --signature file.cose
+
+# Using Azure DefaultCredential (opt-in)
 # Requires Azure CLI login, managed identity, or other Azure credential
-CoseSignTool mst_register --endpoint https://your-cts-instance.azure.com --payload file.txt --signature file.cose
+CoseSignTool mst_register --endpoint https://your-cts-instance.azure.com --payload file.txt --signature file.cose --azure-auth
 ```
 
 ### Certificate Provider Plugin: Azure Artifact Signing

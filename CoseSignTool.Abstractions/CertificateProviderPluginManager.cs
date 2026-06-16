@@ -81,6 +81,13 @@ public class CertificateProviderPluginManager
     /// Loads certificate provider plugins from the specified assembly file.
     /// </summary>
     /// <param name="assemblyPath">Path to the assembly file to load plugins from.</param>
+    /// <remarks>
+    /// Each plugin assembly is loaded into its own isolated <see cref="PluginLoadContext"/> so
+    /// that the plugin's private dependencies (e.g. Azure SDK transitives) cannot bleed into the
+    /// host or sibling plugins. Only assemblies in the curated host-shared list (defined on
+    /// <see cref="PluginLoadContext"/>) are sourced from the host context — everything else is
+    /// resolved plugin-locally from the directory containing the plugin assembly.
+    /// </remarks>
     public void LoadPluginFromAssembly(string assemblyPath)
     {
         if (!File.Exists(assemblyPath))
@@ -90,12 +97,14 @@ public class CertificateProviderPluginManager
 
         _logger?.LogVerbose($"Loading plugins from: {Path.GetFileName(assemblyPath)}");
 
-        Assembly assembly = Assembly.LoadFrom(assemblyPath);
-        
+        string pluginDirectory = Path.GetDirectoryName(assemblyPath) ?? AppContext.BaseDirectory;
+        PluginLoadContext loadContext = new PluginLoadContext(assemblyPath, pluginDirectory);
+        Assembly assembly = loadContext.LoadFromAssemblyPath(assemblyPath);
+
         // Find all types implementing ICertificateProviderPlugin
         Type[] types = assembly.GetTypes()
-            .Where(t => typeof(ICertificateProviderPlugin).IsAssignableFrom(t) 
-                        && !t.IsInterface 
+            .Where(t => typeof(ICertificateProviderPlugin).IsAssignableFrom(t)
+                        && !t.IsInterface
                         && !t.IsAbstract)
             .ToArray();
 

@@ -415,31 +415,55 @@ public class VerifyCommandTests
 /// <summary>
 /// Tests for the CodeTransparencyClientHelper class.
 /// </summary>
+/// <remarks>
+/// Marked <see cref="DoNotParallelizeAttribute"/> because every test mutates the process-wide
+/// environment variables <c>MST_TOKEN</c> and <c>TEST_CTS_TOKEN</c>. Even with per-test
+/// try/finally blocks, concurrent execution within the class would race on the env-var slot.
+/// <see cref="TestInitialize"/> / <see cref="TestCleanup"/> snapshot and restore the values
+/// so a test that throws en route still leaves the process clean for downstream classes.
+/// </remarks>
 [TestClass]
+[DoNotParallelize]
 public class CodeTransparencyClientHelperTests
 {
     private const string TestEndpoint = "https://test.confidential-ledger.azure.com";
     private const string TestToken = "test-token-12345";
     private const string TestEnvVarName = "TEST_CTS_TOKEN";
 
+    private string? OriginalMstToken;
+    private string? OriginalTestEnvVar;
+
+    [TestInitialize]
+    public void Setup()
+    {
+        OriginalMstToken = Environment.GetEnvironmentVariable("MST_TOKEN");
+        OriginalTestEnvVar = Environment.GetEnvironmentVariable(TestEnvVarName);
+
+        // Start every test from a known-clean env-var state.
+        Environment.SetEnvironmentVariable("MST_TOKEN", null);
+        Environment.SetEnvironmentVariable(TestEnvVarName, null);
+    }
+
+    [TestCleanup]
+    public void Cleanup()
+    {
+        // Restore whatever the host shell had set so other test classes (or interactive
+        // re-runs) are unaffected by our mutations, even if a test threw mid-flight.
+        Environment.SetEnvironmentVariable("MST_TOKEN", OriginalMstToken);
+        Environment.SetEnvironmentVariable(TestEnvVarName, OriginalTestEnvVar);
+    }
+
     [TestMethod]
     public async Task CreateClientAsync_WithTokenFromDefaultEnvironmentVariable_CreatesClient()
     {
         // Arrange
         Environment.SetEnvironmentVariable("MST_TOKEN", TestToken);
-        try
-        {
-            // Act
-            Azure.Security.CodeTransparency.CodeTransparencyClient client = await CodeTransparencyClientHelper.CreateClientAsync(TestEndpoint, null);
 
-            // Assert
-            Assert.IsNotNull(client);
-        }
-        finally
-        {
-            // Cleanup
-            Environment.SetEnvironmentVariable("MST_TOKEN", null);
-        }
+        // Act
+        Azure.Security.CodeTransparency.CodeTransparencyClient client = await CodeTransparencyClientHelper.CreateClientAsync(TestEndpoint, null, useAzureAuth: false);
+
+        // Assert
+        Assert.IsNotNull(client);
     }
 
     [TestMethod]
@@ -447,75 +471,157 @@ public class CodeTransparencyClientHelperTests
     {
         // Arrange
         Environment.SetEnvironmentVariable(TestEnvVarName, TestToken);
-        try
-        {
-            // Act
-            Azure.Security.CodeTransparency.CodeTransparencyClient client = await CodeTransparencyClientHelper.CreateClientAsync(TestEndpoint, TestEnvVarName);
 
-            // Assert
-            Assert.IsNotNull(client);
-        }
-        finally
-        {
-            // Cleanup
-            Environment.SetEnvironmentVariable(TestEnvVarName, null);
-        }
+        // Act
+        Azure.Security.CodeTransparency.CodeTransparencyClient client = await CodeTransparencyClientHelper.CreateClientAsync(TestEndpoint, TestEnvVarName, useAzureAuth: false);
+
+        // Assert
+        Assert.IsNotNull(client);
     }
 
     [TestMethod]
-    public async Task CreateClientAsync_WithoutTokenEnvironmentVariable_UsesDefaultCredential()
+    public async Task CreateClientAsync_WithoutTokenAndDefaults_CreatesAnonymousClient()
     {
-        // Arrange
-        Environment.SetEnvironmentVariable("MST_TOKEN", null);
-        Environment.SetEnvironmentVariable(TestEnvVarName, null);
+        // Arrange — env vars are clean per [TestInitialize].
 
+        // Act - default behaviour (useAzureAuth=false) yields an anonymous client; no
+        // network or credential acquisition occurs.
+        Azure.Security.CodeTransparency.CodeTransparencyClient client = await CodeTransparencyClientHelper.CreateClientAsync(TestEndpoint, null, useAzureAuth: false);
+
+        // Assert
+        Assert.IsNotNull(client);
+    }
+
+    [TestMethod]
+    public async Task CreateClientAsync_WithoutTokenAndAzureAuth_UsesDefaultCredential()
+    {
+        // Arrange — env vars are clean per [TestInitialize].
         try
         {
             // Act
-            Azure.Security.CodeTransparency.CodeTransparencyClient client = await CodeTransparencyClientHelper.CreateClientAsync(TestEndpoint, TestEnvVarName);
+            Azure.Security.CodeTransparency.CodeTransparencyClient client = await CodeTransparencyClientHelper.CreateClientAsync(TestEndpoint, null, useAzureAuth: true);
 
             // Assert
-            // If DefaultAzureCredential succeeds (e.g., Azure CLI is logged in), the client should be created
+            // If DefaultAzureCredential succeeds (e.g., Azure CLI is logged in), the client should be created.
             Assert.IsNotNull(client);
         }
         catch (Azure.Identity.CredentialUnavailableException)
         {
-            // Assert
-            // In a test environment without Azure credentials, DefaultAzureCredential will throw CredentialUnavailableException
-            // This is also valid behavior - the method attempted to use DefaultAzureCredential as expected
+            // In a test environment without Azure credentials, DefaultAzureCredential will throw
+            // CredentialUnavailableException. That is also valid behaviour for this opt-in path.
             Assert.IsTrue(true, "DefaultAzureCredential correctly threw CredentialUnavailableException when no credentials are available");
         }
     }
 
     [TestMethod]
-    public async Task CreateClientAsync_WithEmptyTokenEnvironmentVariable_UsesDefaultCredential()
+    public async Task CreateClientAsync_WithExplicitTokenEnvButMissingValue_ThrowsInvalidOperation()
+    {
+        // Arrange — explicit env var name supplied but the env var is unset (per [TestInitialize]).
+
+        // Act / Assert
+        InvalidOperationException ex = await Assert.ThrowsExceptionAsync<InvalidOperationException>(
+            () => CodeTransparencyClientHelper.CreateClientAsync(TestEndpoint, TestEnvVarName, useAzureAuth: false));
+        StringAssert.Contains(ex.Message, TestEnvVarName);
+    }
+
+    [TestMethod]
+    public async Task CreateClientAsync_WithExplicitTokenEnvButWhitespaceValue_ThrowsInvalidOperation()
+    {
+        // Arrange — explicit env var name supplied but the env var is whitespace.
+        Environment.SetEnvironmentVariable(TestEnvVarName, "   ");
+
+        // Act / Assert
+        InvalidOperationException ex = await Assert.ThrowsExceptionAsync<InvalidOperationException>(
+            () => CodeTransparencyClientHelper.CreateClientAsync(TestEndpoint, TestEnvVarName, useAzureAuth: false));
+        StringAssert.Contains(ex.Message, TestEnvVarName);
+    }
+
+    [TestMethod]
+    public async Task CreateClientAsync_WithBothTokenAndAzureAuth_TokenWins()
     {
         // Arrange
-        Environment.SetEnvironmentVariable(TestEnvVarName, "");
-        try
-        {
-            try
-            {
-                // Act
-                Azure.Security.CodeTransparency.CodeTransparencyClient client = await CodeTransparencyClientHelper.CreateClientAsync(TestEndpoint, TestEnvVarName);
+        Environment.SetEnvironmentVariable("MST_TOKEN", TestToken);
 
-                // Assert
-                // If DefaultAzureCredential succeeds (e.g., Azure CLI is logged in), the client should be created
-                Assert.IsNotNull(client);
-            }
-            catch (Azure.Identity.CredentialUnavailableException)
-            {
-                // Assert
-                // In a test environment without Azure credentials, DefaultAzureCredential will throw CredentialUnavailableException
-                // This is also valid behavior - the method attempted to use DefaultAzureCredential as expected
-                Assert.IsTrue(true, "DefaultAzureCredential correctly threw CredentialUnavailableException when no credentials are available");
-            }
-        }
-        finally
-        {
-            // Cleanup
-            Environment.SetEnvironmentVariable(TestEnvVarName, null);
-        }
+        // Act — even with --azure-auth set, an explicit MST_TOKEN should be used
+        // (no DefaultAzureCredential acquisition takes place).
+        Azure.Security.CodeTransparency.CodeTransparencyClient client = await CodeTransparencyClientHelper.CreateClientAsync(TestEndpoint, null, useAzureAuth: true);
+
+        // Assert
+        Assert.IsNotNull(client);
     }
 }
+
+/// <summary>
+/// Tests that verify the <c>--azure-auth</c> CLI flag is wired correctly through the option
+/// metadata on both MST commands. These exercise the boolean-flag plumbing — a missing
+/// <c>BooleanOptions</c> entry would cause the host CLI parser to reject a bare
+/// <c>--azure-auth</c>, which would silently re-introduce the bug we just fixed.
+/// </summary>
+[TestClass]
+public class MstAzureAuthFlagWiringTests
+{
+    [TestMethod]
+    public void RegisterCommand_Options_ContainsAzureAuth()
+    {
+        // Arrange
+        RegisterCommand command = new RegisterCommand();
+
+        // Assert
+        Assert.IsTrue(command.Options.ContainsKey("azure-auth"),
+            "RegisterCommand.Options must include azure-auth so the CLI parser recognises --azure-auth.");
+    }
+
+    [TestMethod]
+    public void RegisterCommand_BooleanOptions_ContainsAzureAuth()
+    {
+        // Arrange
+        RegisterCommand command = new RegisterCommand();
+
+        // Assert
+        Assert.IsTrue(command.BooleanOptions.Contains("azure-auth"),
+            "RegisterCommand.BooleanOptions must include azure-auth so a bare --azure-auth is accepted without a value.");
+    }
+
+    [TestMethod]
+    public void VerifyCommand_Options_ContainsAzureAuth()
+    {
+        // Arrange
+        VerifyCommand command = new VerifyCommand();
+
+        // Assert
+        Assert.IsTrue(command.Options.ContainsKey("azure-auth"),
+            "VerifyCommand.Options must include azure-auth so the CLI parser recognises --azure-auth.");
+    }
+
+    [TestMethod]
+    public void VerifyCommand_BooleanOptions_ContainsAzureAuth()
+    {
+        // Arrange
+        VerifyCommand command = new VerifyCommand();
+
+        // Assert
+        Assert.IsTrue(command.BooleanOptions.Contains("azure-auth"),
+            "VerifyCommand.BooleanOptions must include azure-auth so a bare --azure-auth is accepted without a value.");
+    }
+
+    [TestMethod]
+    public void BooleanOptions_IsSharedAcrossInstances()
+    {
+        // Arrange
+        RegisterCommand register1 = new RegisterCommand();
+        RegisterCommand register2 = new RegisterCommand();
+        VerifyCommand verify = new VerifyCommand();
+
+        // Assert
+        // Locks in the perf optimisation: BooleanOptions is backed by a single static array,
+        // not allocated per instance. ReferenceEquals on the underlying collection guarantees this.
+        Assert.AreSame(register1.BooleanOptions, register2.BooleanOptions,
+            "RegisterCommand.BooleanOptions must be the same reference across instances (backed by static readonly).");
+        Assert.AreSame(register1.BooleanOptions, verify.BooleanOptions,
+            "BooleanOptions must be the same reference across all MST commands (shared static readonly).");
+    }
+}
+
+
+
 

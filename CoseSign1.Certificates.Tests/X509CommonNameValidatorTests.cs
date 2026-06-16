@@ -31,7 +31,9 @@ public class X509CommonNameValidatorTests
     {
         string subjectName = "Test Certificate, O=Microsoft Corporation, L=Redmond, S=Washington, C=US";
         X509Certificate2 selfSignedRoot = TestCertificateUtils.CreateCertificate(subjectName);
-        X509CommonNameValidator.ValidateCommonName(selfSignedRoot, subjectName);
+        string commonName = selfSignedRoot.GetNameInfo(X509NameType.SimpleName, forIssuer: false);
+
+        X509CommonNameValidator.ValidateCommonName(selfSignedRoot, commonName);
     }
 
     [Test]
@@ -40,6 +42,17 @@ public class X509CommonNameValidatorTests
         X509Certificate2 selfSignedRoot = TestCertificateUtils.CreateCertificate();
         Exception e = Assert.Throws<CoseValidationException>(() => X509CommonNameValidator.ValidateCommonName(selfSignedRoot, "epic fail"));
         e.Message.Should().Contain("does not match");
+    }
+
+    [Test]
+    public void ValidateCommonNameRejectsSubstringMatches()
+    {
+        X509Certificate2 selfSignedRoot = TestCertificateUtils.CreateCertificate("o");
+
+        Action action = () => X509CommonNameValidator.ValidateCommonName(selfSignedRoot, "Microsoft Corporation");
+
+        action.Should().Throw<CoseValidationException>()
+            .WithMessage("*Signing certificate common name [o] does not match [Microsoft Corporation]*");
     }
 
     /// <summary>
@@ -91,7 +104,7 @@ public class X509CommonNameValidatorTests
         mockBuilder.Setup(x => x.Build(It.IsAny<X509Certificate2>())).Returns(true);
         mockBuilder.Setup(x => x.ChainElements).Returns([.. testChain]);
 
-        X509CommonNameValidator testNameValidator = new(testChain.Last().Subject);
+        X509CommonNameValidator testNameValidator = new(testChain.Last().GetNameInfo(X509NameType.SimpleName, forIssuer: false));
         CoseSign1Message message = factory.CreateCoseSign1Message(testArray, keyProvider, embedPayload: true, ContentTypeConstants.Cose);
 
         testNameValidator.TryValidate(message, out List<CoseSign1ValidationResult>? validationResults).Should().BeTrue();

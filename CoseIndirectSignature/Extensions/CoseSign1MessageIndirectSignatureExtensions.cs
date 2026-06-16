@@ -10,6 +10,14 @@ namespace CoseIndirectSignature.Extensions;
 /// </summary>
 /// <remarks>
 /// Logging is done through Trace.TraceError and Debug.WriteLine.
+/// <para>
+/// Security precondition: the members of this class inspect and compare values carried in the
+/// <see cref="CoseSign1Message"/> envelope (for example the embedded content hash and the protected
+/// headers). They do NOT verify the COSE_Sign1 signature. Callers are responsible for cryptographically
+/// verifying the signature and establishing trust in the signer (for example via <c>CoseHandler.Validate(...)</c>,
+/// or <c>VerifyEmbedded</c>/<c>VerifyDetached</c> together with an appropriate trust decision) BEFORE relying on
+/// any value read from the envelope.
+/// </para>
 /// </remarks>
 public static class CoseSign1MessageIndirectSignatureExtensions
 {
@@ -92,22 +100,74 @@ public static class CoseSign1MessageIndirectSignatureExtensions
     public static bool IsIndirectSignature(this CoseSign1Message? @this) => @this.TryGetIsCoseHashEnvelope() || @this.TryGetIsCoseHashVContentType() || @this.TryGetIndirectSignatureAlgorithm(out _);
 
     /// <summary>
-    /// Computes if the encoded Indirect signature within the CoseSign1Message object matches the given artifact stream.
+    /// Determines whether the hash embedded in the indirect signature matches the hash of the supplied artifact stream.
     /// </summary>
-    /// <param name="this">The CoseSign1Message to evaluate.</param>
+    /// <remarks>
+    /// This is a content-hash consistency check only: it recomputes the hash of <paramref name="artifactStream"/>
+    /// and compares it to the hash stored in the message <c>.Content</c>. It does NOT verify the COSE_Sign1 signature.
+    /// The embedded hash is only trustworthy once the signature has been verified, so the caller MUST cryptographically
+    /// verify the signature and establish trust in the signer (for example via <c>CoseHandler.Validate(...)</c>, or
+    /// <c>VerifyEmbedded</c> plus a trust decision) BEFORE calling this method. A <c>true</c> result from an unverified
+    /// message is meaningless because the embedded hash would itself be attacker-controllable.
+    /// </remarks>
+    /// <param name="this">The CoseSign1Message to evaluate. The caller must have already verified its signature and trust.</param>
     /// <param name="artifactStream">The artifact stream to evaluate.</param>
-    /// <returns>True if the Indirect signature in the CoseSign1Message matches the signature of the artifact stream; False otherwise.</returns>
+    /// <returns>True if the hash of <paramref name="artifactStream"/> matches the hash embedded in the (already verified) CoseSign1Message; False otherwise.</returns>
     public static bool SignatureMatches(this CoseSign1Message? @this, Stream artifactStream)
         => SignatureMatchesInternal(@this, artifactStream: artifactStream);
 
     /// <summary>
-    /// Computes if the encoded Indirect signature within the CoseSign1Message object matches the given artifact bytes.
+    /// Determines whether the hash embedded in the indirect signature matches the hash of the supplied artifact bytes.
     /// </summary>
-    /// <param name="this">The CoseSign1Message to evaluate.</param>
+    /// <remarks>
+    /// This is a content-hash consistency check only: it recomputes the hash of <paramref name="artifactBytes"/>
+    /// and compares it to the hash stored in the message <c>.Content</c>. It does NOT verify the COSE_Sign1 signature.
+    /// The embedded hash is only trustworthy once the signature has been verified, so the caller MUST cryptographically
+    /// verify the signature and establish trust in the signer (for example via <c>CoseHandler.Validate(...)</c>, or
+    /// <c>VerifyEmbedded</c> plus a trust decision) BEFORE calling this method. A <c>true</c> result from an unverified
+    /// message is meaningless because the embedded hash would itself be attacker-controllable.
+    /// </remarks>
+    /// <param name="this">The CoseSign1Message to evaluate. The caller must have already verified its signature and trust.</param>
     /// <param name="artifactBytes">The artifact bytes to evaluate.</param>
-    /// <returns>True if the Indirect signature in the CoseSign1Message matches the signature of the artifact bytes; False otherwise.</returns>
+    /// <returns>True if the hash of <paramref name="artifactBytes"/> matches the hash embedded in the (already verified) CoseSign1Message; False otherwise.</returns>
     public static bool SignatureMatches(this CoseSign1Message? @this, ReadOnlyMemory<byte> artifactBytes)
         => SignatureMatchesInternal(@this, artifactBytes: artifactBytes);
+
+    /// <summary>
+    /// Determines whether the content digest embedded in the indirect signature matches the digest of the supplied artifact stream.
+    /// </summary>
+    /// <remarks>
+    /// This is the intent-revealing alias for <c>SignatureMatches(CoseSign1Message, Stream)</c>. The word "Signature" in
+    /// <c>SignatureMatches</c> refers to the indirect signature artifact rather than the cryptographic COSE_Sign1 signature,
+    /// which is easy to misread; <c>ContentDigestMatches</c> makes the intent explicit. Like <c>SignatureMatches</c>, this is a
+    /// content-digest consistency check only: it recomputes the digest of <paramref name="artifactStream"/> and compares it to
+    /// the digest stored in the message <c>.Content</c>. It does NOT verify the COSE_Sign1 signature, so the caller MUST
+    /// cryptographically verify the signature and establish trust in the signer (for example via <c>CoseHandler.Validate(...)</c>,
+    /// or <c>VerifyEmbedded</c> plus a trust decision) BEFORE calling this method.
+    /// </remarks>
+    /// <param name="this">The CoseSign1Message to evaluate. The caller must have already verified its signature and trust.</param>
+    /// <param name="artifactStream">The artifact stream to evaluate.</param>
+    /// <returns>True if the digest of <paramref name="artifactStream"/> matches the digest embedded in the (already verified) CoseSign1Message; False otherwise.</returns>
+    public static bool ContentDigestMatches(this CoseSign1Message? @this, Stream artifactStream)
+        => @this.SignatureMatches(artifactStream);
+
+    /// <summary>
+    /// Determines whether the content digest embedded in the indirect signature matches the digest of the supplied artifact bytes.
+    /// </summary>
+    /// <remarks>
+    /// This is the intent-revealing alias for <c>SignatureMatches(CoseSign1Message, ReadOnlyMemory&lt;byte&gt;)</c>. The word
+    /// "Signature" in <c>SignatureMatches</c> refers to the indirect signature artifact rather than the cryptographic COSE_Sign1
+    /// signature, which is easy to misread; <c>ContentDigestMatches</c> makes the intent explicit. Like <c>SignatureMatches</c>,
+    /// this is a content-digest consistency check only: it recomputes the digest of <paramref name="artifactBytes"/> and compares
+    /// it to the digest stored in the message <c>.Content</c>. It does NOT verify the COSE_Sign1 signature, so the caller MUST
+    /// cryptographically verify the signature and establish trust in the signer (for example via <c>CoseHandler.Validate(...)</c>,
+    /// or <c>VerifyEmbedded</c> plus a trust decision) BEFORE calling this method.
+    /// </remarks>
+    /// <param name="this">The CoseSign1Message to evaluate. The caller must have already verified its signature and trust.</param>
+    /// <param name="artifactBytes">The artifact bytes to evaluate.</param>
+    /// <returns>True if the digest of <paramref name="artifactBytes"/> matches the digest embedded in the (already verified) CoseSign1Message; False otherwise.</returns>
+    public static bool ContentDigestMatches(this CoseSign1Message? @this, ReadOnlyMemory<byte> artifactBytes)
+        => @this.SignatureMatches(artifactBytes);
 
     /// <summary>
     /// Computes if the encoded Indirect signature within the CoseSign1Message object matches the given artifact bytes or artifact stream.

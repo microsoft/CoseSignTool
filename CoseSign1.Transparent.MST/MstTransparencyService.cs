@@ -202,7 +202,14 @@ public class MstTransparencyService : TransparencyService
         {
             // Request the entry be created in the transparency service
             LogVerbose?.Invoke("Calling CreateEntryAsync...");
+            // CS0618: the Operation<BinaryData> overload is obsolete as of Azure.Security.CodeTransparency
+            // 1.0.0-beta.10, superseded by CreateEntryAsync(BinaryData, bool, CancellationToken). It is
+            // retained deliberately here because the replacement returns Response<BinaryData> directly and
+            // therefore cannot support MstPollingOptions (DelayStrategy / PollingInterval). Migrating the
+            // polling model is tracked separately and is out of scope for this security remediation.
+#pragma warning disable CS0618 // Type or member is obsolete
             operation = await TransparencyClient.CreateEntryAsync(WaitUntil.Started, content, cancellationToken).ConfigureAwait(false);
+#pragma warning restore CS0618
 
             // Wait for the operation to complete, respecting polling options.
             // DelayStrategy takes precedence over PollingInterval if both are set.

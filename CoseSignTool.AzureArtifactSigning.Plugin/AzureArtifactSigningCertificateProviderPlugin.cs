@@ -1,6 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+// Azure.Core 1.60.0 introduced its own DefaultAzureCredential/DefaultAzureCredentialOptions, which
+// collide with the Azure.Identity ones (CS0433). Alias Azure.Identity to keep using its versions.
+extern alias IdentityAlias;
+
 namespace CoseSignTool.AzureArtifactSigning.Plugin;
 
 using Azure.CodeSigning;
@@ -98,7 +102,7 @@ public class AzureArtifactSigningCertificateProviderPlugin : ICertificateProvide
             // 4. Azure CLI credential
             // 5. Azure PowerShell credential
             logger?.LogVerbose("Acquiring Azure credentials using DefaultAzureCredential...");
-            TokenCredential credential = new DefaultAzureCredential(new DefaultAzureCredentialOptions // CodeQL [SM02196] DefaultAzureCredential is the recommended approach for client applications and libraries to authenticate to Azure services
+            TokenCredential credential = new IdentityAlias::Azure.Identity.DefaultAzureCredential(new IdentityAlias::Azure.Identity.DefaultAzureCredentialOptions // CodeQL [SM02196] DefaultAzureCredential is the recommended approach for client applications and libraries to authenticate to Azure services
             {
                 // Exclude interactive browser auth to avoid unexpected prompts in CI/CD
                 ExcludeInteractiveBrowserCredential = true

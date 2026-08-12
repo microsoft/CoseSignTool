@@ -16,10 +16,10 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: 'Checkout Repository'
-        uses: actions/checkout@v3
+        uses: actions/checkout@a37ce9120846195fa4ece8f58b268e6043cb2f26 # v3.7.0
 
       - name: NuGet Dependency Review
-        uses: actions/dependency-review-action@v3
+        uses: actions/dependency-review-action@cc4f6536e38d1126c5e3b0683d469a14f23bfea4 # v3
         with:
           # Possible values: "critical", "high", "moderate", "low" 
           fail-on-severity: moderate

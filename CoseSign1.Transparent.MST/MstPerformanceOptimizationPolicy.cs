@@ -30,11 +30,16 @@ using Azure.Core.Pipeline;
 /// </para>
 ///
 /// <para>
-/// <b>With 1.0.0-beta.12:</b> registration no longer polls <c>/operations/</c>, so that branch is
-/// unexercised here, and a pending entry read returns <c>302</c> rather than <c>503</c> - retriable
-/// only on a followed <c>303</c>, so a direct <c>GetEntryStatementAsync</c> is not retried. The 503
-/// handling stays as a hedge pending a traced live registration; widening it to <c>302</c> would
-/// multiply with the SDK's retries, as this policy runs at <c>PerRetry</c>.
+/// <b>With 1.0.0-beta.12:</b> the registration path used here no longer polls
+/// <c>/operations/</c>, so that branch was not exercised. On the versioned API, a pending
+/// followed entry read returns <c>302</c> rather than <c>503</c>. The SDK classifies that
+/// <c>302</c> as retriable only after following the create's <c>303</c>; a standalone
+/// <c>GetEntryStatementAsync</c> that directly receives <c>302</c> is not retried.
+/// A live canary trace observed <c>303</c>, <c>302</c>, <c>302</c>, then <c>200</c>;
+/// this policy passed each through while beta.12's redirect/retry pipeline completed the call
+/// with zero accelerated retries and no <c>/operations/</c> responses. The <c>503</c> handling
+/// remains a compatibility hedge; widening it to <c>302</c> would multiply retries on the
+/// followed-<c>303</c> path because this policy runs at <c>PerRetry</c>.
 /// </para>
 ///
 /// <para>

@@ -25,9 +25,16 @@ using Azure.Core.Pipeline;
 /// <c>Retry-After: 1</c> header (1 second) when a newly registered entry has not yet
 /// propagated to the serving node. The entry typically becomes available in well under
 /// 1 second, but the Azure SDK's default <see cref="RetryPolicy"/> respects the server's
-/// <c>Retry-After</c> header, causing unnecessary 1-second delays. Additionally,
-/// long-running operation (LRO) polling responses include <c>Retry-After</c> headers
-/// that override client-configured polling intervals.
+/// <c>Retry-After</c> header, causing unnecessary 1-second delays. Retry headers on
+/// <c>/operations/</c> responses are stripped for the same reason.
+/// </para>
+///
+/// <para>
+/// <b>With 1.0.0-beta.12:</b> registration no longer polls <c>/operations/</c>, so that branch is
+/// unexercised here, and a pending entry read returns <c>302</c> rather than <c>503</c> - retriable
+/// only on a followed <c>303</c>, so a direct <c>GetEntryStatementAsync</c> is not retried. The 503
+/// handling stays as a hedge pending a traced live registration; widening it to <c>302</c> would
+/// multiply with the SDK's retries, as this policy runs at <c>PerRetry</c>.
 /// </para>
 ///
 /// <para>

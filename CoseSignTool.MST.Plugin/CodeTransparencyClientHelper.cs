@@ -68,7 +68,6 @@ internal static class CodeTransparencyClientHelper
     {
         Uri uri = new(endpoint);
         CodeTransparencyClientOptions clientOptions = new();
-        clientOptions.ConfigureMstPerformanceOptimizations();
 
         bool tokenEnvVarExplicitlyRequested = !string.IsNullOrWhiteSpace(tokenEnvVarName);
         string envVarName = tokenEnvVarExplicitlyRequested ? tokenEnvVarName! : DefaultTokenEnvVarName;
@@ -106,4 +105,3 @@ internal static class CodeTransparencyClientHelper
         return new CodeTransparencyClient(uri, clientOptions);
     }
 }
-

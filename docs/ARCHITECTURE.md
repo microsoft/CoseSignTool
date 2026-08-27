@@ -543,31 +543,6 @@ did:x509:0:sha256:WE50Zg...::subject:CN=Microsoft%20Code%20Signing%20CA
 └─────────────────────────┘
 ```
 
-### Performance Tuning
-
-The MST service has specific timing characteristics:
-
-| Component | Default Timing | Tuned Timing |
-|-----------|----------------|--------------|
-| LRO Polling | ~1s (SDK exponential) | ~100ms (fixed) |
-| 503 Retry (TransactionNotCached) | ~1s (Retry-After) | ~100ms (fast retry) |
-| **Total** | **~3 seconds** | **~600ms** |
-
-```csharp
-// Apply both tuning strategies
-var options = new CodeTransparencyClientOptions();
-options.ConfigureMstPerformanceOptimizations(
-    retryDelay: TimeSpan.FromMilliseconds(100),
-    maxRetries: 8);
-
-var pollingOptions = new MstPollingOptions
-{
-    PollingInterval = TimeSpan.FromMilliseconds(100)
-};
-
-var service = new MstTransparencyService(client, pollingOptions);
-```
-
 ---
 
 ## Testing Strategy

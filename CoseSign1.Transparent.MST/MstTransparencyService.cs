@@ -202,9 +202,16 @@ public class MstTransparencyService : TransparencyService
         {
             // Request the entry be created in the transparency service
             LogVerbose?.Invoke("Calling CreateEntryAsync...");
+            // CS0618: obsolete since beta.10. Kept because with the referenced beta.12 it delegates to
+            // CreateEntryAsync(content, waitForCommit: true, ...) and returns an already-completed
+            // Operation, so the wait below never polls and PollingOptions does not affect timing.
+            // Migration is tracked separately; it is not a straight swap, as the code below parses the
+            // entry-id-shaped Operation.Value that this wrapper synthesises.
+#pragma warning disable CS0618 // Type or member is obsolete
             operation = await TransparencyClient.CreateEntryAsync(WaitUntil.Started, content, cancellationToken).ConfigureAwait(false);
+#pragma warning restore CS0618
 
-            // Wait for the operation to complete, respecting polling options.
+            // No-op with beta.12; honoured only when the SDK returns a genuinely pending operation.
             // DelayStrategy takes precedence over PollingInterval if both are set.
             LogVerbose?.Invoke("Waiting for CreateEntryAsync operation to complete...");
             if (PollingOptions?.DelayStrategy != null)

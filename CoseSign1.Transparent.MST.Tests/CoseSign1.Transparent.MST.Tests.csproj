@@ -7,6 +7,11 @@
 
         <IsPackable>false</IsPackable>
         <IsTestProject>true</IsTestProject>
+
+        <!-- Azure.Security.CodeTransparency 1.0.0-beta.10 marked CreateEntryAsync(WaitUntil, ...) obsolete.
+             These tests mock that overload deliberately, because MstTransparencyService still calls it.
+             See MstTransparencyService for why that call is retained. -->
+        <NoWarn>$(NoWarn);CS0618</NoWarn>
     </PropertyGroup>
 
     <ItemGroup>

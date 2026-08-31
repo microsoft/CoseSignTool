@@ -28,6 +28,7 @@
     </PackageReference>
     <PackageReference Include="Moq" />
     <PackageReference Include="Azure.Core" />
+    <PackageReference Include="Azure.Identity" Aliases="global,IdentityAlias" />
     <PackageReference Include="Azure.Security.CodeTransparency">
       <NoWarn>NU5104</NoWarn>
     </PackageReference>

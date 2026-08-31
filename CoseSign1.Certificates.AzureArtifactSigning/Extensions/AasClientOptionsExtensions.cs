@@ -25,11 +25,7 @@ using Azure.Developer.ArtifactSigning.CryptoProvider.Models;
 /// <c>Retry-After</c> header even when <see cref="RetryMode.Fixed"/> is configured. If AAS asks the
 /// client to back off (e.g. <c>Retry-After: 30</c>), that value wins over the configured 250 ms delay,
 /// so the practical worst-case latency is bounded by the server's policy, not the SDK ceiling. This is
-/// intentional: AAS uses <c>Retry-After</c> correctly and the client should respect it. Unlike the MST
-/// equivalent (<c>MstClientOptionsExtensions.ConfigureMstPerformanceOptimizations</c>) this helper does
-/// <b>not</b> strip <c>Retry-After</c> headers — that is an MST-specific work-around for the Code
-/// Transparency Service's eventual-consistency window where the server returns optimistic 1-second
-/// hints that the client can safely beat.
+/// intentional: AAS uses <c>Retry-After</c> correctly and the client should respect it.
 /// </para>
 /// </remarks>
 public static class AasClientOptionsExtensions

@@ -25,6 +25,12 @@ CoseSignTool --help
 # Use a plugin command (example: Azure CTS)
 export MST_TOKEN="your-access-token"
 CoseSignTool mst_register --endpoint https://your-mst.azure.com --payload file.txt --signature file.txt.cose
+
+# Register through the Azure Artifact Signing MST proxy
+CoseSignTool mst_register --endpoint https://your-mst.azure.com \
+    --proxy-endpoint https://api-canary.northcentralus.codesigning.azure.net/ \
+    --account-name MyAccount --cert-profile-name MyProfile \
+    --payload file.txt --signature file.txt.cose
 ```
 
 **For Developers:**
@@ -414,4 +420,3 @@ You may also want to specify:
 * **--Roots**, **--Verbose**, **--RevocationMode**, **--CommonName**, **--AllowUntrusted**, and **--AllowOutdated** exactly as with the Validate command.
 
 Run *CoseSignTool get --help* for the complete command line usage.
-

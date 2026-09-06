@@ -4,6 +4,7 @@
 	<PropertyGroup>
 		<TargetFrameworks>net8.0</TargetFrameworks>
 		<LangVersion>latest</LangVersion>
+		<RestoreAdditionalProjectSources>https://pkgs.dev.azure.com/prssdev/AzureCodeSign/_packaging/Prod-RW-ACS/nuget/v3/index.json</RestoreAdditionalProjectSources>
 	</PropertyGroup>
 
 	<!--Code style and static analysis-->
@@ -36,6 +37,7 @@
 
 	<ItemGroup>
 		<PackageReference Include="Azure.Developer.ArtifactSigning.CryptoProvider" />
+		<PackageReference Include="Azure.CodeSigning.Sdk" />
 	</ItemGroup>
 
 	<ItemGroup>

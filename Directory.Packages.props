@@ -22,6 +22,7 @@
     <PackageVersion Include="Azure.Identity" Version="1.18.0" />
     <PackageVersion Include="Azure.Security.CodeTransparency" Version="1.0.0-beta.12" />
     <PackageVersion Include="Azure.Developer.ArtifactSigning.CryptoProvider" Version="0.1.72" />
+    <PackageVersion Include="Azure.CodeSigning.Sdk" Version="0.1.186-jaxel-add-artifa0004" />
   </ItemGroup>
   <!-- Testing Framework Packages -->
   <ItemGroup>

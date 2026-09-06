@@ -1,12 +1,14 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+extern alias IdentityAlias;
+
 namespace CoseSignTool.MST.Plugin.Tests;
 
 using System.Text.Json;
 using Azure;
 using Azure.ArtifactSigning.MST;
-using Azure.Identity;
+using DefaultAzureCredentialOptions = IdentityAlias::Azure.Identity.DefaultAzureCredentialOptions;
 
 /// <summary>
 /// Tests the Azure Artifact Signing proxy path of <see cref="RegisterCommand"/>.

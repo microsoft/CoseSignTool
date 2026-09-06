@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+extern alias IdentityAlias;
+
 namespace CoseSignTool.AzureArtifactSigning.Plugin;
 
 using System;
@@ -8,7 +10,8 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using Azure.Core;
-using Azure.Identity;
+using DefaultAzureCredential = IdentityAlias::Azure.Identity.DefaultAzureCredential;
+using DefaultAzureCredentialOptions = IdentityAlias::Azure.Identity.DefaultAzureCredentialOptions;
 using Microsoft.Extensions.Configuration;
 
 /// <summary>

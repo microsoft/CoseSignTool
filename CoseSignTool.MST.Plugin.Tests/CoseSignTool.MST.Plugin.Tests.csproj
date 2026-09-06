@@ -29,6 +29,7 @@
     <PackageReference Include="Moq" />
     <PackageReference Include="Azure.ArtifactSigning.MST" />
     <PackageReference Include="Azure.Core" VersionOverride="1.62.0" />
+    <PackageReference Include="Azure.Identity" Aliases="global,IdentityAlias" />
     <PackageReference Include="Azure.Security.CodeTransparency">
       <NoWarn>NU5104</NoWarn>
     </PackageReference>

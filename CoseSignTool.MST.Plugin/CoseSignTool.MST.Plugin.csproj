@@ -42,6 +42,10 @@
       <Private>true</Private>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </PackageReference>
+    <PackageReference Include="Azure.Identity" Aliases="global,IdentityAlias">
+      <Private>true</Private>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </PackageReference>
     <PackageReference Include="Azure.Security.CodeTransparency">
       <NoWarn>NU5104</NoWarn>
       <Private>true</Private>

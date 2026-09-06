@@ -1,6 +1,10 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+// Azure.Core 1.60.0 introduced its own DefaultAzureCredential/DefaultAzureCredentialOptions, which
+// collide with the Azure.Identity ones (CS0433). Alias Azure.Identity to keep using its versions.
+extern alias IdentityAlias;
+
 namespace CoseSignTool.AzureArtifactSigning.Plugin;
 
 using Azure.CodeSigning;

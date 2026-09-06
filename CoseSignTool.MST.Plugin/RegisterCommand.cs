@@ -1,12 +1,16 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+extern alias IdentityAlias;
+
 namespace CoseSignTool.MST.Plugin;
 
 using System.Security.Cryptography.Cose;
 using Azure;
 using Azure.ArtifactSigning.MST;
-using Azure.Identity;
+using AuthenticationFailedException = IdentityAlias::Azure.Identity.AuthenticationFailedException;
+using DefaultAzureCredential = IdentityAlias::Azure.Identity.DefaultAzureCredential;
+using DefaultAzureCredentialOptions = IdentityAlias::Azure.Identity.DefaultAzureCredentialOptions;
 
 /// <summary>
 /// Command to register a COSE Sign1 message with Microsoft's Signing Transparency (MST).

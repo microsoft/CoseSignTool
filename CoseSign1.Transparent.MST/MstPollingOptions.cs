@@ -10,9 +10,10 @@ using System;
 /// Azure Code Transparency Service for completed receipt registrations.
 /// </summary>
 /// <remarks>
-/// When a COSE_Sign1 message is submitted to MST via <c>CreateEntryAsync</c>, the service
-/// returns a long-running operation that must be polled until completion. These options let
-/// callers tune the polling behavior to balance latency against cost.
+/// <para><b>These options do not affect request timing with the referenced
+/// Azure.Security.CodeTransparency 1.0.0-beta.12:</b> registration returns an already-completed
+/// operation, so <c>WaitForCompletionAsync</c> performs no long-running-operation polling. They are
+/// still passed to it and apply to any SDK version that returns a genuinely pending operation.</para>
 ///
 /// <para>If neither <see cref="PollingInterval"/> nor <see cref="DelayStrategy"/> is set,
 /// the Azure SDK's default exponential back-off strategy is used.</para>

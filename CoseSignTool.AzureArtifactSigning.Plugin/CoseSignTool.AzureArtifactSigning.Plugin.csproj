@@ -21,7 +21,6 @@
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <PreserveCompilationContext>true</PreserveCompilationContext>
     <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
-    <RestoreAdditionalProjectSources>https://pkgs.dev.azure.com/prssdev/AzureCodeSign/_packaging/Prod-RW-ACS/nuget/v3/index.json</RestoreAdditionalProjectSources>
 
     <!-- Disable NuGet package generation for plugins -->
     <IsPackable>false</IsPackable>
@@ -42,9 +41,6 @@
 
   <ItemGroup>
     <PackageReference Include="Azure.Developer.ArtifactSigning.CryptoProvider">
-      <Private>true</Private>
-    </PackageReference>
-    <PackageReference Include="Azure.CodeSigning.Sdk">
       <Private>true</Private>
     </PackageReference>
     <PackageReference Include="Azure.Identity" Aliases="global,IdentityAlias">

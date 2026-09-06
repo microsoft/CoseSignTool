@@ -30,6 +30,7 @@ CoseSignTool mst_register --endpoint https://your-mst.azure.com --payload file.t
 CoseSignTool mst_register --endpoint https://your-mst.azure.com \
     --proxy-endpoint https://api-canary.northcentralus.codesigning.azure.net/ \
     --account-name MyAccount --cert-profile-name MyProfile \
+    --aas-exclude-credentials ManagedIdentityCredential,VisualStudioCredential \
     --payload file.txt --signature file.txt.cose
 ```
 

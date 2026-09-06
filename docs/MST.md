@@ -100,6 +100,7 @@ CoseSignTool mst_register [OPTIONS]
 - `--account-name` - Azure Artifact Signing account name; required with `--proxy-endpoint`
 - `--cert-profile-name` - Azure Artifact Signing certificate profile; required with `--proxy-endpoint`
 - `--correlation-id` - Optional correlation ID sent to Azure Artifact Signing
+- `--aas-exclude-credentials` - Comma-separated credentials to exclude from `DefaultAzureCredential`
 
 #### Examples
 
@@ -157,6 +158,7 @@ CoseSignTool mst_register \
     --proxy-endpoint https://api-canary.northcentralus.codesigning.azure.net/ \
     --account-name MyAccount \
     --cert-profile-name MyProfile \
+    --aas-exclude-credentials ManagedIdentityCredential,VisualStudioCredential \
     --payload sample_payload.txt \
     --signature sample_payload.cose \
     --output registration-result.json

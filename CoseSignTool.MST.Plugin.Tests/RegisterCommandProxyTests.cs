@@ -6,6 +6,7 @@ namespace CoseSignTool.MST.Plugin.Tests;
 using System.Text.Json;
 using Azure;
 using Azure.ArtifactSigning.MST;
+using Azure.Identity;
 
 /// <summary>
 /// Tests the Azure Artifact Signing proxy path of <see cref="RegisterCommand"/>.
@@ -24,6 +25,38 @@ public class RegisterCommandProxyTests
         Assert.IsTrue(command.Options.ContainsKey("account-name"));
         Assert.IsTrue(command.Options.ContainsKey("cert-profile-name"));
         Assert.IsTrue(command.Options.ContainsKey("correlation-id"));
+        Assert.IsTrue(command.Options.ContainsKey("aas-exclude-credentials"));
+    }
+
+    [TestMethod]
+    public void CreateCredentialOptions_WithExclusions_DisablesRequestedCredentials()
+    {
+        IConfigurationRoot configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                { "aas-exclude-credentials", "ManagedIdentityCredential,VisualStudioCredential" }
+            })
+            .Build();
+
+        DefaultAzureCredentialOptions options = RegisterCommand.CreateCredentialOptions(configuration);
+
+        Assert.IsTrue(options.ExcludeManagedIdentityCredential);
+        Assert.IsTrue(options.ExcludeVisualStudioCredential);
+        Assert.IsTrue(options.ExcludeInteractiveBrowserCredential);
+        Assert.IsFalse(options.ExcludeAzureCliCredential);
+    }
+
+    [TestMethod]
+    public void CreateCredentialOptions_WithUnknownCredential_Throws()
+    {
+        IConfigurationRoot configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                { "aas-exclude-credentials", "UnknownCredential" }
+            })
+            .Build();
+
+        Assert.ThrowsException<ArgumentException>(() => RegisterCommand.CreateCredentialOptions(configuration));
     }
 
     [TestMethod]
@@ -35,7 +68,7 @@ public class RegisterCommandProxyTests
         string signaturePath = Path.GetTempFileName();
         string outputPath = Path.GetTempFileName();
         RecordingTransparencyClient client = new(receiptBytes);
-        RegisterCommand command = new(_ => client);
+        RegisterCommand command = new((_, _) => client);
         IConfigurationRoot configuration = CreateConfiguration(
             payloadPath,
             signaturePath,
@@ -71,7 +104,7 @@ public class RegisterCommandProxyTests
     [TestMethod]
     public async Task ExecuteAsync_WithProxyEndpointAndMissingAccount_ReturnsMissingRequiredOption()
     {
-        RegisterCommand command = new(_ => throw new AssertFailedException("Client should not be created."));
+        RegisterCommand command = new((_, _) => throw new AssertFailedException("Client should not be created."));
         IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
@@ -91,7 +124,7 @@ public class RegisterCommandProxyTests
     [TestMethod]
     public async Task ExecuteAsync_WithInvalidProxyEndpoint_ReturnsInvalidArgumentValue()
     {
-        RegisterCommand command = new(_ => throw new AssertFailedException("Client should not be created."));
+        RegisterCommand command = new((_, _) => throw new AssertFailedException("Client should not be created."));
         IConfigurationRoot configuration = CreateConfiguration(
             "payload.bin",
             "statement.cose",
@@ -105,7 +138,7 @@ public class RegisterCommandProxyTests
     [TestMethod]
     public async Task ExecuteAsync_WithoutProxyEndpoint_UsesExistingDirectPath()
     {
-        RegisterCommand command = new(_ => throw new AssertFailedException("Proxy client should not be created."));
+        RegisterCommand command = new((_, _) => throw new AssertFailedException("Proxy client should not be created."));
         IConfigurationRoot configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>())
             .Build();

@@ -18,10 +18,29 @@ public class RegisterCommand : MstCommandBase
         { "proxy-endpoint", "The Azure Artifact Signing proxy endpoint URL (optional)" },
         { "account-name", "The Azure Artifact Signing account name used for proxy authorization" },
         { "cert-profile-name", "The Azure Artifact Signing certificate profile name used for proxy authorization" },
-        { "correlation-id", "The correlation ID sent to Azure Artifact Signing (optional)" }
+        { "correlation-id", "The correlation ID sent to Azure Artifact Signing (optional)" },
+        { "aas-exclude-credentials", "Comma-separated credentials to exclude from DefaultAzureCredential" }
     };
 
-    private readonly Func<Uri, TransparencyClient> transparencyClientFactory;
+    private static readonly IReadOnlyDictionary<string, Action<DefaultAzureCredentialOptions>> CredentialExclusions =
+        new Dictionary<string, Action<DefaultAzureCredentialOptions>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Environment"] = options => options.ExcludeEnvironmentCredential = true,
+            ["WorkloadIdentity"] = options => options.ExcludeWorkloadIdentityCredential = true,
+            ["ManagedIdentity"] = options => options.ExcludeManagedIdentityCredential = true,
+            ["AzureDeveloperCli"] = options => options.ExcludeAzureDeveloperCliCredential = true,
+#pragma warning disable CS0618 // SharedTokenCacheCredential is deprecated but remains a valid exclusion.
+            ["SharedTokenCache"] = options => options.ExcludeSharedTokenCacheCredential = true,
+#pragma warning restore CS0618
+            ["InteractiveBrowser"] = options => options.ExcludeInteractiveBrowserCredential = true,
+            ["Broker"] = options => options.ExcludeBrokerCredential = true,
+            ["AzureCli"] = options => options.ExcludeAzureCliCredential = true,
+            ["VisualStudio"] = options => options.ExcludeVisualStudioCredential = true,
+            ["VisualStudioCode"] = options => options.ExcludeVisualStudioCodeCredential = true,
+            ["AzurePowerShell"] = options => options.ExcludeAzurePowerShellCredential = true,
+        };
+
+    private readonly Func<Uri, IConfiguration, TransparencyClient> transparencyClientFactory;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="RegisterCommand"/> class.
@@ -31,7 +50,7 @@ public class RegisterCommand : MstCommandBase
     {
     }
 
-    internal RegisterCommand(Func<Uri, TransparencyClient> transparencyClientFactory)
+    internal RegisterCommand(Func<Uri, IConfiguration, TransparencyClient> transparencyClientFactory)
     {
         this.transparencyClientFactory = transparencyClientFactory
             ?? throw new ArgumentNullException(nameof(transparencyClientFactory));
@@ -50,6 +69,7 @@ public class RegisterCommand : MstCommandBase
         $"  --account-name      Azure Artifact Signing account name; required with --proxy-endpoint{Environment.NewLine}" +
         $"  --cert-profile-name Azure Artifact Signing certificate profile; required with --proxy-endpoint{Environment.NewLine}" +
         $"  --correlation-id    Correlation ID sent to Azure Artifact Signing (optional){Environment.NewLine}" +
+        $"  --aas-exclude-credentials Comma-separated credentials to exclude from DefaultAzureCredential{Environment.NewLine}" +
         $"{Environment.NewLine}" +
         $"Examples:{Environment.NewLine}" +
         GetExamples();
@@ -184,7 +204,7 @@ public class RegisterCommand : MstCommandBase
                 timeoutCts.Token);
             using MemoryStream signatureStream = new(signatureBytes, writable: false);
 
-            TransparencyClient transparencyClient = this.transparencyClientFactory(proxyEndpointUri);
+            TransparencyClient transparencyClient = this.transparencyClientFactory(proxyEndpointUri, configuration);
             Response<Stream> response = await transparencyClient.RegisterTransparencyAsync(
                 accountName,
                 certificateProfileName,
@@ -223,6 +243,11 @@ public class RegisterCommand : MstCommandBase
             this.Logger.LogError($"Missing required argument - {ex.ParamName}");
             return PluginExitCode.MissingRequiredOption;
         }
+        catch (ArgumentException ex)
+        {
+            this.Logger.LogError(ex.Message);
+            return PluginExitCode.InvalidArgumentValue;
+        }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             this.Logger.LogError("Operation was cancelled.");
@@ -259,12 +284,46 @@ public class RegisterCommand : MstCommandBase
             && string.Equals(endpoint.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static TransparencyClient CreateTransparencyClient(Uri endpoint)
+    internal static DefaultAzureCredentialOptions CreateCredentialOptions(IConfiguration configuration)
     {
         DefaultAzureCredentialOptions credentialOptions = new()
         {
             ExcludeInteractiveBrowserCredential = true
         };
+
+        string? configuredExclusions = configuration["aas-exclude-credentials"];
+        if (string.IsNullOrWhiteSpace(configuredExclusions))
+        {
+            return credentialOptions;
+        }
+
+        foreach (string exclusion in configuredExclusions.Split(
+            ',',
+            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            string credentialName = exclusion.EndsWith("Credential", StringComparison.OrdinalIgnoreCase)
+                ? exclusion[..^"Credential".Length]
+                : exclusion;
+
+            if (!CredentialExclusions.TryGetValue(credentialName, out Action<DefaultAzureCredentialOptions>? applyExclusion))
+            {
+                IEnumerable<string> supportedNames = CredentialExclusions.Keys
+                    .Select(name => name + "Credential")
+                    .OrderBy(name => name, StringComparer.Ordinal);
+                throw new ArgumentException(
+                    $"'{exclusion}' is not a recognized credential to exclude. Supported values are: {string.Join(", ", supportedNames)}.",
+                    "aas-exclude-credentials");
+            }
+
+            applyExclusion(credentialOptions);
+        }
+
+        return credentialOptions;
+    }
+
+    private static TransparencyClient CreateTransparencyClient(Uri endpoint, IConfiguration configuration)
+    {
+        DefaultAzureCredentialOptions credentialOptions = CreateCredentialOptions(configuration);
         DefaultAzureCredential credential = new(credentialOptions); // CodeQL [SM02196] DefaultAzureCredential is the recommended credential for client applications.
         return new TransparencyClient(credential, endpoint);
     }

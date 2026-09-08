@@ -209,9 +209,11 @@ public class RegisterCommand : MstCommandBase
             using MemoryStream signatureStream = new(signatureBytes, writable: false);
 
             TransparencyClient transparencyClient = this.transparencyClientFactory(proxyEndpointUri, configuration);
+            string mstInstanceName = new Uri(ledgerEndpoint).Host.Split('.')[0];
             Response<Stream> response = await transparencyClient.RegisterTransparencyAsync(
                 accountName,
                 certificateProfileName,
+                mstInstanceName,
                 signatureStream,
                 correlationId,
                 linkedCts.Token).ConfigureAwait(false);

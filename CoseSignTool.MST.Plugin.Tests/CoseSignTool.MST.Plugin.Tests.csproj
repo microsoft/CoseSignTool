@@ -16,6 +16,7 @@
     <SignAssembly>true</SignAssembly>
     <DelaySign>True</DelaySign>
     <AssemblyOriginatorKeyFile>..\StrongNameKeys\35MSSharedLib1024.snk</AssemblyOriginatorKeyFile>
+    <RestoreAdditionalProjectSources>https://pkgs.dev.azure.com/prssdev/AzureCodeSign/_packaging/Prod-RW-ACS/nuget/v3/index.json</RestoreAdditionalProjectSources>
   </PropertyGroup>
 
   <ItemGroup>

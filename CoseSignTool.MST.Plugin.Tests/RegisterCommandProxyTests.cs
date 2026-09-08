@@ -87,6 +87,7 @@ public class RegisterCommandProxyTests
             Assert.AreEqual(PluginExitCode.Success, result);
             Assert.AreEqual("test-account", client.AccountName);
             Assert.AreEqual("test-profile", client.CertificateProfileName);
+            Assert.AreEqual("debugruisuprivatetrust", client.MstInstanceName);
             Assert.AreEqual("test-correlation-id", client.CorrelationId);
             CollectionAssert.AreEqual(coseBytes, client.SubmittedData);
 
@@ -185,6 +186,8 @@ public class RegisterCommandProxyTests
 
         public string? CertificateProfileName { get; private set; }
 
+        public string? MstInstanceName { get; private set; }
+
         public string? CorrelationId { get; private set; }
 
         public byte[]? SubmittedData { get; private set; }
@@ -192,6 +195,7 @@ public class RegisterCommandProxyTests
         public override async Task<Response<Stream>> RegisterTransparencyAsync(
             string codeSigningAccountName,
             string certificateProfileName,
+            string mstInstanceName,
             Stream data,
             string xCorrelationId = null,
             CancellationToken cancellationToken = default)
@@ -200,6 +204,7 @@ public class RegisterCommandProxyTests
             await data.CopyToAsync(submittedData, cancellationToken);
             this.AccountName = codeSigningAccountName;
             this.CertificateProfileName = certificateProfileName;
+            this.MstInstanceName = mstInstanceName;
             this.CorrelationId = xCorrelationId;
             this.SubmittedData = submittedData.ToArray();
 

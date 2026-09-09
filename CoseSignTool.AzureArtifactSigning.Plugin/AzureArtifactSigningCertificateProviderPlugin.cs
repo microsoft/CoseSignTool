@@ -11,9 +11,10 @@ using Azure.CodeSigning;
 using Azure.Core;
 using Azure.Developer.ArtifactSigning.CryptoProvider;
 using Azure.Developer.ArtifactSigning.CryptoProvider.Models;
-using Azure.Identity;
 using CoseSign1.Certificates.AzureArtifactSigning;
+using CoseSignTool.Abstractions.Helpers;
 using System;
+using System.Security.Cryptography;
 
 /// <summary>
 /// Certificate provider plugin for Azure Artifact Signing service.
@@ -47,6 +48,9 @@ public class AzureArtifactSigningCertificateProviderPlugin : ICertificateProvide
             ["--aas-endpoint"] = "aas-endpoint",
             ["--aas-account-name"] = "aas-account-name",
             ["--aas-cert-profile-name"] = "aas-cert-profile-name",
+            ["--aas-hash-algorithm"] = "aas-hash-algorithm",
+            ["--aas-rsa-padding"] = "aas-rsa-padding",
+            ["--aas-exclude-credentials"] = AzureCredentialFactory.ExcludeCredentialsKey,
         };
     }
 
@@ -89,24 +93,28 @@ public class AzureArtifactSigningCertificateProviderPlugin : ICertificateProvide
 
         try
         {
+            HashAlgorithmName hashAlgorithm = HashAlgorithmHelper.Parse(configuration, "aas-hash-algorithm");
+            RSASignaturePadding rsaPadding = RsaSignaturePaddingHelper.Parse(configuration, "aas-rsa-padding");
+
             logger?.LogVerbose($"Creating Azure Artifact Signing provider...");
             logger?.LogVerbose($"  Endpoint: {endpoint}");
             logger?.LogVerbose($"  Account: {accountName}");
             logger?.LogVerbose($"  Certificate Profile: {certProfileName}");
+            logger?.LogVerbose($"  Hash Algorithm: {hashAlgorithm.Name}");
+            logger?.LogVerbose($"  COSE Algorithm: {RsaSignaturePaddingHelper.GetCoseAlgorithmName(hashAlgorithm, rsaPadding)}");
 
-            // Create Azure credential using DefaultAzureCredential
-            // This supports multiple authentication methods in order of precedence:
+            // Create (or reuse) the Azure credential. DefaultAzureCredential supports multiple
+            // authentication methods in order of precedence:
             // 1. Environment variables (AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, etc.)
             // 2. Managed Identity (for Azure VMs, App Service, etc.)
             // 3. Visual Studio credential
             // 4. Azure CLI credential
             // 5. Azure PowerShell credential
-            logger?.LogVerbose("Acquiring Azure credentials using DefaultAzureCredential...");
-            TokenCredential credential = new IdentityAlias::Azure.Identity.DefaultAzureCredential(new IdentityAlias::Azure.Identity.DefaultAzureCredentialOptions // CodeQL [SM02196] DefaultAzureCredential is the recommended approach for client applications and libraries to authenticate to Azure services
-            {
-                // Exclude interactive browser auth to avoid unexpected prompts in CI/CD
-                ExcludeInteractiveBrowserCredential = true
-            });
+            // The instance is cached per exclusion set so repeated signings reuse its token cache
+            // instead of re-probing the chain and re-acquiring a token each time.
+            TokenCredential credential = AzureCredentialFactory.GetCredential(
+                AzureCredentialFactory.GetExclusions(configuration),
+                logger);
 
             logger?.LogVerbose("Creating CertificateProfileClient...");
             // Create the Certificate Profile Client with fast-retry pipeline tuning so transient
@@ -136,8 +144,9 @@ public class AzureArtifactSigningCertificateProviderPlugin : ICertificateProvide
                 signContextOptions);
 
             logger?.LogVerbose("Creating AzureArtifactSigningCoseSigningKeyProvider...");
-            // Create and return the key provider
-            AzureArtifactSigningCoseSigningKeyProvider provider = new AzureArtifactSigningCoseSigningKeyProvider(signContext);
+            // The hash algorithm and padding together select the COSE algorithm the service is asked
+            // for: PKCS#1 v1.5 yields RS256/RS384/RS512 and PSS yields PS256/PS384/PS512.
+            AzureArtifactSigningCoseSigningKeyProvider provider = new AzureArtifactSigningCoseSigningKeyProvider(signContext, hashAlgorithm, rsaPadding);
 
             logger?.LogInformation("Azure Artifact Signing provider created successfully.");
             return provider;
@@ -184,6 +193,25 @@ Required Parameters:
   --aas-cert-profile-name <name>    Certificate profile name within the account
                                      Example: MyCodeSigningProfile
 
+Optional Parameters:
+  --aas-hash-algorithm <name>       Hash algorithm used to sign. SHA256 (default), SHA384 or SHA512.
+                                     This selects the digest size of the COSE algorithm, so SHA384 signs
+                                     with PS384 by default, or RS384 with --aas-rsa-padding PKCS1.
+                                     Example: --aas-hash-algorithm SHA384
+
+  --aas-rsa-padding <name>          RSA signature padding: PSS (default) or PKCS1. This selects the COSE
+                                     algorithm family, so PKCS1 signs with RS256/RS384/RS512 and PSS signs
+                                     with PS256/PS384/PS512. The COSE prefixes RS and PS are also accepted.
+                                     Example: --aas-rsa-padding PKCS1
+                                     Combined with --aas-hash-algorithm SHA384 this produces RS384.
+
+  --aas-exclude-credentials <list>  Comma-separated credentials to exclude from the DefaultAzureCredential chain.
+                                     Excluding a credential that cannot succeed in your environment removes the
+                                     probe delay it would otherwise add before the chain reaches a working credential.
+                                     Example: --aas-exclude-credentials ManagedIdentityCredential
+                                     May also be supplied as a JSON array under the ExcludeCredentials section:
+                                       ""ExcludeCredentials"": [""ManagedIdentityCredential""]
+
 Authentication:
   This provider uses DefaultAzureCredential for authentication, which supports:
   - Managed Identity (Azure VMs, App Service, Container Instances, etc.)
@@ -191,6 +219,9 @@ Authentication:
   - Azure CLI (az login)
   - Azure PowerShell (Connect-AzAccount)
   - Visual Studio credential
+
+  The credential instance is cached per exclusion set for the lifetime of the process, so repeated
+  signing operations reuse the resolved credential chain and its acquired tokens.
   
   For CI/CD scenarios, configure environment variables or use managed identity.
   For local development, use 'az login' or Visual Studio authentication.

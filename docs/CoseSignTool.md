@@ -25,6 +25,13 @@ CoseSignTool --help
 # Use a plugin command (example: Azure CTS)
 export MST_TOKEN="your-access-token"
 CoseSignTool mst_register --endpoint https://your-mst.azure.com --payload file.txt --signature file.txt.cose
+
+# Register through the Azure Artifact Signing MST proxy
+CoseSignTool mst_register --endpoint https://your-mst.azure.com \
+    --proxy-endpoint https://api-canary.northcentralus.codesigning.azure.net/ \
+    --account-name MyAccount --cert-profile-name MyProfile \
+    --aas-exclude-credentials ManagedIdentityCredential,VisualStudioCredential \
+    --payload file.txt --signature file.txt.cose
 ```
 
 **For Developers:**
@@ -210,6 +217,8 @@ cat mycert.crt mykey.pem > combined.pem
         * **--StringProtectedHeaders**, **--sph** - A collection of name-value pairs (separated by comma ',') with the value being a string. Example: `--sph message-type="cose",customer-name="contoso"`
         * **--IntUnProtectedHeaders**, **--iuh** - A collection of name-value pairs (separated by comma ',') with the value being an int32. Example: `--iuh created-at=12345678,customer-count=10`
         * **--StringUnProtectedHeaders**, **--suh** - A collection of name-value pairs (separated by comma ',') with the value being a string. Example: `--suh message-type="cose",customer-name="contoso"`
+        * **--CborProtectedHeaders**, **--cbph** - A collection of label-value pairs (separated by comma ',') where the value is base64-encoded CBOR placed in the protected header verbatim. Example: `--cbph vendor-signature=RAECAwQ=`
+        * **--CborUnProtectedHeaders**, **--cbuh** - The same as `--cbph`, but for the un-protected header. Example: `--cbuh 4242=RAECAwQ=`
     * File:
         * **--IntHeaders**, **--ih** - A JSON file containing the headers with the value being an int32.
         * **--StringHeaders**, **--sh** - A JSON file containing the headers with the value being a string.
@@ -250,6 +259,27 @@ The JSON schema is the same for both types of header files. Sample int32 and str
 
 Run *CoseSignTool sign --help* for the complete command line usage.
 
+#### CBOR-valued headers
+
+The int and string header options encode their values on your behalf, which cannot express a structure that is already CBOR-encoded. `--CborProtectedHeaders` and `--CborUnProtectedHeaders` take the encoded bytes directly, so a producer that owns its own CBOR representation - for example an existing vendor signature blob carried alongside the COSE signature - can place it in a dedicated header without CoseSignTool needing to understand its schema.
+
+* The value is base64 so it survives the command line intact.
+* Each decoded value must be exactly one well-formed CBOR data item. Malformed CBOR, trailing bytes, invalid base64, and empty values are rejected during argument parsing rather than producing a signature with an undecodable header.
+* Labels that parse as an integer become integer header labels; anything else becomes a string label. Unlike the int and string header options, this means `4242=...` and `vendor-signature=...` produce different label types.
+
+```bash
+CoseSignTool sign --payload app.bin --signature app.cose --pfx cert.pfx \
+  --CborProtectedHeaders vendor-signature=RAECAwQ=
+```
+
+### Hash Algorithm:
+
+*   **--HashAlgorithm**, **--ha** - The hash algorithm used to sign the payload. Supported values are `SHA256` (default), `SHA384`, and `SHA512`. Case is ignored and an optional separating dash is allowed, so `sha-384` and `SHA384` are equivalent.
+
+```bash
+CoseSignTool sign --payload app.bin --signature app.cose --pfx cert.pfx --HashAlgorithm SHA384
+```
+
 ### PFX Certificate Chain Examples
 
 **Sign with a PFX containing a certificate chain (uses first certificate with private key):**
@@ -283,6 +313,9 @@ Microsoft's cloud-based signing service providing managed certificates, FIPS 140
 * **--aas-endpoint** - Azure Artifact Signing endpoint URL (e.g., `https://contoso.codesigning.azure.net`)
 * **--aas-account-name** - Azure Artifact Signing account name
 * **--aas-cert-profile-name** - Certificate profile name within the account
+* **--aas-hash-algorithm** - Signing hash algorithm: `SHA256` (default), `SHA384`, or `SHA512`.
+* **--aas-rsa-padding** - RSA signature padding: `PSS` (default) or `PKCS1`. Together with `--aas-hash-algorithm` this selects the COSE algorithm, so `PKCS1` yields `RS256`/`RS384`/`RS512` and `PSS` yields `PS256`/`PS384`/`PS512`. The COSE prefixes `RS` and `PS` are also accepted.
+* **--aas-exclude-credentials** - Comma-separated credentials to exclude from the `DefaultAzureCredential` chain (e.g., `ManagedIdentityCredential`). May also be supplied as a JSON array under the `ExcludeCredentials` section. Credentials are cached per exclusion set for the process lifetime, so signing multiple artifacts reuses the first access token.
 
 **Authentication:**
 Azure Artifact Signing uses Azure DefaultAzureCredential, which automatically tries:
@@ -388,4 +421,3 @@ You may also want to specify:
 * **--Roots**, **--Verbose**, **--RevocationMode**, **--CommonName**, **--AllowUntrusted**, and **--AllowOutdated** exactly as with the Validate command.
 
 Run *CoseSignTool get --help* for the complete command line usage.
-

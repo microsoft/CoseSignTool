@@ -19,14 +19,16 @@ public class X509Certificate2CoseSigningKeyProvider : CertificateCoseSigningKeyP
     /// <param name="signingCertificate">The <see cref="X509Certificate2"/> certificate used to perform signing operations with.</param>
     /// <param name="rootCertificates">Optional root certificates to chain the signing certificate to.</param>
     /// <param name="enableScittCompliance">Optional. If true (default), automatically adds SCITT-compliant CWT claims (issuer and subject) to the signature.</param>
+    /// <param name="hashAlgorithm">Optional. The <see cref="HashAlgorithmName"/> used for the signing operation. Defaults to SHA256.</param>
     public X509Certificate2CoseSigningKeyProvider(
         ICertificateChainBuilder? certificateChainBuilder,
         X509Certificate2 signingCertificate,
         List<X509Certificate2>? rootCertificates = null,
-        bool enableScittCompliance = true)
+        bool enableScittCompliance = true,
+        HashAlgorithmName? hashAlgorithm = null)
         : base (
               certificateChainBuilder ?? new X509ChainBuilder() { ChainPolicy = CreateChainPolicyForSigning(rootCertificates) },
-              hashAlgorithm: null,
+              hashAlgorithm,
               rootCertificates)
     {
         SigningCertificate = signingCertificate ?? throw new ArgumentNullException(nameof(signingCertificate));

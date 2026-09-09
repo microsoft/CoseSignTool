@@ -8,12 +8,15 @@ using CoseSign1.Certificates.Extensions;
 /// <summary>
 /// Abstract class which contains common logic needed for all certificate based <see cref="ICoseSigningKeyProvider"/> implementations.
 /// </summary>
-public abstract class CertificateCoseSigningKeyProvider : ICoseSigningKeyProvider, ISupportsScittCompliance
+public abstract class CertificateCoseSigningKeyProvider : ICoseSigningKeyProvider, ISupportsScittCompliance, ISupportsRsaSignaturePadding
 {
     private static readonly DidX509Generator DefaultDidGenerator = new();
 
     /// <inheritdoc/>
     public HashAlgorithmName HashAlgorithm { get; } = HashAlgorithmName.SHA256;
+
+    /// <inheritdoc/>
+    public RSASignaturePadding RSASignaturePadding { get; protected set; } = RSASignaturePadding.Pss;
 
     /// <inheritdoc/>
     public bool IsRSA => GetRSAKey(true) != null;

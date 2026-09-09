@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 namespace CoseSignTool;
@@ -53,6 +53,12 @@ public class SignCommand : CoseCommand
         ["--iuh"] = "IntUnProtectedHeaders",
         ["--StringUnProtectedHeaders"] = "StringUnProtectedHeaders",
         ["--suh"] = "StringUnProtectedHeaders",
+        ["--CborProtectedHeaders"] = "CborProtectedHeaders",
+        ["--cbph"] = "CborProtectedHeaders",
+        ["--CborUnProtectedHeaders"] = "CborUnProtectedHeaders",
+        ["--cbuh"] = "CborUnProtectedHeaders",
+        ["--HashAlgorithm"] = "HashAlgorithm",
+        ["--ha"] = "HashAlgorithm",
         ["--CwtIssuer"] = "CwtIssuer",
         ["--cwt-iss"] = "CwtIssuer",
         ["--CwtSubject"] = "CwtSubject",
@@ -166,6 +172,29 @@ public class SignCommand : CoseCommand
     /// Optional. Gets or sets the headers with string values.
     /// </summary>
     public List<CoseHeader<string>>? StringHeaders { get; set; }
+
+    /// <summary>
+    /// Optional. Gets or sets protected headers whose CBOR values are supplied as base64, in <c>label=base64</c> form.
+    /// </summary>
+    /// <remarks>
+    /// Use this to carry an already-encoded CBOR structure — such as a vendor's original signature blob —
+    /// in its own protected header without CoseSignTool re-encoding it.
+    /// </remarks>
+    public string? CborProtectedHeaders { get; set; }
+
+    /// <summary>
+    /// Optional. Gets or sets unprotected headers whose CBOR values are supplied as base64, in <c>label=base64</c> form.
+    /// </summary>
+    public string? CborUnProtectedHeaders { get; set; }
+
+    /// <summary>
+    /// Optional. Gets or sets the hash algorithm used for the signing operation. Default value is SHA256.
+    /// </summary>
+    /// <remarks>
+    /// Supported values are SHA256, SHA384 and SHA512. When signing through Azure Artifact Signing the
+    /// digest size selects the RSA signature algorithm, so SHA384 signs with RS384.
+    /// </remarks>
+    public string? HashAlgorithm { get; set; }
 
     /// <summary>
     /// Optional. Gets or sets the CWT issuer (iss) claim for SCITT compliance.
@@ -287,6 +316,17 @@ public class SignCommand : CoseCommand
             // Use shared header processing logic
             ICoseHeaderExtender? headerExtender = CoseHeaderHelper.CreateHeaderExtender(IntHeaders, StringHeaders);
 
+            // Add any headers whose values were supplied as already-encoded CBOR.
+            ICoseHeaderExtender? cborHeaderExtender = CborHeaderHelper.CreateHeaderExtender(
+                SplitHeaderSpecifications(CborProtectedHeaders),
+                SplitHeaderSpecifications(CborUnProtectedHeaders));
+            if (cborHeaderExtender != null)
+            {
+                headerExtender = headerExtender != null
+                    ? new CoseSign1.Headers.ChainedCoseHeaderExtender(new[] { headerExtender, cborHeaderExtender })
+                    : cborHeaderExtender;
+            }
+
             // If CWT claims customization is requested, create a CWT extender
             // Note: CertificateCoseSigningKeyProvider now automatically adds default CWT claims for SCITT compliance
             // We only need to create a customizer if the user wants to override defaults
@@ -398,6 +438,9 @@ public class SignCommand : CoseCommand
         StoreLocation = sl is not null ? Enum.Parse<StoreLocation>(sl) : StoreLocation.CurrentUser;
         IntHeaders = GetOptionHeadersFromFile<int>(provider, nameof(IntHeaders), null);
         StringHeaders = GetOptionHeadersFromFile<string>(provider, nameof(StringHeaders), null, new HeaderStringConverter());
+        CborProtectedHeaders = GetOptionString(provider, nameof(CborProtectedHeaders));
+        CborUnProtectedHeaders = GetOptionString(provider, nameof(CborUnProtectedHeaders));
+        HashAlgorithm = GetOptionString(provider, nameof(HashAlgorithm));
 
         if (IntHeaders == null)
         {
@@ -1001,7 +1044,20 @@ public class SignCommand : CoseCommand
             certificateChainBuilder: null,
             signingCertificate: cert,
             rootCertificates: additionalRoots,
-            enableScittCompliance: EnableScittCompliance);
+            enableScittCompliance: EnableScittCompliance,
+            hashAlgorithm: HashAlgorithmHelper.Parse(HashAlgorithm));
+    }
+
+    /// <summary>
+    /// Splits a comma-separated header option value into individual <c>label=value</c> specifications.
+    /// </summary>
+    /// <param name="value">The raw option value.</param>
+    /// <returns>The individual specifications, or null when the value is empty.</returns>
+    private static IEnumerable<string>? SplitHeaderSpecifications(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? null
+            : value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
     }
 
     /// <summary>
@@ -1426,6 +1482,20 @@ Advanced Options:
 
         --StringUnProtectedHeaders, -suh: A collection of name-value pairs with a string label and value.
             Sample input: --suh message-type=cose,customer-name=contoso
+
+        --CborProtectedHeaders, -cbph: A collection of protected headers whose values are already CBOR encoded and
+            supplied as base64. Use this to carry an existing signature or other opaque CBOR structure in its own
+            protected header. Labels may be integers or strings.
+            Sample input: --cbph 4242=RAECAwQ=,vendor-signature=RAECAwQ=
+
+        --CborUnProtectedHeaders, -cbuh: The same as --CborProtectedHeaders, but the headers are unprotected.
+            Sample input: --cbuh 4242=RAECAwQ=
+
+    Options to customize the signing operation:
+        --HashAlgorithm, -ha: The hash algorithm used to sign. Supported values are SHA256 (default), SHA384 and SHA512.
+            When signing through Azure Artifact Signing the digest size selects the RSA signature algorithm, so
+            SHA384 signs with RS384 and SHA512 signs with RS512.
+            Sample input: --ha SHA384
 
     Options to customize file and stream handling:
         --MaxWaitTime, --wait: The maximum number of seconds to wait for a payload or signature file to be available and

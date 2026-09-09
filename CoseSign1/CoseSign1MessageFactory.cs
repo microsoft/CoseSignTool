@@ -109,10 +109,16 @@ public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactory
         // Get the RSA or ECDSA Signing Key.
         AsymmetricAlgorithm? key = signingKeyProvider.GetRSAKey() as AsymmetricAlgorithm ?? signingKeyProvider.GetECDsaKey();
 
+        // The padding selects the COSE algorithm family: PKCS#1 v1.5 yields RS*, PSS yields PS*.
+        // Providers that do not expose a choice keep the historical PSS behavior.
+        RSASignaturePadding rsaSignaturePadding = signingKeyProvider is ISupportsRsaSignaturePadding paddingProvider
+            ? paddingProvider.RSASignaturePadding
+            : RSASignaturePadding.Pss;
+
         // Build the CoseSigner object.
         return key switch
         {
-            RSA => new CoseSigner((RSA)key, RSASignaturePadding.Pss, signingKeyProvider.HashAlgorithm, protectedHeaders, unProtectedHeaders),
+            RSA => new CoseSigner((RSA)key, rsaSignaturePadding, signingKeyProvider.HashAlgorithm, protectedHeaders, unProtectedHeaders),
             ECDsa => new CoseSigner(key, signingKeyProvider.HashAlgorithm, protectedHeaders, unProtectedHeaders),
             _ => throw new CoseSigningException("Unsupported certificate type for COSE signing.")
         };

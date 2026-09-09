@@ -71,6 +71,7 @@ jobs:
           dotnet test --no-restore CoseSignTool.Tests/CoseSignTool.Tests.csproj
           dotnet test --no-restore CoseSignTool.Abstractions.Tests/CoseSignTool.Abstractions.Tests.csproj
           dotnet test --no-restore CoseSignTool.MST.Plugin.Tests/CoseSignTool.MST.Plugin.Tests.csproj
+          dotnet test --no-restore CoseSignTool.AzureArtifactSigning.Plugin.Tests/CoseSignTool.AzureArtifactSigning.Plugin.Tests.csproj
           dotnet test --no-restore CoseSignTool.IndirectSignature.Plugin.Tests/CoseSignTool.IndirectSignature.Plugin.Tests.csproj
 
     # Build Release to catch issues the internal ADO pipeline would hit (e.g. netstandard2.0 API surface differences).

@@ -28,8 +28,43 @@ public class AzureArtifactSigningCoseSigningKeyProvider : CertificateCoseSigning
     /// <param name="signContext">The <see cref="ISignContext"/> used to interact with Azure Artifact Signing.</param>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="signContext"/> is null.</exception>
     public AzureArtifactSigningCoseSigningKeyProvider(ISignContext signContext)
+        : this(signContext, null, null)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="AzureArtifactSigningCoseSigningKeyProvider"/> class
+    /// with an explicit hash algorithm.
+    /// </summary>
+    /// <param name="signContext">The <see cref="ISignContext"/> used to interact with Azure Artifact Signing.</param>
+    /// <param name="hashAlgorithm">The hash algorithm used for the signing operation, or null for the SHA256 default.</param>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="signContext"/> is null.</exception>
+    public AzureArtifactSigningCoseSigningKeyProvider(ISignContext signContext, HashAlgorithmName? hashAlgorithm)
+        : this(signContext, hashAlgorithm, null)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="AzureArtifactSigningCoseSigningKeyProvider"/> class
+    /// with an explicit hash algorithm and RSA signature padding.
+    /// </summary>
+    /// <param name="signContext">The <see cref="ISignContext"/> used to interact with Azure Artifact Signing.</param>
+    /// <param name="hashAlgorithm">The hash algorithm used for the signing operation, or null for the SHA256 default.</param>
+    /// <param name="rsaSignaturePadding">
+    /// The RSA signature padding, or null for the <see cref="RSASignaturePadding.Pss"/> default. Together with
+    /// <paramref name="hashAlgorithm"/> this selects the COSE algorithm Azure Artifact Signing is asked for:
+    /// <see cref="RSASignaturePadding.Pkcs1"/> yields RS256, RS384 or RS512 and
+    /// <see cref="RSASignaturePadding.Pss"/> yields PS256, PS384 or PS512.
+    /// </param>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="signContext"/> is null.</exception>
+    public AzureArtifactSigningCoseSigningKeyProvider(
+        ISignContext signContext,
+        HashAlgorithmName? hashAlgorithm,
+        RSASignaturePadding? rsaSignaturePadding)
+        : base(hashAlgorithm)
     {
         SignContext = signContext ?? throw new ArgumentNullException(nameof(ISignContext));
+        RSASignaturePadding = rsaSignaturePadding ?? RSASignaturePadding.Pss;
     }
 
     /// <summary>

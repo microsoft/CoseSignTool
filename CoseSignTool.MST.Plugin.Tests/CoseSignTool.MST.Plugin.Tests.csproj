@@ -16,6 +16,7 @@
     <SignAssembly>true</SignAssembly>
     <DelaySign>True</DelaySign>
     <AssemblyOriginatorKeyFile>..\StrongNameKeys\35MSSharedLib1024.snk</AssemblyOriginatorKeyFile>
+    <RestoreAdditionalProjectSources>https://pkgs.dev.azure.com/prssdev/AzureCodeSign/_packaging/Prod-RW-ACS/nuget/v3/index.json</RestoreAdditionalProjectSources>
   </PropertyGroup>
 
   <ItemGroup>
@@ -27,7 +28,8 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Moq" />
-    <PackageReference Include="Azure.Core" />
+    <PackageReference Include="Azure.ArtifactSigning.MST" />
+    <PackageReference Include="Azure.Core" VersionOverride="1.62.0" />
     <PackageReference Include="Azure.Identity" Aliases="global,IdentityAlias" />
     <PackageReference Include="Azure.Security.CodeTransparency">
       <NoWarn>NU5104</NoWarn>

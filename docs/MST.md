@@ -23,6 +23,8 @@ The plugin supports three authentication modes. The default is **anonymous** (su
 
 **Precedence:** explicit access token (env var) > `--azure-auth` (DefaultAzureCredential) > anonymous.
 
+Proxy registration always uses `DefaultAzureCredential` for Azure Artifact Signing.
+
 ### 1. Anonymous (default)
 
 When no access token is supplied and `--azure-auth` is not passed, the plugin constructs the client without credentials. No `Authorization` header is sent.
@@ -94,6 +96,11 @@ CoseSignTool mst_register [OPTIONS]
 - `--azure-auth` - Opt into Azure `DefaultAzureCredential` when no token is supplied. Default is anonymous.
 - `--output` - Output file path for the registration result
 - `--timeout` - Operation timeout in seconds (default: 30). The timeout covers credential acquisition as well as the registration call.
+- `--proxy-endpoint` - Route registration through Azure Artifact Signing using `TransparencyClient.RegisterTransparencyAsync`
+- `--account-name` - Azure Artifact Signing account name; required with `--proxy-endpoint`
+- `--cert-profile-name` - Azure Artifact Signing certificate profile; required with `--proxy-endpoint`
+- `--correlation-id` - Optional correlation ID sent to Azure Artifact Signing
+- `--aas-exclude-credentials` - Comma-separated credentials to exclude from `DefaultAzureCredential`
 
 #### Examples
 
@@ -142,6 +149,22 @@ CoseSignTool mst_register \
     --signature myfile.txt.cose \
     --output registration-result.json
 ```
+
+**Through the Azure Artifact Signing proxy:**
+
+```bash
+CoseSignTool mst_register \
+    --endpoint https://debugruisuprivatetrust.confidential-ledger.azure.com \
+    --proxy-endpoint https://api-canary.northcentralus.codesigning.azure.net/ \
+    --account-name MyAccount \
+    --cert-profile-name MyProfile \
+    --aas-exclude-credentials ManagedIdentityCredential,VisualStudioCredential \
+    --payload sample_payload.txt \
+    --signature sample_payload.cose \
+    --output registration-result.json
+```
+
+When `--proxy-endpoint` is present, the command sends the COSE signature to Azure Artifact Signing rather than calling the ledger directly. Azure Artifact Signing performs account/profile authorization and selects the downstream MST service. The existing `--endpoint`, `--payload`, and `--signature` arguments remain part of the command contract.
 
 ### mst_verify
 
@@ -560,4 +583,3 @@ For issues and questions:
 ## License
 
 This plugin is licensed under the MIT License. See [LICENSE](../LICENSE) for details.
-

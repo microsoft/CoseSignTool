@@ -228,6 +228,73 @@ done
 | `--aas-endpoint` | | Yes | Azure Artifact Signing endpoint URL (e.g., `https://contoso.codesigning.azure.net`) |
 | `--aas-account-name` | | Yes | Azure Artifact Signing account name |
 | `--aas-cert-profile-name` | | Yes | Certificate profile name within the account |
+| `--aas-hash-algorithm` | | No | Signing hash algorithm: `SHA256` (default), `SHA384`, or `SHA512`. |
+| `--aas-rsa-padding` | | No | RSA signature padding: `PSS` (default) or `PKCS1`. Selects the COSE algorithm family. |
+| `--aas-exclude-credentials` | | No | Comma-separated credentials to exclude from the `DefaultAzureCredential` chain (e.g., `ManagedIdentityCredential`). |
+
+#### Selecting the hash and signature algorithm
+
+The hash algorithm sets the digest size and the padding sets the COSE algorithm family, so together
+they select the algorithm Azure Artifact Signing is asked for:
+
+| `--aas-hash-algorithm` | `--aas-rsa-padding PSS` (default) | `--aas-rsa-padding PKCS1` |
+|------------------------|-----------------------------------|---------------------------|
+| `SHA256` (default) | `PS256` | `RS256` |
+| `SHA384` | `PS384` | `RS384` |
+| `SHA512` | `PS512` | `RS512` |
+
+The COSE algorithm prefixes are also accepted as padding names, so `--aas-rsa-padding RS` is
+equivalent to `--aas-rsa-padding PKCS1` and `PS` is equivalent to `PSS`.
+
+To sign with `RS384`:
+
+```bash
+CoseSignTool sign \
+  --payload artifact.bin \
+  --signature artifact.cose \
+  --cert-provider azure-artifact-signing \
+  --aas-endpoint https://contoso.codesigning.azure.net \
+  --aas-account-name ContosoAccount \
+  --aas-cert-profile-name ContosoProfile \
+  --aas-hash-algorithm SHA384 \
+  --aas-rsa-padding PKCS1
+```
+
+#### Excluding credentials and reusing the credential cache
+
+`DefaultAzureCredential` probes each credential in its chain in order, and a credential that cannot
+succeed in the current environment still costs a timeout before the chain moves on. Excluding the
+ones you know will not apply removes that delay:
+
+```bash
+CoseSignTool sign \
+  --payload artifact.bin \
+  --signature artifact.cose \
+  --cert-provider azure-artifact-signing \
+  --aas-endpoint https://contoso.codesigning.azure.net \
+  --aas-account-name ContosoAccount \
+  --aas-cert-profile-name ContosoProfile \
+  --aas-exclude-credentials ManagedIdentityCredential,VisualStudioCredential
+```
+
+The same list may be supplied as a JSON array under the `ExcludeCredentials` section:
+
+```json
+{
+  "ExcludeCredentials": [ "ManagedIdentityCredential" ]
+}
+```
+
+Credential names are case-insensitive and the trailing `Credential` is optional, so
+`ManagedIdentityCredential` and `managedidentity` are equivalent. Supported names are
+`AzureCliCredential`, `AzureDeveloperCliCredential`, `AzurePowerShellCredential`, `BrokerCredential`,
+`EnvironmentCredential`, `InteractiveBrowserCredential`, `ManagedIdentityCredential`,
+`SharedTokenCacheCredential`, `VisualStudioCredential`, `VisualStudioCodeCredential`, and
+`WorkloadIdentityCredential`.
+
+Credentials are cached per distinct exclusion set for the lifetime of the process, so signing several
+artifacts in one invocation reuses the access token acquired for the first one instead of
+re-authenticating each time.
 
 ### Troubleshooting Azure Artifact Signing
 

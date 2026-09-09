@@ -102,6 +102,32 @@ public class AzureArtifactSigningDidX509GeneratorTests
     }
 
     [Test]
+    public void GenerateFromChain_WithTenantAndProfileEkus_SelectsTrailingProfileEku()
+    {
+        // Arrange
+        const string tenantScopedEku =
+            "1.3.6.1.4.1.311.97.1.3.1.29433.35007.34545.16815.37291.11644.53265.56135";
+        const string profileScopedEku =
+            "1.3.6.1.4.1.311.97.1.3.1.12347.16506.20182.20263.47550.64910.3172.51507";
+        List<string> ekus = new()
+        {
+            "1.3.6.1.5.5.7.3.3",
+            tenantScopedEku,
+            profileScopedEku
+        };
+        using X509Certificate2 leafCert = CreateCertificateWithMultipleEkus("CN=Leaf", ekus);
+        using X509Certificate2 rootCert = CreateSelfSignedCertificate("CN=Root");
+        X509Certificate2[] chain = new[] { leafCert, rootCert };
+
+        // Act
+        string did = Generator.GenerateFromChain(chain);
+
+        // Assert
+        Assert.That(did, Does.Contain($"::eku:{profileScopedEku}"));
+        Assert.That(did, Does.Not.Contain(tenantScopedEku));
+    }
+
+    [Test]
     public void GenerateFromChain_WithMixedEkus_SelectsDeepestMicrosoftEku()
     {
         // Arrange - Mix of standard and Microsoft EKUs

@@ -507,11 +507,17 @@ public class CodeTransparencyClientHelperTests
             // If DefaultAzureCredential succeeds (e.g., Azure CLI is logged in), the client should be created.
             Assert.IsNotNull(client);
         }
-        catch (Exception ex) when (ex.GetType().FullName == "Azure.Identity.CredentialUnavailableException")
+        catch (Exception ex)
         {
+            Type credentialUnavailableExceptionType = Type.GetType(
+                "Azure.Identity.CredentialUnavailableException, Azure.Identity",
+                throwOnError: true)!;
+
             // In a test environment without Azure credentials, DefaultAzureCredential will throw
             // CredentialUnavailableException. That is also valid behaviour for this opt-in path.
-            Assert.IsTrue(true, "DefaultAzureCredential correctly threw CredentialUnavailableException when no credentials are available");
+            Assert.IsTrue(
+                credentialUnavailableExceptionType.IsInstanceOfType(ex),
+                $"DefaultAzureCredential threw an unexpected exception: {ex.GetType().FullName}");
         }
     }
 
@@ -623,5 +629,4 @@ public class MstAzureAuthFlagWiringTests
             "BooleanOptions must be the same reference across all MST commands (shared static readonly).");
     }
 }
-
 

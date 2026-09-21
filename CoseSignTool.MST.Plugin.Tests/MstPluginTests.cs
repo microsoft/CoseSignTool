@@ -1,10 +1,8 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-// Azure.Core 1.60.0 introduced its own credential types, which collide with the Azure.Identity
-// ones (CS0433). Alias Azure.Identity so the catch below targets the type actually thrown.
-extern alias IdentityAlias;
-
+// Azure.Core 1.60.0 introduced credential types that collide with Azure.Identity types (CS0433).
+// Tests identify the reflected Azure.Identity exception by its fully qualified type name.
 namespace CoseSignTool.MST.Plugin.Tests;
 
 /// <summary>
@@ -509,7 +507,7 @@ public class CodeTransparencyClientHelperTests
             // If DefaultAzureCredential succeeds (e.g., Azure CLI is logged in), the client should be created.
             Assert.IsNotNull(client);
         }
-        catch (IdentityAlias::Azure.Identity.CredentialUnavailableException)
+        catch (Exception ex) when (ex.GetType().FullName == "Azure.Identity.CredentialUnavailableException")
         {
             // In a test environment without Azure credentials, DefaultAzureCredential will throw
             // CredentialUnavailableException. That is also valid behaviour for this opt-in path.
@@ -625,7 +623,5 @@ public class MstAzureAuthFlagWiringTests
             "BooleanOptions must be the same reference across all MST commands (shared static readonly).");
     }
 }
-
-
 
 

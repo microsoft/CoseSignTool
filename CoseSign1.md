@@ -13,6 +13,19 @@ This library performs the basic creation (signing) of a [CoseSign1Message](https
 #### [CoseSign1MessageFactory](https://github.com/microsoft/CoseSignTool/blob/main/CoseSign1/CoseSign1MessageFactory.cs)
 An implementation of [**CoseSign1.Interfaces.ICoseSign1MessageFactory**](https://github.com/microsoft/CoseSignTool/blob/main/CoseSign1/Interfaces/ICoseSign1MessageFactory.cs) over either **Stream** or **Byte[]** payloads.  It provides a proper CoseSign1Message object in either full object, or byte[] form through the various methods in accordance with the interface contract.
 
+The signing hash algorithm can be selected when constructing the factory. When no algorithm is specified, the factory preserves the existing behavior and uses the `HashAlgorithm` selected by the signing key provider. Providers can optionally implement `ISupportsHashAlgorithms` so the factory can reject unsupported selections before signing.
+
+```csharp
+using System.Security.Cryptography;
+using CoseSign1;
+
+CoseSign1MessageFactory defaultFactory = new();
+CoseSign1MessageFactory sha384Factory = new(HashAlgorithmName.SHA384);
+CoseSign1MessageFactory sha512Factory = new(HashAlgorithmName.SHA512);
+```
+
+Configuring the algorithm on the factory applies consistently to certificate, remote, and custom signing key providers. For RSA keys, SHA-256, SHA-384, and SHA-512 produce PS256, PS384, and PS512 signatures respectively. Unsupported selections fail before signing.
+
 #### [**CoseSign1MessageBuilder**](https://github.com/microsoft/CoseSignTool/blob/main/CoseSign1/CoseSign1MessageBuilder.cs)
 A builder pattern implementation operating over [**ICoseSign1MessageFactory**](https://github.com/microsoft/CoseSignTool/blob/main/CoseSign1/Interfaces/ICoseSign1MessageFactory.cs) and [**ICoseSigningKeyProvider**](https://github.com/microsoft/CoseSignTool/blob/main/CoseSign1.Abstractions/Interfaces/ICoseSigningKeyProvider.cs) abstractions.  It defaults to [**CoseSign1MessageFactory**](https://github.com/microsoft/CoseSignTool/blob/main/CoseSign1/CoseSign1MessageFactory.cs) if none is specified and requires a provided [**ICoseSign1MessageFactory**](https://github.com/microsoft/CoseSignTool/blob/main/CoseSign1/Interfaces/ICoseSign1MessageFactory.cs) and [**ICoseSigningKeyProvider**](https://github.com/microsoft/CoseSignTool/blob/main/CoseSign1.Abstractions/Interfaces/ICoseSigningKeyProvider.cs) to provide the signing keys used for signing operations.
 
@@ -29,6 +42,7 @@ using CoseSign1.Certificates.Local;
 
 byte[] testPayload = Encoding.ASCII.GetBytes("testPayload!");
 X509Certificate2CoseSigningKeyProvider coseSigningKeyProvider = new(...);
+CoseSign1MessageFactory coseSign1MessageFactory = new(HashAlgorithmName.SHA512);
 CoseSign1Message response = coseSign1MessageFactory.CreateCoseSign1Message(
             payload: testPayload,
             signingKeyProvider: coseSigningKeyProvider,

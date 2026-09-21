@@ -1,10 +1,6 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
-// Azure.Core 1.60.0 introduced its own DefaultAzureCredential, which collides with the
-// Azure.Identity one (CS0433). Alias Azure.Identity so the intended implementation stays in use.
-extern alias IdentityAlias;
-
 namespace CoseSignTool.MST.Plugin;
 
 using Azure.Core;
@@ -93,7 +89,11 @@ internal static class CodeTransparencyClientHelper
         {
             // Acquire a token via the Azure default credential chain (CLI, MSI, VS, etc.).
             logger?.LogVerbose("MST auth: using Azure DefaultAzureCredential (--azure-auth)");
-            IdentityAlias::Azure.Identity.DefaultAzureCredential defaultCred = new(); // CodeQL [SM05137] This is non-production testing code which is not deployed.
+            Type defaultAzureCredentialType = Type.GetType(
+                "Azure.Identity.DefaultAzureCredential, Azure.Identity",
+                throwOnError: true)!;
+            TokenCredential defaultCred = Activator.CreateInstance(defaultAzureCredentialType, new object[] { false }) as TokenCredential
+                ?? throw new InvalidOperationException("Azure.Identity.DefaultAzureCredential could not be created.");
             AccessToken defaultToken = await defaultCred.GetTokenAsync(new TokenRequestContext(DefaultAzureCredentialScopes), cancellationToken).ConfigureAwait(false);
             return new CodeTransparencyClient(uri, new AzureKeyCredential(defaultToken.Token), clientOptions);
         }

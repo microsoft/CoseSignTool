@@ -37,7 +37,7 @@
       <Private>true</Private>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </PackageReference>
-    <PackageReference Include="Azure.Identity" Aliases="global,IdentityAlias">
+    <PackageReference Include="Azure.Identity">
       <Private>true</Private>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </PackageReference>

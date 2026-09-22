@@ -162,6 +162,32 @@ public class CoseSign1MessageCwtClaimsExtensionsTests
         DisposeCertificates(certs);
     }
 
+    [Test]
+    public void TryGetCwtClaims_WithMixedIntegerAndTextLabels_PreservesAllClaims()
+    {
+        // Arrange
+        var certs = TestCertificateUtils.CreateTestChain();
+        var provider = new X509Certificate2CoseSigningKeyProvider(certs[^1]);
+        var extender = new TextLabeledCwtClaimsExtender();
+        byte[] payload = new byte[] { 1, 2, 3 };
+        byte[] signature = CoseHandler.Sign(payload, provider, embedSign: false, headerExtender: extender).ToArray();
+        CoseSign1Message message = CoseSign1Message.DecodeSign1(signature);
+
+        // Act
+        bool result = message.TryGetCwtClaims(out CwtClaims? claims);
+
+        // Assert
+        Assert.That(result, Is.True);
+        Assert.That(claims, Is.Not.Null);
+        Assert.That(claims!.Issuer, Is.EqualTo("did:x509:example"));
+        Assert.That(claims.Subject, Is.EqualTo("artifact.example"));
+        Assert.That(claims.IssuedAt!.Value.ToUnixTimeSeconds(), Is.EqualTo(1790016761));
+        Assert.That(claims.StringClaims["svn"], Is.EqualTo(1L));
+
+        // Cleanup
+        DisposeCertificates(certs);
+    }
+
     // Helper methods
     private (CoseSign1Message message, X509Certificate2Collection certs) CreateMessageWithCwtClaims()
     {
@@ -270,6 +296,31 @@ public class CoseSign1MessageCwtClaimsExtensionsTests
             
             var malformedValue = CoseHeaderValue.FromEncodedValue(writer.Encode());
             protectedHeaders[CWTClaimsHeaderLabels.CWTClaims] = malformedValue;
+            return protectedHeaders;
+        }
+
+        public CoseHeaderMap ExtendUnProtectedHeaders(CoseHeaderMap? unProtectedHeaders)
+        {
+            return unProtectedHeaders ?? new CoseHeaderMap();
+        }
+    }
+
+    private class TextLabeledCwtClaimsExtender : ICoseHeaderExtender
+    {
+        public CoseHeaderMap ExtendProtectedHeaders(CoseHeaderMap protectedHeaders)
+        {
+            var writer = new System.Formats.Cbor.CborWriter();
+            writer.WriteStartMap(4);
+            writer.WriteInt32(CWTClaimsHeaderLabels.Issuer);
+            writer.WriteTextString("did:x509:example");
+            writer.WriteInt32(CWTClaimsHeaderLabels.Subject);
+            writer.WriteTextString("artifact.example");
+            writer.WriteInt32(CWTClaimsHeaderLabels.IssuedAt);
+            writer.WriteInt64(1790016761);
+            writer.WriteTextString("svn");
+            writer.WriteInt32(1);
+            writer.WriteEndMap();
+            protectedHeaders[CWTClaimsHeaderLabels.CWTClaims] = CoseHeaderValue.FromEncodedValue(writer.Encode());
             return protectedHeaders;
         }
 
@@ -416,4 +467,3 @@ public class CoseSign1MessageCwtClaimsExtensionsTests
 
     #endregion
 }
-

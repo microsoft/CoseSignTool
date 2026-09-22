@@ -4,6 +4,7 @@
 namespace CoseSignTool;
 
 using System.Security.Cryptography.Cose;
+using CoseSign1.Abstractions.Exceptions;
 using CoseSign1.Abstractions.Interfaces;
 
 /// <summary>
@@ -41,6 +42,9 @@ public class SignCommand : CoseCommand
         ["--sl"] = "StoreLocation",
         ["--ContentType"] = "ContentType",
         ["--cty"] = "ContentType",
+        ["--HashAlgorithm"] = "HashAlgorithm",
+        ["--hash-algorithm"] = "HashAlgorithm",
+        ["--ha"] = "HashAlgorithm",
         ["--IntHeaders"] = "IntHeaders",
         ["--ih"] = "IntHeaders",
         ["--StringHeaders"] = "StringHeaders",
@@ -156,6 +160,12 @@ public class SignCommand : CoseCommand
     /// Optional. Gets or sets the content type of the payload to be set in protected header. Default value is "application/cose".
     /// </summary>
     public string? ContentType { get; set; }
+
+    /// <summary>
+    /// Optional. Gets or sets the hash algorithm used to create the COSE signature.
+    /// Supported values are SHA256, SHA384, and SHA512. The default is SHA256.
+    /// </summary>
+    public HashAlgorithmName HashAlgorithm { get; set; } = HashAlgorithmName.SHA256;
 
     /// <summary>
     /// Optional. Gets or sets the headers with Int32 values.
@@ -335,11 +345,11 @@ public class SignCommand : CoseCommand
             using CancellationTokenSource timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(MaxWaitTime));
 
             // Generate the COSE signature asynchronously with cancellation support.
-            ReadOnlyMemory<byte> signedBytes = CoseHandler.SignAsync(
+            CoseSign1MessageFactory messageFactory = new(HashAlgorithm);
+            ReadOnlyMemory<byte> signedBytes = messageFactory.CreateCoseSign1MessageBytesAsync(
                 payloadStream,
                 signingKeyProvider,
                 EmbedPayload,
-                SignatureFile,
                 ContentType ?? CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE,
                 headerExtender,
                 timeoutCts.Token).ConfigureAwait(false).GetAwaiter().GetResult();
@@ -364,6 +374,10 @@ public class SignCommand : CoseCommand
         catch (InvalidOperationException ex)
         {
             return CoseSignTool.Fail(ExitCode.UnknownError, ex);
+        }
+        catch (CoseSigningException ex)
+        {
+            return CoseSignTool.Fail(ExitCode.InvalidArgumentValue, ex);
         }
         catch (Exception ex) when (ex is CryptographicException or CoseSign1CertificateException)
         {
@@ -393,6 +407,7 @@ public class SignCommand : CoseCommand
         PasswordPrompt = GetOptionBool(provider, nameof(PasswordPrompt));
 
         ContentType = GetOptionString(provider, nameof(ContentType), CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE);
+        HashAlgorithm = ParseHashAlgorithm(GetOptionString(provider, nameof(HashAlgorithm), HashAlgorithmName.SHA256.Name));
         StoreName = GetOptionString(provider, nameof(StoreName), DefaultStoreName);
         string? sl = GetOptionString(provider, nameof(StoreLocation), DefaultStoreLocation);
         StoreLocation = sl is not null ? Enum.Parse<StoreLocation>(sl) : StoreLocation.CurrentUser;
@@ -447,6 +462,18 @@ public class SignCommand : CoseCommand
         CertProvider = GetOptionString(provider, nameof(CertProvider));
 
         base.ApplyOptions(provider);
+    }
+
+    private static HashAlgorithmName ParseHashAlgorithm(string? hashAlgorithm)
+    {
+        return hashAlgorithm?.ToUpperInvariant() switch
+        {
+            "SHA256" => HashAlgorithmName.SHA256,
+            "SHA384" => HashAlgorithmName.SHA384,
+            "SHA512" => HashAlgorithmName.SHA512,
+            _ => throw new InvalidOperationException(
+                $"Unsupported hash algorithm '{hashAlgorithm}'. Supported values are SHA256, SHA384, and SHA512.")
+        };
     }
 
     /// <summary>
@@ -1387,7 +1414,10 @@ Advanced Options:
     --ContentType, --cty: Optional. A MIME type to specify as Content Type in the COSE signature header. Default value is
         'application/cose'.
 
-    Options to enable SCITT (Supply Chain Integrity, Transparency, and Trust) compliance:
+--HashAlgorithm, --hash-algorithm, --ha: Optional. The hash algorithm used to create the COSE signature.
+    Supported values are SHA256, SHA384, and SHA512. Default value is SHA256.
+
+Options to enable SCITT (Supply Chain Integrity, Transparency, and Trust) compliance:
         --EnableScittCompliance, --scitt: Optional. If true (default), automatically adds SCITT-compliant CWT claims
             (issuer and subject) to the signature. Set to false to disable automatic CWT claims addition.
 

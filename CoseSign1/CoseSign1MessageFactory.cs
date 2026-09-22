@@ -3,6 +3,7 @@
 
 namespace CoseSign1;
 
+using System.Linq;
 using System.Threading;
 
 /// <summary>
@@ -10,6 +11,8 @@ using System.Threading;
 /// </summary>
 public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactory
 {
+    private readonly HashAlgorithmName? hashAlgorithm;
+
     /// <summary>
     /// The mime type added to Protected Headers when ContentType is not specified.
     /// </summary>
@@ -19,7 +22,17 @@ public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactory
     /// Creates a new <see cref="CoseSign1MessageFactory"/>.
     /// </summary>
     public CoseSign1MessageFactory()
-    { }
+    {
+    }
+
+    /// <summary>
+    /// Creates a new <see cref="CoseSign1MessageFactory"/> that uses the specified hash algorithm for signing operations.
+    /// </summary>
+    /// <param name="hashAlgorithm">The hash algorithm to use for signing operations.</param>
+    public CoseSign1MessageFactory(HashAlgorithmName hashAlgorithm)
+    {
+        this.hashAlgorithm = hashAlgorithm;
+    }
 
     /// <inheritdoc/>
     public CoseSign1Message CreateCoseSign1Message(
@@ -79,7 +92,7 @@ public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactory
     }
 
     // Generate a CoseSigner object from the SigningKeyProvider, content type, and HeaderExtender
-    private static CoseSigner GetSigner(
+    private CoseSigner GetSigner(
         ICoseSigningKeyProvider signingKeyProvider,
         string contentType = DEFAULT_CONTENT_TYPE,
         ICoseHeaderExtender? headerExtender = null)
@@ -88,6 +101,14 @@ public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactory
         if (signingKeyProvider == null)
         {
             throw new ArgumentNullException(null, "Signing key provider is not provided.");
+        }
+
+        HashAlgorithmName signingHashAlgorithm = this.hashAlgorithm ?? signingKeyProvider.HashAlgorithm;
+        if (signingKeyProvider is ISupportsHashAlgorithms supportedHashAlgorithms &&
+            !supportedHashAlgorithms.SupportedHashAlgorithms.Contains(signingHashAlgorithm))
+        {
+            throw new CoseSigningException(
+                $"The signing key provider does not support the requested hash algorithm '{signingHashAlgorithm.Name}'.");
         }
 
         // Get the protected headers and unprotected headers provided by the signing key provider.
@@ -112,8 +133,8 @@ public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactory
         // Build the CoseSigner object.
         return key switch
         {
-            RSA => new CoseSigner((RSA)key, RSASignaturePadding.Pss, signingKeyProvider.HashAlgorithm, protectedHeaders, unProtectedHeaders),
-            ECDsa => new CoseSigner(key, signingKeyProvider.HashAlgorithm, protectedHeaders, unProtectedHeaders),
+            RSA => new CoseSigner((RSA)key, RSASignaturePadding.Pss, signingHashAlgorithm, protectedHeaders, unProtectedHeaders),
+            ECDsa => new CoseSigner(key, signingHashAlgorithm, protectedHeaders, unProtectedHeaders),
             _ => throw new CoseSigningException("Unsupported certificate type for COSE signing.")
         };
     }

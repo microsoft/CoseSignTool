@@ -80,7 +80,7 @@ public class X509CommonNameValidator : X509Certificate2MessageValidator
 
             // signtool.exe /n semantics: signer CN must contain the required name.
             // NOT the reverse — the pin must appear IN the signer's CN.
-            if (!signerCommonName.Contains(commonName, StringComparison.Ordinal))
+            if (signerCommonName.IndexOf(commonName, StringComparison.Ordinal) < 0)
             {
                 throw new CoseValidationException($"Signing certificate common name [{signerCommonName}] does not match [{commonName}]");
             }

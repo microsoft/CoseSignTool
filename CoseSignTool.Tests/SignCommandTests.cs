@@ -122,6 +122,89 @@ public class SignCommandTests
     }
 
     [TestMethod]
+    public void SignWithSha384AndPkcs1_CreatesRs384Signature()
+    {
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
+        string signatureFile = Path.GetTempFileName() + ".cose";
+        string[] args =
+        [
+            "sign",
+            "--payload",
+            payloadFile,
+            "--pfx",
+            PrivateKeyCertFileSelfSigned,
+            "--sig",
+            signatureFile,
+            "--hash-algorithm",
+            "SHA384",
+            "--rsa-padding",
+            "PKCS1"
+        ];
+
+        try
+        {
+            Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider provider =
+                CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
+            badArg.Should().BeNull();
+            SignCommand command = new(provider);
+
+            ExitCode result = command.Run();
+
+            result.Should().Be(ExitCode.Success);
+            byte[] payload = File.ReadAllBytes(payloadFile);
+            CoseSign1Message message = CoseSign1Message.DecodeSign1(File.ReadAllBytes(signatureFile));
+            message.ProtectedHeaders[CoseHeaderLabel.Algorithm].GetValueAsInt32().Should().Be(-258);
+            using RSA publicKey = SelfSignedCert.GetRSAPublicKey()!;
+            message.VerifyDetached(publicKey, payload).Should().BeTrue();
+        }
+        finally
+        {
+            CleanupFile(payloadFile);
+            CleanupFile(signatureFile);
+        }
+    }
+
+    [TestMethod]
+    public void SignWithCborProtectedHeader_PreservesEncodedValue()
+    {
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
+        string signatureFile = Path.GetTempFileName() + ".cose";
+        byte[] encodedCbor = new byte[] { 0x44, 0x01, 0x02, 0x03, 0x04 };
+        string[] args =
+        [
+            "sign",
+            "--payload",
+            payloadFile,
+            "--pfx",
+            PrivateKeyCertFileSelfSigned,
+            "--sig",
+            signatureFile,
+            "--cbph",
+            $"4242={Convert.ToBase64String(encodedCbor)}"
+        ];
+
+        try
+        {
+            Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider provider =
+                CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
+            badArg.Should().BeNull();
+            SignCommand command = new(provider);
+
+            ExitCode result = command.Run();
+
+            result.Should().Be(ExitCode.Success);
+            CoseSign1Message message = CoseSign1Message.DecodeSign1(File.ReadAllBytes(signatureFile));
+            CoseHeaderValue headerValue = message.ProtectedHeaders[new CoseHeaderLabel(4242)];
+            headerValue.EncodedValue.ToArray().Should().Equal(encodedCbor);
+        }
+        finally
+        {
+            CleanupFile(payloadFile);
+            CleanupFile(signatureFile);
+        }
+    }
+
+    [TestMethod]
     public void SignWithPfxCertificateChain_ExtractsAllCertificatesFromPfx()
     {
         // Arrange - Create a PFX file containing the full certificate chain

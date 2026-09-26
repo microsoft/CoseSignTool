@@ -12,6 +12,7 @@ using System.Threading;
 public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactory
 {
     private readonly HashAlgorithmName? hashAlgorithm;
+    private readonly RSASignaturePadding rsaSignaturePadding = RSASignaturePadding.Pss;
 
     /// <summary>
     /// The mime type added to Protected Headers when ContentType is not specified.
@@ -32,6 +33,17 @@ public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactory
     public CoseSign1MessageFactory(HashAlgorithmName hashAlgorithm)
     {
         this.hashAlgorithm = hashAlgorithm;
+    }
+
+    /// <summary>
+    /// Creates a new <see cref="CoseSign1MessageFactory"/> that uses the specified hash algorithm and RSA signature padding.
+    /// </summary>
+    /// <param name="hashAlgorithm">The hash algorithm to use for signing operations.</param>
+    /// <param name="rsaSignaturePadding">The padding to use for RSA signing operations.</param>
+    public CoseSign1MessageFactory(HashAlgorithmName hashAlgorithm, RSASignaturePadding rsaSignaturePadding)
+    {
+        this.hashAlgorithm = hashAlgorithm;
+        this.rsaSignaturePadding = rsaSignaturePadding ?? throw new ArgumentNullException(nameof(rsaSignaturePadding));
     }
 
     /// <inheritdoc/>
@@ -133,7 +145,7 @@ public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactory
         // Build the CoseSigner object.
         return key switch
         {
-            RSA => new CoseSigner((RSA)key, RSASignaturePadding.Pss, signingHashAlgorithm, protectedHeaders, unProtectedHeaders),
+            RSA => new CoseSigner((RSA)key, this.rsaSignaturePadding, signingHashAlgorithm, protectedHeaders, unProtectedHeaders),
             ECDsa => new CoseSigner(key, signingHashAlgorithm, protectedHeaders, unProtectedHeaders),
             _ => throw new CoseSigningException("Unsupported certificate type for COSE signing.")
         };

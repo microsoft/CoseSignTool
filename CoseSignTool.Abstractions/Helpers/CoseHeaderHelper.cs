@@ -3,6 +3,7 @@
 
 namespace CoseSignTool.Abstractions.Helpers;
 
+using System.Formats.Cbor;
 using System.Security.Cryptography.Cose;
 using System.Text.Json;
 using CoseSign1.Headers;
@@ -26,7 +27,9 @@ public static class CoseHeaderHelper
         { "int-protected-headers", "Comma-separated list of protected headers with int32 values (format: label=value)" },
         { "string-protected-headers", "Comma-separated list of protected headers with string values (format: label=value)" },
         { "int-unprotected-headers", "Comma-separated list of unprotected headers with int32 values (format: label=value)" },
-        { "string-unprotected-headers", "Comma-separated list of unprotected headers with string values (format: label=value)" }
+        { "string-unprotected-headers", "Comma-separated list of unprotected headers with string values (format: label=value)" },
+        { "cbor-protected-headers", "Comma-separated list of protected headers with base64-encoded CBOR values (format: label=base64)" },
+        { "cbor-unprotected-headers", "Comma-separated list of unprotected headers with base64-encoded CBOR values (format: label=base64)" }
     };
 
     /// <summary>
@@ -34,38 +37,42 @@ public static class CoseHeaderHelper
     /// </summary>
     /// <param name="intHeaders">Collection of headers with int32 values.</param>
     /// <param name="stringHeaders">Collection of headers with string values.</param>
+    /// <param name="cborProtectedHeaders">Protected headers with base64-encoded CBOR values.</param>
+    /// <param name="cborUnprotectedHeaders">Unprotected headers with base64-encoded CBOR values.</param>
     /// <returns>A CoseHeaderExtender if headers are present, null otherwise.</returns>
+    /// <exception cref="ArgumentException">Thrown when a CBOR header is malformed.</exception>
     public static CoseHeaderExtender? CreateHeaderExtender(
-        List<CoseHeader<int>>? intHeaders, 
-        List<CoseHeader<string>>? stringHeaders)
+        List<CoseHeader<int>>? intHeaders,
+        List<CoseHeader<string>>? stringHeaders,
+        string? cborProtectedHeaders = null,
+        string? cborUnprotectedHeaders = null)
     {
-        // Only create extender if we have headers
-        if ((intHeaders?.Count > 0) || (stringHeaders?.Count > 0))
+        CoseHeaderMap? protectedHeaders = null;
+        CoseHeaderMap? unProtectedHeaders = null;
+
+        if (intHeaders?.Count > 0)
         {
-            // Convert headers to CoseHeaderMaps
-            CoseHeaderMap? protectedHeaders = null;
-            CoseHeaderMap? unProtectedHeaders = null;
-            
-            if (intHeaders?.Count > 0)
-            {
-                protectedHeaders = intHeaders.Where(h => h.IsProtected).ToCoseHeaderMap();
-                unProtectedHeaders = intHeaders.Where(h => !h.IsProtected).ToCoseHeaderMap();
-            }
-
-            if (stringHeaders?.Count > 0)
-            {
-                protectedHeaders = stringHeaders.Where(h => h.IsProtected).ToCoseHeaderMap(protectedHeaders);
-                unProtectedHeaders = stringHeaders.Where(h => !h.IsProtected).ToCoseHeaderMap(unProtectedHeaders);
-            }
-
-            // Create extender with delegate pattern
-            return new CoseHeaderExtender(
-                (existingProtectedHeaderMap) => protectedHeaders?.MergeHeaderMap(existingProtectedHeaderMap) ?? existingProtectedHeaderMap,
-                (existingUnprotectedHeaderMap) => unProtectedHeaders?.MergeHeaderMap(existingUnprotectedHeaderMap) ?? existingUnprotectedHeaderMap
-            );
+            protectedHeaders = intHeaders.Where(h => h.IsProtected).ToCoseHeaderMap();
+            unProtectedHeaders = intHeaders.Where(h => !h.IsProtected).ToCoseHeaderMap();
         }
 
-        return null;
+        if (stringHeaders?.Count > 0)
+        {
+            protectedHeaders = stringHeaders.Where(h => h.IsProtected).ToCoseHeaderMap(protectedHeaders);
+            unProtectedHeaders = stringHeaders.Where(h => !h.IsProtected).ToCoseHeaderMap(unProtectedHeaders);
+        }
+
+        protectedHeaders = MergeCborHeaders(protectedHeaders, cborProtectedHeaders);
+        unProtectedHeaders = MergeCborHeaders(unProtectedHeaders, cborUnprotectedHeaders);
+
+        if (protectedHeaders is null && unProtectedHeaders is null)
+        {
+            return null;
+        }
+
+        return new CoseHeaderExtender(
+            (existingProtectedHeaderMap) => protectedHeaders?.MergeHeaderMap(existingProtectedHeaderMap) ?? existingProtectedHeaderMap,
+            (existingUnprotectedHeaderMap) => unProtectedHeaders?.MergeHeaderMap(existingUnprotectedHeaderMap) ?? existingUnprotectedHeaderMap);
     }
 
     /// <summary>
@@ -75,6 +82,8 @@ public static class CoseHeaderHelper
     /// <returns>A CoseHeaderExtender if headers are found, null otherwise.</returns>
     public static CoseHeaderExtender? CreateHeaderExtender(IConfiguration configuration)
     {
+        ArgumentNullException.ThrowIfNull(configuration);
+
         List<CoseHeader<int>>? intHeaders = null;
         List<CoseHeader<string>>? stringHeaders = null;
 
@@ -97,8 +106,11 @@ public static class CoseHeaderHelper
             GetHeadersFromCommandLine(configuration, "string-unprotected-headers", false, stringHeaders, ParseStringValue);
         }
 
-        // Use the overload to create the header extender
-        return CreateHeaderExtender(intHeaders, stringHeaders);
+        return CreateHeaderExtender(
+            intHeaders,
+            stringHeaders,
+            configuration["cbor-protected-headers"],
+            configuration["cbor-unprotected-headers"]);
     }
 
     /// <summary>
@@ -112,7 +124,9 @@ public static class CoseHeaderHelper
            $"  --int-protected-headers    Comma-separated protected headers with int32 values (format: label=value){Environment.NewLine}" +
            $"  --string-protected-headers Comma-separated protected headers with string values (format: label=value){Environment.NewLine}" +
            $"  --int-unprotected-headers  Comma-separated unprotected headers with int32 values (format: label=value){Environment.NewLine}" +
-           $"  --string-unprotected-headers Comma-separated unprotected headers with string values (format: label=value){Environment.NewLine}";
+           $"  --string-unprotected-headers Comma-separated unprotected headers with string values (format: label=value){Environment.NewLine}" +
+           $"  --cbor-protected-headers   Comma-separated protected headers with base64-encoded CBOR values (format: label=base64){Environment.NewLine}" +
+           $"  --cbor-unprotected-headers Comma-separated unprotected headers with base64-encoded CBOR values (format: label=base64){Environment.NewLine}";
 
     /// <summary>
     /// Gets examples of header usage for command documentation.
@@ -126,12 +140,84 @@ public static class CoseHeaderHelper
            $"  # Using header files{Environment.NewLine}" +
            $"  --int-headers headers.json --string-headers strings.json{Environment.NewLine}" +
            $"{Environment.NewLine}" +
+           $"  # Using an already-encoded CBOR value{Environment.NewLine}" +
+           $"  --cbor-protected-headers 4242=RAECAwQ={Environment.NewLine}" +
+           $"{Environment.NewLine}" +
            $"  # JSON file format example:{Environment.NewLine}" +
            $"  # [{{{Environment.NewLine}" +
            $"  #   \"label\": \"created-at\",{Environment.NewLine}" +
            $"  #   \"value\": 1234567890,{Environment.NewLine}" +
            $"  #   \"protected\": true{Environment.NewLine}" +
            $"  # }}]{Environment.NewLine}";
+
+    private static CoseHeaderMap? MergeCborHeaders(CoseHeaderMap? headerMap, string? headerSpecifications)
+    {
+        if (string.IsNullOrWhiteSpace(headerSpecifications))
+        {
+            return headerMap;
+        }
+
+        CoseHeaderMap result = headerMap ?? new CoseHeaderMap();
+        foreach (string specification in headerSpecifications.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            string[] parts = specification.Split('=', 2);
+            if (parts.Length != 2)
+            {
+                throw new ArgumentException($"Invalid CBOR header format '{specification}'. Expected 'label=base64'.", nameof(headerSpecifications));
+            }
+
+            string label = parts[0].Trim();
+            string encodedValue = parts[1].Trim();
+            if (label.Length == 0)
+            {
+                throw new ArgumentException($"CBOR header label cannot be empty in '{specification}'.", nameof(headerSpecifications));
+            }
+
+            byte[] decodedValue = DecodeCborValue(label, encodedValue);
+            CoseHeaderLabel headerLabel = int.TryParse(label, out int integerLabel)
+                ? new CoseHeaderLabel(integerLabel)
+                : new CoseHeaderLabel(label);
+            result[headerLabel] = CoseHeaderValue.FromEncodedValue(decodedValue);
+        }
+
+        return result;
+    }
+
+    private static byte[] DecodeCborValue(string label, string encodedValue)
+    {
+        byte[] decodedValue;
+        try
+        {
+            decodedValue = Convert.FromBase64String(encodedValue);
+        }
+        catch (FormatException ex)
+        {
+            throw new ArgumentException($"CBOR header '{label}' does not contain a valid base64 value: {ex.Message}", nameof(encodedValue), ex);
+        }
+
+        if (decodedValue.Length == 0)
+        {
+            throw new ArgumentException($"CBOR header '{label}' decoded to an empty value.", nameof(encodedValue));
+        }
+
+        try
+        {
+            CborReader reader = new(decodedValue);
+            reader.SkipValue();
+            if (reader.BytesRemaining != 0)
+            {
+                throw new ArgumentException(
+                    $"CBOR header '{label}' must contain exactly one CBOR data item but has {reader.BytesRemaining} trailing byte(s).",
+                    nameof(encodedValue));
+            }
+        }
+        catch (CborContentException ex)
+        {
+            throw new ArgumentException($"CBOR header '{label}' does not contain well-formed CBOR: {ex.Message}", nameof(encodedValue), ex);
+        }
+
+        return decodedValue;
+    }
 
     /// <summary>
     /// Loads headers from a JSON file.

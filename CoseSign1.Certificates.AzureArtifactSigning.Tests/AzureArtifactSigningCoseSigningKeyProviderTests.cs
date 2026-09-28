@@ -434,13 +434,19 @@ public class AzureArtifactSigningCoseSigningKeyProviderTests
             unProtectedHeaders => unProtectedHeaders ?? new CoseHeaderMap());
         AzureArtifactSigningCoseSigningKeyProvider provider =
             new AzureArtifactSigningCoseSigningKeyProvider(mockSignContext.Object);
-        CoseSign1MessageFactory factory = new(HashAlgorithmName.SHA384, RSASignaturePadding.Pkcs1);
+        CoseSign1MessageFactory factory = new();
+        CoseSign1MessageSigningOptions signingOptions = new()
+        {
+            HashAlgorithm = HashAlgorithmName.SHA384,
+            RsaSignaturePadding = RSASignaturePadding.Pkcs1,
+        };
 
         CoseSign1Message message = factory.CreateCoseSign1Message(
             "artifact-signing-payload"u8.ToArray(),
             provider,
             embedPayload: true,
-            headerExtender: headerExtender);
+            headerExtender: headerExtender,
+            signingOptions: signingOptions);
 
         Assert.Multiple(() =>
         {

@@ -26,8 +26,8 @@ public class CoseHeaderHelperTests
         CoseHeaderExtender? extender = CoseHeaderHelper.CreateHeaderExtender(
             null,
             null,
-            $"4242={SampleCborBase64}",
-            $"vendor-signature={SampleCborBase64}");
+            CoseHeaderHelper.ParseCborHeaders($"4242={SampleCborBase64}"),
+            CoseHeaderHelper.ParseCborHeaders($"vendor-signature={SampleCborBase64}"));
 
         Assert.IsNotNull(extender);
         CoseHeaderMap protectedHeaders = extender.ExtendProtectedHeaders(new CoseHeaderMap());
@@ -55,7 +55,7 @@ public class CoseHeaderHelperTests
         CoseHeaderExtender? extender = CoseHeaderHelper.CreateHeaderExtender(
             intHeaders,
             null,
-            $"4242={SampleCborBase64}",
+            CoseHeaderHelper.ParseCborHeaders($"4242={SampleCborBase64}"),
             null);
 
         Assert.IsNotNull(extender);
@@ -94,10 +94,10 @@ public class CoseHeaderHelperTests
     [DataRow("=RAECAwQ=")]
     [DataRow("4242=")]
     [DataRow("4242=not-base64")]
-    public void CreateHeaderExtender_WithInvalidSpecification_Throws(string specification)
+    public void ParseCborHeaders_WithInvalidSpecification_Throws(string specification)
     {
         Assert.ThrowsException<ArgumentException>(
-            () => CoseHeaderHelper.CreateHeaderExtender(null, null, specification, null));
+            () => CoseHeaderHelper.ParseCborHeaders(specification));
     }
 
     /// <summary>
@@ -107,10 +107,10 @@ public class CoseHeaderHelperTests
     [TestMethod]
     [DataRow("Xw==")]
     [DataRow("AQI=")]
-    public void CreateHeaderExtender_WithInvalidCbor_Throws(string encodedValue)
+    public void ParseCborHeaders_WithInvalidCbor_Throws(string encodedValue)
     {
         Assert.ThrowsException<ArgumentException>(
-            () => CoseHeaderHelper.CreateHeaderExtender(null, null, $"4242={encodedValue}", null));
+            () => CoseHeaderHelper.ParseCborHeaders($"4242={encodedValue}"));
     }
 
     private static string EncodeByteString(byte[] value)

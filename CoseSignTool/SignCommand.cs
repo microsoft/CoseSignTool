@@ -321,8 +321,8 @@ public class SignCommand : CoseCommand
             ICoseHeaderExtender? headerExtender = CoseHeaderHelper.CreateHeaderExtender(
                 IntHeaders,
                 StringHeaders,
-                CborProtectedHeaders,
-                CborUnProtectedHeaders);
+                CoseHeaderHelper.ParseCborHeaders(CborProtectedHeaders),
+                CoseHeaderHelper.ParseCborHeaders(CborUnProtectedHeaders));
 
             // If CWT claims customization is requested, create a CWT extender
             // Note: CertificateCoseSigningKeyProvider now automatically adds default CWT claims for SCITT compliance
@@ -372,14 +372,20 @@ public class SignCommand : CoseCommand
             using CancellationTokenSource timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(MaxWaitTime));
 
             // Generate the COSE signature asynchronously with cancellation support.
-            CoseSign1MessageFactory messageFactory = new(HashAlgorithm, RsaSignaturePadding);
+            CoseSign1MessageFactory messageFactory = new();
+            CoseSign1MessageSigningOptions signingOptions = new()
+            {
+                HashAlgorithm = HashAlgorithm,
+                RsaSignaturePadding = RsaSignaturePadding,
+            };
             ReadOnlyMemory<byte> signedBytes = messageFactory.CreateCoseSign1MessageBytesAsync(
                 payloadStream,
                 signingKeyProvider,
                 EmbedPayload,
                 ContentType ?? CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE,
                 headerExtender,
-                timeoutCts.Token).ConfigureAwait(false).GetAwaiter().GetResult();
+                timeoutCts.Token,
+                signingOptions).ConfigureAwait(false).GetAwaiter().GetResult();
 
             // Write the signature to stream or file.
             if (PipeOutput)

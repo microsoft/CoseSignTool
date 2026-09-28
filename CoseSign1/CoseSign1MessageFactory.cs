@@ -12,7 +12,6 @@ using System.Threading;
 public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactory
 {
     private readonly HashAlgorithmName? hashAlgorithm;
-    private readonly RSASignaturePadding rsaSignaturePadding = RSASignaturePadding.Pss;
 
     /// <summary>
     /// The mime type added to Protected Headers when ContentType is not specified.
@@ -35,27 +34,17 @@ public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactory
         this.hashAlgorithm = hashAlgorithm;
     }
 
-    /// <summary>
-    /// Creates a new <see cref="CoseSign1MessageFactory"/> that uses the specified hash algorithm and RSA signature padding.
-    /// </summary>
-    /// <param name="hashAlgorithm">The hash algorithm to use for signing operations.</param>
-    /// <param name="rsaSignaturePadding">The padding to use for RSA signing operations.</param>
-    public CoseSign1MessageFactory(HashAlgorithmName hashAlgorithm, RSASignaturePadding rsaSignaturePadding)
-    {
-        this.hashAlgorithm = hashAlgorithm;
-        this.rsaSignaturePadding = rsaSignaturePadding ?? throw new ArgumentNullException(nameof(rsaSignaturePadding));
-    }
-
     /// <inheritdoc/>
     public CoseSign1Message CreateCoseSign1Message(
         ReadOnlyMemory<byte> payload,
         ICoseSigningKeyProvider signingKeyProvider,
         bool embedPayload = false,
         string contentType = DEFAULT_CONTENT_TYPE,
-        ICoseHeaderExtender? headerExtender = null
+        ICoseHeaderExtender? headerExtender = null,
+        CoseSign1MessageSigningOptions? signingOptions = null
            )
     {
-        ReadOnlyMemory<byte> serializedMsg = CreateCoseSign1MessageBytes(payload, signingKeyProvider, embedPayload, contentType, headerExtender);
+        ReadOnlyMemory<byte> serializedMsg = CreateCoseSign1MessageBytes(payload, signingKeyProvider, embedPayload, contentType, headerExtender, signingOptions);
         return CoseMessage.DecodeSign1(serializedMsg.ToArray());
     }
 
@@ -65,9 +54,10 @@ public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactory
         ICoseSigningKeyProvider signingKeyProvider,
         bool embedPayload = false,
         string contentType = DEFAULT_CONTENT_TYPE,
-        ICoseHeaderExtender? headerExtender = null)
+        ICoseHeaderExtender? headerExtender = null,
+        CoseSign1MessageSigningOptions? signingOptions = null)
     {
-        ReadOnlyMemory<byte> serializedMsg = CreateCoseSign1MessageBytes(payload, signingKeyProvider, embedPayload, contentType, headerExtender);
+        ReadOnlyMemory<byte> serializedMsg = CreateCoseSign1MessageBytes(payload, signingKeyProvider, embedPayload, contentType, headerExtender, signingOptions);
         return CoseMessage.DecodeSign1(serializedMsg.ToArray());
     }
 
@@ -77,9 +67,10 @@ public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactory
         ICoseSigningKeyProvider signingKeyProvider,
         bool embedPayload = false,
         string contentType = DEFAULT_CONTENT_TYPE,
-        ICoseHeaderExtender? headerExtender = null)
+        ICoseHeaderExtender? headerExtender = null,
+        CoseSign1MessageSigningOptions? signingOptions = null)
     {
-        CoseSigner signer = GetSigner(signingKeyProvider, contentType, headerExtender);
+        CoseSigner signer = GetSigner(signingKeyProvider, contentType, headerExtender, signingOptions);
         ThrowIfEmpty(payload);
 
         return embedPayload ?
@@ -93,9 +84,10 @@ public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactory
         ICoseSigningKeyProvider signingKeyProvider,
         bool embedPayload = false,
         string contentType = DEFAULT_CONTENT_TYPE,
-        ICoseHeaderExtender? headerExtender = null)
+        ICoseHeaderExtender? headerExtender = null,
+        CoseSign1MessageSigningOptions? signingOptions = null)
     {
-        CoseSigner signer = GetSigner(signingKeyProvider, contentType, headerExtender);
+        CoseSigner signer = GetSigner(signingKeyProvider, contentType, headerExtender, signingOptions);
         ThrowIfEmpty(payload);
 
         return embedPayload ?
@@ -107,7 +99,8 @@ public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactory
     private CoseSigner GetSigner(
         ICoseSigningKeyProvider signingKeyProvider,
         string contentType = DEFAULT_CONTENT_TYPE,
-        ICoseHeaderExtender? headerExtender = null)
+        ICoseHeaderExtender? headerExtender = null,
+        CoseSign1MessageSigningOptions? signingOptions = null)
     {
         // Make sure we have something to sign with.
         if (signingKeyProvider == null)
@@ -115,7 +108,8 @@ public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactory
             throw new ArgumentNullException(null, "Signing key provider is not provided.");
         }
 
-        HashAlgorithmName signingHashAlgorithm = this.hashAlgorithm ?? signingKeyProvider.HashAlgorithm;
+        HashAlgorithmName signingHashAlgorithm =
+            signingOptions?.HashAlgorithm ?? this.hashAlgorithm ?? signingKeyProvider.HashAlgorithm;
         if (signingKeyProvider is ISupportsHashAlgorithms supportedHashAlgorithms &&
             !supportedHashAlgorithms.SupportedHashAlgorithms.Contains(signingHashAlgorithm))
         {
@@ -145,7 +139,12 @@ public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactory
         // Build the CoseSigner object.
         return key switch
         {
-            RSA => new CoseSigner((RSA)key, this.rsaSignaturePadding, signingHashAlgorithm, protectedHeaders, unProtectedHeaders),
+            RSA => new CoseSigner(
+                (RSA)key,
+                signingOptions?.RsaSignaturePadding ?? RSASignaturePadding.Pss,
+                signingHashAlgorithm,
+                protectedHeaders,
+                unProtectedHeaders),
             ECDsa => new CoseSigner(key, signingHashAlgorithm, protectedHeaders, unProtectedHeaders),
             _ => throw new CoseSigningException("Unsupported certificate type for COSE signing.")
         };
@@ -189,11 +188,12 @@ public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactory
         bool embedPayload = false,
         string contentType = DEFAULT_CONTENT_TYPE,
         ICoseHeaderExtender? headerExtender = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        CoseSign1MessageSigningOptions? signingOptions = null)
     {
         // Wrap byte array in MemoryStream to enable true async signing path
         using MemoryStream payloadStream = new(payload.ToArray());
-        ReadOnlyMemory<byte> serializedMsg = await CreateCoseSign1MessageBytesAsync(payloadStream, signingKeyProvider, embedPayload, contentType, headerExtender, cancellationToken).ConfigureAwait(false);
+        ReadOnlyMemory<byte> serializedMsg = await CreateCoseSign1MessageBytesAsync(payloadStream, signingKeyProvider, embedPayload, contentType, headerExtender, cancellationToken, signingOptions).ConfigureAwait(false);
         return CoseMessage.DecodeSign1(serializedMsg.ToArray());
     }
 
@@ -204,9 +204,10 @@ public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactory
         bool embedPayload = false,
         string contentType = DEFAULT_CONTENT_TYPE,
         ICoseHeaderExtender? headerExtender = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        CoseSign1MessageSigningOptions? signingOptions = null)
     {
-        ReadOnlyMemory<byte> serializedMsg = await CreateCoseSign1MessageBytesAsync(payload, signingKeyProvider, embedPayload, contentType, headerExtender, cancellationToken).ConfigureAwait(false);
+        ReadOnlyMemory<byte> serializedMsg = await CreateCoseSign1MessageBytesAsync(payload, signingKeyProvider, embedPayload, contentType, headerExtender, cancellationToken, signingOptions).ConfigureAwait(false);
         return CoseMessage.DecodeSign1(serializedMsg.ToArray());
     }
 
@@ -217,11 +218,12 @@ public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactory
         bool embedPayload = false,
         string contentType = DEFAULT_CONTENT_TYPE,
         ICoseHeaderExtender? headerExtender = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        CoseSign1MessageSigningOptions? signingOptions = null)
     {
         // Wrap byte array in MemoryStream to enable true async signing path
         using MemoryStream payloadStream = new(payload.ToArray());
-        return await CreateCoseSign1MessageBytesAsync(payloadStream, signingKeyProvider, embedPayload, contentType, headerExtender, cancellationToken).ConfigureAwait(false);
+        return await CreateCoseSign1MessageBytesAsync(payloadStream, signingKeyProvider, embedPayload, contentType, headerExtender, cancellationToken, signingOptions).ConfigureAwait(false);
     }
 
     /// <inheritdoc/>
@@ -231,9 +233,10 @@ public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactory
         bool embedPayload = false,
         string contentType = DEFAULT_CONTENT_TYPE,
         ICoseHeaderExtender? headerExtender = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        CoseSign1MessageSigningOptions? signingOptions = null)
     {
-        CoseSigner signer = GetSigner(signingKeyProvider, contentType, headerExtender);
+        CoseSigner signer = GetSigner(signingKeyProvider, contentType, headerExtender, signingOptions);
         ThrowIfEmpty(payload);
 
         // Wrap in Task.Run with cancellation token to enable cancellation support

@@ -37,15 +37,14 @@ public static class CoseHeaderHelper
     /// </summary>
     /// <param name="intHeaders">Collection of headers with int32 values.</param>
     /// <param name="stringHeaders">Collection of headers with string values.</param>
-    /// <param name="cborProtectedHeaders">Protected headers with base64-encoded CBOR values.</param>
-    /// <param name="cborUnprotectedHeaders">Unprotected headers with base64-encoded CBOR values.</param>
+    /// <param name="cborProtectedHeaders">Parsed protected headers containing CBOR values.</param>
+    /// <param name="cborUnprotectedHeaders">Parsed unprotected headers containing CBOR values.</param>
     /// <returns>A CoseHeaderExtender if headers are present, null otherwise.</returns>
-    /// <exception cref="ArgumentException">Thrown when a CBOR header is malformed.</exception>
     public static CoseHeaderExtender? CreateHeaderExtender(
         List<CoseHeader<int>>? intHeaders,
         List<CoseHeader<string>>? stringHeaders,
-        string? cborProtectedHeaders = null,
-        string? cborUnprotectedHeaders = null)
+        CoseHeaderMap? cborProtectedHeaders = null,
+        CoseHeaderMap? cborUnprotectedHeaders = null)
     {
         CoseHeaderMap? protectedHeaders = null;
         CoseHeaderMap? unProtectedHeaders = null;
@@ -62,8 +61,8 @@ public static class CoseHeaderHelper
             unProtectedHeaders = stringHeaders.Where(h => !h.IsProtected).ToCoseHeaderMap(unProtectedHeaders);
         }
 
-        protectedHeaders = MergeCborHeaders(protectedHeaders, cborProtectedHeaders);
-        unProtectedHeaders = MergeCborHeaders(unProtectedHeaders, cborUnprotectedHeaders);
+        protectedHeaders = protectedHeaders?.MergeHeaderMap(cborProtectedHeaders) ?? cborProtectedHeaders;
+        unProtectedHeaders = unProtectedHeaders?.MergeHeaderMap(cborUnprotectedHeaders) ?? cborUnprotectedHeaders;
 
         if (protectedHeaders is null && unProtectedHeaders is null)
         {
@@ -109,8 +108,8 @@ public static class CoseHeaderHelper
         return CreateHeaderExtender(
             intHeaders,
             stringHeaders,
-            configuration["cbor-protected-headers"],
-            configuration["cbor-unprotected-headers"]);
+            ParseCborHeaders(configuration["cbor-protected-headers"]),
+            ParseCborHeaders(configuration["cbor-unprotected-headers"]));
     }
 
     /// <summary>
@@ -150,14 +149,20 @@ public static class CoseHeaderHelper
            $"  #   \"protected\": true{Environment.NewLine}" +
            $"  # }}]{Environment.NewLine}";
 
-    private static CoseHeaderMap? MergeCborHeaders(CoseHeaderMap? headerMap, string? headerSpecifications)
+    /// <summary>
+    /// Parses comma-separated label/value pairs whose values are base64-encoded CBOR data items.
+    /// </summary>
+    /// <param name="headerSpecifications">The header specifications to parse.</param>
+    /// <returns>A map of parsed headers, or null when no headers were specified.</returns>
+    /// <exception cref="ArgumentException">Thrown when a header specification is malformed.</exception>
+    public static CoseHeaderMap? ParseCborHeaders(string? headerSpecifications)
     {
         if (string.IsNullOrWhiteSpace(headerSpecifications))
         {
-            return headerMap;
+            return null;
         }
 
-        CoseHeaderMap result = headerMap ?? new CoseHeaderMap();
+        CoseHeaderMap result = new();
         foreach (string specification in headerSpecifications.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
             string[] parts = specification.Split('=', 2);

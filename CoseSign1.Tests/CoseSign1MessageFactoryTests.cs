@@ -74,15 +74,18 @@ public class CoseSign1MessageFactoryTests
     [TestCase("SHA256", true, -257)]
     [TestCase("SHA384", true, -258)]
     [TestCase("SHA512", true, -259)]
-    public void Constructor_WithHashAlgorithmAndPadding_UsesExpectedCoseAlgorithm(
+    public void CreateCoseSign1Message_WithSigningOptions_UsesExpectedCoseAlgorithm(
         string hashAlgorithmName,
         bool usePkcs1,
         int expectedCoseAlgorithm)
     {
         Mock<ICoseSigningKeyProvider> mockedSignerKeyProvider = new(MockBehavior.Strict);
-        CoseSign1MessageFactory coseSign1MessageFactory = new(
-            new HashAlgorithmName(hashAlgorithmName),
-            usePkcs1 ? RSASignaturePadding.Pkcs1 : RSASignaturePadding.Pss);
+        CoseSign1MessageFactory coseSign1MessageFactory = new();
+        CoseSign1MessageSigningOptions signingOptions = new()
+        {
+            HashAlgorithm = new HashAlgorithmName(hashAlgorithmName),
+            RsaSignaturePadding = usePkcs1 ? RSASignaturePadding.Pkcs1 : RSASignaturePadding.Pss,
+        };
         byte[] testPayload = Encoding.ASCII.GetBytes("testPayload!");
         using X509Certificate2 selfSignedCertWithRSA = TestCertificateUtils.CreateCertificate();
 
@@ -95,7 +98,8 @@ public class CoseSign1MessageFactoryTests
         CoseSign1Message response = coseSign1MessageFactory.CreateCoseSign1Message(
             testPayload,
             mockedSignerKeyProvider.Object,
-            true);
+            true,
+            signingOptions: signingOptions);
 
         response.ProtectedHeaders[CoseHeaderLabel.Algorithm].GetValueAsInt32().Should().Be(expectedCoseAlgorithm);
     }

@@ -3,19 +3,14 @@
 
 namespace CoseSignTool.AzureArtifactSigning.Plugin.Tests;
 
-using System.Security.Cryptography;
-using System.Security.Cryptography.Cose;
-using System.Text.Json;
 using Azure;
 using Azure.ArtifactSigning.MST;
-using CoseSign1;
-using CoseSign1.Abstractions.Interfaces;
-using CoseSign1.Interfaces;
 using CoseSignTool.Abstractions;
 using CoseSignTool.AzureArtifactSigning.Plugin;
 using Microsoft.Extensions.Configuration;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
+using System.Text.Json;
 
 /// <summary>
 /// Tests for <see cref="AzureArtifactSigningSignMstRegisterCommand"/>.
@@ -41,7 +36,7 @@ public class AzureArtifactSigningSignMstRegisterCommandTests
     }
 
     /// <summary>
-    /// Verifies that registration arguments and the generic signing controls are exposed together.
+    /// Verifies that existing registration arguments are retained and only the signing endpoint is added.
     /// </summary>
     [TestMethod]
     public void Options_IncludeSigningAndProxyArguments()
@@ -55,10 +50,6 @@ public class AzureArtifactSigningSignMstRegisterCommandTests
         Assert.IsTrue(command.Options.ContainsKey("cert-profile-name"));
         Assert.IsTrue(command.Options.ContainsKey("correlation-id"));
         Assert.IsTrue(command.Options.ContainsKey("aas-exclude-credentials"));
-        Assert.IsTrue(command.Options.ContainsKey("HashAlgorithm"));
-        Assert.IsTrue(command.Options.ContainsKey("RsaSignaturePadding"));
-        Assert.IsTrue(command.Options.ContainsKey("cbph"));
-        Assert.IsTrue(command.Options.ContainsKey("cbuh"));
     }
 
     /// <summary>
@@ -74,27 +65,20 @@ public class AzureArtifactSigningSignMstRegisterCommandTests
         string outputPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.json");
         RecordingTransparencyClient client = new(receiptBytes);
         byte[]? signedPayload = null;
-        CoseSign1MessageSigningOptions? capturedSigningOptions = null;
-        ICoseHeaderExtender? capturedHeaderExtender = null;
         AzureArtifactSigningSignMstRegisterCommand command = new(
             (_, _, _) => client,
-            async (payload, _, _, signingOptions, headerExtender, cancellationToken) =>
+            async (payload, _, _, cancellationToken) =>
             {
                 using MemoryStream payloadBuffer = new();
                 await payload.CopyToAsync(payloadBuffer, cancellationToken);
                 signedPayload = payloadBuffer.ToArray();
-                capturedSigningOptions = signingOptions;
-                capturedHeaderExtender = headerExtender;
                 return statementBytes;
             });
         IConfigurationRoot configuration = CreateConfiguration(
             payloadPath,
             signaturePath,
             outputPath,
-            correlationId: "test-correlation-id",
-            hashAlgorithm: "SHA384",
-            rsaSignaturePadding: "PKCS1",
-            cborProtectedHeaders: "external-signatures=RAECAwQ=");
+            correlationId: "test-correlation-id");
 
         try
         {
@@ -111,13 +95,6 @@ public class AzureArtifactSigningSignMstRegisterCommandTests
             Assert.AreEqual("test-profile", client.CertificateProfileName);
             Assert.AreEqual("debugruisuprivatetrust", client.MstInstanceName);
             Assert.AreEqual("test-correlation-id", client.CorrelationId);
-            Assert.AreEqual(HashAlgorithmName.SHA384, capturedSigningOptions?.HashAlgorithm);
-            Assert.AreSame(RSASignaturePadding.Pkcs1, capturedSigningOptions?.RsaSignaturePadding);
-
-            CoseHeaderMap protectedHeaders = capturedHeaderExtender!.ExtendProtectedHeaders(new CoseHeaderMap());
-            CollectionAssert.AreEqual(
-                new byte[] { 0x44, 0x01, 0x02, 0x03, 0x04 },
-                protectedHeaders[new CoseHeaderLabel("external-signatures")].EncodedValue.ToArray());
 
             using JsonDocument output = JsonDocument.Parse(await File.ReadAllTextAsync(outputPath));
             Assert.AreEqual(
@@ -147,7 +124,7 @@ public class AzureArtifactSigningSignMstRegisterCommandTests
                 clientCreated = true;
                 return new RecordingTransparencyClient(Array.Empty<byte>());
             },
-            (_, _, _, _, _, _) => throw new InvalidOperationException("Signing failed."));
+            (_, _, _, _) => throw new InvalidOperationException("Signing failed."));
         IConfigurationRoot configuration = CreateConfiguration(payloadPath, signaturePath);
 
         try
@@ -176,7 +153,7 @@ public class AzureArtifactSigningSignMstRegisterCommandTests
         bool signingStarted = false;
         AzureArtifactSigningSignMstRegisterCommand command = new(
             (_, _, _) => throw new AssertFailedException("Client should not be created."),
-            (_, _, _, _, _, _) =>
+            (_, _, _, _) =>
             {
                 signingStarted = true;
                 return Task.FromResult<ReadOnlyMemory<byte>>(Array.Empty<byte>());
@@ -280,41 +257,11 @@ public class AzureArtifactSigningSignMstRegisterCommandTests
         }
     }
 
-    /// <summary>
-    /// Verifies that invalid signing algorithms are rejected before signing or registration starts.
-    /// </summary>
-    [TestMethod]
-    public async Task ExecuteAsync_WithInvalidHashAlgorithm_ReturnsInvalidArgumentValue()
-    {
-        string payloadPath = Path.GetTempFileName();
-        string signaturePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.cose");
-        AzureArtifactSigningSignMstRegisterCommand command = CreateCommandThatMustNotRun();
-        IConfigurationRoot configuration = CreateConfiguration(
-            payloadPath,
-            signaturePath,
-            hashAlgorithm: "MD5");
-
-        try
-        {
-            await File.WriteAllTextAsync(payloadPath, "payload");
-
-            PluginExitCode result = await command.ExecuteAsync(configuration);
-
-            Assert.AreEqual(PluginExitCode.InvalidArgumentValue, result);
-            Assert.IsFalse(File.Exists(signaturePath));
-        }
-        finally
-        {
-            File.Delete(payloadPath);
-            File.Delete(signaturePath);
-        }
-    }
-
     private static AzureArtifactSigningSignMstRegisterCommand CreateCommandThatMustNotRun()
     {
         return new AzureArtifactSigningSignMstRegisterCommand(
             (_, _, _) => throw new AssertFailedException("Client should not be created."),
-            (_, _, _, _, _, _) => throw new AssertFailedException("Signing should not start."));
+            (_, _, _, _) => throw new AssertFailedException("Signing should not start."));
     }
 
     private static IConfigurationRoot CreateConfiguration(
@@ -325,10 +272,7 @@ public class AzureArtifactSigningSignMstRegisterCommandTests
         string? aasEndpoint = AasEndpoint,
         string? correlationId = null,
         string? timeout = null,
-        string? excludedCredentials = null,
-        string? hashAlgorithm = null,
-        string? rsaSignaturePadding = null,
-        string? cborProtectedHeaders = null)
+        string? excludedCredentials = null)
     {
         return new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -344,9 +288,6 @@ public class AzureArtifactSigningSignMstRegisterCommandTests
                 ["correlation-id"] = correlationId,
                 ["timeout"] = timeout,
                 ["aas-exclude-credentials"] = excludedCredentials,
-                ["HashAlgorithm"] = hashAlgorithm,
-                ["RsaSignaturePadding"] = rsaSignaturePadding,
-                ["CborProtectedHeaders"] = cborProtectedHeaders,
             })
             .Build();
     }

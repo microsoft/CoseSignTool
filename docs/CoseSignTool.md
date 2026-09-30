@@ -32,8 +32,6 @@ CoseSignTool aas_sign_mst_register --endpoint https://your-mst.azure.com \
     --aas-endpoint https://contoso.codesigning.azure.net/ \
     --account-name MyAccount --cert-profile-name MyProfile \
     --aas-exclude-credentials ManagedIdentityCredential,VisualStudioCredential \
-    --HashAlgorithm SHA256 --RsaSignaturePadding PSS \
-    --CborProtectedHeaders external-signatures=RAECAwQ= \
     --payload file.txt --signature file.txt.cose
 ```
 

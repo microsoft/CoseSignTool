@@ -281,9 +281,6 @@ CoseSignTool aas_sign_mst_register \
   --account-name ContosoAccount \
   --cert-profile-name ContosoProfile \
   --aas-exclude-credentials ManagedIdentityCredential,VisualStudioCredential \
-  --HashAlgorithm SHA256 \
-  --RsaSignaturePadding PSS \
-  --CborProtectedHeaders external-signatures=RAECAwQ= \
   --payload artifact.bin \
   --signature artifact.cose \
   --output registration-result.json
@@ -302,16 +299,6 @@ CoseSignTool aas_sign_mst_register \
 | `--timeout` | No | Combined signing and registration timeout in seconds; defaults to 30. |
 | `--correlation-id` | No | Correlation ID sent to Azure Artifact Signing. |
 | `--aas-exclude-credentials` | No | Credentials excluded from the shared Artifact Signing credential chain. |
-| `--HashAlgorithm`, `--hash-algorithm`, `--ha` | No | Signing hash: `SHA256` (default), `SHA384`, or `SHA512`. |
-| `--RsaSignaturePadding`, `--rsa-padding`, `--rsp` | No | RSA padding: `PSS` (default) or `PKCS1`. |
-| `--CborProtectedHeaders`, `--cbph` | No | Protected headers whose values are complete base64-encoded CBOR items. |
-| `--CborUnProtectedHeaders`, `--cbuh` | No | Unprotected headers whose values are complete base64-encoded CBOR items. |
-
-The selected hash and RSA padding determine the outer COSE algorithm. The target MST endpoint must
-support that algorithm. During canary validation, Artifact Signing successfully created an `RS384`
-statement (`SHA384` plus `PKCS1`, algorithm `-258`), but the tested MST endpoint rejected `-258` as
-unsupported. The command reports that service error and does not silently change the requested
-algorithm.
 
 ### Troubleshooting Azure Artifact Signing
 

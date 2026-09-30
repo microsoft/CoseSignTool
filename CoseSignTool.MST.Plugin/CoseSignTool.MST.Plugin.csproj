@@ -21,7 +21,6 @@
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <PreserveCompilationContext>true</PreserveCompilationContext>
     <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
-    <RestoreAdditionalProjectSources>https://pkgs.dev.azure.com/prssdev/AzureCodeSign/_packaging/Prod-RW-ACS/nuget/v3/index.json</RestoreAdditionalProjectSources>
     
     <!-- Disable NuGet package generation for plugins -->
     <IsPackable>false</IsPackable>
@@ -34,15 +33,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Azure.ArtifactSigning.MST">
+    <PackageReference Include="Azure.Core">
       <Private>true</Private>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </PackageReference>
-    <PackageReference Include="Azure.Core" VersionOverride="1.62.0">
-      <Private>true</Private>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </PackageReference>
-    <PackageReference Include="Azure.Identity" Aliases="global,IdentityAlias">
+    <PackageReference Include="Azure.Identity">
       <Private>true</Private>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </PackageReference>

@@ -32,9 +32,9 @@ CoseSignTool aas_sign_mst_register --endpoint https://your-mst.azure.com \
     --aas-endpoint https://contoso.codesigning.azure.net/ \
     --aas-account-name MyAccount --aas-cert-profile-name MyProfile \
     --aas-exclude-credentials ManagedIdentityCredential,VisualStudioCredential \
-    --payload file.txt --sf file.txt.cose \
-    --ha SHA384 --rsp PSS \
-    --cbph external-signatures=RAECAwQ=
+    --payload file.txt --signature file.txt.cose \
+    --hash-algorithm SHA384 --rsa-signature-padding PSS \
+    --cbor-protected-headers external-signatures=RAECAwQ=
 ```
 
 **For Developers:**

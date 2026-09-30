@@ -273,9 +273,9 @@ payload with Azure Artifact Signing, writes an embedded-payload COSE Sign1 state
 sends those exact statement bytes to the Azure Artifact Signing MST proxy. The generic MST plugin and
 its `mst_register` command are unchanged.
 
-Signing is performed by the generic `sign` command pipeline. Hash algorithm, RSA padding, CBOR headers,
-and other generic signing options are therefore parsed and applied by CoseSignTool rather than
-reimplemented by the Azure Artifact Signing plugin.
+The plugin owns the complete sign-and-register workflow. It obtains the Artifact Signing key provider,
+creates the embedded COSE Sign1 statement through the shared CoseSign1 factory, and uses the same
+generic hash, RSA padding, and CBOR-header helpers as other signing commands.
 
 ```bash
 CoseSignTool aas_sign_mst_register \
@@ -286,10 +286,10 @@ CoseSignTool aas_sign_mst_register \
   --aas-cert-profile-name ContosoProfile \
   --aas-exclude-credentials ManagedIdentityCredential,VisualStudioCredential \
   --payload artifact.bin \
-  --sf artifact.cose \
-  --ha SHA384 \
-  --rsp PSS \
-  --cbph external-signatures=RAECAwQ= \
+  --signature artifact.cose \
+  --hash-algorithm SHA384 \
+  --rsa-signature-padding PSS \
+  --cbor-protected-headers external-signatures=RAECAwQ= \
   --output registration-result.json
 ```
 
@@ -301,13 +301,13 @@ CoseSignTool aas_sign_mst_register \
 | `--aas-account-name` | Yes | Azure Artifact Signing account name. |
 | `--aas-cert-profile-name` | Yes | Certificate profile used for signing and proxy authorization. |
 | `--payload` | Yes | Payload file to sign. |
-| `--SignatureFile`, `--sig`, `--sf` | Yes | Output path for the generated embedded COSE Sign1 statement. |
-| `--HashAlgorithm`, `--hash-algorithm`, `--ha` | No | Generic signing hash: SHA256, SHA384, or SHA512. |
-| `--RsaSignaturePadding`, `--rsa-padding`, `--rsp` | No | Generic RSA padding: PSS or PKCS1. |
-| `--CborProtectedHeaders`, `--cbph` | No | Generic protected headers whose values are base64-encoded complete CBOR data items. |
-| `--CborUnProtectedHeaders`, `--cbuh` | No | Generic unprotected headers whose values are base64-encoded complete CBOR data items. |
+| `--signature` | Yes | Output path for the generated embedded COSE Sign1 statement. |
+| `--hash-algorithm` | No | Generic signing hash: SHA256, SHA384, or SHA512. |
+| `--rsa-signature-padding` | No | Generic RSA padding: PSS or PKCS1. |
+| `--cbor-protected-headers` | No | Generic protected headers whose values are base64-encoded complete CBOR data items. |
+| `--cbor-unprotected-headers` | No | Generic unprotected headers whose values are base64-encoded complete CBOR data items. |
 | `--output` | No | JSON output file containing the transparency receipt. |
-| `--timeout` | No | MST registration timeout in seconds; defaults to 30. |
+| `--timeout` | No | Combined signing and MST registration timeout in seconds; defaults to 30. |
 | `--correlation-id` | No | Correlation ID sent to Azure Artifact Signing. |
 | `--aas-exclude-credentials` | No | Credentials excluded from the shared Artifact Signing credential chain. |
 

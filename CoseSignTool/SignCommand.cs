@@ -502,26 +502,12 @@ public class SignCommand : CoseCommand
 
     private static HashAlgorithmName ParseHashAlgorithm(string? hashAlgorithm)
     {
-        return hashAlgorithm?.ToUpperInvariant() switch
-        {
-            "SHA256" => HashAlgorithmName.SHA256,
-            "SHA384" => HashAlgorithmName.SHA384,
-            "SHA512" => HashAlgorithmName.SHA512,
-            _ => throw new InvalidOperationException(
-                $"Unsupported hash algorithm '{hashAlgorithm}'. Supported values are SHA256, SHA384, and SHA512.")
-        };
+        return CoseSigningAlgorithmHelper.ParseHashAlgorithm(hashAlgorithm);
     }
 
     private static RSASignaturePadding ParseRsaSignaturePadding(string? rsaSignaturePadding)
     {
-        string normalizedPadding = rsaSignaturePadding?.Replace("-", string.Empty).ToUpperInvariant() ?? string.Empty;
-        return normalizedPadding switch
-        {
-            "PSS" or "PS" => RSASignaturePadding.Pss,
-            "PKCS1" or "PKCS1V15" or "RS" => RSASignaturePadding.Pkcs1,
-            _ => throw new InvalidOperationException(
-                $"Unsupported RSA signature padding '{rsaSignaturePadding}'. Supported values are PSS and PKCS1.")
-        };
+        return CoseSigningAlgorithmHelper.ParseRsaSignaturePadding(rsaSignaturePadding);
     }
 
     /// <summary>

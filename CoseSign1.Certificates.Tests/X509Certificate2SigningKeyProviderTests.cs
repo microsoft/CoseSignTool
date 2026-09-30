@@ -41,6 +41,32 @@ public class X509Certificate2SigningKeyProviderTests
     }
 
     /// <summary>
+    /// Verifies a factory-level hash algorithm override is used with a certificate signing provider.
+    /// </summary>
+    [Test]
+    public void MessageFactory_WithSha512_CreatesValidCertificatePs512Signature()
+    {
+        // Arrange
+        Mock<ICertificateChainBuilder> testChainBuilder = new(MockBehavior.Strict);
+        using X509Certificate2 testCert = TestCertificateUtils.CreateCertificate();
+        X509Certificate2CoseSigningKeyProvider provider = new(
+            testChainBuilder.Object,
+            testCert,
+            rootCertificates: null,
+            enableScittCompliance: false);
+        CoseSign1.CoseSign1MessageFactory factory = new(HashAlgorithmName.SHA512);
+        byte[] payload = Encoding.UTF8.GetBytes("SHA-512 certificate signing regression");
+
+        // Act
+        CoseSign1Message message = factory.CreateCoseSign1Message(payload, provider);
+
+        // Assert
+        message.ProtectedHeaders[CoseHeaderLabel.Algorithm].GetValueAsInt32().Should().Be(-39);
+        using RSA publicKey = testCert.GetRSAPublicKey()!;
+        message.VerifyDetached(publicKey, payload).Should().BeTrue();
+    }
+
+    /// <summary>
     /// Testing Exception Path for Constructors
     /// </summary>
     [Test]

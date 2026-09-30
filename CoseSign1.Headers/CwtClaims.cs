@@ -59,6 +59,14 @@ public sealed class CwtClaims
     /// </summary>
     public Dictionary<int, object> CustomClaims { get; internal set; } = new Dictionary<int, object>();
 
+    /// <summary>
+    /// Gets custom claims with text labels.
+    /// The key is the claim label, and the value is the claim value.
+    /// Simple types (string, long, bool, byte[]) are parsed directly.
+    /// Complex types (maps, arrays) are stored as raw CBOR-encoded bytes.
+    /// </summary>
+    public Dictionary<string, object> StringClaims { get; internal set; } = new Dictionary<string, object>();
+
     #region Constructors
 
     /// <summary>
@@ -81,6 +89,7 @@ public sealed class CwtClaims
         IssuedAt = other.IssuedAt;
         CwtId = other.CwtId != null ? (byte[])other.CwtId.Clone() : null;
         CustomClaims = new Dictionary<int, object>(other.CustomClaims);
+        StringClaims = new Dictionary<string, object>(other.StringClaims);
     }
 
     #endregion
@@ -112,9 +121,17 @@ public sealed class CwtClaims
         DateTimeOffset? issuedAt = null;
         byte[]? cwtId = null;
         var customClaims = new Dictionary<int, object>();
+        var stringClaims = new Dictionary<string, object>();
 
         while (reader.PeekState() != CborReaderState.EndMap)
         {
+            if (reader.PeekState() == CborReaderState.TextString)
+            {
+                string stringLabel = reader.ReadTextString();
+                stringClaims[stringLabel] = ReadClaimValue(reader);
+                continue;
+            }
+
             int label = reader.ReadInt32();
 
             switch (label)
@@ -151,43 +168,7 @@ public sealed class CwtClaims
                     break;
 
                 default:
-                    // Handle custom claims based on CBOR type
-                    var state = reader.PeekState();
-                    object? customValue;
-
-                    switch (state)
-                    {
-                        case CborReaderState.TextString:
-                            customValue = reader.ReadTextString();
-                            break;
-                        case CborReaderState.UnsignedInteger:
-                            customValue = reader.ReadInt64();
-                            break;
-                        case CborReaderState.NegativeInteger:
-                            customValue = reader.ReadInt64();
-                            break;
-                        case CborReaderState.ByteString:
-                            customValue = reader.ReadByteString();
-                            break;
-                        case CborReaderState.Boolean:
-                            customValue = reader.ReadBoolean();
-                            break;
-                        case CborReaderState.HalfPrecisionFloat:
-                        case CborReaderState.SinglePrecisionFloat:
-                        case CborReaderState.DoublePrecisionFloat:
-                            customValue = reader.ReadDouble();
-                            break;
-                        default:
-                            // For complex types (maps, arrays, etc), store as raw CBOR bytes
-                            // so the caller can process them externally if needed
-                            customValue = reader.ReadEncodedValue().ToArray();
-                            break;
-                    }
-
-                    if (customValue != null)
-                    {
-                        customClaims[label] = customValue;
-                    }
+                    customClaims[label] = ReadClaimValue(reader);
                     break;
             }
         }
@@ -203,7 +184,8 @@ public sealed class CwtClaims
             NotBefore = notBefore,
             IssuedAt = issuedAt,
             CwtId = cwtId,
-            CustomClaims = customClaims
+            CustomClaims = customClaims,
+            StringClaims = stringClaims
         };
     }
 
@@ -216,7 +198,7 @@ public sealed class CwtClaims
         var writer = new CborWriter();
         
         // Count all non-null claims
-        int claimCount = CustomClaims.Count;
+        int claimCount = CustomClaims.Count + StringClaims.Count;
         if (Issuer != null)
         {
             claimCount++;
@@ -295,30 +277,13 @@ public sealed class CwtClaims
         foreach (var claim in CustomClaims)
         {
             writer.WriteInt32(claim.Key);
+            WriteClaimValue(writer, claim.Value);
+        }
 
-            switch (claim.Value)
-            {
-                case string stringValue:
-                    writer.WriteTextString(stringValue);
-                    break;
-                case long longValue:
-                    writer.WriteInt64(longValue);
-                    break;
-                case int intValue:
-                    writer.WriteInt32(intValue);
-                    break;
-                case byte[] byteArrayValue:
-                    writer.WriteByteString(byteArrayValue);
-                    break;
-                case bool boolValue:
-                    writer.WriteBoolean(boolValue);
-                    break;
-                case double doubleValue:
-                    writer.WriteDouble(doubleValue);
-                    break;
-                default:
-                    throw new InvalidOperationException($"Unsupported CWT claim value type: {claim.Value.GetType().Name}");
-            }
+        foreach (KeyValuePair<string, object> claim in StringClaims)
+        {
+            writer.WriteTextString(claim.Key);
+            WriteClaimValue(writer, claim.Value);
         }
 
         writer.WriteEndMap();
@@ -342,7 +307,8 @@ public sealed class CwtClaims
                NotBefore == null &&
                IssuedAt == null &&
                CwtId == null &&
-               CustomClaims.Count == 0;
+               CustomClaims.Count == 0 &&
+               StringClaims.Count == 0;
     }
 
     /// <summary>
@@ -398,6 +364,20 @@ public sealed class CwtClaims
                     _ => kvp.Value.ToString() ?? "[null]"
                 };
                 parts.Add($"  [{kvp.Key}]: {valueStr}");
+            }
+        }
+
+        if (StringClaims.Count > 0)
+        {
+            parts.Add($"String Claims: {StringClaims.Count}");
+            foreach (KeyValuePair<string, object> claim in StringClaims)
+            {
+                string valueString = claim.Value switch
+                {
+                    byte[] bytes => $"[{bytes.Length} bytes]",
+                    _ => claim.Value.ToString() ?? "[null]"
+                };
+                parts.Add($"  [{claim.Key}]: {valueString}");
             }
         }
 
@@ -509,7 +489,61 @@ public sealed class CwtClaims
         }
         merged.CustomClaims = mergedCustomClaims;
 
+        Dictionary<string, object> mergedStringClaims = new(merged.StringClaims);
+        foreach (KeyValuePair<string, object> claim in other.StringClaims)
+        {
+            if (logOverrides && mergedStringClaims.ContainsKey(claim.Key))
+            {
+                System.Diagnostics.Trace.TraceInformation($"CwtClaims.Merge: Overriding string claim {claim.Key} with new value.");
+            }
+            mergedStringClaims[claim.Key] = claim.Value;
+        }
+        merged.StringClaims = mergedStringClaims;
+
         return merged;
+    }
+
+    private static object ReadClaimValue(CborReader reader)
+    {
+        return reader.PeekState() switch
+        {
+            CborReaderState.TextString => reader.ReadTextString(),
+            CborReaderState.UnsignedInteger => reader.ReadInt64(),
+            CborReaderState.NegativeInteger => reader.ReadInt64(),
+            CborReaderState.ByteString => reader.ReadByteString(),
+            CborReaderState.Boolean => reader.ReadBoolean(),
+            CborReaderState.HalfPrecisionFloat => reader.ReadDouble(),
+            CborReaderState.SinglePrecisionFloat => reader.ReadDouble(),
+            CborReaderState.DoublePrecisionFloat => reader.ReadDouble(),
+            _ => reader.ReadEncodedValue().ToArray()
+        };
+    }
+
+    private static void WriteClaimValue(CborWriter writer, object value)
+    {
+        switch (value)
+        {
+            case string stringValue:
+                writer.WriteTextString(stringValue);
+                break;
+            case long longValue:
+                writer.WriteInt64(longValue);
+                break;
+            case int intValue:
+                writer.WriteInt32(intValue);
+                break;
+            case byte[] byteArrayValue:
+                writer.WriteByteString(byteArrayValue);
+                break;
+            case bool boolValue:
+                writer.WriteBoolean(boolValue);
+                break;
+            case double doubleValue:
+                writer.WriteDouble(doubleValue);
+                break;
+            default:
+                throw new InvalidOperationException($"Unsupported CWT claim value type: {value.GetType().Name}");
+        }
     }
 
     #endregion

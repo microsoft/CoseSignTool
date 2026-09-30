@@ -166,7 +166,7 @@ public interface ICoseSigningKeyProvider
     RSA? GetRSAKey(bool publicKey = false);
     ECDsa? GetECDsaKey(bool publicKey = false);
     
-    // Algorithm selection
+    // Legacy/default algorithm selection
     HashAlgorithmName HashAlgorithm { get; }
     
     // Certificate chain (for X.509 scenarios)
@@ -181,6 +181,8 @@ public interface ICoseSigningKeyProvider
     IEnumerable<byte[]>? GetUnprotectedHeaders();
 }
 ```
+
+Providers can additionally implement `ISupportsHashAlgorithms` to advertise their supported SHA-2 variants. `CoseSign1MessageFactory` validates explicit algorithm overrides when this optional capability interface is available.
 
 **Implementations:**
 - `X509Certificate2CoseSigningKeyProvider` - Local certificate files

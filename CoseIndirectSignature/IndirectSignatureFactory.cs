@@ -79,7 +79,7 @@ public sealed partial class IndirectSignatureFactory : IDisposable
     /// Creates a new instance of the <see cref="IndirectSignatureFactory"/> class using the specified hash algorithm and a <see cref="CoseSign1MessageFactory"/>.
     /// </summary>
     /// <param name="hashAlgorithmName">The hashing algorithm name to be used when performing hashing operations.</param>
-    public IndirectSignatureFactory(HashAlgorithmName hashAlgorithmName) : this(hashAlgorithmName, new CoseSign1MessageFactory())
+    public IndirectSignatureFactory(HashAlgorithmName hashAlgorithmName) : this(hashAlgorithmName, new CoseSign1MessageFactory(hashAlgorithmName))
     {
     }
 

@@ -38,6 +38,96 @@ public class CoseSign1MessageFactoryTests
     }
 
     /// <summary>
+    /// Verifies the factory hash algorithm overrides the signing key provider default.
+    /// </summary>
+    [Test]
+    public void Constructor_WithHashAlgorithm_OverridesProviderHashAlgorithm()
+    {
+        // Arrange
+        Mock<ICoseSigningKeyProvider> mockedSignerKeyProvider = new(MockBehavior.Strict);
+        CoseSign1MessageFactory coseSign1MessageFactory = new(HashAlgorithmName.SHA512);
+        byte[] testPayload = Encoding.ASCII.GetBytes("testPayload!");
+        using X509Certificate2 selfSignedCertWithRSA = TestCertificateUtils.CreateCertificate();
+
+        mockedSignerKeyProvider.Setup(x => x.GetProtectedHeaders()).Returns<CoseHeaderMap>(null);
+        mockedSignerKeyProvider.Setup(x => x.GetUnProtectedHeaders()).Returns<CoseHeaderMap>(null);
+        mockedSignerKeyProvider.Setup(x => x.HashAlgorithm).Returns(HashAlgorithmName.SHA256);
+        mockedSignerKeyProvider.Setup(x => x.GetECDsaKey(It.IsAny<bool>())).Returns<ECDsa>(null);
+        mockedSignerKeyProvider.Setup(x => x.GetRSAKey(It.IsAny<bool>())).Returns(selfSignedCertWithRSA.GetRSAPrivateKey());
+
+        // Act
+        CoseSign1Message response = coseSign1MessageFactory.CreateCoseSign1Message(testPayload, mockedSignerKeyProvider.Object, true);
+
+        // Assert
+        response.ProtectedHeaders[CoseHeaderLabel.Algorithm].GetValueAsInt32().Should().Be(-39);
+    }
+
+    /// <summary>
+    /// Verifies that hash algorithm and RSA padding can be selected independently of the signing key provider.
+    /// </summary>
+    /// <param name="hashAlgorithmName">The hash algorithm name.</param>
+    /// <param name="usePkcs1">Whether PKCS#1 v1.5 padding should be used.</param>
+    /// <param name="expectedCoseAlgorithm">The expected COSE algorithm identifier.</param>
+    [TestCase("SHA256", false, -37)]
+    [TestCase("SHA384", false, -38)]
+    [TestCase("SHA512", false, -39)]
+    [TestCase("SHA256", true, -257)]
+    [TestCase("SHA384", true, -258)]
+    [TestCase("SHA512", true, -259)]
+    public void CreateCoseSign1Message_WithSigningOptions_UsesExpectedCoseAlgorithm(
+        string hashAlgorithmName,
+        bool usePkcs1,
+        int expectedCoseAlgorithm)
+    {
+        Mock<ICoseSigningKeyProvider> mockedSignerKeyProvider = new(MockBehavior.Strict);
+        CoseSign1MessageFactory coseSign1MessageFactory = new();
+        CoseSign1MessageSigningOptions signingOptions = new()
+        {
+            HashAlgorithm = new HashAlgorithmName(hashAlgorithmName),
+            RsaSignaturePadding = usePkcs1 ? RSASignaturePadding.Pkcs1 : RSASignaturePadding.Pss,
+        };
+        byte[] testPayload = Encoding.ASCII.GetBytes("testPayload!");
+        using X509Certificate2 selfSignedCertWithRSA = TestCertificateUtils.CreateCertificate();
+
+        mockedSignerKeyProvider.Setup(x => x.GetProtectedHeaders()).Returns<CoseHeaderMap>(null);
+        mockedSignerKeyProvider.Setup(x => x.GetUnProtectedHeaders()).Returns<CoseHeaderMap>(null);
+        mockedSignerKeyProvider.Setup(x => x.HashAlgorithm).Returns(HashAlgorithmName.SHA256);
+        mockedSignerKeyProvider.Setup(x => x.GetECDsaKey(It.IsAny<bool>())).Returns<ECDsa>(null);
+        mockedSignerKeyProvider.Setup(x => x.GetRSAKey(It.IsAny<bool>())).Returns(selfSignedCertWithRSA.GetRSAPrivateKey());
+
+        CoseSign1Message response = coseSign1MessageFactory.CreateCoseSign1Message(
+            testPayload,
+            mockedSignerKeyProvider.Object,
+            true,
+            signingOptions: signingOptions);
+
+        response.ProtectedHeaders[CoseHeaderLabel.Algorithm].GetValueAsInt32().Should().Be(expectedCoseAlgorithm);
+    }
+
+    /// <summary>
+    /// Verifies the factory rejects a hash algorithm not advertised by the signing key provider.
+    /// </summary>
+    [Test]
+    public void CreateCoseSign1Message_WithUnsupportedHashAlgorithm_ThrowsCoseSigningException()
+    {
+        // Arrange
+        Mock<ICoseSigningKeyProvider> mockedSignerKeyProvider = new(MockBehavior.Strict);
+        CoseSign1MessageFactory coseSign1MessageFactory = new(HashAlgorithmName.SHA512);
+        byte[] testPayload = Encoding.ASCII.GetBytes("testPayload!");
+
+        mockedSignerKeyProvider.As<ISupportsHashAlgorithms>()
+            .SetupGet(x => x.SupportedHashAlgorithms)
+            .Returns([HashAlgorithmName.SHA256]);
+
+        // Act
+        CoseSigningException? exception = Assert.Throws<CoseSigningException>(
+            () => coseSign1MessageFactory.CreateCoseSign1Message(testPayload, mockedSignerKeyProvider.Object));
+
+        // Assert
+        exception.Message.Should().Be("The signing key provider does not support the requested hash algorithm 'SHA512'.");
+    }
+
+    /// <summary>
     ///  Testing with ECDsa Signing Key and embed payload true.
     /// </summary>
     [Test]
@@ -402,4 +492,3 @@ public class CoseSign1MessageFactoryTests
 
     #endregion
 }
-

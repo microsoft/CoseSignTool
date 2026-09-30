@@ -521,7 +521,7 @@ namespace YourCompany.YourCertProvider.Plugin;
 /// <summary>
 /// Signing key provider that connects to your HSM/service.
 /// </summary>
-public class YourCertProviderSigningKeyProvider : ICoseSigningKeyProvider
+public class YourCertProviderSigningKeyProvider : ICoseSigningKeyProvider, ISupportsHashAlgorithms
 {
     private readonly string _endpoint;
     private readonly string _keyId;
@@ -563,9 +563,15 @@ public class YourCertProviderSigningKeyProvider : ICoseSigningKeyProvider
     }
 
     /// <summary>
-    /// Gets the hash algorithm name supported by this provider.
+    /// Gets the default hash algorithm used by legacy factory construction.
     /// </summary>
     public HashAlgorithmName HashAlgorithm => HashAlgorithmName.SHA256;
+
+    /// <summary>
+    /// Gets the hash algorithms supported by this provider.
+    /// </summary>
+    public IReadOnlyCollection<HashAlgorithmName> SupportedHashAlgorithms =>
+        new[] { HashAlgorithmName.SHA256 };
 
     /// <summary>
     /// Gets the private key for signing operations.
@@ -1486,4 +1492,3 @@ When contributing plugins or improvements to the plugin system:
 5. **Backwards Compatibility**: Avoid breaking changes to the plugin API
 
 For more information, see the main [CONTRIBUTING.md](CONTRIBUTING.md) guide.
-

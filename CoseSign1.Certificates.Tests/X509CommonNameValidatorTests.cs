@@ -37,6 +37,16 @@ public class X509CommonNameValidatorTests
     }
 
     [Test]
+    public void ValidateCommonNameAcceptsRequiredNameSubstring()
+    {
+        X509Certificate2 selfSignedRoot = TestCertificateUtils.CreateCertificate("Microsoft Corporation");
+
+        Action action = () => X509CommonNameValidator.ValidateCommonName(selfSignedRoot, "Microsoft");
+
+        action.Should().NotThrow();
+    }
+
+    [Test]
     public void ValidateCommonNameFail()
     {
         X509Certificate2 selfSignedRoot = TestCertificateUtils.CreateCertificate();

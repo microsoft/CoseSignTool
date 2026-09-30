@@ -9,9 +9,11 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
+using System.Security.Cryptography.Cose;
 using System.Security.Cryptography.X509Certificates;
 using Azure.Developer.ArtifactSigning.CryptoProvider;
 using Azure.Developer.ArtifactSigning.CryptoProvider.Interfaces;
+using CoseSign1.Headers;
 using CoseSign1.Certificates.AzureArtifactSigning;
 using CoseSign1.Certificates.Local;
 using CoseSign1.Tests.Common;
@@ -376,6 +378,83 @@ public class AzureArtifactSigningCoseSigningKeyProviderTests
         // Assert
         Assert.That(result, Is.Not.Null);
         Assert.That(result, Is.InstanceOf<RSAAzSign>());
+    }
+
+    /// <summary>
+    /// Verifies that the generic message factory passes hash, padding, and custom headers through
+    /// the Azure Artifact Signing provider without provider-specific configuration.
+    /// </summary>
+    [Test]
+    public void MessageFactory_PassesGenericSigningOptionsToArtifactSigningProvider()
+    {
+        X509Certificate2 signingCertificate =
+            TestCertificateUtils.CreateCertificate(
+                nameof(MessageFactory_PassesGenericSigningOptionsToArtifactSigningProvider),
+                keySize: 3072);
+        using RSA privateKey = signingCertificate.GetRSAPrivateKey()!;
+        Mock<ISignContext> mockSignContext = new Mock<ISignContext>(MockBehavior.Strict);
+        byte[]? capturedDigest = null;
+        RSASignaturePadding? capturedPadding = null;
+
+        mockSignContext
+            .Setup(context => context.GetSigningCertificate(It.IsAny<CancellationToken>()))
+            .Returns(signingCertificate);
+        mockSignContext
+            .Setup(context => context.GetCertChain(It.IsAny<CancellationToken>()))
+            .Returns(new List<X509Certificate2> { signingCertificate });
+        mockSignContext
+            .Setup(context => context.SignDigestAsync(
+                It.IsAny<byte[]>(),
+                It.IsAny<RSASignaturePadding>(),
+                It.IsAny<X509Certificate2>(),
+                It.IsAny<byte[]>(),
+                It.IsAny<byte[]>(),
+                It.IsAny<CancellationToken>()))
+            .Returns((
+                byte[] digest,
+                RSASignaturePadding padding,
+                X509Certificate2 _,
+                byte[] _,
+                byte[] _,
+                CancellationToken _) =>
+            {
+                capturedDigest = digest;
+                capturedPadding = padding;
+                return Task.FromResult(privateKey.SignHash(digest, HashAlgorithmName.SHA384, padding));
+            });
+
+        byte[] encodedCbor = [0x44, 0x01, 0x02, 0x03, 0x04];
+        CoseHeaderLabel customHeaderLabel = new(4242);
+        CoseHeaderExtender headerExtender = new(
+            protectedHeaders =>
+            {
+                protectedHeaders[customHeaderLabel] = CoseHeaderValue.FromEncodedValue(encodedCbor);
+                return protectedHeaders;
+            },
+            unProtectedHeaders => unProtectedHeaders ?? new CoseHeaderMap());
+        AzureArtifactSigningCoseSigningKeyProvider provider =
+            new AzureArtifactSigningCoseSigningKeyProvider(mockSignContext.Object);
+        CoseSign1MessageFactory factory = new();
+        CoseSign1MessageSigningOptions signingOptions = new()
+        {
+            HashAlgorithm = HashAlgorithmName.SHA384,
+            RsaSignaturePadding = RSASignaturePadding.Pkcs1,
+        };
+
+        CoseSign1Message message = factory.CreateCoseSign1Message(
+            "artifact-signing-payload"u8.ToArray(),
+            provider,
+            embedPayload: true,
+            headerExtender: headerExtender,
+            signingOptions: signingOptions);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(capturedDigest, Has.Length.EqualTo(48));
+            Assert.That(capturedPadding, Is.SameAs(RSASignaturePadding.Pkcs1));
+            Assert.That(message.ProtectedHeaders[CoseHeaderLabel.Algorithm].GetValueAsInt32(), Is.EqualTo(-258));
+            Assert.That(message.ProtectedHeaders[customHeaderLabel].EncodedValue.ToArray(), Is.EqualTo(encodedCbor));
+        });
     }
 
     /// <summary>

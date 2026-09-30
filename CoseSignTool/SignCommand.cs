@@ -1,9 +1,10 @@
-// Copyright (c) Microsoft Corporation.
+﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
 namespace CoseSignTool;
 
 using System.Security.Cryptography.Cose;
+using CoseSign1.Abstractions.Exceptions;
 using CoseSign1.Abstractions.Interfaces;
 
 /// <summary>
@@ -41,6 +42,13 @@ public class SignCommand : CoseCommand
         ["--sl"] = "StoreLocation",
         ["--ContentType"] = "ContentType",
         ["--cty"] = "ContentType",
+        ["--HashAlgorithm"] = "HashAlgorithm",
+        ["--hash-algorithm"] = "HashAlgorithm",
+        ["--ha"] = "HashAlgorithm",
+        ["--RsaSignaturePadding"] = "RsaSignaturePadding",
+        ["--rsa-signature-padding"] = "RsaSignaturePadding",
+        ["--rsa-padding"] = "RsaSignaturePadding",
+        ["--rsp"] = "RsaSignaturePadding",
         ["--IntHeaders"] = "IntHeaders",
         ["--ih"] = "IntHeaders",
         ["--StringHeaders"] = "StringHeaders",
@@ -57,8 +65,6 @@ public class SignCommand : CoseCommand
         ["--cbph"] = "CborProtectedHeaders",
         ["--CborUnProtectedHeaders"] = "CborUnProtectedHeaders",
         ["--cbuh"] = "CborUnProtectedHeaders",
-        ["--HashAlgorithm"] = "HashAlgorithm",
-        ["--ha"] = "HashAlgorithm",
         ["--CwtIssuer"] = "CwtIssuer",
         ["--cwt-iss"] = "CwtIssuer",
         ["--CwtSubject"] = "CwtSubject",
@@ -164,6 +170,17 @@ public class SignCommand : CoseCommand
     public string? ContentType { get; set; }
 
     /// <summary>
+    /// Optional. Gets or sets the hash algorithm used to create the COSE signature.
+    /// Supported values are SHA256, SHA384, and SHA512. The default is SHA256.
+    /// </summary>
+    public HashAlgorithmName HashAlgorithm { get; set; } = HashAlgorithmName.SHA256;
+
+    /// <summary>
+    /// Optional. Gets or sets the padding used for RSA signatures. The default is PSS.
+    /// </summary>
+    public RSASignaturePadding RsaSignaturePadding { get; set; } = RSASignaturePadding.Pss;
+
+    /// <summary>
     /// Optional. Gets or sets the headers with Int32 values.
     /// </summary>
     public List<CoseHeader<int>>? IntHeaders { get; set; }
@@ -174,27 +191,14 @@ public class SignCommand : CoseCommand
     public List<CoseHeader<string>>? StringHeaders { get; set; }
 
     /// <summary>
-    /// Optional. Gets or sets protected headers whose CBOR values are supplied as base64, in <c>label=base64</c> form.
+    /// Optional. Gets or sets protected headers whose values are base64-encoded CBOR data items.
     /// </summary>
-    /// <remarks>
-    /// Use this to carry an already-encoded CBOR structure — such as a vendor's original signature blob —
-    /// in its own protected header without CoseSignTool re-encoding it.
-    /// </remarks>
     public string? CborProtectedHeaders { get; set; }
 
     /// <summary>
-    /// Optional. Gets or sets unprotected headers whose CBOR values are supplied as base64, in <c>label=base64</c> form.
+    /// Optional. Gets or sets unprotected headers whose values are base64-encoded CBOR data items.
     /// </summary>
     public string? CborUnProtectedHeaders { get; set; }
-
-    /// <summary>
-    /// Optional. Gets or sets the hash algorithm used for the signing operation. Default value is SHA256.
-    /// </summary>
-    /// <remarks>
-    /// Supported values are SHA256, SHA384 and SHA512. When signing through Azure Artifact Signing the
-    /// digest size selects the RSA signature algorithm, so SHA384 signs with RS384.
-    /// </remarks>
-    public string? HashAlgorithm { get; set; }
 
     /// <summary>
     /// Optional. Gets or sets the CWT issuer (iss) claim for SCITT compliance.
@@ -314,18 +318,11 @@ public class SignCommand : CoseCommand
         try
         {
             // Use shared header processing logic
-            ICoseHeaderExtender? headerExtender = CoseHeaderHelper.CreateHeaderExtender(IntHeaders, StringHeaders);
-
-            // Add any headers whose values were supplied as already-encoded CBOR.
-            ICoseHeaderExtender? cborHeaderExtender = CborHeaderHelper.CreateHeaderExtender(
-                SplitHeaderSpecifications(CborProtectedHeaders),
-                SplitHeaderSpecifications(CborUnProtectedHeaders));
-            if (cborHeaderExtender != null)
-            {
-                headerExtender = headerExtender != null
-                    ? new CoseSign1.Headers.ChainedCoseHeaderExtender(new[] { headerExtender, cborHeaderExtender })
-                    : cborHeaderExtender;
-            }
+            ICoseHeaderExtender? headerExtender = CoseHeaderHelper.CreateHeaderExtender(
+                IntHeaders,
+                StringHeaders,
+                CoseHeaderHelper.ParseCborHeaders(CborProtectedHeaders),
+                CoseHeaderHelper.ParseCborHeaders(CborUnProtectedHeaders));
 
             // If CWT claims customization is requested, create a CWT extender
             // Note: CertificateCoseSigningKeyProvider now automatically adds default CWT claims for SCITT compliance
@@ -375,14 +372,20 @@ public class SignCommand : CoseCommand
             using CancellationTokenSource timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(MaxWaitTime));
 
             // Generate the COSE signature asynchronously with cancellation support.
-            ReadOnlyMemory<byte> signedBytes = CoseHandler.SignAsync(
+            CoseSign1MessageFactory messageFactory = new();
+            CoseSign1MessageSigningOptions signingOptions = new()
+            {
+                HashAlgorithm = HashAlgorithm,
+                RsaSignaturePadding = RsaSignaturePadding,
+            };
+            ReadOnlyMemory<byte> signedBytes = messageFactory.CreateCoseSign1MessageBytesAsync(
                 payloadStream,
                 signingKeyProvider,
                 EmbedPayload,
-                SignatureFile,
                 ContentType ?? CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE,
                 headerExtender,
-                timeoutCts.Token).ConfigureAwait(false).GetAwaiter().GetResult();
+                timeoutCts.Token,
+                signingOptions).ConfigureAwait(false).GetAwaiter().GetResult();
 
             // Write the signature to stream or file.
             if (PipeOutput)
@@ -404,6 +407,10 @@ public class SignCommand : CoseCommand
         catch (InvalidOperationException ex)
         {
             return CoseSignTool.Fail(ExitCode.UnknownError, ex);
+        }
+        catch (CoseSigningException ex)
+        {
+            return CoseSignTool.Fail(ExitCode.InvalidArgumentValue, ex);
         }
         catch (Exception ex) when (ex is CryptographicException or CoseSign1CertificateException)
         {
@@ -433,6 +440,8 @@ public class SignCommand : CoseCommand
         PasswordPrompt = GetOptionBool(provider, nameof(PasswordPrompt));
 
         ContentType = GetOptionString(provider, nameof(ContentType), CoseSign1MessageFactory.DEFAULT_CONTENT_TYPE);
+        HashAlgorithm = ParseHashAlgorithm(GetOptionString(provider, nameof(HashAlgorithm), HashAlgorithmName.SHA256.Name));
+        RsaSignaturePadding = ParseRsaSignaturePadding(GetOptionString(provider, nameof(RsaSignaturePadding), "PSS"));
         StoreName = GetOptionString(provider, nameof(StoreName), DefaultStoreName);
         string? sl = GetOptionString(provider, nameof(StoreLocation), DefaultStoreLocation);
         StoreLocation = sl is not null ? Enum.Parse<StoreLocation>(sl) : StoreLocation.CurrentUser;
@@ -440,7 +449,6 @@ public class SignCommand : CoseCommand
         StringHeaders = GetOptionHeadersFromFile<string>(provider, nameof(StringHeaders), null, new HeaderStringConverter());
         CborProtectedHeaders = GetOptionString(provider, nameof(CborProtectedHeaders));
         CborUnProtectedHeaders = GetOptionString(provider, nameof(CborUnProtectedHeaders));
-        HashAlgorithm = GetOptionString(provider, nameof(HashAlgorithm));
 
         if (IntHeaders == null)
         {
@@ -490,6 +498,30 @@ public class SignCommand : CoseCommand
         CertProvider = GetOptionString(provider, nameof(CertProvider));
 
         base.ApplyOptions(provider);
+    }
+
+    private static HashAlgorithmName ParseHashAlgorithm(string? hashAlgorithm)
+    {
+        return hashAlgorithm?.ToUpperInvariant() switch
+        {
+            "SHA256" => HashAlgorithmName.SHA256,
+            "SHA384" => HashAlgorithmName.SHA384,
+            "SHA512" => HashAlgorithmName.SHA512,
+            _ => throw new InvalidOperationException(
+                $"Unsupported hash algorithm '{hashAlgorithm}'. Supported values are SHA256, SHA384, and SHA512.")
+        };
+    }
+
+    private static RSASignaturePadding ParseRsaSignaturePadding(string? rsaSignaturePadding)
+    {
+        string normalizedPadding = rsaSignaturePadding?.Replace("-", string.Empty).ToUpperInvariant() ?? string.Empty;
+        return normalizedPadding switch
+        {
+            "PSS" or "PS" => RSASignaturePadding.Pss,
+            "PKCS1" or "PKCS1V15" or "RS" => RSASignaturePadding.Pkcs1,
+            _ => throw new InvalidOperationException(
+                $"Unsupported RSA signature padding '{rsaSignaturePadding}'. Supported values are PSS and PKCS1.")
+        };
     }
 
     /// <summary>
@@ -1044,20 +1076,7 @@ public class SignCommand : CoseCommand
             certificateChainBuilder: null,
             signingCertificate: cert,
             rootCertificates: additionalRoots,
-            enableScittCompliance: EnableScittCompliance,
-            hashAlgorithm: HashAlgorithmHelper.Parse(HashAlgorithm));
-    }
-
-    /// <summary>
-    /// Splits a comma-separated header option value into individual <c>label=value</c> specifications.
-    /// </summary>
-    /// <param name="value">The raw option value.</param>
-    /// <returns>The individual specifications, or null when the value is empty.</returns>
-    private static IEnumerable<string>? SplitHeaderSpecifications(string? value)
-    {
-        return string.IsNullOrWhiteSpace(value)
-            ? null
-            : value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            enableScittCompliance: EnableScittCompliance);
     }
 
     /// <summary>
@@ -1443,7 +1462,14 @@ Advanced Options:
     --ContentType, --cty: Optional. A MIME type to specify as Content Type in the COSE signature header. Default value is
         'application/cose'.
 
-    Options to enable SCITT (Supply Chain Integrity, Transparency, and Trust) compliance:
+--HashAlgorithm, --hash-algorithm, --ha: Optional. The hash algorithm used to create the COSE signature.
+    Supported values are SHA256, SHA384, and SHA512. Default value is SHA256.
+
+--RsaSignaturePadding, --rsa-signature-padding, --rsa-padding, --rsp: Optional. The padding used for RSA signatures.
+    Supported values are PSS and PKCS1. The PS and RS COSE algorithm prefixes are also accepted.
+    Default value is PSS. This option is ignored for ECDSA keys.
+
+Options to enable SCITT (Supply Chain Integrity, Transparency, and Trust) compliance:
         --EnableScittCompliance, --scitt: Optional. If true (default), automatically adds SCITT-compliant CWT claims
             (issuer and subject) to the signature. Set to false to disable automatic CWT claims addition.
 
@@ -1483,19 +1509,11 @@ Advanced Options:
         --StringUnProtectedHeaders, -suh: A collection of name-value pairs with a string label and value.
             Sample input: --suh message-type=cose,customer-name=contoso
 
-        --CborProtectedHeaders, -cbph: A collection of protected headers whose values are already CBOR encoded and
-            supplied as base64. Use this to carry an existing signature or other opaque CBOR structure in its own
-            protected header. Labels may be integers or strings.
-            Sample input: --cbph 4242=RAECAwQ=,vendor-signature=RAECAwQ=
+        --CborProtectedHeaders, --cbph: A collection of name-value pairs whose values are base64-encoded CBOR data items.
+            Labels may be integers or strings. Sample input: --cbph 4242=RAECAwQ=
 
-        --CborUnProtectedHeaders, -cbuh: The same as --CborProtectedHeaders, but the headers are unprotected.
-            Sample input: --cbuh 4242=RAECAwQ=
-
-    Options to customize the signing operation:
-        --HashAlgorithm, -ha: The hash algorithm used to sign. Supported values are SHA256 (default), SHA384 and SHA512.
-            When signing through Azure Artifact Signing the digest size selects the RSA signature algorithm, so
-            SHA384 signs with RS384 and SHA512 signs with RS512.
-            Sample input: --ha SHA384
+        --CborUnProtectedHeaders, --cbuh: A collection of unprotected name-value pairs whose values are base64-encoded
+            CBOR data items. Labels may be integers or strings.
 
     Options to customize file and stream handling:
         --MaxWaitTime, --wait: The maximum number of seconds to wait for a payload or signature file to be available and

@@ -78,6 +78,43 @@ public class CwtClaimsTests
     }
 
     [Test]
+    public void FromCborBytes_WithTextLabel_ParsesCorrectly()
+    {
+        // Arrange
+        var writer = new CborWriter();
+        writer.WriteStartMap(2);
+        writer.WriteInt32(CWTClaimsHeaderLabels.Issuer);
+        writer.WriteTextString("issuer");
+        writer.WriteTextString("svn");
+        writer.WriteTextString("1.2.3");
+        writer.WriteEndMap();
+
+        // Act
+        CwtClaims claims = CwtClaims.FromCborBytes(writer.Encode());
+
+        // Assert
+        Assert.That(claims.StringClaims["svn"], Is.EqualTo("1.2.3"));
+    }
+
+    [Test]
+    public void ToCborBytes_WithTextLabel_RoundTripsCorrectly()
+    {
+        // Arrange
+        var writer = new CborWriter();
+        writer.WriteStartMap(1);
+        writer.WriteTextString("svn");
+        writer.WriteTextString("1.2.3");
+        writer.WriteEndMap();
+        CwtClaims claims = CwtClaims.FromCborBytes(writer.Encode());
+
+        // Act
+        CwtClaims roundTrippedClaims = CwtClaims.FromCborBytes(claims.ToCborBytes());
+
+        // Assert
+        Assert.That(roundTrippedClaims.StringClaims["svn"], Is.EqualTo("1.2.3"));
+    }
+
+    [Test]
     public void FromCborBytes_WithCustomIntegerClaim_ParsesCorrectly()
     {
         // Arrange
@@ -565,4 +602,3 @@ public class CwtClaimsTests
         Assert.That(claims.IsDefault(), Is.False);
     }
 }
-

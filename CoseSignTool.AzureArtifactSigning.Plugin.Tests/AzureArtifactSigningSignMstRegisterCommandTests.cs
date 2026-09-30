@@ -8,9 +8,7 @@ using System.Security.Cryptography.Cose;
 using System.Text.Json;
 using Azure;
 using Azure.ArtifactSigning.MST;
-using CoseSign1;
 using CoseSign1.Abstractions.Interfaces;
-using CoseSign1.Interfaces;
 using CoseSignTool.Abstractions;
 using CoseSignTool.AzureArtifactSigning.Plugin;
 using Microsoft.Extensions.Configuration;
@@ -76,16 +74,18 @@ public class AzureArtifactSigningSignMstRegisterCommandTests
         string outputPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.json");
         RecordingTransparencyClient client = new(receiptBytes);
         byte[]? signedPayload = null;
-        CoseSign1MessageSigningOptions? capturedSigningOptions = null;
+        HashAlgorithmName capturedHashAlgorithm = default;
+        RSASignaturePadding? capturedRsaSignaturePadding = null;
         ICoseHeaderExtender? capturedHeaderExtender = null;
         AzureArtifactSigningSignMstRegisterCommand command = new(
             (_, _, _) => client,
-            async (payload, _, _, signingOptions, headerExtender, cancellationToken) =>
+            async (payload, _, _, hashAlgorithm, rsaSignaturePadding, headerExtender, cancellationToken) =>
             {
                 using MemoryStream payloadBuffer = new();
                 await payload.CopyToAsync(payloadBuffer, cancellationToken);
                 signedPayload = payloadBuffer.ToArray();
-                capturedSigningOptions = signingOptions;
+                capturedHashAlgorithm = hashAlgorithm;
+                capturedRsaSignaturePadding = rsaSignaturePadding;
                 capturedHeaderExtender = headerExtender;
                 return statementBytes;
             });
@@ -113,8 +113,8 @@ public class AzureArtifactSigningSignMstRegisterCommandTests
             Assert.AreEqual("test-profile", client.CertificateProfileName);
             Assert.AreEqual("debugruisuprivatetrust", client.MstInstanceName);
             Assert.AreEqual("test-correlation-id", client.CorrelationId);
-            Assert.AreEqual(HashAlgorithmName.SHA384, capturedSigningOptions?.HashAlgorithm);
-            Assert.AreSame(RSASignaturePadding.Pkcs1, capturedSigningOptions?.RsaSignaturePadding);
+            Assert.AreEqual(HashAlgorithmName.SHA384, capturedHashAlgorithm);
+            Assert.AreSame(RSASignaturePadding.Pkcs1, capturedRsaSignaturePadding);
 
             CoseHeaderMap protectedHeaders = capturedHeaderExtender!.ExtendProtectedHeaders(new CoseHeaderMap());
             CollectionAssert.AreEqual(
@@ -149,7 +149,7 @@ public class AzureArtifactSigningSignMstRegisterCommandTests
                 clientCreated = true;
                 return new RecordingTransparencyClient(Array.Empty<byte>());
             },
-            (_, _, _, _, _, _) => throw new InvalidOperationException("Signing failed."));
+            (_, _, _, _, _, _, _) => throw new InvalidOperationException("Signing failed."));
         IConfigurationRoot configuration = CreateConfiguration(payloadPath, signaturePath);
 
         try
@@ -178,7 +178,7 @@ public class AzureArtifactSigningSignMstRegisterCommandTests
         bool signingStarted = false;
         AzureArtifactSigningSignMstRegisterCommand command = new(
             (_, _, _) => throw new AssertFailedException("Client should not be created."),
-            (_, _, _, _, _, _) =>
+            (_, _, _, _, _, _, _) =>
             {
                 signingStarted = true;
                 return Task.FromResult<ReadOnlyMemory<byte>>(Array.Empty<byte>());
@@ -313,7 +313,7 @@ public class AzureArtifactSigningSignMstRegisterCommandTests
     {
         return new AzureArtifactSigningSignMstRegisterCommand(
             (_, _, _) => throw new AssertFailedException("Client should not be created."),
-            (_, _, _, _, _, _) => throw new AssertFailedException("Signing should not start."));
+            (_, _, _, _, _, _, _) => throw new AssertFailedException("Signing should not start."));
     }
 
     private static IConfigurationRoot CreateConfiguration(

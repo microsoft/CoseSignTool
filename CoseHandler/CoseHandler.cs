@@ -344,6 +344,44 @@ public static class CoseHandler
             payloadBytes: null, payloadStream: payload, payloadFile: null,
             signingKeyProvider, embedSign, signatureFile, contentType, headerExtender, cancellationToken).ConfigureAwait(false);
 
+    /// <summary>
+    /// Asynchronously signs the payload using the specified hash algorithm and RSA signature padding.
+    /// </summary>
+    /// <param name="payload">A stream containing the payload to sign.</param>
+    /// <param name="signingKeyProvider">The signing key provider.</param>
+    /// <param name="embedSign">Whether to embed the payload in the COSE Sign1 statement.</param>
+    /// <param name="contentType">The payload MIME type.</param>
+    /// <param name="headerExtender">Optional custom header provider.</param>
+    /// <param name="hashAlgorithm">The hash algorithm for this signing operation.</param>
+    /// <param name="rsaSignaturePadding">The RSA signature padding for this signing operation.</param>
+    /// <param name="cancellationToken">Cancellation token for the operation.</param>
+    /// <returns>The encoded COSE Sign1 statement.</returns>
+    public static Task<ReadOnlyMemory<byte>> SignAsync(
+        Stream payload,
+        ICoseSigningKeyProvider signingKeyProvider,
+        bool embedSign,
+        string contentType,
+        ICoseHeaderExtender? headerExtender,
+        HashAlgorithmName hashAlgorithm,
+        RSASignaturePadding rsaSignaturePadding,
+        CancellationToken cancellationToken = default)
+    {
+        CoseSign1MessageSigningOptions signingOptions = new()
+        {
+            HashAlgorithm = hashAlgorithm,
+            RsaSignaturePadding = rsaSignaturePadding,
+        };
+
+        return Factory.CreateCoseSign1MessageBytesAsync(
+            payload,
+            signingKeyProvider,
+            embedSign,
+            contentType,
+            headerExtender,
+            cancellationToken,
+            signingOptions);
+    }
+
     internal static async Task<ReadOnlyMemory<byte>> SignInternalAsync(
         byte[]? payloadBytes,
         Stream? payloadStream,

@@ -4,6 +4,8 @@
 namespace CoseSignTool.Abstractions.Helpers;
 
 using System.Security.Cryptography;
+using CoseSign1.Abstractions.Interfaces;
+using CoseX509;
 using Microsoft.Extensions.Configuration;
 
 /// <summary>
@@ -11,6 +13,8 @@ using Microsoft.Extensions.Configuration;
 /// </summary>
 public static class CoseSigningAlgorithmHelper
 {
+    private const string DefaultContentType = "application/cose";
+
     /// <summary>
     /// Signing algorithm options that can be exposed by plugin commands.
     /// </summary>
@@ -74,5 +78,38 @@ public static class CoseSigningAlgorithmHelper
             _ => throw new InvalidOperationException(
                 $"Unsupported RSA signature padding '{rsaSignaturePadding}'. Supported values are PSS and PKCS1."),
         };
+    }
+
+    /// <summary>
+    /// Signs a payload using the shared generic COSE signing implementation.
+    /// </summary>
+    /// <param name="payload">The payload stream.</param>
+    /// <param name="signingKeyProvider">The signing key provider.</param>
+    /// <param name="embedPayload">Whether to embed the payload in the statement.</param>
+    /// <param name="headerExtender">Optional custom header provider.</param>
+    /// <param name="hashAlgorithm">The hash algorithm for this signing operation.</param>
+    /// <param name="rsaSignaturePadding">The RSA padding for this signing operation.</param>
+    /// <param name="cancellationToken">Cancellation token for the operation.</param>
+    /// <param name="contentType">The payload MIME type.</param>
+    /// <returns>The encoded COSE Sign1 statement.</returns>
+    public static Task<ReadOnlyMemory<byte>> SignPayloadAsync(
+        Stream payload,
+        ICoseSigningKeyProvider signingKeyProvider,
+        bool embedPayload,
+        ICoseHeaderExtender? headerExtender,
+        HashAlgorithmName hashAlgorithm,
+        RSASignaturePadding rsaSignaturePadding,
+        CancellationToken cancellationToken = default,
+        string contentType = DefaultContentType)
+    {
+        return CoseHandler.SignAsync(
+            payload,
+            signingKeyProvider,
+            embedPayload,
+            contentType,
+            headerExtender,
+            hashAlgorithm,
+            rsaSignaturePadding,
+            cancellationToken);
     }
 }

@@ -11,9 +11,8 @@ using System.Security.Cryptography;
 using Azure;
 using Azure.ArtifactSigning.MST;
 using Azure.Core;
-using CoseSign1;
 using CoseSign1.Abstractions.Exceptions;
-using CoseSign1.Interfaces;
+using CoseSign1.Abstractions.Interfaces;
 using CoseSignTool.Abstractions;
 using CoseSignTool.Abstractions.Helpers;
 using Microsoft.Extensions.Configuration;
@@ -31,7 +30,8 @@ public sealed class AzureArtifactSigningSignMstRegisterCommand : PluginCommandBa
         Stream,
         IConfiguration,
         IPluginLogger,
-        CoseSign1MessageSigningOptions,
+        HashAlgorithmName,
+        RSASignaturePadding,
         ICoseHeaderExtender?,
         CancellationToken,
         Task<ReadOnlyMemory<byte>>> signPayloadAsync;
@@ -50,7 +50,8 @@ public sealed class AzureArtifactSigningSignMstRegisterCommand : PluginCommandBa
             Stream,
             IConfiguration,
             IPluginLogger,
-            CoseSign1MessageSigningOptions,
+            HashAlgorithmName,
+            RSASignaturePadding,
             ICoseHeaderExtender?,
             CancellationToken,
             Task<ReadOnlyMemory<byte>>>? signPayloadAsync = null)
@@ -157,14 +158,12 @@ public sealed class AzureArtifactSigningSignMstRegisterCommand : PluginCommandBa
             IReadOnlyList<string> excludedCredentials = AzureCredentialFactory.GetExclusions(configuration);
             _ = AzureCredentialFactory.GetCredential(excludedCredentials, Logger);
 
-            CoseSign1MessageSigningOptions signingOptions;
+            HashAlgorithmName hashAlgorithm;
+            RSASignaturePadding rsaSignaturePadding;
             try
             {
-                signingOptions = new CoseSign1MessageSigningOptions
-                {
-                    HashAlgorithm = CoseSigningAlgorithmHelper.GetHashAlgorithm(configuration),
-                    RsaSignaturePadding = CoseSigningAlgorithmHelper.GetRsaSignaturePadding(configuration),
-                };
+                hashAlgorithm = CoseSigningAlgorithmHelper.GetHashAlgorithm(configuration);
+                rsaSignaturePadding = CoseSigningAlgorithmHelper.GetRsaSignaturePadding(configuration);
             }
             catch (InvalidOperationException ex)
             {
@@ -191,7 +190,8 @@ public sealed class AzureArtifactSigningSignMstRegisterCommand : PluginCommandBa
                     payloadStream,
                     configuration,
                     Logger,
-                    signingOptions,
+                    hashAlgorithm,
+                    rsaSignaturePadding,
                     headerExtender,
                     linkedCts.Token).ConfigureAwait(false);
             }
@@ -315,21 +315,21 @@ public sealed class AzureArtifactSigningSignMstRegisterCommand : PluginCommandBa
         Stream payload,
         IConfiguration configuration,
         IPluginLogger logger,
-        CoseSign1MessageSigningOptions signingOptions,
+        HashAlgorithmName hashAlgorithm,
+        RSASignaturePadding rsaSignaturePadding,
         ICoseHeaderExtender? headerExtender,
         CancellationToken cancellationToken)
     {
         AzureArtifactSigningCertificateProviderPlugin providerPlugin = new();
         ICoseSigningKeyProvider signingKeyProvider = providerPlugin.CreateProvider(configuration, logger);
-        ICoseSign1MessageFactory messageFactory = new CoseSign1MessageFactory();
-
-        return await messageFactory.CreateCoseSign1MessageBytesAsync(
+        return await CoseSigningAlgorithmHelper.SignPayloadAsync(
             payload,
             signingKeyProvider,
             embedPayload: true,
-            headerExtender: headerExtender,
-            cancellationToken: cancellationToken,
-            signingOptions: signingOptions).ConfigureAwait(false);
+            headerExtender,
+            hashAlgorithm,
+            rsaSignaturePadding,
+            cancellationToken).ConfigureAwait(false);
     }
 
     private static TransparencyClient CreateTransparencyClient(

@@ -7,6 +7,8 @@ extern alias IdentityAlias;
 
 namespace CoseSignTool.AzureArtifactSigning.Plugin;
 
+using System.Security.Cryptography;
+using System.Text.Json;
 using Azure;
 using Azure.ArtifactSigning.MST;
 using Azure.Core;
@@ -14,8 +16,8 @@ using CoseSign1;
 using CoseSign1.Abstractions.Exceptions;
 using CoseSign1.Interfaces;
 using CoseSignTool.Abstractions;
+using CoseSignTool.Abstractions.Helpers;
 using Microsoft.Extensions.Configuration;
-using System.Text.Json;
 using AuthenticationFailedException = IdentityAlias::Azure.Identity.AuthenticationFailedException;
 
 /// <summary>
@@ -25,7 +27,14 @@ using AuthenticationFailedException = IdentityAlias::Azure.Identity.Authenticati
 public sealed class AzureArtifactSigningSignMstRegisterCommand : PluginCommandBase
 {
     private readonly Func<Uri, IConfiguration, IPluginLogger, TransparencyClient> transparencyClientFactory;
-    private readonly Func<Stream, IConfiguration, IPluginLogger, CancellationToken, Task<ReadOnlyMemory<byte>>> signPayloadAsync;
+    private readonly Func<
+        Stream,
+        IConfiguration,
+        IPluginLogger,
+        CoseSign1MessageSigningOptions,
+        ICoseHeaderExtender?,
+        CancellationToken,
+        Task<ReadOnlyMemory<byte>>> signPayloadAsync;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="AzureArtifactSigningSignMstRegisterCommand"/> class.
@@ -37,7 +46,14 @@ public sealed class AzureArtifactSigningSignMstRegisterCommand : PluginCommandBa
 
     internal AzureArtifactSigningSignMstRegisterCommand(
         Func<Uri, IConfiguration, IPluginLogger, TransparencyClient> transparencyClientFactory,
-        Func<Stream, IConfiguration, IPluginLogger, CancellationToken, Task<ReadOnlyMemory<byte>>>? signPayloadAsync = null)
+        Func<
+            Stream,
+            IConfiguration,
+            IPluginLogger,
+            CoseSign1MessageSigningOptions,
+            ICoseHeaderExtender?,
+            CancellationToken,
+            Task<ReadOnlyMemory<byte>>>? signPayloadAsync = null)
     {
         this.transparencyClientFactory = transparencyClientFactory
             ?? throw new ArgumentNullException(nameof(transparencyClientFactory));
@@ -56,6 +72,8 @@ public sealed class AzureArtifactSigningSignMstRegisterCommand : PluginCommandBa
         "CoseSignTool aas_sign_mst_register --endpoint <mst-ledger-url> --proxy-endpoint <aas-proxy-url> " +
         "--aas-endpoint <aas-signing-url> --account-name <name> --cert-profile-name <name> " +
         "--payload <file> --signature <statement-output-file> [--output <result-file>] " +
+        "[--HashAlgorithm <SHA256|SHA384|SHA512>] [--RsaSignaturePadding <PSS|PKCS1>] " +
+        "[--CborProtectedHeaders <label=base64>] [--CborUnProtectedHeaders <label=base64>] " +
         "[--timeout <seconds>] [--correlation-id <id>] [--aas-exclude-credentials <names>]";
 
     /// <inheritdoc/>
@@ -73,6 +91,19 @@ public sealed class AzureArtifactSigningSignMstRegisterCommand : PluginCommandBa
             ["timeout"] = "Combined signing and registration timeout in seconds (default: 30)",
             ["correlation-id"] = "Optional correlation ID sent to Azure Artifact Signing",
             ["aas-exclude-credentials"] = "Comma-separated DefaultAzureCredential implementations to exclude",
+            ["HashAlgorithm"] = "Hash algorithm used for signing: SHA256, SHA384, or SHA512 (default: SHA256)",
+            ["hash-algorithm"] = "Alias for --HashAlgorithm",
+            ["ha"] = "Alias for --HashAlgorithm",
+            ["RsaSignaturePadding"] = "RSA signature padding: PSS or PKCS1 (default: PSS)",
+            ["rsa-signature-padding"] = "Alias for --RsaSignaturePadding",
+            ["rsa-padding"] = "Alias for --RsaSignaturePadding",
+            ["rsp"] = "Alias for --RsaSignaturePadding",
+            ["CborProtectedHeaders"] = "Protected headers with base64-encoded CBOR values (label=base64)",
+            ["cbor-protected-headers"] = "Alias for --CborProtectedHeaders",
+            ["cbph"] = "Alias for --CborProtectedHeaders",
+            ["CborUnProtectedHeaders"] = "Unprotected headers with base64-encoded CBOR values (label=base64)",
+            ["cbor-unprotected-headers"] = "Alias for --CborUnProtectedHeaders",
+            ["cbuh"] = "Alias for --CborUnProtectedHeaders",
         };
 
     /// <inheritdoc/>
@@ -124,6 +155,8 @@ public sealed class AzureArtifactSigningSignMstRegisterCommand : PluginCommandBa
 
             IReadOnlyList<string> excludedCredentials = AzureCredentialFactory.GetExclusions(configuration);
             _ = AzureCredentialFactory.GetCredential(excludedCredentials, Logger);
+            CoseSign1MessageSigningOptions signingOptions = CreateSigningOptions(configuration);
+            ICoseHeaderExtender? headerExtender = CreateHeaderExtender(configuration);
 
             using CancellationTokenSource timeoutCts = new(TimeSpan.FromSeconds(timeoutSeconds));
             using CancellationTokenSource linkedCts =
@@ -142,6 +175,8 @@ public sealed class AzureArtifactSigningSignMstRegisterCommand : PluginCommandBa
                     payloadStream,
                     configuration,
                     Logger,
+                    signingOptions,
+                    headerExtender,
                     linkedCts.Token).ConfigureAwait(false);
             }
 
@@ -264,6 +299,8 @@ public sealed class AzureArtifactSigningSignMstRegisterCommand : PluginCommandBa
         Stream payload,
         IConfiguration configuration,
         IPluginLogger logger,
+        CoseSign1MessageSigningOptions signingOptions,
+        ICoseHeaderExtender? headerExtender,
         CancellationToken cancellationToken)
     {
         AzureArtifactSigningCertificateProviderPlugin providerPlugin = new();
@@ -274,7 +311,65 @@ public sealed class AzureArtifactSigningSignMstRegisterCommand : PluginCommandBa
             payload,
             signingKeyProvider,
             embedPayload: true,
+            headerExtender: headerExtender,
+            signingOptions: signingOptions,
             cancellationToken: cancellationToken).ConfigureAwait(false);
+    }
+
+    internal static CoseSign1MessageSigningOptions CreateSigningOptions(IConfiguration configuration)
+    {
+        string hashAlgorithm = GetFirstValue(
+            configuration,
+            "HashAlgorithm",
+            "hash-algorithm",
+            "ha") ?? "SHA256";
+        string rsaSignaturePadding = GetFirstValue(
+            configuration,
+            "RsaSignaturePadding",
+            "rsa-signature-padding",
+            "rsa-padding",
+            "rsp") ?? "PSS";
+
+        return new CoseSign1MessageSigningOptions
+        {
+            HashAlgorithm = hashAlgorithm.ToUpperInvariant() switch
+            {
+                "SHA256" => HashAlgorithmName.SHA256,
+                "SHA384" => HashAlgorithmName.SHA384,
+                "SHA512" => HashAlgorithmName.SHA512,
+                _ => throw new ArgumentException(
+                    $"Unsupported hash algorithm '{hashAlgorithm}'. Supported values are SHA256, SHA384, and SHA512.",
+                    nameof(configuration)),
+            },
+            RsaSignaturePadding = rsaSignaturePadding.Replace("-", string.Empty).ToUpperInvariant() switch
+            {
+                "PSS" or "PS" => RSASignaturePadding.Pss,
+                "PKCS1" or "PKCS1V15" or "RS" => RSASignaturePadding.Pkcs1,
+                _ => throw new ArgumentException(
+                    $"Unsupported RSA signature padding '{rsaSignaturePadding}'. Supported values are PSS and PKCS1.",
+                    nameof(configuration)),
+            },
+        };
+    }
+
+    internal static ICoseHeaderExtender? CreateHeaderExtender(IConfiguration configuration)
+    {
+        string? cborProtectedHeaders = GetFirstValue(
+            configuration,
+            "CborProtectedHeaders",
+            "cbor-protected-headers",
+            "cbph");
+        string? cborUnprotectedHeaders = GetFirstValue(
+            configuration,
+            "CborUnProtectedHeaders",
+            "cbor-unprotected-headers",
+            "cbuh");
+
+        return CoseHeaderHelper.CreateHeaderExtender(
+            null,
+            null,
+            CoseHeaderHelper.ParseCborHeaders(cborProtectedHeaders),
+            CoseHeaderHelper.ParseCborHeaders(cborUnprotectedHeaders));
     }
 
     private static TransparencyClient CreateTransparencyClient(
@@ -303,5 +398,19 @@ public sealed class AzureArtifactSigningSignMstRegisterCommand : PluginCommandBa
     {
         return int.TryParse(GetOptionalValue(configuration, "timeout", "30"), out timeoutSeconds)
             && timeoutSeconds > 0;
+    }
+
+    private static string? GetFirstValue(IConfiguration configuration, params string[] keys)
+    {
+        foreach (string key in keys)
+        {
+            string? value = configuration[key];
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                return value;
+            }
+        }
+
+        return null;
     }
 }

@@ -266,16 +266,18 @@ Credentials are cached per distinct exclusion set for the lifetime of the proces
 artifacts in one invocation reuses the access token acquired for the first one instead of
 re-authenticating each time.
 
-#### Registering with MST through Azure Artifact Signing
+#### Signing and registering with MST through Azure Artifact Signing
 
-The Azure Artifact Signing plugin also provides `aas_mst_register`. This command sends an existing
-COSE Sign1 signature to the Azure Artifact Signing MST proxy. The generic MST plugin and its
-`mst_register` command are unchanged.
+The Azure Artifact Signing plugin also provides `aas_sign_mst_register`. This command signs the
+payload with Azure Artifact Signing, writes an embedded-payload COSE Sign1 statement, and immediately
+sends those exact statement bytes to the Azure Artifact Signing MST proxy. The generic MST plugin and
+its `mst_register` command are unchanged.
 
 ```bash
-CoseSignTool aas_mst_register \
+CoseSignTool aas_sign_mst_register \
   --endpoint https://debugruisuprivatetrust.confidential-ledger.azure.com \
   --proxy-endpoint https://api-canary.northcentralus.codesigning.azure.net/ \
+  --aas-endpoint https://contoso.codesigning.azure.net/ \
   --account-name ContosoAccount \
   --cert-profile-name ContosoProfile \
   --aas-exclude-credentials ManagedIdentityCredential,VisualStudioCredential \
@@ -288,12 +290,13 @@ CoseSignTool aas_mst_register \
 |-----------|----------|-------------|
 | `--endpoint` | Yes | Microsoft Signing Transparency ledger endpoint. |
 | `--proxy-endpoint` | Yes | Azure Artifact Signing proxy endpoint. |
+| `--aas-endpoint` | Yes | Azure Artifact Signing endpoint used to sign the payload. |
 | `--account-name` | Yes | Azure Artifact Signing account name. |
-| `--cert-profile-name` | Yes | Certificate profile used for proxy authorization. |
-| `--payload` | Yes | Payload file associated with the COSE Sign1 signature. |
-| `--signature` | Yes | COSE Sign1 signature submitted for registration. |
+| `--cert-profile-name` | Yes | Certificate profile used for signing and proxy authorization. |
+| `--payload` | Yes | Payload file to sign. |
+| `--signature` | Yes | Output path for the generated embedded COSE Sign1 statement. |
 | `--output` | No | JSON output file containing the transparency receipt. |
-| `--timeout` | No | Operation timeout in seconds; defaults to 30. |
+| `--timeout` | No | Combined signing and registration timeout in seconds; defaults to 30. |
 | `--correlation-id` | No | Correlation ID sent to Azure Artifact Signing. |
 | `--aas-exclude-credentials` | No | Credentials excluded from the shared Artifact Signing credential chain. |
 

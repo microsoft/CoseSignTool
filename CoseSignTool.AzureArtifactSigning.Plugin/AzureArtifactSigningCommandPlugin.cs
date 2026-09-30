@@ -10,7 +10,7 @@ public sealed class AzureArtifactSigningCommandPlugin : ICoseSignToolPlugin
 {
     private static readonly IPluginCommand[] PluginCommands =
     {
-        new AzureArtifactSigningMstRegisterCommand()
+        new AzureArtifactSigningSignMstRegisterCommand()
     };
 
     /// <inheritdoc/>

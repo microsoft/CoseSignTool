@@ -55,8 +55,8 @@ public class AzureArtifactSigningCertificateProviderPlugin : ICertificateProvide
     {
         // Check for required parameters
         string? endpoint = configuration["aas-endpoint"];
-        string? accountName = configuration["aas-account-name"];
-        string? certProfileName = configuration["aas-cert-profile-name"];
+        string? accountName = configuration["aas-account-name"] ?? configuration["account-name"];
+        string? certProfileName = configuration["aas-cert-profile-name"] ?? configuration["cert-profile-name"];
 
         return !string.IsNullOrWhiteSpace(endpoint) &&
                !string.IsNullOrWhiteSpace(accountName) &&
@@ -68,8 +68,8 @@ public class AzureArtifactSigningCertificateProviderPlugin : ICertificateProvide
     {
         // Extract required parameters
         string? endpoint = configuration["aas-endpoint"];
-        string? accountName = configuration["aas-account-name"];
-        string? certProfileName = configuration["aas-cert-profile-name"];
+        string? accountName = configuration["aas-account-name"] ?? configuration["account-name"];
+        string? certProfileName = configuration["aas-cert-profile-name"] ?? configuration["cert-profile-name"];
 
         // Validate required parameters
         if (string.IsNullOrWhiteSpace(endpoint))

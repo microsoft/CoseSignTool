@@ -44,6 +44,11 @@
       <ExcludeAssets>none</ExcludeAssets>
       <IncludeAssets>compile; build; native; contentfiles; analyzers</IncludeAssets>
     </ProjectReference>
+    <ProjectReference Include="..\CoseSign1\CoseSign1.csproj">
+      <Private>true</Private>
+      <ExcludeAssets>none</ExcludeAssets>
+      <IncludeAssets>compile; build; native; contentfiles; analyzers</IncludeAssets>
+    </ProjectReference>
   </ItemGroup>
 
   <ItemGroup>

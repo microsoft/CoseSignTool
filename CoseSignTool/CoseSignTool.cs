@@ -327,13 +327,19 @@ public class CoseSignTool
 
         try
         {
-            // Convert plugin options (key -> description format) to switch mappings (--key -> key format)
-            // The Options dictionary from plugins uses { "option-name", "description" } format
-            // but CommandLineConfigurationProvider needs { "--option-name", "option-name" } format
-            Dictionary<string, string> commandOptions = new();
+            Dictionary<string, string> commandOptions = command is IGenericSignPluginCommand signPluginCommand
+                ? GetSignOptionsForProvider(signPluginCommand.CertificateProviderName)
+                : new();
+
+            // Convert plugin options (key -> description format) to switch mappings (--key -> key format).
             foreach (var option in command.Options)
             {
-                commandOptions[$"--{option.Key}"] = option.Key;
+                string switchName = $"--{option.Key}";
+                if (!commandOptions.TryAdd(switchName, option.Key))
+                {
+                    throw new InvalidOperationException(
+                        $"Plugin command '{command.Name}' defines option '{switchName}', which conflicts with a generic sign option.");
+                }
             }
             
             // Add universal logging options
@@ -354,14 +360,29 @@ public class CoseSignTool
                 return Usage(command.Usage, badArg);
             }
 
-            // Build configuration from the provider
-            IConfigurationRoot configuration = new ConfigurationBuilder()
-                .AddCommandLine(args, commandOptions)
-                .Build();
+            // Reuse the normalized generic sign configuration for the plugin step.
+            using ConfigurationRoot configuration =
+                new ConfigurationRoot(new List<IConfigurationProvider> { provider });
 
             // Configure logging based on command-line flags
             IPluginLogger logger = CreateLoggerFromConfiguration(configuration);
             command.SetLogger(logger);
+
+            if (command is IGenericSignPluginCommand genericSignCommand)
+            {
+                SignCommand signCommand = new(provider)
+                {
+                    CertProvider = genericSignCommand.CertificateProviderName,
+                    EmbedPayload = genericSignCommand.EmbedPayload,
+                };
+                signCommand.SetCertificateProviderPluginManager(CertificateProviderManager);
+
+                ExitCode signResult = signCommand.Run();
+                if (signResult != ExitCode.Success)
+                {
+                    return signResult;
+                }
+            }
 
             PluginExitCode result = command.ExecuteAsync(configuration).GetAwaiter().GetResult();
             return (ExitCode)(int)result;
@@ -374,6 +395,29 @@ public class CoseSignTool
         {
             return Fail(ExitCode.UnknownError, ex);
         }
+    }
+
+    private static Dictionary<string, string> GetSignOptionsForProvider(string providerName)
+    {
+        ICertificateProviderPlugin? provider = CertificateProviderManager.GetProvider(providerName);
+        if (provider is null)
+        {
+            throw new InvalidOperationException(
+                $"Certificate provider '{providerName}' required by the plugin command is not available.");
+        }
+
+        Dictionary<string, string> options = new(SignCommand.Options);
+        foreach (KeyValuePair<string, string> option in provider.GetProviderOptions())
+        {
+            if (!options.TryAdd(option.Key, option.Value))
+            {
+                throw new InvalidOperationException(
+                    $"Certificate provider plugin '{provider.ProviderName}' defines option '{option.Key}', " +
+                    "which conflicts with a generic sign option.");
+            }
+        }
+
+        return options;
     }
 
     /// <summary>

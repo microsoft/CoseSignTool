@@ -10,9 +10,6 @@ namespace CoseSignTool.AzureArtifactSigning.Plugin;
 using Azure;
 using Azure.ArtifactSigning.MST;
 using Azure.Core;
-using CoseSign1;
-using CoseSign1.Abstractions.Exceptions;
-using CoseSign1.Interfaces;
 using CoseSignTool.Abstractions;
 using Microsoft.Extensions.Configuration;
 using System.Text.Json;
@@ -22,26 +19,23 @@ using AuthenticationFailedException = IdentityAlias::Azure.Identity.Authenticati
 /// Signs a payload with Azure Artifact Signing and registers the generated COSE Sign1 statement
 /// with Microsoft Signing Transparency through the Azure Artifact Signing proxy.
 /// </summary>
-public sealed class AzureArtifactSigningSignMstRegisterCommand : PluginCommandBase
+public sealed class AzureArtifactSigningSignMstRegisterCommand : PluginCommandBase, IGenericSignPluginCommand
 {
     private readonly Func<Uri, IConfiguration, IPluginLogger, TransparencyClient> transparencyClientFactory;
-    private readonly Func<Stream, IConfiguration, IPluginLogger, CancellationToken, Task<ReadOnlyMemory<byte>>> signPayloadAsync;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="AzureArtifactSigningSignMstRegisterCommand"/> class.
     /// </summary>
     public AzureArtifactSigningSignMstRegisterCommand()
-        : this(CreateTransparencyClient, SignPayloadAsync)
+        : this(CreateTransparencyClient)
     {
     }
 
     internal AzureArtifactSigningSignMstRegisterCommand(
-        Func<Uri, IConfiguration, IPluginLogger, TransparencyClient> transparencyClientFactory,
-        Func<Stream, IConfiguration, IPluginLogger, CancellationToken, Task<ReadOnlyMemory<byte>>>? signPayloadAsync = null)
+        Func<Uri, IConfiguration, IPluginLogger, TransparencyClient> transparencyClientFactory)
     {
         this.transparencyClientFactory = transparencyClientFactory
             ?? throw new ArgumentNullException(nameof(transparencyClientFactory));
-        this.signPayloadAsync = signPayloadAsync ?? SignPayloadAsync;
     }
 
     /// <inheritdoc/>
@@ -54,9 +48,16 @@ public sealed class AzureArtifactSigningSignMstRegisterCommand : PluginCommandBa
     /// <inheritdoc/>
     public override string Usage =>
         "CoseSignTool aas_sign_mst_register --endpoint <mst-ledger-url> --proxy-endpoint <aas-proxy-url> " +
-        "--aas-endpoint <aas-signing-url> --account-name <name> --cert-profile-name <name> " +
-        "--payload <file> --signature <statement-output-file> [--output <result-file>] " +
+        "--aas-endpoint <aas-signing-url> --aas-account-name <name> --aas-cert-profile-name <name> " +
+        "--payload <file> --sf <statement-output-file> [--output <result-file>] " +
+        "[--ha <SHA256|SHA384|SHA512>] [--rsp <PSS|PKCS1>] [--cbph <label=base64-cbor>] " +
         "[--timeout <seconds>] [--correlation-id <id>] [--aas-exclude-credentials <names>]";
+
+    /// <inheritdoc/>
+    public string CertificateProviderName => "azure-artifact-signing";
+
+    /// <inheritdoc/>
+    public bool EmbedPayload => true;
 
     /// <inheritdoc/>
     public override IDictionary<string, string> Options { get; } =
@@ -64,15 +65,9 @@ public sealed class AzureArtifactSigningSignMstRegisterCommand : PluginCommandBa
         {
             ["endpoint"] = "Microsoft Signing Transparency ledger endpoint URL (required)",
             ["proxy-endpoint"] = "Azure Artifact Signing MST proxy endpoint URL (required)",
-            ["aas-endpoint"] = "Azure Artifact Signing endpoint URL used to sign the payload (required)",
-            ["account-name"] = "Azure Artifact Signing account name (required)",
-            ["cert-profile-name"] = "Azure Artifact Signing certificate profile name (required)",
-            ["payload"] = "Path to the payload file to sign (required)",
-            ["signature"] = "Path where the generated embedded COSE Sign1 statement is written (required)",
             ["output"] = "Optional path for the JSON registration result",
-            ["timeout"] = "Combined signing and registration timeout in seconds (default: 30)",
+            ["timeout"] = "MST registration timeout in seconds (default: 30)",
             ["correlation-id"] = "Optional correlation ID sent to Azure Artifact Signing",
-            ["aas-exclude-credentials"] = "Comma-separated DefaultAzureCredential implementations to exclude",
         };
 
     /// <inheritdoc/>
@@ -84,11 +79,10 @@ public sealed class AzureArtifactSigningSignMstRegisterCommand : PluginCommandBa
         {
             string ledgerEndpoint = GetRequiredNonWhitespaceValue(configuration, "endpoint");
             string proxyEndpoint = GetRequiredNonWhitespaceValue(configuration, "proxy-endpoint");
-            string aasEndpoint = GetRequiredNonWhitespaceValue(configuration, "aas-endpoint");
-            string accountName = GetRequiredNonWhitespaceValue(configuration, "account-name");
-            string certificateProfileName = GetRequiredNonWhitespaceValue(configuration, "cert-profile-name");
-            string payloadPath = GetRequiredNonWhitespaceValue(configuration, "payload");
-            string signaturePath = GetRequiredNonWhitespaceValue(configuration, "signature");
+            string accountName = GetRequiredNonWhitespaceValue(configuration, "aas-account-name");
+            string certificateProfileName = GetRequiredNonWhitespaceValue(configuration, "aas-cert-profile-name");
+            string payloadPath = GetRequiredNonWhitespaceValue(configuration, "PayloadFile");
+            string signaturePath = GetRequiredNonWhitespaceValue(configuration, "SignatureFile");
             string? outputPath = GetOptionalValue(configuration, "output");
             string? correlationId = GetOptionalValue(configuration, "correlation-id");
 
@@ -104,21 +98,15 @@ public sealed class AzureArtifactSigningSignMstRegisterCommand : PluginCommandBa
                 return PluginExitCode.InvalidArgumentValue;
             }
 
-            if (!TryCreateHttpsEndpoint(aasEndpoint, out Uri? aasEndpointUri))
-            {
-                Logger.LogError("The Azure Artifact Signing endpoint must be an absolute HTTPS URL.");
-                return PluginExitCode.InvalidArgumentValue;
-            }
-
             if (!TryGetTimeout(configuration, out int timeoutSeconds))
             {
                 Logger.LogError("Invalid timeout value. Must be a positive integer.");
                 return PluginExitCode.InvalidArgumentValue;
             }
 
-            if (!File.Exists(payloadPath))
+            if (!File.Exists(signaturePath))
             {
-                Logger.LogError($"Payload file not found: {payloadPath}");
+                Logger.LogError($"Generated COSE statement not found: {signaturePath}");
                 return PluginExitCode.UserSpecifiedFileNotFound;
             }
 
@@ -129,30 +117,12 @@ public sealed class AzureArtifactSigningSignMstRegisterCommand : PluginCommandBa
             using CancellationTokenSource linkedCts =
                 CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
 
-            Logger.LogInformation("Signing payload with Azure Artifact Signing...");
-            Logger.LogVerbose($"  Signing endpoint: {aasEndpointUri}");
-            Logger.LogVerbose($"  Account: {accountName}");
-            Logger.LogVerbose($"  Certificate profile: {certificateProfileName}");
-            Logger.LogVerbose($"  Payload: {payloadPath}");
-
-            ReadOnlyMemory<byte> statement;
-            await using (FileStream payloadStream = File.OpenRead(payloadPath))
-            {
-                statement = await this.signPayloadAsync(
-                    payloadStream,
-                    configuration,
-                    Logger,
-                    linkedCts.Token).ConfigureAwait(false);
-            }
-
-            byte[] statementBytes = statement.ToArray();
-            await File.WriteAllBytesAsync(signaturePath, statementBytes, linkedCts.Token).ConfigureAwait(false);
-            Logger.LogInformation($"COSE statement written to: {signaturePath}");
+            byte[] statementBytes = await File.ReadAllBytesAsync(signaturePath, linkedCts.Token).ConfigureAwait(false);
 
             Logger.LogInformation("Registering the generated COSE statement with MST through Azure Artifact Signing...");
             Logger.LogVerbose($"  Ledger endpoint: {ledgerEndpointUri}");
             Logger.LogVerbose($"  Proxy endpoint: {proxyEndpointUri}");
-            Logger.LogVerbose($"  Signature: {signaturePath} ({statement.Length} bytes)");
+            Logger.LogVerbose($"  Signature: {signaturePath} ({statementBytes.Length} bytes)");
 
             TransparencyClient client = this.transparencyClientFactory(proxyEndpointUri!, configuration, Logger);
             string mstInstanceName = ledgerEndpointUri!.Host.Split('.')[0];
@@ -234,12 +204,6 @@ public sealed class AzureArtifactSigningSignMstRegisterCommand : PluginCommandBa
             Logger.LogException(ex);
             return PluginExitCode.UnknownError;
         }
-        catch (CoseSign1Exception ex)
-        {
-            Logger.LogError($"Failed to create the COSE Sign1 statement: {ex.Message}");
-            Logger.LogException(ex);
-            return PluginExitCode.UnknownError;
-        }
         catch (UnauthorizedAccessException ex)
         {
             Logger.LogError($"File access failed: {ex.Message}");
@@ -258,23 +222,6 @@ public sealed class AzureArtifactSigningSignMstRegisterCommand : PluginCommandBa
     {
         return Uri.TryCreate(value, UriKind.Absolute, out endpoint)
             && string.Equals(endpoint.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static async Task<ReadOnlyMemory<byte>> SignPayloadAsync(
-        Stream payload,
-        IConfiguration configuration,
-        IPluginLogger logger,
-        CancellationToken cancellationToken)
-    {
-        AzureArtifactSigningCertificateProviderPlugin providerPlugin = new();
-        ICoseSigningKeyProvider signingKeyProvider = providerPlugin.CreateProvider(configuration, logger);
-        ICoseSign1MessageFactory messageFactory = new CoseSign1MessageFactory();
-
-        return await messageFactory.CreateCoseSign1MessageBytesAsync(
-            payload,
-            signingKeyProvider,
-            embedPayload: true,
-            cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 
     private static TransparencyClient CreateTransparencyClient(

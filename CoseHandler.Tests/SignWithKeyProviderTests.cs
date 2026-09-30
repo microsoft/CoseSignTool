@@ -27,6 +27,33 @@ public class SignWithKeyProviderTests
         CoseHandler.Sign(testPayload.ToArray(), mockedSignerKeyProvider, false, new FileInfo(signedFile));
     }
 
+    /// <summary>
+    /// Verifies per-operation hash and RSA padding options flow through the shared signing facade.
+    /// </summary>
+    [TestMethod]
+    public async Task SignAsync_WithSigningOptions_UsesRequestedAlgorithm()
+    {
+        using X509Certificate2 certificate = TestCertificateUtils.CreateCertificate();
+        X509Certificate2Collection testChain = TestCertificateUtils.CreateTestChain();
+        Mock<ICertificateChainBuilder> chainBuilder = new();
+        chainBuilder.Setup(x => x.ChainElements).Returns(new List<X509Certificate2>(testChain));
+        chainBuilder.Setup(x => x.Build(It.IsAny<X509Certificate2>())).Returns(true);
+        X509Certificate2CoseSigningKeyProvider signingKeyProvider = new(chainBuilder.Object, certificate);
+        using MemoryStream payload = new(Encoding.ASCII.GetBytes("testPayload!"));
+
+        ReadOnlyMemory<byte> signedBytes = await CoseHandler.SignAsync(
+            payload,
+            signingKeyProvider,
+            embedSign: true,
+            contentType: "application/octet-stream",
+            headerExtender: null,
+            HashAlgorithmName.SHA384,
+            RSASignaturePadding.Pkcs1);
+
+        CoseSign1Message message = CoseMessage.DecodeSign1(signedBytes.ToArray());
+        message.ProtectedHeaders[CoseHeaderLabel.Algorithm].GetValueAsInt32().Should().Be(-258);
+    }
+
     //Testing Exception Path for SignInternal with KeyProvider
     [TestMethod]
     public void TestSignWithNoSigningKey()
@@ -83,7 +110,5 @@ public class SignWithKeyProviderTests
         exceptionText.Message.Should().Be("Payload not provided.");
     }
 }
-
-
 
 

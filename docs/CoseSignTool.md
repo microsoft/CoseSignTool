@@ -25,6 +25,16 @@ CoseSignTool --help
 # Use a plugin command (example: Azure CTS)
 export MST_TOKEN="your-access-token"
 CoseSignTool mst_register --endpoint https://your-mst.azure.com --payload file.txt --signature file.txt.cose
+
+# Sign and register with MST through the Azure Artifact Signing plugin
+CoseSignTool aas_sign_mst_register --endpoint https://your-mst.azure.com \
+    --proxy-endpoint https://api-canary.northcentralus.codesigning.azure.net/ \
+    --aas-endpoint https://contoso.codesigning.azure.net/ \
+    --aas-account-name MyAccount --aas-cert-profile-name MyProfile \
+    --aas-exclude-credentials ManagedIdentityCredential,VisualStudioCredential \
+    --payload file.txt --signature file.txt.cose \
+    --hash-algorithm SHA384 --rsa-signature-padding PSS \
+    --cbor-protected-headers external-signatures=RAECAwQ=
 ```
 
 **For Developers:**
@@ -286,6 +296,7 @@ Microsoft's cloud-based signing service providing managed certificates, FIPS 140
 * **--aas-endpoint** - Azure Artifact Signing endpoint URL (e.g., `https://contoso.codesigning.azure.net`)
 * **--aas-account-name** - Azure Artifact Signing account name
 * **--aas-cert-profile-name** - Certificate profile name within the account
+* **--aas-exclude-credentials** - Comma-separated credentials to exclude from the `DefaultAzureCredential` chain (e.g., `ManagedIdentityCredential`). May also be supplied as a JSON array under the `ExcludeCredentials` section. Credentials are cached per exclusion set for the process lifetime, so signing multiple artifacts reuses the first access token.
 
 **Authentication:**
 Azure Artifact Signing uses Azure DefaultAzureCredential, which automatically tries:

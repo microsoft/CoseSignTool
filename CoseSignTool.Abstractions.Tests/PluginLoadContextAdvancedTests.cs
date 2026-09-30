@@ -94,6 +94,7 @@ public class PluginLoadContextAdvancedTests
             "CoseSignTool.Abstractions",
             "CoseSign1.Abstractions",
             "CoseSign1.Headers",
+            "System.Security.Cryptography.Cose",
         };
 
         foreach (string assemblyName in sharedContracts)

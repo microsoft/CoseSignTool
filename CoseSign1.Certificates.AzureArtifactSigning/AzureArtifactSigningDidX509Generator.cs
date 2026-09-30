@@ -29,8 +29,10 @@ using CoseSign1.Certificates.Extensions;
 /// - The base64url-encoded hash is 43 characters for SHA256 (RFC 4648 Section 5)
 /// </para>
 /// <para>
-/// The "deepest greatest" Microsoft EKU is selected based on OID depth and last segment value
-/// when multiple Microsoft EKUs are present.
+/// Azure Artifact Signing certificates place tenant-scoped EKUs before profile-scoped EKUs.
+/// The trailing Artifact Signing EKU is selected so the DID identifies the specific certificate
+/// profile rather than every profile in the tenant. Other Microsoft certificates retain the
+/// existing "deepest greatest" fallback.
 /// </para>
 /// </remarks>
 public class AzureArtifactSigningDidX509Generator : DidX509Generator
@@ -39,6 +41,11 @@ public class AzureArtifactSigningDidX509Generator : DidX509Generator
     /// Microsoft reserved EKU prefix used by Azure Artifact Signing certificates.
     /// </summary>
     private const string MicrosoftEkuPrefix = "1.3.6.1.4.1.311";
+
+    /// <summary>
+    /// Prefix shared by Azure Artifact Signing tenant- and profile-scoped customer EKUs.
+    /// </summary>
+    private const string AzureArtifactSigningEkuPrefix = "1.3.6.1.4.1.311.97.1.";
 
     /// <summary>
     /// Generates a DID:X509:0 identifier from an Azure Artifact Signing certificate chain.
@@ -84,8 +91,14 @@ public class AzureArtifactSigningDidX509Generator : DidX509Generator
             return baseDid;
         }
 
-        // Select the deepest greatest Microsoft EKU per Azure Artifact Signing conventions
-        string deepestGreatestEku = SelectDeepestGreatestEku(microsoftEkus);
+        // Azure Artifact Signing emits tenant-scoped EKUs first and profile-scoped EKUs last.
+        // Selecting the tenant entry would produce an issuer broader than the ledger policy.
+        List<string> artifactSigningEkus = microsoftEkus
+            .Where(eku => eku.StartsWith(AzureArtifactSigningEkuPrefix, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        string selectedEku = artifactSigningEkus.Count > 0
+            ? artifactSigningEkus[artifactSigningEkus.Count - 1]
+            : SelectDeepestGreatestEku(microsoftEkus);
 
         // Replace the ::subject: portion with ::eku:{oid}
         // Per spec: policy-value for EKU is just the OID, not percent-encoded
@@ -97,7 +110,7 @@ public class AzureArtifactSigningDidX509Generator : DidX509Generator
         }
 
         string didPrefix = baseDid.Substring(0, subjectIndex);
-        return $"{didPrefix}::eku:{deepestGreatestEku}";
+        return $"{didPrefix}::eku:{selectedEku}";
     }
 
     /// <summary>

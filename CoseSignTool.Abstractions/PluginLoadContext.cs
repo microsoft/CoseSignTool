@@ -113,6 +113,10 @@ public class PluginLoadContext : AssemblyLoadContext
             // ISupportsScittCompliance (host capability check on plugin-returned providers).
             "CoseSign1.Abstractions",
 
+            // CoseHeaderMap appears in ICoseSigningKeyProvider method signatures. It must have one
+            // type identity across the host and plugin contexts for provider implementations to bind.
+            "System.Security.Cryptography.Cose",
+
             // ICoseHeaderExtender flows out of CoseHeaderHelper.CreateHeaderExtender (which lives
             // in CoseSignTool.Abstractions) and is consumed by plugin signing commands. Both sides
             // must agree on the interface's type identity.
@@ -163,6 +167,7 @@ public class PluginLoadContext : AssemblyLoadContext
                 return true;
             }
         }
+
 
         return false;
     }
@@ -247,4 +252,3 @@ public class PluginLoadContext : AssemblyLoadContext
         return IntPtr.Zero;
     }
 }
-

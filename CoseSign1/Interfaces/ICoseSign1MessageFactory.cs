@@ -19,6 +19,7 @@ public interface ICoseSign1MessageFactory
     /// By default, a detached signature is created, which contains a hash of the payload instead of its contents.</param>
     /// <param name="contentType">An optional MIME type to specify as the ContentType of the current payload. Default value is "application/cose"/></param>
     /// <param name="headerExtender">Optional. Adds headers other than the common headers provided by KeyProvider Instance</param>
+    /// <param name="signingOptions">Optional settings applied only to this signing operation.</param>
     /// <returns>The COSE signature structure as a ReadOnlyMemory block of bytes.</returns>
     /// <exception cref="ArgumentNullException">Thrown if the payload or the signing key provider is null</exception>
     /// <exception cref="ArgumentOutOfRangeException">Thrown if the payload is empty or 0 length</exception>
@@ -28,7 +29,8 @@ public interface ICoseSign1MessageFactory
            ICoseSigningKeyProvider signingKeyProvider,
            bool embedPayload = false,
            string contentType = Constants.DEFAULT_CONTENT_TYPE,
-           ICoseHeaderExtender? headerExtender = null
+           ICoseHeaderExtender? headerExtender = null,
+           CoseSign1MessageSigningOptions? signingOptions = null
            );
 
     /// <summary>
@@ -40,6 +42,7 @@ public interface ICoseSign1MessageFactory
     /// By default, a detached signature is created, which contains a hash of the payload instead of its contents.</param>
     /// <param name="contentType">An optional MIME type to specify as the ContentType of the current payload. Default value is "application/cose"/></param>
     /// <param name="headerExtender">Optional. Adds headers other than the common headers provided by KeyProvider Instance</param>
+    /// <param name="signingOptions">Optional settings applied only to this signing operation.</param>
     /// <returns>The COSE signature structure as a ReadOnlyMemory block of bytes.</returns>
     /// <exception cref="ArgumentNullException">Thrown if the payload or the signing key provider is null</exception>
     /// <exception cref="ArgumentOutOfRangeException">Thrown if the payload is empty or 0 length</exception>
@@ -50,7 +53,8 @@ public interface ICoseSign1MessageFactory
            ICoseSigningKeyProvider signingKeyProvider,
            bool embedPayload = false,
            string contentType = Constants.DEFAULT_CONTENT_TYPE,
-           ICoseHeaderExtender? headerExtender = null
+           ICoseHeaderExtender? headerExtender = null,
+           CoseSign1MessageSigningOptions? signingOptions = null
            );
 
     /// <summary>
@@ -62,6 +66,7 @@ public interface ICoseSign1MessageFactory
     /// By default, a detached signature is created, which contains a hash of the payload instead of its contents.</param>
     /// <param name="contentType">An optional MIME type to specify as the ContentType of the current payload. Default value is "application/cose"/></param>
     /// <param name="headerExtender">Optional. Adds headers other than the common headers provided by KeyProvider Instance</param>
+    /// <param name="signingOptions">Optional settings applied only to this signing operation.</param>
     /// <returns>The COSE signature structure as a ReadOnlyMemory block of bytes.</returns>
     /// <exception cref="ArgumentNullException">Thrown if the payload or the signing key provider is null</exception>
     /// <exception cref="ArgumentOutOfRangeException">Thrown if the payload is empty or 0 length</exception>
@@ -72,7 +77,8 @@ public interface ICoseSign1MessageFactory
            ICoseSigningKeyProvider signingKeyProvider,
            bool embedPayload = false,
            string contentType = Constants.DEFAULT_CONTENT_TYPE,
-           ICoseHeaderExtender? headerExtender = null
+           ICoseHeaderExtender? headerExtender = null,
+           CoseSign1MessageSigningOptions? signingOptions = null
            );
 
     /// <summary>
@@ -84,6 +90,7 @@ public interface ICoseSign1MessageFactory
     /// By default, a detached signature is created, which contains a hash of the payload instead of its contents.</param>
     /// <param name="contentType">An optional MIME type to specify as the ContentType of the current payload. Default value is "application/cose"/></param>
     /// <param name="headerExtender">Optional. Adds headers other than the common headers provided by KeyProvider Instance</param>
+    /// <param name="signingOptions">Optional settings applied only to this signing operation.</param>
     /// <returns>The COSE signature structure as a ReadOnlyMemory block of bytes.</returns>
     /// <exception cref="ArgumentNullException">Thrown if the payload or the signing key provider is null</exception>
     /// <exception cref="ArgumentOutOfRangeException">Thrown if the payload is empty or 0 length</exception>
@@ -94,7 +101,8 @@ public interface ICoseSign1MessageFactory
            ICoseSigningKeyProvider signingKeyProvider,
            bool embedPayload = false,
            string contentType = Constants.DEFAULT_CONTENT_TYPE,
-           ICoseHeaderExtender? headerExtender = null
+           ICoseHeaderExtender? headerExtender = null,
+           CoseSign1MessageSigningOptions? signingOptions = null
            );
 
     /// <summary>
@@ -107,6 +115,7 @@ public interface ICoseSign1MessageFactory
     /// <param name="contentType">An optional MIME type to specify as the ContentType of the current payload. Default value is "application/cose"/></param>
     /// <param name="headerExtender">Optional. Adds headers other than the common headers provided by KeyProvider Instance</param>
     /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
+    /// <param name="signingOptions">Optional settings applied only to this signing operation.</param>
     /// <returns>A task that represents the asynchronous operation. The task result contains the CoseSign1Message.</returns>
     /// <exception cref="ArgumentNullException">Thrown if the payload or the signing key provider is null</exception>
     /// <exception cref="ArgumentOutOfRangeException">Thrown if the payload is empty or 0 length</exception>
@@ -117,7 +126,8 @@ public interface ICoseSign1MessageFactory
            bool embedPayload = false,
            string contentType = Constants.DEFAULT_CONTENT_TYPE,
            ICoseHeaderExtender? headerExtender = null,
-           CancellationToken cancellationToken = default
+           CancellationToken cancellationToken = default,
+           CoseSign1MessageSigningOptions? signingOptions = null
            );
 
     /// <summary>
@@ -130,6 +140,7 @@ public interface ICoseSign1MessageFactory
     /// <param name="contentType">An optional MIME type to specify as the ContentType of the current payload. Default value is "application/cose"/></param>
     /// <param name="headerExtender">Optional. Adds headers other than the common headers provided by KeyProvider Instance</param>
     /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
+    /// <param name="signingOptions">Optional settings applied only to this signing operation.</param>
     /// <returns>A task that represents the asynchronous operation. The task result contains the CoseSign1Message.</returns>
     /// <exception cref="ArgumentNullException">Thrown if the payload or the signing key provider is null</exception>
     /// <exception cref="ArgumentOutOfRangeException">Thrown if the payload is empty or 0 length</exception>
@@ -141,7 +152,8 @@ public interface ICoseSign1MessageFactory
            bool embedPayload = false,
            string contentType = Constants.DEFAULT_CONTENT_TYPE,
            ICoseHeaderExtender? headerExtender = null,
-           CancellationToken cancellationToken = default
+           CancellationToken cancellationToken = default,
+           CoseSign1MessageSigningOptions? signingOptions = null
            );
 
     /// <summary>
@@ -154,6 +166,7 @@ public interface ICoseSign1MessageFactory
     /// <param name="contentType">An optional MIME type to specify as the ContentType of the current payload. Default value is "application/cose"/></param>
     /// <param name="headerExtender">Optional. Adds headers other than the common headers provided by KeyProvider Instance</param>
     /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
+    /// <param name="signingOptions">Optional settings applied only to this signing operation.</param>
     /// <returns>A task that represents the asynchronous operation. The task result contains the COSE signature structure as a ReadOnlyMemory block of bytes.</returns>
     /// <exception cref="ArgumentNullException">Thrown if the payload or the signing key provider is null</exception>
     /// <exception cref="ArgumentOutOfRangeException">Thrown if the payload is empty or 0 length</exception>
@@ -164,7 +177,8 @@ public interface ICoseSign1MessageFactory
            bool embedPayload = false,
            string contentType = Constants.DEFAULT_CONTENT_TYPE,
            ICoseHeaderExtender? headerExtender = null,
-           CancellationToken cancellationToken = default
+           CancellationToken cancellationToken = default,
+           CoseSign1MessageSigningOptions? signingOptions = null
            );
 
     /// <summary>
@@ -177,6 +191,7 @@ public interface ICoseSign1MessageFactory
     /// <param name="contentType">An optional MIME type to specify as the ContentType of the current payload. Default value is "application/cose"/></param>
     /// <param name="headerExtender">Optional. Adds headers other than the common headers provided by KeyProvider Instance</param>
     /// <param name="cancellationToken">The token to monitor for cancellation requests.</param>
+    /// <param name="signingOptions">Optional settings applied only to this signing operation.</param>
     /// <returns>A task that represents the asynchronous operation. The task result contains the COSE signature structure as a ReadOnlyMemory block of bytes.</returns>
     /// <exception cref="ArgumentNullException">Thrown if the payload or the signing key provider is null</exception>
     /// <exception cref="ArgumentOutOfRangeException">Thrown if the payload is empty or 0 length</exception>
@@ -188,6 +203,7 @@ public interface ICoseSign1MessageFactory
            bool embedPayload = false,
            string contentType = Constants.DEFAULT_CONTENT_TYPE,
            ICoseHeaderExtender? headerExtender = null,
-           CancellationToken cancellationToken = default
+           CancellationToken cancellationToken = default,
+           CoseSign1MessageSigningOptions? signingOptions = null
            );
 }

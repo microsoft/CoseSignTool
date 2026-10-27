@@ -22,6 +22,7 @@
     <ProjectReference Include="..\CoseSign1.Abstractions\CoseSign1.Abstractions.csproj" />
     <ProjectReference Include="..\CoseSign1.Certificates.AzureArtifactSigning\CoseSign1.Certificates.AzureArtifactSigning.csproj" />
     <ProjectReference Include="..\CoseSign1.Certificates\CoseSign1.Certificates.csproj" />
+    <ProjectReference Include="..\CoseSign1\CoseSign1.csproj" />
     <ProjectReference Include="..\CoseSign1.Tests.Common\CoseSign1.Tests.Common.csproj" />
   </ItemGroup>
 

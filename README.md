@@ -52,6 +52,9 @@ CoseSignTool sign --payload payload.txt --pfx mycert.pfx --SignatureFile signatu
 # Using PEM certificate and key files (Linux/Unix)
 CoseSignTool sign --payload payload.txt --pem mycert.pem --key mykey.pem --SignatureFile signature.cose
 
+# Create a PS512 signature instead of the default PS256 signature
+CoseSignTool sign --payload payload.txt --pfx mycert.pfx --SignatureFile signature.cose --hash-algorithm SHA512
+
 # Custom SCITT signature with specific subject and expiration
 CoseSignTool sign --payload payload.txt --pfx mycert.pfx --SignatureFile signature.cose \
   --cwt-sub "software.release.v1.0" \

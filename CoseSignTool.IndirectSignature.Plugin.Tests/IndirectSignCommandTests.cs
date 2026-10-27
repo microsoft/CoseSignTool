@@ -232,19 +232,24 @@ public class IndirectSignCommandTests
     public async Task IndirectSignCommand_Execute_WithDifferentHashAlgorithms_ShouldSucceed()
     {
         // Test different hash algorithms
-        string[] algorithms = new[] { "SHA256", "SHA384", "SHA512" };
+        Dictionary<string, int> algorithms = new()
+        {
+            ["SHA256"] = -37,
+            ["SHA384"] = -38,
+            ["SHA512"] = -39
+        };
 
-        foreach (string algorithm in algorithms)
+        foreach (KeyValuePair<string, int> algorithm in algorithms)
         {
             // Arrange
             IndirectSignCommand command = new IndirectSignCommand();
-            string signaturePath = TestSignaturePath + $"_{algorithm}";
+            string signaturePath = TestSignaturePath + $"_{algorithm.Key}";
             IConfiguration configuration = CreateConfiguration(new Dictionary<string, string?>
             {
                 ["payload"] = TestPayloadPath,
                 ["signature"] = signaturePath,
                 ["pfx"] = TestCertificatePath,
-                ["hash-algorithm"] = algorithm
+                ["hash-algorithm"] = algorithm.Key
             });
 
             try
@@ -253,14 +258,18 @@ public class IndirectSignCommandTests
                 PluginExitCode result = await command.ExecuteAsync(configuration);
 
                 // Assert
-                Assert.AreEqual(PluginExitCode.Success, result, $"Failed for hash algorithm: {algorithm}");
-                Assert.IsTrue(File.Exists(signaturePath), $"Signature file not created for algorithm: {algorithm}");
+                Assert.AreEqual(PluginExitCode.Success, result, $"Failed for hash algorithm: {algorithm.Key}");
+                Assert.IsTrue(File.Exists(signaturePath), $"Signature file not created for algorithm: {algorithm.Key}");
 
                 // Verify the signature is valid
                 byte[] signatureBytes = File.ReadAllBytes(signaturePath);
                 CoseSign1Message message = CoseMessage.DecodeSign1(signatureBytes);
-                Assert.IsNotNull(message, $"Invalid COSE message for algorithm: {algorithm}");
-                Assert.IsTrue(message.IsIndirectSignature(), $"Not an indirect signature for algorithm: {algorithm}");
+                Assert.IsNotNull(message, $"Invalid COSE message for algorithm: {algorithm.Key}");
+                Assert.IsTrue(message.IsIndirectSignature(), $"Not an indirect signature for algorithm: {algorithm.Key}");
+                Assert.AreEqual(
+                    algorithm.Value,
+                    message.ProtectedHeaders[CoseHeaderLabel.Algorithm].GetValueAsInt32(),
+                    $"COSE algorithm mismatch for {algorithm.Key}");
             }
             finally
             {
@@ -1128,4 +1137,3 @@ public class IndirectSignCommandTests
         }
     }
 }
-

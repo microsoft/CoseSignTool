@@ -68,6 +68,10 @@ var cert = new X509Certificate2("mycert.pfx", "password");
 var signingKeyProvider = new X509Certificate2CoseSigningKeyProvider(cert);
 // SCITT compliance is enabled by default (enableScittCompliance: true)
 
+// Signing algorithms are configured at the message-factory level.
+// If no algorithm is supplied, SHA-256 is used by default.
+var messageFactory = new CoseSign1MessageFactory(HashAlgorithmName.SHA512);
+
 // Or explicitly disable SCITT compliance if not needed
 // var signingKeyProvider = new X509Certificate2CoseSigningKeyProvider(
 //     signingCertificate: cert,

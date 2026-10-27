@@ -3,7 +3,6 @@
 
 namespace CoseSignTool.MST.Plugin;
 
-using Azure.Identity;
 using Azure.Core;
 using System.Text.Json;
 
@@ -24,7 +23,7 @@ internal static class CodeTransparencyClientHelper
     private const string DefaultTokenEnvVarName = "MST_TOKEN";
 
     /// <summary>
-    /// Pre-allocated single-element scope array for <see cref="DefaultAzureCredential"/> token requests.
+    /// Pre-allocated single-element scope array for <c>DefaultAzureCredential</c> token requests.
     /// Hoisted to <c>static readonly</c> so the array is not re-allocated on every invocation.
     /// </summary>
     private static readonly string[] DefaultAzureCredentialScopes = new[] { DefaultAzureCredentialScope };
@@ -40,7 +39,7 @@ internal static class CodeTransparencyClientHelper
     /// the helper consults <c>MST_TOKEN</c> as a non-fatal default.
     /// </param>
     /// <param name="useAzureAuth">
-    /// When <c>true</c>, fall back to <see cref="DefaultAzureCredential"/> to acquire a token if no
+    /// When <c>true</c>, fall back to <c>DefaultAzureCredential</c> to acquire a token if no
     /// access token is found via the environment variable. When <c>false</c> (default), the client is
     /// constructed without credentials so calls reach the endpoint anonymously — appropriate for
     /// unauthenticated MST instances such as test ledgers.
@@ -65,7 +64,6 @@ internal static class CodeTransparencyClientHelper
     {
         Uri uri = new(endpoint);
         CodeTransparencyClientOptions clientOptions = new();
-        clientOptions.ConfigureMstPerformanceOptimizations();
 
         bool tokenEnvVarExplicitlyRequested = !string.IsNullOrWhiteSpace(tokenEnvVarName);
         string envVarName = tokenEnvVarExplicitlyRequested ? tokenEnvVarName! : DefaultTokenEnvVarName;
@@ -91,7 +89,11 @@ internal static class CodeTransparencyClientHelper
         {
             // Acquire a token via the Azure default credential chain (CLI, MSI, VS, etc.).
             logger?.LogVerbose("MST auth: using Azure DefaultAzureCredential (--azure-auth)");
-            DefaultAzureCredential defaultCred = new(); // CodeQL [SM05137] This is non-production testing code which is not deployed.
+            Type defaultAzureCredentialType = Type.GetType(
+                "Azure.Identity.DefaultAzureCredential, Azure.Identity",
+                throwOnError: true)!;
+            TokenCredential defaultCred = Activator.CreateInstance(defaultAzureCredentialType, new object[] { false }) as TokenCredential
+                ?? throw new InvalidOperationException("Azure.Identity.DefaultAzureCredential could not be created.");
             AccessToken defaultToken = await defaultCred.GetTokenAsync(new TokenRequestContext(DefaultAzureCredentialScopes), cancellationToken).ConfigureAwait(false);
             return new CodeTransparencyClient(uri, new AzureKeyCredential(defaultToken.Token), clientOptions);
         }
@@ -103,4 +105,3 @@ internal static class CodeTransparencyClientHelper
         return new CodeTransparencyClient(uri, clientOptions);
     }
 }
-

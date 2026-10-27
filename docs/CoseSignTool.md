@@ -53,6 +53,7 @@ You will need to specify:
   4. **Local Certificate Store**: Use the **--Thumbprint** or **--th** option to pass the SHA1 thumbprint of an installed certificate. The certificate must include a private key.
 
 You may also want to specify:
+* The signing algorithm. **--HashAlgorithm** / **--hash-algorithm** / **--ha** selects SHA256, SHA384, or SHA512 for any signing key provider. **--RsaSignaturePadding** / **--rsa-padding** / **--rsp** selects PSS (default) or PKCS1 for any RSA signing key provider. Together these produce PS256/PS384/PS512 or RS256/RS384/RS512. RSA padding is ignored for ECDSA keys.
 * Detached or embedded: By default, CoseSignTool creates a detached signature, which contains a hash of the original payoad. If you want it embedded, meaning that the signature file includes a copy of the payload, use the **--EmbedPayload** or **--ep** option. Note that embedded signatures are only supported for payload of less than 2gb.
 * Where to write the signature to. You have three ways to go here:
     1. Write to the Standard Output channel (STDOUT) / console by using the **--PipeOutput** or **--po** option.
@@ -210,6 +211,8 @@ cat mycert.crt mykey.pem > combined.pem
         * **--StringProtectedHeaders**, **--sph** - A collection of name-value pairs (separated by comma ',') with the value being a string. Example: `--sph message-type="cose",customer-name="contoso"`
         * **--IntUnProtectedHeaders**, **--iuh** - A collection of name-value pairs (separated by comma ',') with the value being an int32. Example: `--iuh created-at=12345678,customer-count=10`
         * **--StringUnProtectedHeaders**, **--suh** - A collection of name-value pairs (separated by comma ',') with the value being a string. Example: `--suh message-type="cose",customer-name="contoso"`
+        * **--CborProtectedHeaders**, **--cbph** - A collection of name-value pairs whose values are base64-encoded, complete CBOR data items. Labels may be integers or strings. Example: `--cbph 4242=RAECAwQ=`
+        * **--CborUnProtectedHeaders**, **--cbuh** - The unprotected-header equivalent of `--cbph`.
     * File:
         * **--IntHeaders**, **--ih** - A JSON file containing the headers with the value being an int32.
         * **--StringHeaders**, **--sh** - A JSON file containing the headers with the value being a string.
@@ -388,4 +391,3 @@ You may also want to specify:
 * **--Roots**, **--Verbose**, **--RevocationMode**, **--CommonName**, **--AllowUntrusted**, and **--AllowOutdated** exactly as with the Validate command.
 
 Run *CoseSignTool get --help* for the complete command line usage.
-

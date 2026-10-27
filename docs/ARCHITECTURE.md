@@ -166,7 +166,7 @@ public interface ICoseSigningKeyProvider
     RSA? GetRSAKey(bool publicKey = false);
     ECDsa? GetECDsaKey(bool publicKey = false);
     
-    // Algorithm selection
+    // Legacy/default algorithm selection
     HashAlgorithmName HashAlgorithm { get; }
     
     // Certificate chain (for X.509 scenarios)
@@ -181,6 +181,8 @@ public interface ICoseSigningKeyProvider
     IEnumerable<byte[]>? GetUnprotectedHeaders();
 }
 ```
+
+Providers can additionally implement `ISupportsHashAlgorithms` to advertise their supported SHA-2 variants. `CoseSign1MessageFactory` validates explicit algorithm overrides when this optional capability interface is available.
 
 **Implementations:**
 - `X509Certificate2CoseSigningKeyProvider` - Local certificate files
@@ -541,31 +543,6 @@ did:x509:0:sha256:WE50Zg...::subject:CN=Microsoft%20Code%20Signing%20CA
 │ CoseSign1Message with   │
 │ transparency receipt    │
 └─────────────────────────┘
-```
-
-### Performance Tuning
-
-The MST service has specific timing characteristics:
-
-| Component | Default Timing | Tuned Timing |
-|-----------|----------------|--------------|
-| LRO Polling | ~1s (SDK exponential) | ~100ms (fixed) |
-| 503 Retry (TransactionNotCached) | ~1s (Retry-After) | ~100ms (fast retry) |
-| **Total** | **~3 seconds** | **~600ms** |
-
-```csharp
-// Apply both tuning strategies
-var options = new CodeTransparencyClientOptions();
-options.ConfigureMstPerformanceOptimizations(
-    retryDelay: TimeSpan.FromMilliseconds(100),
-    maxRetries: 8);
-
-var pollingOptions = new MstPollingOptions
-{
-    PollingInterval = TimeSpan.FromMilliseconds(100)
-};
-
-var service = new MstTransparencyService(client, pollingOptions);
 ```
 
 ---

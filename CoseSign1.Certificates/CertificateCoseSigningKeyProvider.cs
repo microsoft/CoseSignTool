@@ -8,15 +8,25 @@ using CoseSign1.Certificates.Extensions;
 /// <summary>
 /// Abstract class which contains common logic needed for all certificate based <see cref="ICoseSigningKeyProvider"/> implementations.
 /// </summary>
-public abstract class CertificateCoseSigningKeyProvider : ICoseSigningKeyProvider, ISupportsScittCompliance
+public abstract class CertificateCoseSigningKeyProvider : ICoseSigningKeyProvider, ISupportsHashAlgorithms, ISupportsScittCompliance
 {
     private static readonly DidX509Generator DefaultDidGenerator = new();
+    private static readonly IReadOnlyCollection<HashAlgorithmName> DefaultSupportedHashAlgorithms = Array.AsReadOnly(
+        new[]
+        {
+            HashAlgorithmName.SHA256,
+            HashAlgorithmName.SHA384,
+            HashAlgorithmName.SHA512
+        });
 
     /// <inheritdoc/>
     public HashAlgorithmName HashAlgorithm { get; } = HashAlgorithmName.SHA256;
 
     /// <inheritdoc/>
     public bool IsRSA => GetRSAKey(true) != null;
+
+    /// <inheritdoc/>
+    public virtual IReadOnlyCollection<HashAlgorithmName> SupportedHashAlgorithms => DefaultSupportedHashAlgorithms;
 
     /// <inheritdoc/>
     public virtual IReadOnlyList<AsymmetricAlgorithm> KeyChain => GetKeyChain();
@@ -133,7 +143,7 @@ public abstract class CertificateCoseSigningKeyProvider : ICoseSigningKeyProvide
     protected CertificateCoseSigningKeyProvider() { }
 
     /// <summary>
-    /// Default constructor to instantiate hashalgorithm
+    /// Default constructor to instantiate the hash algorithm.
     /// </summary>
     /// <param name="hashAlgorithm">The <see cref="HashAlgorithmName"/> used for the signing operation.</param>
     public CertificateCoseSigningKeyProvider(HashAlgorithmName? hashAlgorithm = null)
@@ -142,7 +152,7 @@ public abstract class CertificateCoseSigningKeyProvider : ICoseSigningKeyProvide
     }
 
     /// <summary>
-    /// Default constructor to instantiate chain builder and HashAlgorithm
+    /// Default constructor to instantiate the chain builder and hash algorithm.
     /// </summary>
     /// <param name="certificateChainBuilder">The <see cref="ICertificateChainBuilder"/> builder used to build the chain for <paramref name="signingCertificate"/>.</param>
     /// <param name="hashAlgorithm">The <see cref="HashAlgorithmName"/> used for the signing operation.</param>

@@ -115,6 +115,13 @@ public class X509Certificate2CoseSigningKeyProvider : CertificateCoseSigningKeyP
         ? SigningCertificate.GetRSAPublicKey()
         : SigningCertificate.GetRSAPrivateKey();
 
+    /// <inheritdoc/>
+#pragma warning disable SYSLIB5006 // The ML-DSA certificate accessors are marked experimental in .NET.
+    protected override MLDsa? ProvideMLDsaKey(bool publicKey = false) => publicKey
+        ? SigningCertificate.GetMLDsaPublicKey()
+        : SigningCertificate.GetMLDsaPrivateKey();
+#pragma warning restore SYSLIB5006
+
     /// <summary>
     /// Ensures the <see cref="X509Certificate2Collection"/> is returned in proper <see cref="X509ChainSortOrder"/> sort order.
     /// </summary>

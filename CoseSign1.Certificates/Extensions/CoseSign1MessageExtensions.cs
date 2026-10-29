@@ -237,8 +237,8 @@ public static class CoseSign1MessageExtensions
             return false;
         }
 
-        AsymmetricAlgorithm? publicKey = @this.GetEmbeddedPublicKey(allowUnprotected, out bool foundCert);
-        if (!foundCert || publicKey is null)
+        AsymmetricAlgorithm? publicKey = @this.GetEmbeddedPublicKey(allowUnprotected, out bool foundCert, out CoseKey? mlDsaKey);
+        if (!foundCert || (publicKey is null && mlDsaKey is null))
         {
             return false;
         }
@@ -252,7 +252,7 @@ public static class CoseSign1MessageExtensions
 
         try
         {
-            return @this.VerifyEmbedded(publicKey);
+            return mlDsaKey is not null ? @this.VerifyEmbedded(mlDsaKey) : @this.VerifyEmbedded(publicKey!);
         }
         catch (CryptographicException ex)
         {
@@ -282,14 +282,14 @@ public static class CoseSign1MessageExtensions
             return false;
         }
 
-        AsymmetricAlgorithm? publicKey = @this.GetEmbeddedPublicKey(allowUnprotected, out bool foundCert);
-        if (!foundCert || publicKey is null)
+        AsymmetricAlgorithm? publicKey = @this.GetEmbeddedPublicKey(allowUnprotected, out bool foundCert, out CoseKey? mlDsaKey);
+        if (!foundCert || (publicKey is null && mlDsaKey is null))
         {
             return false;
         }
         try
         {
-            return @this.VerifyDetached(publicKey, detachedContent);
+            return mlDsaKey is not null ? @this.VerifyDetached(mlDsaKey, detachedContent) : @this.VerifyDetached(publicKey!, detachedContent);
         }
         catch (CryptographicException ex)
         {
@@ -319,14 +319,14 @@ public static class CoseSign1MessageExtensions
             return false;
         }
 
-        AsymmetricAlgorithm? publicKey = @this.GetEmbeddedPublicKey(allowUnprotected, out bool foundCert);
-        if (!foundCert || publicKey is null)
+        AsymmetricAlgorithm? publicKey = @this.GetEmbeddedPublicKey(allowUnprotected, out bool foundCert, out CoseKey? mlDsaKey);
+        if (!foundCert || (publicKey is null && mlDsaKey is null))
         {
             return false;
         }
         try
         {
-            return @this.VerifyDetached(publicKey, detachedContent);
+            return mlDsaKey is not null ? @this.VerifyDetached(mlDsaKey, detachedContent) : @this.VerifyDetached(publicKey!, detachedContent);
         }
         catch (CryptographicException ex)
         {
@@ -356,14 +356,14 @@ public static class CoseSign1MessageExtensions
             return false;
         }
 
-        AsymmetricAlgorithm? publicKey = @this.GetEmbeddedPublicKey(allowUnprotected, out bool foundCert);
-        if (!foundCert || publicKey is null)
+        AsymmetricAlgorithm? publicKey = @this.GetEmbeddedPublicKey(allowUnprotected, out bool foundCert, out CoseKey? mlDsaKey);
+        if (!foundCert || (publicKey is null && mlDsaKey is null))
         {
             return false;
         }
         try
         {
-            return @this.VerifyDetached(publicKey, detachedContent);
+            return mlDsaKey is not null ? @this.VerifyDetached(mlDsaKey, detachedContent) : @this.VerifyDetached(publicKey!, detachedContent);
         }
         catch (CryptographicException ex)
         {
@@ -372,10 +372,12 @@ public static class CoseSign1MessageExtensions
         }
     }
 
-    // Shared logic to extract the public key from the embedded signing certificate
-    private static AsymmetricAlgorithm? GetEmbeddedPublicKey(this CoseSign1Message @this, bool allowUnprotected, out bool foundCert)
+    // Shared logic to extract the verification key from the embedded signing certificate.
+    // ML-DSA keys are not AsymmetricAlgorithm instances, so they are returned as a CoseKey in mlDsaKey instead.
+    private static AsymmetricAlgorithm? GetEmbeddedPublicKey(this CoseSign1Message @this, bool allowUnprotected, out bool foundCert, out CoseKey? mlDsaKey)
     {
         foundCert = false;
+        mlDsaKey = null;
         if (!@this.TryGetSigningCertificate(out X509Certificate2 signingCert, allowUnprotected) || signingCert == null)
         {
             Trace.TraceWarning($"No signing certificate found in message.");
@@ -384,6 +386,11 @@ public static class CoseSign1MessageExtensions
         foundCert = true;
         AsymmetricAlgorithm? publicKey = (AsymmetricAlgorithm?)signingCert.GetRSAPublicKey() ?? signingCert.GetECDsaPublicKey();
         if (publicKey is null)
+        {
+            mlDsaKey = signingCert.GetMLDsaVerificationKey();
+        }
+
+        if (publicKey is null && mlDsaKey is null)
         {
             Trace.TraceWarning($"Signing certificate does not contain a valid public key for verification.");
             return null;

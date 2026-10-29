@@ -10,6 +10,10 @@ The following classes are provide for creating a proper CoseSign1Message object 
 ### [CertificateCoseSigningKeyProvider](https://github.com/microsoft/CoseSignTool/blob/main/CoseSign1.Certificates/CertificateCoseSigningKeyProvider.cs)
 This class contains all the common logic of any certificate which is used as a signing key provider for CoseSign1Message signing. It will ensure that the x5t, x5chain protected headers are populated prior to signing as well as provide the interface to either the ECDsa or the ECC key set.
 
+#### ML-DSA Keys
+
+The base class implements `ISupportsMLDsaKey` through a `protected virtual MLDsa? ProvideMLDsaKey(bool publicKey = false)` method that returns `null` by default, so existing derived classes are unaffected. Override it to sign with an ML-DSA certificate; **X509Certificate2CoseSigningKeyProvider** returns the certificate's ML-DSA key. When verifying, the `*WithCertificate` extension methods and `X509Certificate2.GetMLDsaVerificationKey()` use the signing certificate's ML-DSA public key when it has no RSA or ECDsa key. ML-DSA requires platform support (see `MLDsa.IsSupported`).
+
 #### Virtual Issuer Property
 
 The base class provides a `public virtual string? Issuer` property that:

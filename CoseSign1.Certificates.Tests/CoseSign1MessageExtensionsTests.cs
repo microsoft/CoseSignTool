@@ -327,4 +327,53 @@ public class CoseSign1MessageExtensionsTests
         Assert.That(firstResolvedCached?.Thumbprint, Is.EqualTo(firstCertificate.Thumbprint));
         Assert.That(secondResolvedCached?.Thumbprint, Is.EqualTo(secondCertificate.Thumbprint));
     }
+
+    /// <summary>
+    /// Test that an ML-DSA signed message is signed with ML-DSA and verifies against its embedded certificate.
+    /// </summary>
+    [Test]
+    public void VerifyEmbeddedWithCertificate_MLDsaMessage_ReturnsTrue()
+    {
+        if (!MLDsa.IsSupported)
+        {
+            Assert.Ignore("ML-DSA is not supported on this platform.");
+        }
+
+        // Arrange
+        CoseSign1Message msg = CreateMLDsaCoseSign1Message(new byte[] { 1, 2, 3, 4 });
+
+        // Act & Assert
+        Assert.That(msg.Signature.Length, Is.EqualTo(3309), "Expected an ML-DSA-65 signature.");
+        Assert.That(msg.VerifyEmbeddedWithCertificate(), Is.True, "Expected verification to succeed for an ML-DSA message.");
+    }
+
+    /// <summary>
+    /// Test that every detached overload verifies ML-DSA signed content and rejects different content.
+    /// </summary>
+    [Test]
+    public void VerifyDetachedWithCertificate_MLDsaMessage_VerifiesOnlyMatchingContent()
+    {
+        if (!MLDsa.IsSupported)
+        {
+            Assert.Ignore("ML-DSA is not supported on this platform.");
+        }
+
+        // Arrange
+        byte[] content = new byte[] { 1, 2, 3, 4 };
+        CoseSign1Message msg = CreateMLDsaCoseSign1Message(content, detached: true);
+
+        // Act & Assert
+        Assert.That(msg.VerifyDetachedWithCertificate(content), Is.True, "Expected byte array verification to succeed.");
+        Assert.That(msg.VerifyDetachedWithCertificate(new ReadOnlySpan<byte>(content)), Is.True, "Expected span verification to succeed.");
+        Assert.That(msg.VerifyDetachedWithCertificate(new MemoryStream(content)), Is.True, "Expected stream verification to succeed.");
+        Assert.That(msg.VerifyDetachedWithCertificate(new byte[] { 4, 3, 2, 1 }), Is.False, "Expected verification to fail for different content.");
+    }
+
+    // Helper: Create an ML-DSA signed COSE_Sign1 message with an embedded certificate.
+    private static CoseSign1Message CreateMLDsaCoseSign1Message(byte[] content, bool detached = false)
+    {
+        X509Certificate2 cert = TestCertificateUtils.CreateMLDsaCertificate(out MLDsa key);
+        MLDsaTestSigningKeyProvider keyProvider = new(cert, key);
+        return CoseMessage.DecodeSign1(CoseSign1MessageFactory.CreateCoseSign1MessageBytes(content, keyProvider, !detached).ToArray());
+    }
 }

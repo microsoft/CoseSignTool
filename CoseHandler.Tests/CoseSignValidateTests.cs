@@ -469,4 +469,34 @@ public class CoseHandlerSignValidateTests
         ValidationResult result = CoseHandler.Validate(sig.ToArray(), Payload1Bytes, ValidRootSetPub, RevMode);
         result.Success.Should().Be(true);
     }
+
+    /// <summary>
+    /// Validates ML-DSA embedded, detached (bytes and stream), and indirect signatures, and rejects a modified payload.
+    /// </summary>
+    [TestMethod]
+    public void MLDsaSignatures_Validate()
+    {
+        if (!MLDsa.IsSupported)
+        {
+            Assert.Inconclusive("ML-DSA is not supported on this platform.");
+        }
+
+        X509Certificate2 cert = TestCertificateUtils.CreateMLDsaCertificate(out MLDsa key);
+        MLDsaTestSigningKeyProvider keyProvider = new(cert, key);
+        byte[] embedded = CoseHandler.Sign(Payload1Bytes, keyProvider, embedSign: true).ToArray();
+        byte[] detached = CoseHandler.Sign(Payload1Bytes, keyProvider).ToArray();
+        byte[] indirect = new IndirectSignatureFactory().CreateIndirectSignatureBytes(
+            payload: Payload1Bytes,
+            contentType: "application/spdx+json",
+            signingKeyProvider: keyProvider).ToArray();
+
+        CoseHandler.Validate(embedded, BaseValidator).Success.Should().Be(true);
+        CoseHandler.Validate(detached, BaseValidator, Payload1Bytes).Success.Should().Be(true);
+        CoseHandler.Validate(detached, BaseValidator, new MemoryStream(Payload1Bytes)).Success.Should().Be(true);
+        CoseHandler.Validate(indirect, BaseValidator, Payload1Bytes).Success.Should().Be(true);
+
+        ValidationResult modified = CoseHandler.Validate(detached, BaseValidator, Encoding.ASCII.GetBytes("Payload2!"));
+        modified.Success.Should().Be(false);
+        modified.Errors.Should().Contain(e => e.ErrorCode.Equals(ValidationFailureCode.PayloadMismatch));
+    }
 }

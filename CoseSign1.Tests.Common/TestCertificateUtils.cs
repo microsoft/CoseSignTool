@@ -4,7 +4,6 @@
 
 namespace CoseSign1.Tests.Common;
 
-using System.Formats.Asn1;
 using System.Runtime.CompilerServices;
 
 /// <summary>
@@ -149,84 +148,19 @@ public static class TestCertificateUtils
         return X509CertificateLoader.LoadCertificate(certificate.Export(X509ContentType.Cert));
     }
 
-#pragma warning disable SYSLIB5006 // Several ML-DSA APIs used to build test certificates are marked experimental in .NET.
     /// <summary>
-    /// Creates a self-signed ML-DSA certificate without a private key, and returns its private key separately.
+    /// Creates a self-signed ML-DSA certificate with its private key.
     /// Callers should check <see cref="MLDsa.IsSupported"/> first.
     /// </summary>
-    /// <remarks>
-    /// The key is not attached to the certificate because Microsoft.Bcl.Cryptography's CopyWithPrivateKey(MLDsa)
-    /// fails on .NET 8 on some Windows builds. Use <see cref="MLDsaTestSigningKeyProvider"/> to sign with both.
-    /// </remarks>
-    /// <param name="privateKey">The ML-DSA private key for the certificate.</param>
     /// <param name="subjectName">The subject name of the certificate.</param>
     /// <param name="algorithm">(Optional) The ML-DSA parameter set. Defaults to ML-DSA-65.</param>
-    /// <returns>An <see cref="X509Certificate2"/> object with an ML-DSA public key for use in testing.</returns>
-    public static X509Certificate2 CreateMLDsaCertificate(
-        out MLDsa privateKey,
-        [CallerMemberName] string subjectName = "none",
-        MLDsaAlgorithm? algorithm = null)
+    /// <returns>An <see cref="X509Certificate2"/> object with an ML-DSA key pair for use in testing.</returns>
+    public static X509Certificate2 CreateMLDsaCertificate([CallerMemberName] string subjectName = "none", MLDsaAlgorithm? algorithm = null)
     {
-        privateKey = MLDsa.GenerateKey(algorithm ?? MLDsaAlgorithm.MLDsa65);
-        byte[] signatureAlgorithm = EncodeMLDsaAlgorithmIdentifier(privateKey.Algorithm);
-        byte[] name = new X500DistinguishedName($"CN={subjectName}").RawData;
-        DateTimeOffset now = DateTimeOffset.UtcNow;
-
-        // .NET 8 CertificateRequest cannot encode ML-DSA public keys (their AlgorithmIdentifier has no parameters),
-        // so the self-signed certificate is encoded directly.
-        AsnWriter tbs = new(AsnEncodingRules.DER);
-        using (tbs.PushSequence())
-        {
-            using (tbs.PushSequence(new Asn1Tag(TagClass.ContextSpecific, 0)))
-            {
-                tbs.WriteInteger(2); // v3
-            }
-
-            tbs.WriteInteger(now.ToUnixTimeMilliseconds());
-            tbs.WriteEncodedValue(signatureAlgorithm);
-            tbs.WriteEncodedValue(name);
-            using (tbs.PushSequence())
-            {
-                tbs.WriteUtcTime(now.AddMinutes(-5));
-                tbs.WriteUtcTime(now.AddYears(1));
-            }
-
-            tbs.WriteEncodedValue(name);
-            tbs.WriteEncodedValue(privateKey.ExportSubjectPublicKeyInfo());
-        }
-
-        byte[] tbsBytes = tbs.Encode();
-        AsnWriter certificate = new(AsnEncodingRules.DER);
-        using (certificate.PushSequence())
-        {
-            certificate.WriteEncodedValue(tbsBytes);
-            certificate.WriteEncodedValue(signatureAlgorithm);
-            certificate.WriteBitString(privateKey.SignData(tbsBytes));
-        }
-
-        return new X509Certificate2(certificate.Encode());
+        using MLDsa key = MLDsa.GenerateKey(algorithm ?? MLDsaAlgorithm.MLDsa65);
+        return new CertificateRequest($"CN={subjectName}", key)
+            .CreateSelfSigned(DateTimeOffset.UtcNow.AddMinutes(-5), DateTimeOffset.UtcNow.AddYears(1));
     }
-
-    // ML-DSA AlgorithmIdentifiers have no parameters (RFC 9881).
-    private static byte[] EncodeMLDsaAlgorithmIdentifier(MLDsaAlgorithm algorithm)
-    {
-        string oid = algorithm.Name switch
-        {
-            "ML-DSA-44" => "2.16.840.1.101.3.4.3.17",
-            "ML-DSA-65" => "2.16.840.1.101.3.4.3.18",
-            "ML-DSA-87" => "2.16.840.1.101.3.4.3.19",
-            _ => throw new NotSupportedException($"Unsupported ML-DSA algorithm '{algorithm.Name}'."),
-        };
-
-        AsnWriter writer = new(AsnEncodingRules.DER);
-        using (writer.PushSequence())
-        {
-            writer.WriteObjectIdentifier(oid);
-        }
-
-        return writer.Encode();
-    }
-#pragma warning restore SYSLIB5006
 
     /// <summary>
     /// Creates a 3-tiered certificate structure in memory for use in unit tests.

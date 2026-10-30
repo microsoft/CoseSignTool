@@ -779,7 +779,7 @@ public static class CoseHandler
                                 ? msg.VerifyDetached(mlDsaKey, new ReadOnlySpan<byte>(payloadBytes))
                                 : msg.VerifyDetached(publicKey!, new ReadOnlySpan<byte>(payloadBytes))) :
                             (mlDsaKey is not null
-                                ? Task.Run(() => msg.VerifyDetachedAsync(mlDsaKey, payloadStream!)).GetAwaiter().GetResult()
+                                ? msg.VerifyDetached(mlDsaKey, payloadStream!)
                                 : Task.Run(() => msg.VerifyDetachedAsync(publicKey!, payloadStream!)).GetAwaiter().GetResult());
                         break;
 

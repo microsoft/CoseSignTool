@@ -2,6 +2,8 @@
 
     <PropertyGroup>
         <TargetFramework>net10.0</TargetFramework>
+        <!-- ML-DSA certificate and key APIs are [Experimental] (SYSLIB5006) in .NET 10. -->
+        <NoWarn>$(NoWarn);SYSLIB5006</NoWarn>
         <IsPublishable>false</IsPublishable>
         <LangVersion>latest</LangVersion>
         <Nullable>enable</Nullable>

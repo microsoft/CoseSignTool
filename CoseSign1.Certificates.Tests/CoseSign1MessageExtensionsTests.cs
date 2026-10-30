@@ -363,17 +363,17 @@ public class CoseSign1MessageExtensionsTests
         CoseSign1Message msg = CreateMLDsaCoseSign1Message(content, detached: true);
 
         // Act & Assert
+        using MemoryStream contentStream = new(content);
         Assert.That(msg.VerifyDetachedWithCertificate(content), Is.True, "Expected byte array verification to succeed.");
         Assert.That(msg.VerifyDetachedWithCertificate(new ReadOnlySpan<byte>(content)), Is.True, "Expected span verification to succeed.");
-        Assert.That(msg.VerifyDetachedWithCertificate(new MemoryStream(content)), Is.True, "Expected stream verification to succeed.");
+        Assert.That(msg.VerifyDetachedWithCertificate(contentStream), Is.True, "Expected stream verification to succeed.");
         Assert.That(msg.VerifyDetachedWithCertificate(new byte[] { 4, 3, 2, 1 }), Is.False, "Expected verification to fail for different content.");
     }
 
     // Helper: Create an ML-DSA signed COSE_Sign1 message with an embedded certificate.
     private static CoseSign1Message CreateMLDsaCoseSign1Message(byte[] content, bool detached = false)
     {
-        X509Certificate2 cert = TestCertificateUtils.CreateMLDsaCertificate(out MLDsa key);
-        MLDsaTestSigningKeyProvider keyProvider = new(cert, key);
+        X509Certificate2CoseSigningKeyProvider keyProvider = new(TestCertificateUtils.CreateMLDsaCertificate());
         return CoseMessage.DecodeSign1(CoseSign1MessageFactory.CreateCoseSign1MessageBytes(content, keyProvider, !detached).ToArray());
     }
 }

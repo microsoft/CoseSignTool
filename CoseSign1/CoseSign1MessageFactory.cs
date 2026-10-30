@@ -136,6 +136,16 @@ public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactory
         // Get the RSA or ECDSA Signing Key.
         AsymmetricAlgorithm? key = signingKeyProvider.GetRSAKey() as AsymmetricAlgorithm ?? signingKeyProvider.GetECDsaKey();
 
+        // ML-DSA has no hash or padding choice: COSE signs the full Sig_structure with pure ML-DSA.
+        if (key is null
+            && signingKeyProvider is ISupportsMLDsaKey mlDsaKeyProvider
+            && mlDsaKeyProvider.GetMLDsaKey() is MLDsa mlDsaKey)
+        {
+#pragma warning disable SYSLIB5006 // CoseKey(MLDsa) is marked experimental in .NET.
+            return new CoseSigner(new CoseKey(mlDsaKey), protectedHeaders, unProtectedHeaders);
+#pragma warning restore SYSLIB5006
+        }
+
         // Build the CoseSigner object.
         return key switch
         {

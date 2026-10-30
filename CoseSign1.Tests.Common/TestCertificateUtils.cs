@@ -146,7 +146,7 @@ public static class TestCertificateUtils
     /// <returns>A certificate with only the public key.</returns>
     public static X509Certificate2 CreateCertificateWithoutPrivateKey(X509Certificate2 certificate)
     {
-        return new X509Certificate2(certificate.Export(X509ContentType.Cert));
+        return X509CertificateLoader.LoadCertificate(certificate.Export(X509ContentType.Cert));
     }
 
 #pragma warning disable SYSLIB5006 // Several ML-DSA APIs used to build test certificates are marked experimental in .NET.

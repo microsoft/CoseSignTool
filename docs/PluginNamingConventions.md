@@ -36,7 +36,7 @@ To add a new plugin that gets automatically built and packaged:
    ```xml
    <Project Sdk="Microsoft.NET.Sdk">
      <PropertyGroup>
-       <TargetFramework>net8.0</TargetFramework>
+       <TargetFramework>net10.0</TargetFramework>
        <AssemblyName>YourCompany.Feature.Plugin</AssemblyName>
      </PropertyGroup>
      <ItemGroup>

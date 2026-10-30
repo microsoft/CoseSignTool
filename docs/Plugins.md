@@ -133,12 +133,12 @@ Plugins use the `PluginExitCode` enum to indicate command execution results:
 
 ### Step 1: Create the Plugin Project
 
-Create a new .NET 8.0 class library project:
+Create a new .NET 10 class library project:
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AssemblyName>YourCompany.YourService.Plugin</AssemblyName>
@@ -393,12 +393,12 @@ Certificate provider plugins are ideal for:
 
 ### Step 1: Create the Certificate Provider Plugin Project
 
-Create a .NET 8.0 class library with the certificate provider dependencies:
+Create a .NET 10 class library with the certificate provider dependencies:
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <AssemblyName>YourCompany.YourCertProvider.Plugin</AssemblyName>
     
     <!-- Required for plugin dependency isolation -->
@@ -1016,10 +1016,10 @@ The plugin system includes comprehensive error handling:
 3. Copy your plugin assembly and all its dependencies to the subdirectory:
    ```bash
    # Copy main plugin assembly
-   cp bin/Debug/net8.0/YourCompany.YourService.Plugin.dll plugins/YourCompany.YourService.Plugin/
+   cp bin/Debug/net10.0/YourCompany.YourService.Plugin.dll plugins/YourCompany.YourService.Plugin/
    
    # Copy all dependencies
-   cp bin/Debug/net8.0/*.dll plugins/YourCompany.YourService.Plugin/
+   cp bin/Debug/net10.0/*.dll plugins/YourCompany.YourService.Plugin/
    ```
 
 **Legacy Flat Deployment (Backward Compatibility):**
@@ -1051,7 +1051,7 @@ For custom deployment scenarios (non-standard naming or special requirements), y
   <PropertyGroup>
     <PluginsDir>$(OutputPath)plugins</PluginsDir>
     <YourPluginSubDir>$(PluginsDir)\YourCompany.YourService.Plugin</YourPluginSubDir>
-    <YourPluginDir>$(MSBuildProjectDirectory)\..\YourCompany.YourService.Plugin\bin\$(Configuration)\net8.0</YourPluginDir>
+    <YourPluginDir>$(MSBuildProjectDirectory)\..\YourCompany.YourService.Plugin\bin\$(Configuration)\net10.0</YourPluginDir>
   </PropertyGroup>
   
   <MakeDir Directories="$(YourPluginSubDir)" />
@@ -1092,7 +1092,7 @@ For distributing plugins, you now have improved options:
 - Microsoft.Extensions.Configuration
 - Microsoft.Extensions.Configuration.Abstractions
 - System.Text.Json
-- .NET 8.0 Base Class Library
+- .NET 10 Base Class Library
 
 **Plugin-specific dependencies:**
 
@@ -1456,7 +1456,7 @@ CoseSignTool sign --payload file.txt \
 
 **Runtime errors:**
 - Check plugin dependencies are available
-- Verify .NET 8.0 compatibility
+- Verify .NET 10 compatibility
 - Review error messages in console output
 
 ### Debugging

@@ -244,8 +244,7 @@ public abstract class IndirectSignatureCommandBase : PluginCommandBase
                     return (null, null, PluginExitCode.UserSpecifiedFileNotFound);
                 }
 
-                X509Certificate2Collection collection = new X509Certificate2Collection();
-                collection.Import(pfxPath, password, X509KeyStorageFlags.Exportable);
+                X509Certificate2Collection collection = X509CertificateLoader.LoadPkcs12CollectionFromFile(pfxPath, password, X509KeyStorageFlags.Exportable);
 
                 if (collection.Count == 0)
                 {

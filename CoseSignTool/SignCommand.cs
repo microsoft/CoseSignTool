@@ -794,8 +794,7 @@ public class SignCommand : CoseCommand
             ThrowIfMissing(PfxCertificate, "Could not find the certificate file");
 
             // Load the PFX as a certificate store to extract all certificates
-            X509Certificate2Collection pfxCertificates = [];
-            pfxCertificates.Import(PfxCertificate, Password, X509KeyStorageFlags.Exportable);
+            X509Certificate2Collection pfxCertificates = X509CertificateLoader.LoadPkcs12CollectionFromFile(PfxCertificate, Password, X509KeyStorageFlags.Exportable);
 
             // Build the certificate chain in leaf-first order
             List<X509Certificate2> chainedCertificates = BuildCertificateChain(pfxCertificates, Thumbprint);

@@ -241,11 +241,13 @@ public class ValidateCommand : CoseCommand
             {
                 case ".p7b":
                     X509Certificate2Collection certCollection = [];
+#pragma warning disable SYSLIB0057 // X509CertificateLoader cannot read PKCS#7 files.
                     certCollection.Import(rootFile);
+#pragma warning restore SYSLIB0057
                     rootCerts.AddRange(certCollection);
                     break;
                 case ".cer":
-                    rootCerts.Add(new X509Certificate2(rootFile));
+                    rootCerts.Add(X509CertificateLoader.LoadCertificateFromFile(rootFile));
                     break;
                 default:
                     throw new ArgumentOutOfRangeException($"Unsupported certificate file type {rootFile}");

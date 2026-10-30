@@ -20,8 +20,8 @@ public class CoseHandlerSignValidateTests
     private static readonly byte[] Int1Cer = Int1Priv.Export(X509ContentType.Cert);
 
     // As public key certs
-    private static readonly X509Certificate2 Root1Pub = new(Root1Cer);
-    private static readonly X509Certificate2 Int1Pub = new(Int1Cer);
+    private static readonly X509Certificate2 Root1Pub = X509CertificateLoader.LoadCertificate(Root1Cer);
+    private static readonly X509Certificate2 Int1Pub = X509CertificateLoader.LoadCertificate(Int1Cer);
 
     // As lists
     private static readonly List<X509Certificate2> ValidRootSetPriv = [Root1Priv, Int1Priv];                                                  // Root and intermediate only
@@ -260,7 +260,7 @@ public class CoseHandlerSignValidateTests
     [TestMethod]
     public void Untrusted()
     {
-        ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(Payload1Bytes, new X509Certificate2(PrivateKeyCertFileChained));
+        ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(Payload1Bytes, X509CertificateLoader.LoadPkcs12FromFile(PrivateKeyCertFileChained, null));
         signedBytes.ToArray().Should().NotBeNull();
         CoseHandler.Validate(signedBytes.ToArray(), Payload1Bytes, null, RevMode)
             .Success.Should().Be(false);
@@ -273,7 +273,7 @@ public class CoseHandlerSignValidateTests
     public void UntrustedAllowedSelfSigned()
     {
         // Self signed cert should pass when AllowUntrusted is true.
-        ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(Payload1Bytes, new X509Certificate2(PrivateKeyCertFileSelfSigned));
+        ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(Payload1Bytes, X509CertificateLoader.LoadPkcs12FromFile(PrivateKeyCertFileSelfSigned, null));
         signedBytes.ToArray().Should().NotBeNull();
         X509ChainTrustValidator chainValidator = new(revocationMode: RevMode, allowUntrusted: true);
         ValidationResult result = CoseHandler.Validate(signedBytes.ToArray(), chainValidator, Payload1Bytes);
@@ -290,7 +290,7 @@ public class CoseHandlerSignValidateTests
     public void UntrustedAllowedChainedCert()
     {
         // Chained cert should fail even when AllowUntrusted is true because it doesn't chain to any root, trusted or otherwise.
-        ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(Payload1Bytes, new X509Certificate2(PrivateKeyCertFileChained));
+        ReadOnlyMemory<byte> signedBytes = CoseHandler.Sign(Payload1Bytes, X509CertificateLoader.LoadPkcs12FromFile(PrivateKeyCertFileChained, null));
         signedBytes.ToArray().Should().NotBeNull();
         X509ChainTrustValidator chainValidator = new(revocationMode: RevMode, allowUntrusted: true);
         ValidationResult result = CoseHandler.Validate(signedBytes.ToArray(), chainValidator, Payload1Bytes);

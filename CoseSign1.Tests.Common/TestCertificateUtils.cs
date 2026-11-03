@@ -158,8 +158,10 @@ public static class TestCertificateUtils
     public static X509Certificate2 CreateMLDsaCertificate([CallerMemberName] string subjectName = "none", MLDsaAlgorithm? algorithm = null)
     {
         using MLDsa key = MLDsa.GenerateKey(algorithm ?? MLDsaAlgorithm.MLDsa65);
-        return new CertificateRequest($"CN={subjectName}", key)
-            .CreateSelfSigned(DateTimeOffset.UtcNow.AddMinutes(-5), DateTimeOffset.UtcNow.AddYears(1));
+#pragma warning disable SYSLIB5006 // CertificateRequest(string, MLDsa) is marked experimental in .NET.
+        CertificateRequest request = new($"CN={subjectName}", key);
+#pragma warning restore SYSLIB5006
+        return request.CreateSelfSigned(DateTimeOffset.UtcNow.AddMinutes(-5), DateTimeOffset.UtcNow.AddYears(1));
     }
 
     /// <summary>

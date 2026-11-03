@@ -4,7 +4,7 @@ This guide will help you create your first CoseSignTool plugin in just a few min
 
 ## Prerequisites
 
-- .NET 8.0 SDK
+- .NET 10 SDK
 - CoseSignTool source code or binaries
 - A code editor (Visual Studio, VS Code, etc.)
 
@@ -23,7 +23,7 @@ Update the project file (`MyFirst.Plugin.csproj`):
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <AssemblyName>MyFirst.Plugin</AssemblyName>
@@ -179,10 +179,10 @@ mkdir -p /path/to/CoseSignTool/plugins/MyFirst.Plugin
 
 ```bash
 # Windows
-copy bin\Debug\net8.0\*.* "C:\path\to\CoseSignTool\plugins\MyFirst.Plugin\"
+copy bin\Debug\net10.0\*.* "C:\path\to\CoseSignTool\plugins\MyFirst.Plugin\"
 
 # Linux/macOS
-cp bin/Debug/net8.0/* /path/to/CoseSignTool/plugins/MyFirst.Plugin/
+cp bin/Debug/net10.0/* /path/to/CoseSignTool/plugins/MyFirst.Plugin/
 ```
 
 **Legacy Flat Deployment (Backward Compatibility):**
@@ -191,10 +191,10 @@ cp bin/Debug/net8.0/* /path/to/CoseSignTool/plugins/MyFirst.Plugin/
 
 ```bash
 # Windows
-copy bin\Debug\net8.0\MyFirst.Plugin.dll "C:\path\to\CoseSignTool\plugins\"
+copy bin\Debug\net10.0\MyFirst.Plugin.dll "C:\path\to\CoseSignTool\plugins\"
 
 # Linux/macOS
-cp bin/Debug/net8.0/MyFirst.Plugin.dll /path/to/CoseSignTool/plugins/
+cp bin/Debug/net10.0/MyFirst.Plugin.dll /path/to/CoseSignTool/plugins/
 ```
 
 **Benefits of Subdirectory Deployment:**

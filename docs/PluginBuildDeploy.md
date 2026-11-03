@@ -116,7 +116,7 @@ After deployment with the enhanced subdirectory architecture, the directory stru
 CoseSignTool/
 ├── bin/
 │   └── [Debug|Release]/
-│       └── net8.0/
+│       └── net10.0/
 │           ├── CoseSignTool.exe                    # Main application
 │           ├── CoseSignTool.dll                    # Main library
 │           ├── [other shared dependencies...]
@@ -207,7 +207,7 @@ To add a new plugin to the automated build process:
 ### 1. Create the Plugin Project
 
 Ensure your plugin project:
-- Targets .NET 8.0
+- Targets .NET 10
 - Has an assembly name ending with `.Plugin.dll`
 - Implements `ICoseSignToolPlugin`
 - Is included in the solution
@@ -225,12 +225,12 @@ Add your plugin to the CI/CD pipeline in `.github/workflows/dotnet.yml`:
     dotnet build --configuration Release --property:FileVersion=$VERSION YourPlugin/YourPlugin.csproj
     
     # Copy plugin DLL
-    cp YourPlugin/bin/Debug/net8.0/YourPlugin.Plugin.dll published/debug/plugins/
-    cp YourPlugin/bin/Release/net8.0/YourPlugin.Plugin.dll published/release/plugins/
+    cp YourPlugin/bin/Debug/net10.0/YourPlugin.Plugin.dll published/debug/plugins/
+    cp YourPlugin/bin/Release/net10.0/YourPlugin.Plugin.dll published/release/plugins/
     
     # Copy plugin-specific dependencies
-    copy_if_exists "YourPlugin/bin/Debug/net8.0/YourSpecificDependency.dll" "published/debug/plugins/"
-    copy_if_exists "YourPlugin/bin/Release/net8.0/YourSpecificDependency.dll" "published/release/plugins/"
+    copy_if_exists "YourPlugin/bin/Debug/net10.0/YourSpecificDependency.dll" "published/debug/plugins/"
+    copy_if_exists "YourPlugin/bin/Release/net10.0/YourSpecificDependency.dll" "published/release/plugins/"
 ```
 
 ### 3. Automatic Deployment (No Manual Configuration Needed)
@@ -280,7 +280,7 @@ dotnet build CoseSignTool
 dotnet build CoseSignTool -p:NoPlugins=true
 
 # Navigate to output directory
-cd CoseSignTool/bin/Debug/net8.0
+cd CoseSignTool/bin/Debug/net10.0
 
 # Verify plugins directory exists
 ls -la plugins/

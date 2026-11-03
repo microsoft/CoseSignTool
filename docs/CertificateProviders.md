@@ -457,7 +457,7 @@ Create a plugin project following the naming convention for automatic CI/CD pack
 <!-- MyCompany.Hsm.Plugin.csproj -->
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <AssemblyName>MyCompany.Hsm.Plugin</AssemblyName>
     <!-- Important: Assembly name must end with .Plugin.dll -->
   </PropertyGroup>
@@ -484,7 +484,7 @@ Create a plugin project following the naming convention for automatic CI/CD pack
 dotnet build MyCompany.Hsm.Plugin/MyCompany.Hsm.Plugin.csproj -c Release
 
 # Deploy to CoseSignTool plugins directory
-cp MyCompany.Hsm.Plugin/bin/Release/net8.0/*.dll /path/to/CoseSignTool/plugins/
+cp MyCompany.Hsm.Plugin/bin/Release/net10.0/*.dll /path/to/CoseSignTool/plugins/
 ```
 
 #### Option 2: Automatic CI/CD Packaging

@@ -187,7 +187,7 @@ The work tracking has been moved to [GitHub Issues](https://github.com/microsoft
 * Community-requested features
 
 ## Requirements
-CoseSignTool runs on .NET 8. It depends on the libraries from this package and [Microsoft.Extensions.Configuration.CommandLine](https://www.nuget.org/packages/Microsoft.Extensions.Configuration.CommandLine) from NuGet package version 7.0.0.
+CoseSignTool runs on .NET 10. It depends on the libraries from this package and [Microsoft.Extensions.Configuration.CommandLine](https://www.nuget.org/packages/Microsoft.Extensions.Configuration.CommandLine) from NuGet package version 7.0.0.
 
 The API libraries all run on .NET Standard 2.0.
 

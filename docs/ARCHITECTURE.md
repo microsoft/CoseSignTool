@@ -92,9 +92,9 @@ CoseSignTool3/
 
 | Project Type | Targets |
 |--------------|---------|
-| Libraries | `netstandard2.0` + `net8.0` |
-| CLI & Plugins | `net8.0` only |
-| Tests | `net8.0` only |
+| Libraries | `netstandard2.0` + `net10.0` |
+| CLI & Plugins | `net10.0` only |
+| Tests | `net10.0` only |
 
 ---
 

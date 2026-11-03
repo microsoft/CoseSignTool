@@ -1,9 +1,9 @@
 # [CoseSign1.Certificates.AzureArtifactSigning](https://github.com/microsoft/CoseSignTool/tree/main/CoseSign1.Certificates.AzureArtifactSigning)  
 
-**CoseSign1.Certificates.AzureArtifactSigning** is a .NET 8.0 library that provides an implementation of the `CertificateCoseSigningKeyProvider` class for Azure Artifact Signing. This library integrates with the Azure Artifact Signing service to provide signing certificates, certificate chains, and cryptographic keys.
+**CoseSign1.Certificates.AzureArtifactSigning** is a .NET 10 library that provides an implementation of the `CertificateCoseSigningKeyProvider` class for Azure Artifact Signing. This library integrates with the Azure Artifact Signing service to provide signing certificates, certificate chains, and cryptographic keys.
 
 ## Requirements
-- **.NET 8.0 Runtime**: This library requires .NET 8.0 or later.
+- **.NET 10 Runtime**: This library requires .NET 10 or later.
 - **Azure Artifact Signing Account**: An active Azure Artifact Signing account with configured certificate profiles.
 - **Azure Authentication**: Valid Azure credentials (Azure CLI, Managed Identity, environment variables, etc.).  
 
@@ -113,7 +113,7 @@ public class Example
 {
     public void CreateSigningKeyProvider()
     {
-        // Note: In .NET 8.0, you must properly configure the AzSignContext
+        // Note: You must properly configure the AzSignContext
         // with endpoint URL, account name, and certificate profile name
         // This example shows the structure; actual initialization requires valid Azure credentials
         
@@ -228,7 +228,7 @@ public class CustomAzureDidGenerator : AzureArtifactSigningDidX509Generator
 
 ## Limitations
 - **ECDsa Not Supported**: The `ProvideECDsaKey` method is not supported for Azure Artifact Signing and will throw a `NotSupportedException`.
-- **.NET 8.0 Only**: This library requires .NET 8.0 runtime and is not compatible with .NET Standard 2.0 or earlier .NET versions.
+- **.NET 10 Only**: This library requires .NET 10 runtime and is not compatible with .NET Standard 2.0 or earlier .NET versions.
 - **RSA Only**: Only RSA-based signing algorithms are supported by Azure Artifact Signing.
 - **Cloud Connectivity Required**: Active internet connection to Azure Artifact Signing service is required for all signing operations.
 - **DID Format**: The EKU-based DID format is specific to Azure Artifact Signing and may not be recognized by systems expecting standard subject-based DIDs.

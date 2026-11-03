@@ -119,7 +119,7 @@ public static class CborReaderExtensions
         byte[] certBytes = reader.ReadByteString();
 
         return certBytes.Length > 0
-            ? new X509Certificate2(certBytes)
+            ? X509CertificateLoader.LoadCertificate(certBytes)
             : throw new CoseX509FormatException($"Failed to read certificate bytes from ByteString on CborReader: {reader.GetHashCode()} and convert to a certificate.");
     }
 }

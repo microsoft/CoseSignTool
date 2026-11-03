@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <OutputType>Exe</OutputType>
-        <TargetFramework>net8.0</TargetFramework>
+        <TargetFramework>net10.0</TargetFramework>
         <Platforms>AnyCPU</Platforms>
         <!-- must match the platform set from CoseSignTool    -->
         <Nullable>enable</Nullable>
@@ -56,7 +56,7 @@
     <!-- Copy plugins to test output for integration testing -->
     <Target Name="CopyPluginsForTesting" AfterTargets="Build" DependsOnTargets="CopyCustomContent">
         <ItemGroup>
-            <PluginFiles Include="..\CoseSignTool.IndirectSignature.Plugin\bin\$(Configuration)\net8.0\**\*.*" />
+            <PluginFiles Include="..\CoseSignTool.IndirectSignature.Plugin\bin\$(Configuration)\net10.0\**\*.*" />
         </ItemGroup>
         <MakeDir Directories="$(TargetDir)plugins\CoseSignTool.IndirectSignature.Plugin" />
         <Copy SourceFiles="@(PluginFiles)" DestinationFolder="$(TargetDir)plugins\CoseSignTool.IndirectSignature.Plugin\%(RecursiveDir)" SkipUnchangedFiles="true" />

@@ -108,15 +108,6 @@ public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactory
             throw new ArgumentNullException(null, "Signing key provider is not provided.");
         }
 
-        HashAlgorithmName signingHashAlgorithm =
-            signingOptions?.HashAlgorithm ?? this.hashAlgorithm ?? signingKeyProvider.HashAlgorithm;
-        if (signingKeyProvider is ISupportsHashAlgorithms supportedHashAlgorithms &&
-            !supportedHashAlgorithms.SupportedHashAlgorithms.Contains(signingHashAlgorithm))
-        {
-            throw new CoseSigningException(
-                $"The signing key provider does not support the requested hash algorithm '{signingHashAlgorithm.Name}'.");
-        }
-
         // Get the protected headers and unprotected headers provided by the signing key provider.
         CoseHeaderMap? protectedHeaders = signingKeyProvider.GetProtectedHeaders();
         CoseHeaderMap? unProtectedHeaders = signingKeyProvider.GetUnProtectedHeaders();
@@ -144,6 +135,16 @@ public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactory
 #pragma warning disable SYSLIB5006 // CoseKey(MLDsa) is marked experimental in .NET.
             return new CoseSigner(new CoseKey(mlDsaKey), protectedHeaders, unProtectedHeaders);
 #pragma warning restore SYSLIB5006
+        }
+
+        // RSA and ECDsa sign a hash of the Sig_structure, so only they need the provider to support the requested hash.
+        HashAlgorithmName signingHashAlgorithm =
+            signingOptions?.HashAlgorithm ?? this.hashAlgorithm ?? signingKeyProvider.HashAlgorithm;
+        if (signingKeyProvider is ISupportsHashAlgorithms supportedHashAlgorithms &&
+            !supportedHashAlgorithms.SupportedHashAlgorithms.Contains(signingHashAlgorithm))
+        {
+            throw new CoseSigningException(
+                $"The signing key provider does not support the requested hash algorithm '{signingHashAlgorithm.Name}'.");
         }
 
         // Build the CoseSigner object.

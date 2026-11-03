@@ -105,7 +105,7 @@ public class CoseSign1MessageFactoryTests
     }
 
     /// <summary>
-    /// Verifies the factory rejects a hash algorithm not advertised by the signing key provider.
+    /// Verifies the factory rejects a hash algorithm not advertised by an RSA signing key provider.
     /// </summary>
     [Test]
     public void CreateCoseSign1Message_WithUnsupportedHashAlgorithm_ThrowsCoseSigningException()
@@ -114,7 +114,11 @@ public class CoseSign1MessageFactoryTests
         Mock<ICoseSigningKeyProvider> mockedSignerKeyProvider = new(MockBehavior.Strict);
         CoseSign1MessageFactory coseSign1MessageFactory = new(HashAlgorithmName.SHA512);
         byte[] testPayload = Encoding.ASCII.GetBytes("testPayload!");
+        using X509Certificate2 selfSignedCertWithRSA = TestCertificateUtils.CreateCertificate();
 
+        mockedSignerKeyProvider.Setup(x => x.GetProtectedHeaders()).Returns<CoseHeaderMap>(null);
+        mockedSignerKeyProvider.Setup(x => x.GetUnProtectedHeaders()).Returns<CoseHeaderMap>(null);
+        mockedSignerKeyProvider.Setup(x => x.GetRSAKey(It.IsAny<bool>())).Returns(selfSignedCertWithRSA.GetRSAPrivateKey());
         mockedSignerKeyProvider.As<ISupportsHashAlgorithms>()
             .SetupGet(x => x.SupportedHashAlgorithms)
             .Returns([HashAlgorithmName.SHA256]);
@@ -125,6 +129,42 @@ public class CoseSign1MessageFactoryTests
 
         // Assert
         exception.Message.Should().Be("The signing key provider does not support the requested hash algorithm 'SHA512'.");
+    }
+
+    /// <summary>
+    /// Verifies ML-DSA signing ignores the provider's supported hash algorithms, which only apply to RSA and ECDsa.
+    /// </summary>
+    [Test]
+    public void CreateCoseSign1Message_WithMLDsaKeyAndNoSupportedHashAlgorithms_SignsWithMLDsa()
+    {
+        if (!MLDsa.IsSupported)
+        {
+            Assert.Ignore("ML-DSA is not supported on this platform.");
+        }
+
+        // Arrange
+        Mock<ICoseSigningKeyProvider> mockedSignerKeyProvider = new(MockBehavior.Strict);
+        CoseSign1MessageFactory coseSign1MessageFactory = new();
+        byte[] testPayload = Encoding.ASCII.GetBytes("testPayload!");
+        using MLDsa mlDsaKey = MLDsa.GenerateKey(MLDsaAlgorithm.MLDsa65);
+
+        mockedSignerKeyProvider.Setup(x => x.GetProtectedHeaders()).Returns<CoseHeaderMap>(null);
+        mockedSignerKeyProvider.Setup(x => x.GetUnProtectedHeaders()).Returns<CoseHeaderMap>(null);
+        mockedSignerKeyProvider.Setup(x => x.HashAlgorithm).Returns(HashAlgorithmName.SHA256);
+        mockedSignerKeyProvider.Setup(x => x.GetECDsaKey(It.IsAny<bool>())).Returns<ECDsa>(null);
+        mockedSignerKeyProvider.Setup(x => x.GetRSAKey(It.IsAny<bool>())).Returns<RSA>(null);
+        mockedSignerKeyProvider.As<ISupportsHashAlgorithms>()
+            .SetupGet(x => x.SupportedHashAlgorithms)
+            .Returns(Array.Empty<HashAlgorithmName>());
+        mockedSignerKeyProvider.As<ISupportsMLDsaKey>()
+            .Setup(x => x.GetMLDsaKey(It.IsAny<bool>()))
+            .Returns(mlDsaKey);
+
+        // Act
+        CoseSign1Message response = coseSign1MessageFactory.CreateCoseSign1Message(testPayload, mockedSignerKeyProvider.Object, true);
+
+        // Assert
+        response.ProtectedHeaders[CoseHeaderLabel.Algorithm].GetValueAsInt32().Should().Be(-49);
     }
 
     /// <summary>

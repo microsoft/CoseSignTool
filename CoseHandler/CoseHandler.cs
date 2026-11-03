@@ -780,7 +780,7 @@ public static class CoseHandler
                                 : msg.VerifyDetached(publicKey!, new ReadOnlySpan<byte>(payloadBytes))) :
                             (mlDsaKey is not null
                                 ? msg.VerifyDetached(mlDsaKey, payloadStream!)
-                                : Task.Run(() => msg.VerifyDetachedAsync(publicKey!, payloadStream!)).GetAwaiter().GetResult());
+                                : msg.VerifyDetached(publicKey!, payloadStream!));
                         break;
 
                     // Embedded signature validation. Validate the embedded content against the signature.

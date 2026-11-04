@@ -237,12 +237,6 @@ public static class CoseSign1MessageExtensions
             return false;
         }
 
-        AsymmetricAlgorithm? publicKey = @this.GetEmbeddedPublicKey(allowUnprotected, out bool foundCert, out CoseKey? mlDsaKey);
-        if (!foundCert || (publicKey is null && mlDsaKey is null))
-        {
-            return false;
-        }
-
         // If the message is detached, we cannot verify without the payload.
         if (@this.Content is null)
         {
@@ -250,14 +244,24 @@ public static class CoseSign1MessageExtensions
             return false;
         }
 
+        AsymmetricAlgorithm? publicKey = @this.GetEmbeddedPublicKey(allowUnprotected, out bool foundCert, out MLDsa? mlDsaPublicKey);
+        if (!foundCert || (publicKey is null && mlDsaPublicKey is null))
+        {
+            return false;
+        }
+
         try
         {
-            return mlDsaKey is not null ? @this.VerifyEmbedded(mlDsaKey) : @this.VerifyEmbedded(publicKey!);
+            return mlDsaPublicKey is not null ? @this.VerifyEmbedded(CreateCoseKey(mlDsaPublicKey)) : @this.VerifyEmbedded(publicKey!);
         }
         catch (CryptographicException ex)
         {
             Trace.TraceWarning($"Verification failed: {ex.Message}");
             return false;
+        }
+        finally
+        {
+            mlDsaPublicKey?.Dispose();
         }
     }
 
@@ -282,19 +286,23 @@ public static class CoseSign1MessageExtensions
             return false;
         }
 
-        AsymmetricAlgorithm? publicKey = @this.GetEmbeddedPublicKey(allowUnprotected, out bool foundCert, out CoseKey? mlDsaKey);
-        if (!foundCert || (publicKey is null && mlDsaKey is null))
+        AsymmetricAlgorithm? publicKey = @this.GetEmbeddedPublicKey(allowUnprotected, out bool foundCert, out MLDsa? mlDsaPublicKey);
+        if (!foundCert || (publicKey is null && mlDsaPublicKey is null))
         {
             return false;
         }
         try
         {
-            return mlDsaKey is not null ? @this.VerifyDetached(mlDsaKey, detachedContent) : @this.VerifyDetached(publicKey!, detachedContent);
+            return mlDsaPublicKey is not null ? @this.VerifyDetached(CreateCoseKey(mlDsaPublicKey), detachedContent) : @this.VerifyDetached(publicKey!, detachedContent);
         }
         catch (CryptographicException ex)
         {
             Trace.TraceWarning($"Verification failed: {ex.Message}");
             return false;
+        }
+        finally
+        {
+            mlDsaPublicKey?.Dispose();
         }
     }
 
@@ -319,19 +327,23 @@ public static class CoseSign1MessageExtensions
             return false;
         }
 
-        AsymmetricAlgorithm? publicKey = @this.GetEmbeddedPublicKey(allowUnprotected, out bool foundCert, out CoseKey? mlDsaKey);
-        if (!foundCert || (publicKey is null && mlDsaKey is null))
+        AsymmetricAlgorithm? publicKey = @this.GetEmbeddedPublicKey(allowUnprotected, out bool foundCert, out MLDsa? mlDsaPublicKey);
+        if (!foundCert || (publicKey is null && mlDsaPublicKey is null))
         {
             return false;
         }
         try
         {
-            return mlDsaKey is not null ? @this.VerifyDetached(mlDsaKey, detachedContent) : @this.VerifyDetached(publicKey!, detachedContent);
+            return mlDsaPublicKey is not null ? @this.VerifyDetached(CreateCoseKey(mlDsaPublicKey), detachedContent) : @this.VerifyDetached(publicKey!, detachedContent);
         }
         catch (CryptographicException ex)
         {
             Trace.TraceWarning($"Verification failed: {ex.Message}");
             return false;
+        }
+        finally
+        {
+            mlDsaPublicKey?.Dispose();
         }
     }
 
@@ -356,28 +368,32 @@ public static class CoseSign1MessageExtensions
             return false;
         }
 
-        AsymmetricAlgorithm? publicKey = @this.GetEmbeddedPublicKey(allowUnprotected, out bool foundCert, out CoseKey? mlDsaKey);
-        if (!foundCert || (publicKey is null && mlDsaKey is null))
+        AsymmetricAlgorithm? publicKey = @this.GetEmbeddedPublicKey(allowUnprotected, out bool foundCert, out MLDsa? mlDsaPublicKey);
+        if (!foundCert || (publicKey is null && mlDsaPublicKey is null))
         {
             return false;
         }
         try
         {
-            return mlDsaKey is not null ? @this.VerifyDetached(mlDsaKey, detachedContent) : @this.VerifyDetached(publicKey!, detachedContent);
+            return mlDsaPublicKey is not null ? @this.VerifyDetached(CreateCoseKey(mlDsaPublicKey), detachedContent) : @this.VerifyDetached(publicKey!, detachedContent);
         }
         catch (CryptographicException ex)
         {
             Trace.TraceWarning($"Verification failed: {ex.Message}");
             return false;
         }
+        finally
+        {
+            mlDsaPublicKey?.Dispose();
+        }
     }
 
     // Shared logic to extract the verification key from the embedded signing certificate.
-    // ML-DSA keys are not AsymmetricAlgorithm instances, so they are returned as a CoseKey in mlDsaKey instead.
-    private static AsymmetricAlgorithm? GetEmbeddedPublicKey(this CoseSign1Message @this, bool allowUnprotected, out bool foundCert, out CoseKey? mlDsaKey)
+    // ML-DSA keys are not AsymmetricAlgorithm instances, so they are returned in mlDsaPublicKey instead; the caller must dispose it.
+    private static AsymmetricAlgorithm? GetEmbeddedPublicKey(this CoseSign1Message @this, bool allowUnprotected, out bool foundCert, out MLDsa? mlDsaPublicKey)
     {
         foundCert = false;
-        mlDsaKey = null;
+        mlDsaPublicKey = null;
         if (!@this.TryGetSigningCertificate(out X509Certificate2 signingCert, allowUnprotected) || signingCert == null)
         {
             Trace.TraceWarning($"No signing certificate found in message.");
@@ -387,14 +403,19 @@ public static class CoseSign1MessageExtensions
         AsymmetricAlgorithm? publicKey = (AsymmetricAlgorithm?)signingCert.GetRSAPublicKey() ?? signingCert.GetECDsaPublicKey();
         if (publicKey is null)
         {
-            mlDsaKey = signingCert.GetMLDsaVerificationKey();
+            mlDsaPublicKey = signingCert.GetMLDsaPublicKeyIfSupported();
         }
 
-        if (publicKey is null && mlDsaKey is null)
+        if (publicKey is null && mlDsaPublicKey is null)
         {
             Trace.TraceWarning($"Signing certificate does not contain a valid public key for verification.");
             return null;
         }
         return publicKey;
     }
+
+    // The CoseKey does not take ownership of the ML-DSA key, so the caller still disposes mlDsaPublicKey.
+#pragma warning disable SYSLIB5006 // CoseKey(MLDsa) is marked experimental in .NET.
+    private static CoseKey CreateCoseKey(MLDsa mlDsaPublicKey) => new(mlDsaPublicKey);
+#pragma warning restore SYSLIB5006
 }

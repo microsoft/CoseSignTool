@@ -738,7 +738,10 @@ public static class CoseHandler
                 ?? signingCertificate.GetECDsaPublicKey());
 
             // ML-DSA keys are not AsymmetricAlgorithm instances, so they verify through a CoseKey instead.
-            CoseKey? mlDsaKey = publicKey is null ? signingCertificate.GetMLDsaVerificationKey() : null;
+            using MLDsa? mlDsaPublicKey = publicKey is null ? signingCertificate.GetMLDsaPublicKeyIfSupported() : null;
+#pragma warning disable SYSLIB5006 // CoseKey(MLDsa) is marked experimental in .NET.
+            CoseKey? mlDsaKey = mlDsaPublicKey is null ? null : new CoseKey(mlDsaPublicKey);
+#pragma warning restore SYSLIB5006
 
             if (publicKey is null && mlDsaKey is null)
             {

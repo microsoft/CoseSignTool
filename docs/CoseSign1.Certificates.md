@@ -12,7 +12,7 @@ This class contains all the common logic of any certificate which is used as a s
 
 #### ML-DSA Keys
 
-The base class implements `ISupportsMLDsaKey` through a `protected virtual MLDsa? ProvideMLDsaKey(bool publicKey = false)` method that returns `null` by default, so existing derived classes are unaffected. Override it to sign with an ML-DSA certificate; **X509Certificate2CoseSigningKeyProvider** returns the certificate's ML-DSA key. When verifying, the `*WithCertificate` extension methods and `X509Certificate2.GetMLDsaVerificationKey()` use the signing certificate's ML-DSA public key when it has no RSA or ECDsa key. ML-DSA requires platform support (see `MLDsa.IsSupported`).
+The base class implements `ISupportsMLDsaKey` through a `protected virtual MLDsa? ProvideMLDsaKey(bool publicKey = false)` method that returns `null` by default, so existing derived classes are unaffected. Override it to sign with an ML-DSA certificate; **X509Certificate2CoseSigningKeyProvider** returns the certificate's ML-DSA key. When verifying, the `*WithCertificate` extension methods use the signing certificate's ML-DSA public key when it has no RSA or ECDsa key. `X509Certificate2.GetMLDsaPublicKeyIfSupported()` returns that key as an `MLDsa` that the caller owns and should dispose, or `null` if the certificate has no ML-DSA key or the platform doesn't support ML-DSA. ML-DSA requires platform support (see `MLDsa.IsSupported`).
 
 #### Virtual Issuer Property
 

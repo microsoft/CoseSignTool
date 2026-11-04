@@ -11,7 +11,6 @@ using Azure.CodeSigning;
 using Azure.Core;
 using Azure.Developer.ArtifactSigning.CryptoProvider;
 using Azure.Developer.ArtifactSigning.CryptoProvider.Models;
-using Azure.Identity;
 using CoseSign1.Certificates.AzureArtifactSigning;
 using System;
 
@@ -47,6 +46,7 @@ public class AzureArtifactSigningCertificateProviderPlugin : ICertificateProvide
             ["--aas-endpoint"] = "aas-endpoint",
             ["--aas-account-name"] = "aas-account-name",
             ["--aas-cert-profile-name"] = "aas-cert-profile-name",
+            ["--aas-exclude-credentials"] = AzureCredentialFactory.ExcludeCredentialsKey,
         };
     }
 
@@ -55,8 +55,8 @@ public class AzureArtifactSigningCertificateProviderPlugin : ICertificateProvide
     {
         // Check for required parameters
         string? endpoint = configuration["aas-endpoint"];
-        string? accountName = configuration["aas-account-name"];
-        string? certProfileName = configuration["aas-cert-profile-name"];
+        string? accountName = configuration["aas-account-name"] ?? configuration["account-name"];
+        string? certProfileName = configuration["aas-cert-profile-name"] ?? configuration["cert-profile-name"];
 
         return !string.IsNullOrWhiteSpace(endpoint) &&
                !string.IsNullOrWhiteSpace(accountName) &&
@@ -68,8 +68,8 @@ public class AzureArtifactSigningCertificateProviderPlugin : ICertificateProvide
     {
         // Extract required parameters
         string? endpoint = configuration["aas-endpoint"];
-        string? accountName = configuration["aas-account-name"];
-        string? certProfileName = configuration["aas-cert-profile-name"];
+        string? accountName = configuration["aas-account-name"] ?? configuration["account-name"];
+        string? certProfileName = configuration["aas-cert-profile-name"] ?? configuration["cert-profile-name"];
 
         // Validate required parameters
         if (string.IsNullOrWhiteSpace(endpoint))
@@ -94,19 +94,18 @@ public class AzureArtifactSigningCertificateProviderPlugin : ICertificateProvide
             logger?.LogVerbose($"  Account: {accountName}");
             logger?.LogVerbose($"  Certificate Profile: {certProfileName}");
 
-            // Create Azure credential using DefaultAzureCredential
-            // This supports multiple authentication methods in order of precedence:
+            // Create (or reuse) the Azure credential. DefaultAzureCredential supports multiple
+            // authentication methods in order of precedence:
             // 1. Environment variables (AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, etc.)
             // 2. Managed Identity (for Azure VMs, App Service, etc.)
             // 3. Visual Studio credential
             // 4. Azure CLI credential
             // 5. Azure PowerShell credential
-            logger?.LogVerbose("Acquiring Azure credentials using DefaultAzureCredential...");
-            TokenCredential credential = new IdentityAlias::Azure.Identity.DefaultAzureCredential(new IdentityAlias::Azure.Identity.DefaultAzureCredentialOptions // CodeQL [SM02196] DefaultAzureCredential is the recommended approach for client applications and libraries to authenticate to Azure services
-            {
-                // Exclude interactive browser auth to avoid unexpected prompts in CI/CD
-                ExcludeInteractiveBrowserCredential = true
-            });
+            // The instance is cached per exclusion set so repeated signings reuse its token cache
+            // instead of re-probing the chain and re-acquiring a token each time.
+            TokenCredential credential = AzureCredentialFactory.GetCredential(
+                AzureCredentialFactory.GetExclusions(configuration),
+                logger);
 
             logger?.LogVerbose("Creating CertificateProfileClient...");
             // Create the Certificate Profile Client with fast-retry pipeline tuning so transient
@@ -136,7 +135,6 @@ public class AzureArtifactSigningCertificateProviderPlugin : ICertificateProvide
                 signContextOptions);
 
             logger?.LogVerbose("Creating AzureArtifactSigningCoseSigningKeyProvider...");
-            // Create and return the key provider
             AzureArtifactSigningCoseSigningKeyProvider provider = new AzureArtifactSigningCoseSigningKeyProvider(signContext);
 
             logger?.LogInformation("Azure Artifact Signing provider created successfully.");
@@ -184,6 +182,14 @@ Required Parameters:
   --aas-cert-profile-name <name>    Certificate profile name within the account
                                      Example: MyCodeSigningProfile
 
+Optional Parameters:
+  --aas-exclude-credentials <list>  Comma-separated credentials to exclude from the DefaultAzureCredential chain.
+                                     Excluding a credential that cannot succeed in your environment removes the
+                                     probe delay it would otherwise add before the chain reaches a working credential.
+                                     Example: --aas-exclude-credentials ManagedIdentityCredential
+                                     May also be supplied as a JSON array under the ExcludeCredentials section:
+                                       ""ExcludeCredentials"": [""ManagedIdentityCredential""]
+
 Authentication:
   This provider uses DefaultAzureCredential for authentication, which supports:
   - Managed Identity (Azure VMs, App Service, Container Instances, etc.)
@@ -191,6 +197,9 @@ Authentication:
   - Azure CLI (az login)
   - Azure PowerShell (Connect-AzAccount)
   - Visual Studio credential
+
+  The credential instance is cached per exclusion set for the lifetime of the process, so repeated
+  signing operations reuse the resolved credential chain and its acquired tokens.
   
   For CI/CD scenarios, configure environment variables or use managed identity.
   For local development, use 'az login' or Visual Studio authentication.

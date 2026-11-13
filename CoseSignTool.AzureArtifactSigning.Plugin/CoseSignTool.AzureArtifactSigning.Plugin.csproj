@@ -58,7 +58,7 @@
     <PackageReference Include="Azure.Developer.ArtifactSigning.CryptoProvider">
       <Private>true</Private>
     </PackageReference>
-    <PackageReference Include="Azure.ArtifactSigning.MST">
+    <PackageReference Include="Azure.Developer.ArtifactSigning.MST">
       <Private>true</Private>
     </PackageReference>
     <PackageReference Include="Azure.Identity" Aliases="global,IdentityAlias">

@@ -27,7 +27,7 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Moq" />
-    <PackageReference Include="Azure.ArtifactSigning.MST" />
+    <PackageReference Include="Azure.Developer.ArtifactSigning.MST" />
     <PackageReference Include="Azure.Core" VersionOverride="1.62.0" />
     <PackageReference Include="Azure.Identity" />
     <PackageReference Include="Microsoft.Extensions.Configuration" />

@@ -12,6 +12,33 @@ public class CoseExtensionsTests
     private static readonly X509Certificate2 SelfSignedRoot = CertChain[0];
     private static readonly X509Certificate2 ChainedCert = CertChain[^1];
 
+    [DataTestMethod]
+    [DataRow(true)]
+    [DataRow(false)]
+    public async Task Sign_OverwritesLongerSignatureFileWithoutTrailingBytes(bool asynchronous)
+    {
+        string path = Path.GetTempFileName();
+        X509Certificate2CoseSigningKeyProvider signer = new(ChainedCert);
+        using MemoryStream payload = new(Payload1);
+
+        try
+        {
+            File.WriteAllBytes(path, new byte[64 * 1024]);
+            ReadOnlyMemory<byte> signature = asynchronous
+                ? await CoseHandler.SignAsync(payload, signer, signatureFile: new FileInfo(path))
+                : CoseHandler.Sign(Payload1, signer, signatureFile: new FileInfo(path));
+
+            File.ReadAllBytes(path).Should().Equal(signature.ToArray());
+            CoseSign1Message message = CoseMessage.DecodeSign1(signature.Span);
+            using RSA publicKey = ChainedCert.GetRSAPublicKey()!;
+            message.VerifyDetached(publicKey, Payload1).Should().BeTrue();
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
     [TestMethod]
     public void TryGetSigningCert()
     {

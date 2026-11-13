@@ -171,8 +171,7 @@ public class VerifyCommand : MstCommandBase
         {
             var domains = authorizedDomainsStr.Split(',', StringSplitOptions.RemoveEmptyEntries)
                 .Select(d => d.Trim())
-                .Where(d => !string.IsNullOrWhiteSpace(d))
-                .ToList();
+                .Where(d => !string.IsNullOrWhiteSpace(d));
             
             foreach (var domain in domains)
             {

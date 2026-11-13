@@ -137,8 +137,7 @@ public static class CoseHeaderExtensions
 
         try
         {
-            byte[] claimsBytes = cwtClaimsValue.EncodedValue.ToArray();
-            claims = CwtClaims.FromCborBytes(claimsBytes);
+            claims = CwtClaims.FromCborBytes(cwtClaimsValue.EncodedValue);
             return true;
         }
         catch

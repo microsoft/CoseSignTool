@@ -25,6 +25,19 @@ public class AzureArtifactSigningSignMstRegisterCommandTests
     private const string ProxyEndpoint = "https://api-canary.northcentralus.codesigning.azure.net/";
 
     /// <summary>
+    /// Verifies plugin discovery can construct the command without constructing an MST client.
+    /// </summary>
+    [TestMethod]
+    public void Constructor_DoesNotCreateTransparencyClient()
+    {
+        AzureArtifactSigningSignMstRegisterCommand command = new(
+            (_, _, _) => throw new AssertFailedException("MST client must only be constructed during command execution."),
+            (_, _, _, _, _, _, _, _) => throw new AssertFailedException("Signing must only run during command execution."));
+
+        Assert.AreEqual("aas_sign_mst_register", command.Name);
+    }
+
+    /// <summary>
     /// Verifies that the Artifact Signing command plugin owns the combined sign-and-register command.
     /// </summary>
     [TestMethod]

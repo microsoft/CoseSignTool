@@ -340,6 +340,58 @@ public class CoseSign1MessageFactoryTests
 
     #region Async Method Tests
 
+    [TestCase(true, true)]
+    [TestCase(true, false)]
+    [TestCase(false, true)]
+    [TestCase(false, false)]
+    public async Task CreateMessage_WithSlicedMemory_SignsOnlySlice(bool embedPayload, bool asynchronous)
+    {
+        using X509Certificate2 certificate = TestCertificateUtils.CreateCertificate();
+        ICoseSigningKeyProvider keyProvider = new X509Certificate2CoseSigningKeyProvider(new TestChainBuilder(), certificate);
+        CoseSign1MessageFactory factory = new();
+        byte[] buffer = Encoding.ASCII.GetBytes("prefixpayloadsuffix");
+        ReadOnlyMemory<byte> payload = buffer.AsMemory(6, 7);
+
+        CoseSign1Message message = asynchronous
+            ? await factory.CreateCoseSign1MessageAsync(payload, keyProvider, embedPayload)
+            : factory.CreateCoseSign1Message(payload, keyProvider, embedPayload);
+
+        using RSA publicKey = certificate.GetRSAPublicKey()!;
+        if (embedPayload)
+        {
+            message.Content!.Value.ToArray().Should().Equal(Encoding.ASCII.GetBytes("payload"));
+            message.VerifyEmbedded(publicKey).Should().BeTrue();
+        }
+        else
+        {
+            message.VerifyDetached(publicKey, payload.Span).Should().BeTrue();
+            message.VerifyDetached(publicKey, buffer).Should().BeFalse();
+        }
+    }
+
+    [TestCase(true, true)]
+    [TestCase(true, false)]
+    [TestCase(false, true)]
+    [TestCase(false, false)]
+    public async Task CreateEmbeddedMessage_WithOffsetMemoryStream_PreservesWholeStreamContent(bool publiclyVisible, bool asynchronous)
+    {
+        using X509Certificate2 certificate = TestCertificateUtils.CreateCertificate();
+        ICoseSigningKeyProvider keyProvider = new X509Certificate2CoseSigningKeyProvider(new TestChainBuilder(), certificate);
+        CoseSign1MessageFactory factory = new();
+        byte[] buffer = Encoding.ASCII.GetBytes("prefixpayloadsuffix");
+        using MemoryStream payload = new(buffer, 6, 7, writable: false, publiclyVisible);
+        payload.Position = 3;
+
+        CoseSign1Message message = asynchronous
+            ? await factory.CreateCoseSign1MessageAsync(payload, keyProvider, embedPayload: true)
+            : factory.CreateCoseSign1Message(payload, keyProvider, embedPayload: true);
+
+        message.Content!.Value.ToArray().Should().Equal(Encoding.ASCII.GetBytes("payload"));
+        payload.CanRead.Should().BeTrue();
+        using RSA publicKey = certificate.GetRSAPublicKey()!;
+        message.VerifyEmbedded(publicKey).Should().BeTrue();
+    }
+
     /// <summary>
     /// Tests CreateCoseSign1MessageAsync with byte array payload - should complete synchronously
     /// </summary>

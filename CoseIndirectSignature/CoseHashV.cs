@@ -153,8 +153,15 @@ public record CoseHashV
         ReadOnlyMemory<byte> readonlyData,
         string? location = null,
         ReadOnlyMemory<byte>? additionalData = null)
-        : this(algorithm, byteData: readonlyData.ToArray(), location, additionalData?.ToArray())
+        : this(algorithm, location, additionalData?.ToArray())
     {
+        if (readonlyData.IsEmpty)
+        {
+            throw new ArgumentOutOfRangeException(nameof(readonlyData), "The data to be hashed cannot be empty.");
+        }
+
+        using HashAlgorithm hashAlgorithm = IndirectSignatureFactory.GetHashAlgorithmFromCoseHashAlgorithm(algorithm);
+        InternalHashValue = IndirectSignatureFactory.ComputeHash(hashAlgorithm, readonlyData);
     }
 
     /// <summary>
@@ -232,7 +239,7 @@ public record CoseHashV
     /// <exception cref="ArgumentNullException">Thrown if data passed in is null or has a length of 0.</exception>
     /// <exception cref="CoseSign1Exception">Thrown if the computed hash length and the stored hash length differ.</exception>
     public bool ContentMatches(ReadOnlyMemory<byte> data)
-        => IndirectSignatureFactory.HashMatches(hashAlgorithm: Algorithm, hashValue: HashValue, data: data.ToArray(), stream: null);
+        => IndirectSignatureFactory.HashMatches(hashAlgorithm: Algorithm, hashValue: HashValue, data: data, stream: null);
 
     /// <summary>
     /// Validates that the given data in bytes matches the hash value stored in this instance.
@@ -242,7 +249,7 @@ public record CoseHashV
     /// <exception cref="ArgumentNullException">Thrown if data passed in is null or has a length of 0.</exception>
     /// <exception cref="CoseSign1Exception">Thrown if the computed hash length and the stored hash length differ.</exception>
     public Task<bool> ContentMatchesAsync(ReadOnlyMemory<byte> data)
-        => Task.FromResult(IndirectSignatureFactory.HashMatches(hashAlgorithm: Algorithm, hashValue: HashValue, data: data.ToArray(), stream: null));
+        => Task.FromResult(IndirectSignatureFactory.HashMatches(hashAlgorithm: Algorithm, hashValue: HashValue, data: data, stream: null));
 
     /// <summary>
     /// Validates that the given data in bytes matches the hash value stored in this instance.

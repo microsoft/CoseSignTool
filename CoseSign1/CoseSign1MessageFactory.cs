@@ -45,7 +45,7 @@ public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactory
            )
     {
         ReadOnlyMemory<byte> serializedMsg = CreateCoseSign1MessageBytes(payload, signingKeyProvider, embedPayload, contentType, headerExtender, signingOptions);
-        return CoseMessage.DecodeSign1(serializedMsg.ToArray());
+        return CoseMessage.DecodeSign1(serializedMsg.Span);
     }
 
     /// <inheritdoc/>
@@ -58,7 +58,7 @@ public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactory
         CoseSign1MessageSigningOptions? signingOptions = null)
     {
         ReadOnlyMemory<byte> serializedMsg = CreateCoseSign1MessageBytes(payload, signingKeyProvider, embedPayload, contentType, headerExtender, signingOptions);
-        return CoseMessage.DecodeSign1(serializedMsg.ToArray());
+        return CoseMessage.DecodeSign1(serializedMsg.Span);
     }
 
     /// <inheritdoc/>
@@ -74,8 +74,8 @@ public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactory
         ThrowIfEmpty(payload);
 
         return embedPayload ?
-            CoseSign1Message.SignEmbedded(payload.ToArray(), signer) :
-            CoseSign1Message.SignDetached(payload.ToArray(), signer);
+            CoseSign1Message.SignEmbedded(payload.Span, signer) :
+            CoseSign1Message.SignDetached(payload.Span, signer);
     }
 
     /// <inheritdoc/>
@@ -91,7 +91,7 @@ public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactory
         ThrowIfEmpty(payload);
 
         return embedPayload ?
-            CoseSign1Message.SignEmbedded(GetPayloadBytesFromStream(payload), signer) :
+            CoseSign1Message.SignEmbedded(GetPayloadBytesFromStream(payload).Span, signer) :
             Task.Run(() => CoseSign1Message.SignDetachedAsync(payload, signer)).ConfigureAwait(false).GetAwaiter().GetResult();
     }
 
@@ -151,11 +151,20 @@ public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactory
     }
 
     // Use only for embed signing -- will throw on streams over 2gb
-    private static byte[] GetPayloadBytesFromStream(Stream s)
+    private static ReadOnlyMemory<byte> GetPayloadBytesFromStream(Stream s)
     {
         try
         {
-            return s.GetBytes();
+            if (s is MemoryStream memoryStream)
+            {
+                return memoryStream.TryGetBuffer(out ArraySegment<byte> buffer)
+                    ? buffer.AsMemory()
+                    : memoryStream.ToArray();
+            }
+
+            using MemoryStream payloadBuffer = new();
+            s.CopyTo(payloadBuffer);
+            return payloadBuffer.GetBuffer().AsMemory(0, checked((int)payloadBuffer.Length));
         }
         catch (IOException)
         {
@@ -191,10 +200,8 @@ public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactory
         CancellationToken cancellationToken = default,
         CoseSign1MessageSigningOptions? signingOptions = null)
     {
-        // Wrap byte array in MemoryStream to enable true async signing path
-        using MemoryStream payloadStream = new(payload.ToArray());
-        ReadOnlyMemory<byte> serializedMsg = await CreateCoseSign1MessageBytesAsync(payloadStream, signingKeyProvider, embedPayload, contentType, headerExtender, cancellationToken, signingOptions).ConfigureAwait(false);
-        return CoseMessage.DecodeSign1(serializedMsg.ToArray());
+        ReadOnlyMemory<byte> serializedMsg = await CreateCoseSign1MessageBytesAsync(payload, signingKeyProvider, embedPayload, contentType, headerExtender, cancellationToken, signingOptions).ConfigureAwait(false);
+        return CoseMessage.DecodeSign1(serializedMsg.Span);
     }
 
     /// <inheritdoc/>
@@ -208,7 +215,7 @@ public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactory
         CoseSign1MessageSigningOptions? signingOptions = null)
     {
         ReadOnlyMemory<byte> serializedMsg = await CreateCoseSign1MessageBytesAsync(payload, signingKeyProvider, embedPayload, contentType, headerExtender, cancellationToken, signingOptions).ConfigureAwait(false);
-        return CoseMessage.DecodeSign1(serializedMsg.ToArray());
+        return CoseMessage.DecodeSign1(serializedMsg.Span);
     }
 
     /// <inheritdoc/>
@@ -221,9 +228,14 @@ public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactory
         CancellationToken cancellationToken = default,
         CoseSign1MessageSigningOptions? signingOptions = null)
     {
-        // Wrap byte array in MemoryStream to enable true async signing path
-        using MemoryStream payloadStream = new(payload.ToArray());
-        return await CreateCoseSign1MessageBytesAsync(payloadStream, signingKeyProvider, embedPayload, contentType, headerExtender, cancellationToken, signingOptions).ConfigureAwait(false);
+        CoseSigner signer = GetSigner(signingKeyProvider, contentType, headerExtender, signingOptions);
+        ThrowIfEmpty(payload);
+
+        return await Task.Run(
+            () => embedPayload
+                ? CoseSign1Message.SignEmbedded(payload.Span, signer)
+                : CoseSign1Message.SignDetached(payload.Span, signer),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc/>
@@ -241,7 +253,7 @@ public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactory
 
         // Wrap in Task.Run with cancellation token to enable cancellation support
         return embedPayload ?
-            await Task.Run(() => CoseSign1Message.SignEmbedded(GetPayloadBytesFromStream(payload), signer), cancellationToken).ConfigureAwait(false) :
+            await Task.Run(() => CoseSign1Message.SignEmbedded(GetPayloadBytesFromStream(payload).Span, signer), cancellationToken).ConfigureAwait(false) :
             await Task.Run(async () => await CoseSign1Message.SignDetachedAsync(payload, signer).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
     }
 }

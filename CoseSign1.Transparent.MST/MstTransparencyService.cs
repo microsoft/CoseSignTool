@@ -195,7 +195,7 @@ public class MstTransparencyService : TransparencyService
 
         // Encode the CoseSign1Message to a byte array
         BinaryData content = BinaryData.FromBytes(message.Encode());
-        LogVerbose?.Invoke($"Encoded message size: {content.ToArray().Length} bytes");
+        LogVerbose?.Invoke($"Encoded message size: {content.ToMemory().Length} bytes");
 
         Operation<BinaryData> operation;
         try
@@ -264,11 +264,11 @@ public class MstTransparencyService : TransparencyService
         // Query the transparency service for the entry statement
         LogVerbose?.Invoke("Retrieving entry statement...");
         Response<BinaryData> transparentStatement = await TransparencyClient.GetEntryStatementAsync(entryId, cancellationToken).ConfigureAwait(false);
-        LogVerbose?.Invoke($"Entry statement size: {transparentStatement.Value.ToArray().Length} bytes");
+        LogVerbose?.Invoke($"Entry statement size: {transparentStatement.Value.ToMemory().Length} bytes");
 
         // Azure CTS replies with the full CoseSign1Message which will include the receipts already, so return it to the caller.
         LogVerbose?.Invoke("Decoding transparent statement");
-        return CoseMessage.DecodeSign1(transparentStatement.Value.ToArray());
+        return CoseMessage.DecodeSign1(transparentStatement.Value.ToMemory().Span);
     }
 
     /// <summary>

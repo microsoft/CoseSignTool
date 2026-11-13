@@ -23,11 +23,11 @@ public static class CoseSign1MessageExtensions
 
     private static string GetCacheEntry(CoseSign1Message msg, string scope)
     {
-        byte[] rawProtectedHeaders = msg.RawProtectedHeaders.ToArray();
-        byte[] signature = msg.Signature.ToArray();
+        ReadOnlySpan<byte> rawProtectedHeaders = msg.RawProtectedHeaders.Span;
+        ReadOnlySpan<byte> signature = msg.Signature.Span;
         byte[] messageBytes = new byte[rawProtectedHeaders.Length + signature.Length];
-        Buffer.BlockCopy(rawProtectedHeaders, 0, messageBytes, 0, rawProtectedHeaders.Length);
-        Buffer.BlockCopy(signature, 0, messageBytes, rawProtectedHeaders.Length, signature.Length);
+        rawProtectedHeaders.CopyTo(messageBytes);
+        signature.CopyTo(messageBytes.AsSpan(rawProtectedHeaders.Length));
 
         using SHA256 sha256 = SHA256.Create();
         byte[] messageHash = sha256.ComputeHash(messageBytes);

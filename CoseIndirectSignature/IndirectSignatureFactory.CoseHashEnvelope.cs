@@ -42,7 +42,7 @@ public sealed partial class IndirectSignatureFactory
             using HashAlgorithm hasher = this.CreateHashAlgorithm();
             hash = streamPayload != null
                                  ? hasher.ComputeHash(streamPayload)
-                                 : hasher.ComputeHash(bytePayload!.Value.ToArray());
+                                 : ComputeHash(hasher, bytePayload!.Value);
         }
         else
         {
@@ -104,7 +104,7 @@ public sealed partial class IndirectSignatureFactory
             using HashAlgorithm hasher = this.CreateHashAlgorithm();
             hash = streamPayload != null
                                  ? hasher.ComputeHash(streamPayload)
-                                 : hasher.ComputeHash(bytePayload!.Value.ToArray());
+                                 : ComputeHash(hasher, bytePayload!.Value);
         }
         else
         {

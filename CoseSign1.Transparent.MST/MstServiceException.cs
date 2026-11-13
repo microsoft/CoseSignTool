@@ -133,7 +133,7 @@ public class MstServiceException : Exception
                     var content = response.Content;
                     if (content != null && content.ToMemory().Length > 0)
                     {
-                        problemDetails = CborProblemDetails.TryParse(content.ToArray());
+                        problemDetails = CborProblemDetails.TryParse(content.ToMemory());
                     }
                 }
                 catch (CborContentException)

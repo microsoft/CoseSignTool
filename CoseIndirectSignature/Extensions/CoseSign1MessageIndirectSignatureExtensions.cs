@@ -172,7 +172,7 @@ public static class CoseSign1MessageIndirectSignatureExtensions
         }
 
         ReadOnlyMemory<byte> artifactHash = artifactBytes.HasValue
-                                            ? hasher!.ComputeHash(artifactBytes.Value.ToArray())
+                                            ? IndirectSignatureFactory.ComputeHash(hasher!, artifactBytes.Value)
                                             : hasher!.ComputeHash(artifactStream!);
 
         bool equals = @this!.Content.Value.Span.SequenceEqual(artifactHash.Span);

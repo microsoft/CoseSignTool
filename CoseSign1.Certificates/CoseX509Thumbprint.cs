@@ -4,6 +4,7 @@
 namespace CoseSign1.Certificates;
 
 using System.Buffers.Text;
+using System.Runtime.InteropServices;
 
 /// <summary>
 /// Represents a COSE X509 thumbprint, which corresponds to the x5t header in a COSE signature structure.
@@ -63,7 +64,10 @@ public class CoseX509Thumprint
     #region Public Methods
     private string? ToStringCache = null;
     /// <inheritdoc />
-    public override string ToString() => ToStringCache ??= Convert.ToBase64String(Thumbprint.ToArray());
+    public override string ToString() => ToStringCache ??=
+        MemoryMarshal.TryGetArray(Thumbprint, out ArraySegment<byte> segment)
+            ? Convert.ToBase64String(segment.Array!, segment.Offset, segment.Count)
+            : Convert.ToBase64String(Thumbprint.ToArray());
 
     /// <summary>
     /// Checks if a certificate matches this thumbprint
@@ -73,7 +77,7 @@ public class CoseX509Thumprint
     public bool Match(X509Certificate2 certificate)
     {
         using HashAlgorithm hasher = this.CreateHashAlgorithm();
-        return Thumbprint.ToArray().SequenceEqual(hasher.ComputeHash(certificate.RawData));
+        return Thumbprint.Span.SequenceEqual(hasher.ComputeHash(certificate.RawData));
     }
 
     /// <summary>
@@ -127,7 +131,7 @@ public class CoseX509Thumprint
     {
         writer.WriteStartArray(2);
         writer.WriteInt32(HashId);
-        writer.WriteByteString(Thumbprint.ToArray());
+        writer.WriteByteString(Thumbprint.Span);
         writer.WriteEndArray();
 
         return writer.Encode();

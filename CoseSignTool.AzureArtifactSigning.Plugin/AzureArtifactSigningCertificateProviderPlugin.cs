@@ -94,15 +94,8 @@ public class AzureArtifactSigningCertificateProviderPlugin : ICertificateProvide
             logger?.LogVerbose($"  Account: {accountName}");
             logger?.LogVerbose($"  Certificate Profile: {certProfileName}");
 
-            // Create (or reuse) the Azure credential. DefaultAzureCredential supports multiple
-            // authentication methods in order of precedence:
-            // 1. Environment variables (AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, etc.)
-            // 2. Managed Identity (for Azure VMs, App Service, etc.)
-            // 3. Visual Studio credential
-            // 4. Azure CLI credential
-            // 5. Azure PowerShell credential
-            // The instance is cached per exclusion set so repeated signings reuse its token cache
-            // instead of re-probing the chain and re-acquiring a token each time.
+            // Share the credential and its token cache with the MST proxy client in the combined command.
+            // Chain behavior: https://learn.microsoft.com/en-us/dotnet/api/azure.identity.defaultazurecredential?view=azure-dotnet
             TokenCredential credential = AzureCredentialFactory.GetCredential(
                 AzureCredentialFactory.GetExclusions(configuration),
                 logger);

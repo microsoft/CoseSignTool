@@ -66,8 +66,10 @@ public class AzureArtifactSigningSignMstRegisterCommandTests
     /// <summary>
     /// Verifies that the original statement is registered and the persisted statement contains the returned receipt.
     /// </summary>
-    [TestMethod]
-    public async Task ExecuteAsync_WithValidArguments_RegistersOriginalAndWritesTransparentStatement()
+    [DataTestMethod]
+    [DataRow(true)]
+    [DataRow(false)]
+    public async Task ExecuteAsync_WithValidArguments_RegistersOriginalAndWritesTransparentStatement(bool seekableReceipt)
     {
         using RSA rsa = RSA.Create(2048);
         CoseSigner signer = new(rsa, RSASignaturePadding.Pss, HashAlgorithmName.SHA256);
@@ -75,7 +77,9 @@ public class AzureArtifactSigningSignMstRegisterCommandTests
         byte[] receiptBytes = new byte[] { 0xD8, 0x63, 0x81, 0x01 };
         string payloadPath = Path.GetTempFileName();
         string signaturePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.cose");
-        RecordingTransparencyClient client = new(receiptBytes);
+        RecordingTransparencyClient client = new(receiptBytes, seekableReceipt);
+        byte[] statementBuffer = new byte[statementBytes.Length + 2];
+        statementBytes.CopyTo(statementBuffer, 1);
         byte[]? signedPayload = null;
         string? capturedContentType = null;
         HashAlgorithmName capturedHashAlgorithm = default;
@@ -92,7 +96,7 @@ public class AzureArtifactSigningSignMstRegisterCommandTests
                 capturedHashAlgorithm = hashAlgorithm;
                 capturedRsaSignaturePadding = rsaSignaturePadding;
                 capturedHeaderExtender = headerExtender;
-                return statementBytes;
+                return statementBuffer.AsMemory(1, statementBytes.Length);
             });
         IConfigurationRoot configuration = CreateConfiguration(
             payloadPath,
@@ -182,13 +186,9 @@ public class AzureArtifactSigningSignMstRegisterCommandTests
     {
         string payloadPath = Path.GetTempFileName();
         string signaturePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.cose");
-        bool clientCreated = false;
+        RecordingTransparencyClient client = new(Array.Empty<byte>());
         AzureArtifactSigningSignMstRegisterCommand command = new(
-            (_, _, _) =>
-            {
-                clientCreated = true;
-                return new RecordingTransparencyClient(Array.Empty<byte>());
-            },
+            (_, _, _) => client,
             (_, _, _, _, _, _, _, _) => throw new InvalidOperationException("Signing failed."));
         IConfigurationRoot configuration = CreateConfiguration(payloadPath, signaturePath);
 
@@ -199,7 +199,104 @@ public class AzureArtifactSigningSignMstRegisterCommandTests
             PluginExitCode result = await command.ExecuteAsync(configuration);
 
             Assert.AreEqual(PluginExitCode.UnknownError, result);
-            Assert.IsFalse(clientCreated);
+            Assert.IsNull(client.SubmittedData);
+            Assert.IsFalse(File.Exists(signaturePath));
+        }
+        finally
+        {
+            File.Delete(payloadPath);
+            File.Delete(signaturePath);
+        }
+    }
+
+    /// <summary>
+    /// Verifies client construction fails before any signing operation.
+    /// </summary>
+    [TestMethod]
+    public async Task ExecuteAsync_WhenClientConstructionFails_DoesNotSignOrWriteStatement()
+    {
+        string payloadPath = Path.GetTempFileName();
+        string signaturePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.cose");
+        AzureArtifactSigningSignMstRegisterCommand command = new(
+            (_, _, _) => throw new InvalidOperationException("Client construction failed."),
+            (_, _, _, _, _, _, _, _) => throw new AssertFailedException("Signing should not start."));
+
+        try
+        {
+            PluginExitCode result = await command.ExecuteAsync(CreateConfiguration(payloadPath, signaturePath));
+
+            Assert.AreEqual(PluginExitCode.UnknownError, result);
+            Assert.IsFalse(File.Exists(signaturePath));
+        }
+        finally
+        {
+            File.Delete(payloadPath);
+            File.Delete(signaturePath);
+        }
+    }
+
+    /// <summary>
+    /// Verifies that an omitted payload path or dash reads binary standard input without a payload file.
+    /// </summary>
+    [DataTestMethod]
+    [DataRow(null)]
+    [DataRow("-")]
+    public async Task ExecuteAsync_WithStandardInput_SignsAndRegistersPayload(string? payloadPath)
+    {
+        byte[] payloadBytes = new byte[] { 0x00, 0xFF, 0x80, 0x0A };
+        byte[] receiptBytes = new byte[] { 0xD8, 0x63, 0x81, 0x01 };
+        using RSA rsa = RSA.Create(2048);
+        CoseSigner signer = new(rsa, RSASignaturePadding.Pss, HashAlgorithmName.SHA256);
+        byte[] statementBytes = CoseSign1Message.SignEmbedded(payloadBytes, signer);
+        string signaturePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.cose");
+        RecordingTransparencyClient client = new(receiptBytes);
+        AzureArtifactSigningSignMstRegisterCommand command = new(
+            (_, _, _) => client,
+            async (payload, _, _, _, _, _, _, cancellationToken) =>
+            {
+                using MemoryStream buffer = new();
+                await payload.CopyToAsync(buffer, cancellationToken);
+                CollectionAssert.AreEqual(payloadBytes, buffer.ToArray());
+                return statementBytes;
+            },
+            () => new MemoryStream(payloadBytes, writable: false));
+
+        try
+        {
+            PluginExitCode result = await command.ExecuteAsync(CreateConfiguration(payloadPath, signaturePath));
+
+            Assert.AreEqual(PluginExitCode.Success, result);
+            CollectionAssert.AreEqual(statementBytes, client.SubmittedData);
+            CoseSign1Message statement = CoseMessage.DecodeSign1(await File.ReadAllBytesAsync(signaturePath));
+            Assert.IsTrue(statement.TryGetReceipts(out List<byte[]>? receipts));
+            CollectionAssert.AreEqual(receiptBytes, receipts!.Single());
+        }
+        finally
+        {
+            File.Delete(signaturePath);
+        }
+    }
+
+    /// <summary>
+    /// Verifies empty receipts never produce an output statement, regardless of stream capabilities.
+    /// </summary>
+    [DataTestMethod]
+    [DataRow(true)]
+    [DataRow(false)]
+    public async Task ExecuteAsync_WithEmptyReceipt_DoesNotWriteStatement(bool seekableReceipt)
+    {
+        string payloadPath = Path.GetTempFileName();
+        string signaturePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.cose");
+        RecordingTransparencyClient client = new(Array.Empty<byte>(), seekableReceipt);
+        AzureArtifactSigningSignMstRegisterCommand command = new(
+            (_, _, _) => client,
+            (_, _, _, _, _, _, _, _) => Task.FromResult<ReadOnlyMemory<byte>>(Array.Empty<byte>()));
+
+        try
+        {
+            PluginExitCode result = await command.ExecuteAsync(CreateConfiguration(payloadPath, signaturePath));
+
+            Assert.AreEqual(PluginExitCode.UnknownError, result);
             Assert.IsFalse(File.Exists(signaturePath));
         }
         finally
@@ -357,7 +454,7 @@ public class AzureArtifactSigningSignMstRegisterCommandTests
     }
 
     private static IConfigurationRoot CreateConfiguration(
-        string payloadPath,
+        string? payloadPath,
         string signaturePath,
         string? outputPath = null,
         string? proxyEndpoint = ProxyEndpoint,
@@ -396,10 +493,12 @@ public class AzureArtifactSigningSignMstRegisterCommandTests
     {
         private readonly byte[]? receipt;
         private readonly RequestFailedException? exception;
+        private readonly bool seekableReceipt;
 
-        public RecordingTransparencyClient(byte[] receipt)
+        public RecordingTransparencyClient(byte[] receipt, bool seekableReceipt = true)
         {
             this.receipt = receipt;
+            this.seekableReceipt = seekableReceipt;
         }
 
         public RecordingTransparencyClient(RequestFailedException exception)
@@ -438,9 +537,20 @@ public class AzureArtifactSigningSignMstRegisterCommandTests
                 throw this.exception;
             }
 
-            return Response.FromValue<Stream>(
-                new MemoryStream(this.receipt!, writable: false),
-                Mock.Of<Response>());
+            MemoryStream receiptStream = new(this.receipt!, writable: false);
+            if (this.seekableReceipt)
+            {
+                return Response.FromValue<Stream>(receiptStream, Mock.Of<Response>());
+            }
+
+            Mock<Stream> nonSeekableStream = new() { CallBase = true };
+            nonSeekableStream.SetupGet(stream => stream.CanRead).Returns(true);
+            nonSeekableStream.SetupGet(stream => stream.CanSeek).Returns(false);
+            nonSeekableStream
+                .Setup(stream => stream.ReadAsync(It.IsAny<Memory<byte>>(), It.IsAny<CancellationToken>()))
+                .Returns((Memory<byte> buffer, CancellationToken token) => receiptStream.ReadAsync(buffer, token));
+            nonSeekableStream.Setup(stream => stream.Close()).Callback(receiptStream.Dispose);
+            return Response.FromValue(nonSeekableStream.Object, Mock.Of<Response>());
         }
     }
 }

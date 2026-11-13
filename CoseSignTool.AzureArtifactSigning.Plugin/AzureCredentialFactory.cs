@@ -19,10 +19,12 @@ using Microsoft.Extensions.Configuration;
 /// </summary>
 /// <remarks>
 /// <para>
-/// A <see cref="DefaultAzureCredential"/> caches the tokens it acquires for its own lifetime, so
-/// constructing a new one per signing operation throws that cache away and forces a fresh credential
-/// probe and token request every time. Caching the credential instance here means repeated signings in
-/// a single process reuse both the resolved credential chain and its tokens.
+/// The combined <c>aas_sign_mst_register</c> command shares one credential between its signing provider
+/// and MST proxy client, even when signing only one payload. Reusing the instance preserves its
+/// selected credential and token cache; tokens are reused only when valid for the requested scope.
+/// The cache is process-local and does not persist between CLI invocations.
+/// See <see href="https://learn.microsoft.com/en-us/dotnet/api/azure.identity.defaultazurecredential?view=azure-dotnet">DefaultAzureCredential</see>
+/// for credential-chain behavior and instance-reuse guidance.
 /// </para>
 /// <para>
 /// Credentials are cached per exclusion set, so callers asking for different exclusions do not share an

@@ -45,7 +45,7 @@ public class AzureArtifactSigningDidX509Generator : DidX509Generator
     /// <summary>
     /// Prefix shared by Azure Artifact Signing tenant- and profile-scoped customer EKUs.
     /// </summary>
-    private const string AzureArtifactSigningEkuPrefix = "1.3.6.1.4.1.311.97.1.";
+    private const string AzureArtifactSigningEkuPrefix = MicrosoftEkuPrefix + ".97.1.";
 
     /// <summary>
     /// Generates a DID:X509:0 identifier from an Azure Artifact Signing certificate chain.

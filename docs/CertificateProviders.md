@@ -262,9 +262,12 @@ Credential names are case-insensitive and the trailing `Credential` is optional,
 `SharedTokenCacheCredential`, `VisualStudioCredential`, `VisualStudioCodeCredential`, and
 `WorkloadIdentityCredential`.
 
-Credentials are cached per distinct exclusion set for the lifetime of the process, so signing several
-artifacts in one invocation reuses the access token acquired for the first one instead of
-re-authenticating each time.
+Credentials are cached per distinct exclusion set for the lifetime of the process. Even for a single
+payload, `aas_sign_mst_register` shares one credential between its signing provider and MST proxy client,
+preserving the selected credential and token cache. Token reuse depends on the requested scope and
+token validity; the cache does not persist between CLI invocations. See
+[DefaultAzureCredential](https://learn.microsoft.com/en-us/dotnet/api/azure.identity.defaultazurecredential?view=azure-dotnet)
+for credential-chain behavior and instance-reuse guidance.
 
 #### Signing and registering with MST through Azure Artifact Signing
 
@@ -301,7 +304,7 @@ CoseSignTool aas_sign_mst_register \
 | `--aas-endpoint` | Yes | Azure Artifact Signing endpoint used to sign the payload. |
 | `--aas-account-name` | Yes | Azure Artifact Signing account name. |
 | `--aas-cert-profile-name` | Yes | Certificate profile used for signing and proxy authorization. |
-| `--payload` | Yes | Payload file to sign. |
+| `--payload` | No | Payload file to sign. Omit this option or use `-` to read binary payload bytes from standard input. |
 | `--signature` | Yes | Output path for the transparent COSE Sign1 statement containing the receipt. |
 | `--hash-algorithm` | No | Generic signing hash: SHA256, SHA384, or SHA512. |
 | `--rsa-signature-padding` | No | Generic RSA padding: PSS or PKCS1. |

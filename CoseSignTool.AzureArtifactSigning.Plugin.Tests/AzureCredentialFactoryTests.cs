@@ -10,6 +10,7 @@ using Azure.Core;
 using CoseSignTool.AzureArtifactSigning.Plugin;
 using Microsoft.Extensions.Configuration;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Moq;
 
 /// <summary>
 /// Tests for <see cref="AzureCredentialFactory"/>.
@@ -18,106 +19,45 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 public class AzureCredentialFactoryTests
 {
     /// <summary>
-    /// Clears the shared cache so each test observes a known starting state.
-    /// </summary>
-    [TestInitialize]
-    public void Initialize()
-    {
-        AzureCredentialFactory.ClearCache();
-    }
-
-    /// <summary>
-    /// Releases the shared cache so cached credentials do not leak between test classes.
-    /// </summary>
-    [TestCleanup]
-    public void Cleanup()
-    {
-        AzureCredentialFactory.ClearCache();
-    }
-
-    /// <summary>
-    /// Verifies that repeated requests for the same exclusion set reuse one credential, which is the
-    /// whole point of the cache: a fresh credential would discard the token cache it holds.
+    /// Verifies the factory does not retain credentials in a process-wide cache.
     /// </summary>
     [TestMethod]
-    public void GetCredential_SameExclusions_ReturnsSameInstance()
+    public void CreateCredential_SameExclusions_ReturnsNewInstances()
     {
-        TokenCredential first = AzureCredentialFactory.GetCredential(new[] { "ManagedIdentityCredential" });
-        TokenCredential second = AzureCredentialFactory.GetCredential(new[] { "ManagedIdentityCredential" });
+        TokenCredential first = AzureCredentialFactory.CreateCredential(new[] { "ManagedIdentityCredential" });
+        TokenCredential second = AzureCredentialFactory.CreateCredential(new[] { "ManagedIdentityCredential" });
 
-        Assert.AreSame(first, second);
+        Assert.AreNotSame(first, second);
     }
 
     /// <summary>
-    /// Verifies that no exclusions and an empty exclusion list share the same cache entry.
+    /// Verifies that null and empty exclusions are accepted.
     /// </summary>
     [TestMethod]
-    public void GetCredential_NullAndEmptyExclusions_ShareInstance()
+    public void CreateCredential_NullAndEmptyExclusions_AreAccepted()
     {
-        TokenCredential fromNull = AzureCredentialFactory.GetCredential(null);
-        TokenCredential fromEmpty = AzureCredentialFactory.GetCredential(Array.Empty<string>());
-
-        Assert.AreSame(fromNull, fromEmpty);
-    }
-
-    /// <summary>
-    /// Verifies the common cache-hit path does not allocate normalization collections or a closure.
-    /// </summary>
-    [DataTestMethod]
-    [DataRow(true)]
-    [DataRow(false)]
-    public void GetCredential_CachedWithoutExclusions_DoesNotAllocate(bool useNull)
-    {
-        string[]? exclusions = useNull ? null : Array.Empty<string>();
-        TokenCredential credential = AzureCredentialFactory.GetCredential(exclusions);
-
-        long before = GC.GetAllocatedBytesForCurrentThread();
-        TokenCredential cached = AzureCredentialFactory.GetCredential(exclusions);
-        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
-
-        Assert.AreSame(credential, cached);
-        Assert.AreEqual(0L, allocated);
-    }
-
-    /// <summary>
-    /// Verifies that different exclusion sets get their own credential, since they configure
-    /// different chains.
-    /// </summary>
-    [TestMethod]
-    public void GetCredential_DifferentExclusions_ReturnsDifferentInstances()
-    {
-        TokenCredential withManagedIdentity = AzureCredentialFactory.GetCredential(new[] { "ManagedIdentityCredential" });
-        TokenCredential withAzureCli = AzureCredentialFactory.GetCredential(new[] { "AzureCliCredential" });
-
-        Assert.AreNotSame(withManagedIdentity, withAzureCli);
+        Assert.IsNotNull(AzureCredentialFactory.CreateCredential(null));
+        Assert.IsNotNull(AzureCredentialFactory.CreateCredential(Array.Empty<string>()));
     }
 
     /// <summary>
     /// Verifies that names differing only by case, the optional "Credential" suffix, whitespace, or
-    /// ordering resolve to the same cache entry.
+    /// ordering or duplication are accepted.
     /// </summary>
     [TestMethod]
-    public void GetCredential_EquivalentNames_ShareInstance()
+    public void CreateCredential_EquivalentNames_AreAccepted()
     {
-        TokenCredential canonical = AzureCredentialFactory.GetCredential(
-            new[] { "ManagedIdentityCredential", "AzureCliCredential" });
-
-        TokenCredential equivalent = AzureCredentialFactory.GetCredential(
-            new[] { " azurecli ", "managedidentity", "ManagedIdentityCredential" });
-
-        Assert.AreSame(canonical, equivalent);
+        Assert.IsNotNull(AzureCredentialFactory.CreateCredential(
+            new[] { " azurecli ", "managedidentity", "ManagedIdentityCredential" }));
     }
 
     /// <summary>
     /// Verifies that blank entries are ignored rather than treated as an unknown credential.
     /// </summary>
     [TestMethod]
-    public void GetCredential_BlankEntries_AreIgnored()
+    public void CreateCredential_BlankEntries_AreIgnored()
     {
-        TokenCredential withBlanks = AzureCredentialFactory.GetCredential(new[] { string.Empty, "   " });
-        TokenCredential withNone = AzureCredentialFactory.GetCredential(null);
-
-        Assert.AreSame(withNone, withBlanks);
+        Assert.IsNotNull(AzureCredentialFactory.CreateCredential(new[] { string.Empty, "   " }));
     }
 
     /// <summary>
@@ -125,10 +65,10 @@ public class AzureCredentialFactoryTests
     /// leave a credential the caller believes is excluded still in the chain.
     /// </summary>
     [TestMethod]
-    public void GetCredential_UnknownName_Throws()
+    public void CreateCredential_UnknownName_Throws()
     {
         ArgumentException exception = Assert.ThrowsException<ArgumentException>(
-            () => AzureCredentialFactory.GetCredential(new[] { "NotARealCredential" }));
+            () => AzureCredentialFactory.CreateCredential(new[] { "NotARealCredential" }));
 
         StringAssert.Contains(exception.Message, "NotARealCredential");
     }
@@ -143,8 +83,31 @@ public class AzureCredentialFactoryTests
 
         foreach (string name in AzureCredentialFactory.SupportedExclusionNames)
         {
-            Assert.IsNotNull(AzureCredentialFactory.GetCredential(new[] { name }));
+            Assert.IsNotNull(AzureCredentialFactory.CreateCredential(new[] { name }));
         }
+    }
+
+    /// <summary>
+    /// Verifies a supplied credential bypasses default-chain settings and is not authenticated during provider creation.
+    /// </summary>
+    [TestMethod]
+    public void CreateProvider_WithSuppliedCredential_DoesNotCreateDefaultCredential()
+    {
+        IConfiguration configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["aas-endpoint"] = "https://contoso.codesigning.azure.net/",
+                ["aas-account-name"] = "test-account",
+                ["aas-cert-profile-name"] = "test-profile",
+                ["aas-exclude-credentials"] = "NotARealCredential"
+            })
+            .Build();
+        Mock<TokenCredential> credential = new(MockBehavior.Strict);
+        AzureArtifactSigningCertificateProviderPlugin plugin = new();
+
+        Assert.IsNotNull(plugin.CreateProvider(configuration, logger: null, credential.Object));
+
+        credential.VerifyNoOtherCalls();
     }
 
     /// <summary>

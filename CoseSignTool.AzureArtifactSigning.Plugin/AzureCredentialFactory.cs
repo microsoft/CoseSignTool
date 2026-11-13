@@ -6,7 +6,6 @@ extern alias IdentityAlias;
 namespace CoseSignTool.AzureArtifactSigning.Plugin;
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using Azure.Core;
@@ -15,20 +14,18 @@ using DefaultAzureCredentialOptions = IdentityAlias::Azure.Identity.DefaultAzure
 using Microsoft.Extensions.Configuration;
 
 /// <summary>
-/// Creates and caches the <see cref="TokenCredential"/> used to call Azure Artifact Signing.
+/// Creates the <see cref="TokenCredential"/> used to call Azure Artifact Signing.
 /// </summary>
 /// <remarks>
 /// <para>
-/// The combined <c>aas_sign_mst_register</c> command shares one credential between its signing provider
-/// and MST proxy client, even when signing only one payload. Reusing the instance preserves its
-/// selected credential and token cache; tokens are reused only when valid for the requested scope.
-/// The cache is process-local and does not persist between CLI invocations.
+/// Callers own credential reuse. The combined <c>aas_sign_mst_register</c> command passes one credential
+/// to both its signing provider and MST proxy client, and accepts an existing credential from its caller.
+/// This factory does not cache credentials or tokens.
 /// See <see href="https://learn.microsoft.com/en-us/dotnet/api/azure.identity.defaultazurecredential?view=azure-dotnet">DefaultAzureCredential</see>
 /// for credential-chain behavior and instance-reuse guidance.
 /// </para>
 /// <para>
-/// Credentials are cached per exclusion set, so callers asking for different exclusions do not share an
-/// instance. Managed identity in particular is worth excluding on developer machines and on hosts where
+/// Managed identity can be worth excluding on developer machines and on hosts where
 /// an unrelated identity is present, because probing it can add multi-second delays before the chain
 /// falls through to the credential that actually works.
 /// </para>
@@ -65,11 +62,6 @@ public static class AzureCredentialFactory
             ["VisualStudioCode"] = options => options.ExcludeVisualStudioCodeCredential = true,
             ["AzurePowerShell"] = options => options.ExcludeAzurePowerShellCredential = true,
         };
-
-    /// <summary>
-    /// Caches one credential per distinct exclusion set.
-    /// </summary>
-    private static readonly ConcurrentDictionary<string, TokenCredential> CredentialCache = new(StringComparer.Ordinal);
 
     /// <summary>
     /// Gets the names that may be supplied to exclude a credential, in documentation order.
@@ -115,104 +107,23 @@ public static class AzureCredentialFactory
     }
 
     /// <summary>
-    /// Gets a cached <see cref="TokenCredential"/> for the supplied exclusions, creating it on first use.
+    /// Creates a <see cref="DefaultAzureCredential"/> honoring the supplied exclusions.
     /// </summary>
     /// <param name="excludeCredentials">
     /// Credentials to exclude from the chain. Names are case-insensitive and the trailing "Credential"
     /// is optional, so "ManagedIdentityCredential" and "managedidentity" are equivalent.
     /// </param>
     /// <param name="logger">Optional logger for diagnostic output.</param>
-    /// <returns>A credential shared by all callers requesting the same exclusion set.</returns>
+    /// <returns>A new credential. Callers may pass this instance to multiple signing operations.</returns>
     /// <exception cref="ArgumentException">Thrown when an exclusion name is not recognized.</exception>
     /// <example>
     /// <code>
-    /// TokenCredential credential = AzureCredentialFactory.GetCredential(new[] { "ManagedIdentityCredential" }, logger);
+    /// TokenCredential credential = AzureCredentialFactory.CreateCredential(new[] { "ManagedIdentityCredential" }, logger);
     /// </code>
     /// </example>
-    public static TokenCredential GetCredential(IEnumerable<string>? excludeCredentials, IPluginLogger? logger = null)
+    public static TokenCredential CreateCredential(IEnumerable<string>? excludeCredentials, IPluginLogger? logger = null)
     {
-        IReadOnlyCollection<string> normalized = NormalizeExclusions(excludeCredentials);
-        string cacheKey = string.Join(",", normalized);
-
-        if (CredentialCache.TryGetValue(cacheKey, out TokenCredential? cached))
-        {
-            logger?.LogVerbose("Reusing cached Azure credential.");
-            return cached;
-        }
-
-        return CredentialCache.GetOrAdd(
-            cacheKey,
-            static (_, state) => CreateCredential(state.normalized, state.logger),
-            (normalized, logger));
-    }
-
-    /// <summary>
-    /// Clears the credential cache.
-    /// </summary>
-    /// <remarks>Intended for tests; production callers benefit from the cache living for the process lifetime.</remarks>
-    public static void ClearCache()
-    {
-        CredentialCache.Clear();
-    }
-
-    /// <summary>
-    /// Validates and canonicalizes the requested exclusion names.
-    /// </summary>
-    /// <param name="excludeCredentials">The raw exclusion names.</param>
-    /// <returns>The canonical names, sorted and de-duplicated so equivalent requests share a cache entry.</returns>
-    /// <exception cref="ArgumentException">Thrown when a name is not recognized.</exception>
-    private static IReadOnlyCollection<string> NormalizeExclusions(IEnumerable<string>? excludeCredentials)
-    {
-        if (excludeCredentials is null || excludeCredentials is IReadOnlyCollection<string> { Count: 0 })
-        {
-            return Array.Empty<string>();
-        }
-
-        SortedSet<string> normalized = new(StringComparer.Ordinal);
-
-        foreach (string name in excludeCredentials)
-        {
-            if (string.IsNullOrWhiteSpace(name))
-            {
-                continue;
-            }
-
-            string candidate = name.Trim();
-            if (candidate.EndsWith("Credential", StringComparison.OrdinalIgnoreCase))
-            {
-                candidate = candidate[..^"Credential".Length];
-            }
-
-            if (!ExclusionSetters.ContainsKey(candidate))
-            {
-                throw new ArgumentException(
-                    $"'{name}' is not a recognized credential to exclude. Supported values are: {string.Join(", ", SupportedExclusionNames)}.",
-                    nameof(excludeCredentials));
-            }
-
-            // Store the canonical casing from the lookup so cache keys are stable across input casings.
-            foreach (string key in ExclusionSetters.Keys)
-            {
-                if (string.Equals(key, candidate, StringComparison.OrdinalIgnoreCase))
-                {
-                    normalized.Add(key);
-                    break;
-                }
-            }
-        }
-
-        return normalized;
-    }
-
-    /// <summary>
-    /// Creates a <see cref="DefaultAzureCredential"/> honoring the supplied exclusions.
-    /// </summary>
-    /// <param name="normalizedExclusions">The canonical exclusion names.</param>
-    /// <param name="logger">Optional logger for diagnostic output.</param>
-    /// <returns>The new credential.</returns>
-    private static TokenCredential CreateCredential(IReadOnlyCollection<string> normalizedExclusions, IPluginLogger? logger)
-    {
-        logger?.LogVerbose("Acquiring Azure credentials using DefaultAzureCredential...");
+        logger?.LogVerbose("Creating Azure credentials using DefaultAzureCredential...");
 
         DefaultAzureCredentialOptions options = new()
         {
@@ -220,10 +131,31 @@ public static class AzureCredentialFactory
             ExcludeInteractiveBrowserCredential = true
         };
 
-        foreach (string exclusion in normalizedExclusions)
+        if (excludeCredentials is not null)
         {
-            ExclusionSetters[exclusion](options);
-            logger?.LogVerbose($"  Excluding {exclusion}Credential from the credential chain.");
+            foreach (string name in excludeCredentials)
+            {
+                if (string.IsNullOrWhiteSpace(name))
+                {
+                    continue;
+                }
+
+                string exclusion = name.Trim();
+                if (exclusion.EndsWith("Credential", StringComparison.OrdinalIgnoreCase))
+                {
+                    exclusion = exclusion[..^"Credential".Length];
+                }
+
+                if (!ExclusionSetters.TryGetValue(exclusion, out Action<DefaultAzureCredentialOptions>? applyExclusion))
+                {
+                    throw new ArgumentException(
+                        $"'{name}' is not a recognized credential to exclude. Supported values are: {string.Join(", ", SupportedExclusionNames)}.",
+                        nameof(excludeCredentials));
+                }
+
+                applyExclusion(options);
+                logger?.LogVerbose($"  Excluding {exclusion}Credential from the credential chain.");
+            }
         }
 
         return new DefaultAzureCredential(options); // CodeQL [SM02196] DefaultAzureCredential is the recommended approach for client applications and libraries to authenticate to Azure services

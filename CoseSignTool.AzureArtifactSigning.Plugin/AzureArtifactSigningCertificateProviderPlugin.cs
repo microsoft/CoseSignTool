@@ -21,13 +21,12 @@ using System;
 /// <remarks>
 /// <para>
 /// This plugin integrates Azure Artifact Signing into CoseSignTool's Sign and indirect-sign commands.
-/// It uses DefaultAzureCredential for secure authentication, supporting managed identities,
+/// By default it uses DefaultAzureCredential for secure authentication, supporting managed identities,
 /// Azure CLI credentials, environment variables, and other Azure SDK authentication mechanisms.
 /// </para>
 /// <para>
 /// Security: This plugin NEVER accepts raw tokens on the command line. All authentication
-/// is handled through DefaultAzureCredential, which uses secure, industry-standard
-/// credential acquisition methods.
+/// is handled through Azure SDK credentials, either supplied by the caller or created using DefaultAzureCredential.
 /// </para>
 /// </remarks>
 public class AzureArtifactSigningCertificateProviderPlugin : ICertificateProviderPlugin
@@ -66,6 +65,24 @@ public class AzureArtifactSigningCertificateProviderPlugin : ICertificateProvide
     /// <inheritdoc/>
     public ICoseSigningKeyProvider CreateProvider(IConfiguration configuration, IPluginLogger? logger = null)
     {
+        return this.CreateProvider(configuration, logger, credential: null);
+    }
+
+    /// <summary>
+    /// Creates a signing provider using a caller-supplied credential when available.
+    /// </summary>
+    /// <param name="configuration">The Artifact Signing configuration.</param>
+    /// <param name="logger">Optional logger for diagnostic output.</param>
+    /// <param name="credential">
+    /// An existing credential to reuse. If null, creates a DefaultAzureCredential using the configured exclusions.
+    /// Exclusions do not apply to a supplied credential. Token caching and refresh remain the credential's responsibility.
+    /// </param>
+    /// <returns>The Artifact Signing key provider.</returns>
+    public ICoseSigningKeyProvider CreateProvider(
+        IConfiguration configuration,
+        IPluginLogger? logger,
+        TokenCredential? credential)
+    {
         // Extract required parameters
         string? endpoint = configuration["aas-endpoint"];
         string? accountName = configuration["aas-account-name"] ?? configuration["account-name"];
@@ -94,9 +111,8 @@ public class AzureArtifactSigningCertificateProviderPlugin : ICertificateProvide
             logger?.LogVerbose($"  Account: {accountName}");
             logger?.LogVerbose($"  Certificate Profile: {certProfileName}");
 
-            // Share the credential and its token cache with the MST proxy client in the combined command.
             // Chain behavior: https://learn.microsoft.com/en-us/dotnet/api/azure.identity.defaultazurecredential?view=azure-dotnet
-            TokenCredential credential = AzureCredentialFactory.GetCredential(
+            credential ??= AzureCredentialFactory.CreateCredential(
                 AzureCredentialFactory.GetExclusions(configuration),
                 logger);
 
@@ -191,8 +207,9 @@ Authentication:
   - Azure PowerShell (Connect-AzAccount)
   - Visual Studio credential
 
-  The credential instance is cached per exclusion set for the lifetime of the process, so repeated
-  signing operations reuse the resolved credential chain and its acquired tokens.
+  Programmatic callers can pass an existing TokenCredential to CreateProvider to reuse their
+  authentication object. Without one, this provider creates a DefaultAzureCredential.
+  Credential exclusions apply only when creating the default credential. There is no global cache.
   
   For CI/CD scenarios, configure environment variables or use managed identity.
   For local development, use 'az login' or Visual Studio authentication.

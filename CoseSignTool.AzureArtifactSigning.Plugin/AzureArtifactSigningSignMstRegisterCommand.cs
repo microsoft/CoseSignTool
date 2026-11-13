@@ -30,12 +30,13 @@ public sealed class AzureArtifactSigningSignMstRegisterCommand : PluginCommandBa
 {
     private static readonly JsonSerializerOptions ResultJsonOptions = new() { WriteIndented = true };
 
-    private readonly Func<Uri, IConfiguration, IPluginLogger, TransparencyClient> transparencyClientFactory;
+    private readonly Func<Uri, TokenCredential, TransparencyClient> transparencyClientFactory;
     private readonly Func<Stream> openStandardInput;
     private readonly Func<
         Stream,
         IConfiguration,
         IPluginLogger,
+        TokenCredential,
         string,
         HashAlgorithmName,
         RSASignaturePadding,
@@ -52,11 +53,12 @@ public sealed class AzureArtifactSigningSignMstRegisterCommand : PluginCommandBa
     }
 
     internal AzureArtifactSigningSignMstRegisterCommand(
-        Func<Uri, IConfiguration, IPluginLogger, TransparencyClient> transparencyClientFactory,
+        Func<Uri, TokenCredential, TransparencyClient> transparencyClientFactory,
         Func<
             Stream,
             IConfiguration,
             IPluginLogger,
+            TokenCredential,
             string,
             HashAlgorithmName,
             RSASignaturePadding,
@@ -119,8 +121,27 @@ public sealed class AzureArtifactSigningSignMstRegisterCommand : PluginCommandBa
     }
 
     /// <inheritdoc/>
-    public override async Task<PluginExitCode> ExecuteAsync(
+    public override Task<PluginExitCode> ExecuteAsync(
         IConfiguration configuration,
+        CancellationToken cancellationToken = default)
+    {
+        return this.ExecuteAsync(configuration, credential: null, cancellationToken);
+    }
+
+    /// <summary>
+    /// Signs and registers a payload using a caller-supplied credential when available.
+    /// </summary>
+    /// <param name="configuration">The signing and MST registration configuration.</param>
+    /// <param name="credential">
+    /// An existing credential shared by the signing and MST clients. If null, creates one DefaultAzureCredential
+    /// using the configured exclusions. Exclusions do not apply to a supplied credential.
+    /// SDK clients may still request tokens; token caching and refresh remain the credential's responsibility.
+    /// </param>
+    /// <param name="cancellationToken">Token to cancel the operation.</param>
+    /// <returns>The command exit code.</returns>
+    public async Task<PluginExitCode> ExecuteAsync(
+        IConfiguration configuration,
+        TokenCredential? credential,
         CancellationToken cancellationToken = default)
     {
         try
@@ -165,10 +186,11 @@ public sealed class AzureArtifactSigningSignMstRegisterCommand : PluginCommandBa
                 return PluginExitCode.UserSpecifiedFileNotFound;
             }
 
-            IReadOnlyList<string> excludedCredentials = AzureCredentialFactory.GetExclusions(configuration);
-            // Validate exclusions and cache the credential before signing; this does not acquire a token.
+            // Validate default-credential exclusions before signing; construction does not acquire a token.
             // Credential-chain behavior: https://learn.microsoft.com/en-us/dotnet/api/azure.identity.defaultazurecredential?view=azure-dotnet
-            _ = AzureCredentialFactory.GetCredential(excludedCredentials, Logger);
+            credential ??= AzureCredentialFactory.CreateCredential(
+                AzureCredentialFactory.GetExclusions(configuration),
+                Logger);
 
             HashAlgorithmName hashAlgorithm;
             RSASignaturePadding rsaSignaturePadding;
@@ -189,7 +211,7 @@ public sealed class AzureArtifactSigningSignMstRegisterCommand : PluginCommandBa
             using CancellationTokenSource linkedCts =
                 CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
 
-            TransparencyClient client = this.transparencyClientFactory(proxyEndpointUri!, configuration, Logger);
+            TransparencyClient client = this.transparencyClientFactory(proxyEndpointUri!, credential);
 
             Logger.LogInformation("Signing payload with Azure Artifact Signing...");
             Logger.LogVerbose($"  Signing endpoint: {aasEndpointUri}");
@@ -204,6 +226,7 @@ public sealed class AzureArtifactSigningSignMstRegisterCommand : PluginCommandBa
                     payloadStream,
                     configuration,
                     Logger,
+                    credential,
                     contentType,
                     hashAlgorithm,
                     rsaSignaturePadding,
@@ -348,6 +371,7 @@ public sealed class AzureArtifactSigningSignMstRegisterCommand : PluginCommandBa
         Stream payload,
         IConfiguration configuration,
         IPluginLogger logger,
+        TokenCredential credential,
         string contentType,
         HashAlgorithmName hashAlgorithm,
         RSASignaturePadding rsaSignaturePadding,
@@ -355,7 +379,7 @@ public sealed class AzureArtifactSigningSignMstRegisterCommand : PluginCommandBa
         CancellationToken cancellationToken)
     {
         AzureArtifactSigningCertificateProviderPlugin providerPlugin = new();
-        ICoseSigningKeyProvider signingKeyProvider = providerPlugin.CreateProvider(configuration, logger);
+        ICoseSigningKeyProvider signingKeyProvider = providerPlugin.CreateProvider(configuration, logger, credential);
         CoseSign1MessageFactory messageFactory = new();
         CoseSign1MessageSigningOptions signingOptions = new()
         {
@@ -375,12 +399,8 @@ public sealed class AzureArtifactSigningSignMstRegisterCommand : PluginCommandBa
 
     private static TransparencyClient CreateTransparencyClient(
         Uri endpoint,
-        IConfiguration configuration,
-        IPluginLogger logger)
+        TokenCredential credential)
     {
-        TokenCredential credential = AzureCredentialFactory.GetCredential(
-            AzureCredentialFactory.GetExclusions(configuration),
-            logger);
         return new TransparencyClient(credential, endpoint);
     }
 

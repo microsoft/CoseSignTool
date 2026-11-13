@@ -296,7 +296,7 @@ Microsoft's cloud-based signing service providing managed certificates, FIPS 140
 * **--aas-endpoint** - Azure Artifact Signing endpoint URL (e.g., `https://contoso.codesigning.azure.net`)
 * **--aas-account-name** - Azure Artifact Signing account name
 * **--aas-cert-profile-name** - Certificate profile name within the account
-* **--aas-exclude-credentials** - Comma-separated credentials to exclude from the `DefaultAzureCredential` chain (e.g., `ManagedIdentityCredential`). May also be supplied as a JSON array under the `ExcludeCredentials` section. Credentials are cached per exclusion set for the process lifetime, allowing the combined sign-and-register command to share its credential and token cache. See [DefaultAzureCredential](https://learn.microsoft.com/en-us/dotnet/api/azure.identity.defaultazurecredential?view=azure-dotnet) for credential-chain behavior and instance-reuse guidance.
+* **--aas-exclude-credentials** - Comma-separated credentials to exclude from the `DefaultAzureCredential` chain (e.g., `ManagedIdentityCredential`). May also be supplied as a JSON array under the `ExcludeCredentials` section. The combined sign-and-register command shares one credential per invocation without a global cache. Programmatic callers can pass an existing `TokenCredential` to the command or certificate provider; exclusions apply only when creating the default credential. See [DefaultAzureCredential](https://learn.microsoft.com/en-us/dotnet/api/azure.identity.defaultazurecredential?view=azure-dotnet) for credential-chain behavior and instance-reuse guidance.
 
 **Authentication:**
 Azure Artifact Signing uses Azure DefaultAzureCredential, which automatically tries:

@@ -8,6 +8,7 @@ using System.Security.Cryptography.Cose;
 using System.Text.Json;
 using Azure;
 using Azure.ArtifactSigning.MST;
+using Azure.Core;
 using CoseSign1.Abstractions.Interfaces;
 using CoseSign1.Transparent.Extensions;
 using CoseSignTool.Abstractions;
@@ -47,7 +48,7 @@ public class AzureArtifactSigningSignMstRegisterCommandTests
     {
         int clientCreationCount = 0;
         AzureArtifactSigningSignMstRegisterCommand command = new(
-            (_, _, _) =>
+            (_, _) =>
             {
                 clientCreationCount++;
                 return new RecordingTransparencyClient(Array.Empty<byte>());
@@ -87,9 +88,13 @@ public class AzureArtifactSigningSignMstRegisterCommandTests
     /// Verifies that the original statement is registered and the persisted statement contains the returned receipt.
     /// </summary>
     [DataTestMethod]
-    [DataRow(true)]
-    [DataRow(false)]
-    public async Task ExecuteAsync_WithValidArguments_RegistersOriginalAndWritesTransparentStatement(bool seekableReceipt)
+    [DataRow(true, false)]
+    [DataRow(false, false)]
+    [DataRow(true, true)]
+    [DataRow(false, true)]
+    public async Task ExecuteAsync_WithValidArguments_RegistersOriginalAndWritesTransparentStatement(
+        bool seekableReceipt,
+        bool useSuppliedCredential)
     {
         using RSA rsa = RSA.Create(2048);
         CoseSigner signer = new(rsa, RSASignaturePadding.Pss, HashAlgorithmName.SHA256);
@@ -106,9 +111,16 @@ public class AzureArtifactSigningSignMstRegisterCommandTests
         HashAlgorithmName capturedHashAlgorithm = default;
         RSASignaturePadding? capturedRsaSignaturePadding = null;
         ICoseHeaderExtender? capturedHeaderExtender = null;
+        TokenCredential? suppliedCredential = useSuppliedCredential ? new Mock<TokenCredential>(MockBehavior.Strict).Object : null;
+        TokenCredential? signingCredential = null;
+        TokenCredential? registrationCredential = null;
         AzureArtifactSigningSignMstRegisterCommand command = new(
-            (_, _, _) => client,
-            async (payload, _, _, contentType, hashAlgorithm, rsaSignaturePadding, headerExtender, cancellationToken) =>
+            (_, credential) =>
+            {
+                registrationCredential = credential;
+                return client;
+            },
+            async (payload, _, _, credential, contentType, hashAlgorithm, rsaSignaturePadding, headerExtender, cancellationToken) =>
             {
                 using MemoryStream payloadBuffer = new();
                 await payload.CopyToAsync(payloadBuffer, cancellationToken);
@@ -117,6 +129,7 @@ public class AzureArtifactSigningSignMstRegisterCommandTests
                 capturedHashAlgorithm = hashAlgorithm;
                 capturedRsaSignaturePadding = rsaSignaturePadding;
                 capturedHeaderExtender = headerExtender;
+                signingCredential = credential;
                 return statementBuffer.AsMemory(1, statementBytes.Length);
             });
         IConfigurationRoot configuration = CreateConfiguration(
@@ -127,6 +140,7 @@ public class AzureArtifactSigningSignMstRegisterCommandTests
             hashAlgorithm: "SHA384",
             rsaSignaturePadding: "PKCS1",
             outputPath: outputPath,
+            excludedCredentials: useSuppliedCredential ? "NotARealCredential" : "ManagedIdentityCredential",
             cborProtectedHeaders: "external-signatures=RAECAwQ=");
 
         try
@@ -135,9 +149,18 @@ public class AzureArtifactSigningSignMstRegisterCommandTests
             await File.WriteAllBytesAsync(payloadPath, payloadBytes);
             await File.WriteAllTextAsync(outputPath, new string(' ', 4096));
 
-            PluginExitCode result = await command.ExecuteAsync(configuration);
+            PluginExitCode result = useSuppliedCredential
+                ? await command.ExecuteAsync(configuration, suppliedCredential)
+                : await command.ExecuteAsync(configuration);
 
             Assert.AreEqual(PluginExitCode.Success, result);
+            Assert.IsNotNull(signingCredential);
+            Assert.AreSame(signingCredential, registrationCredential);
+            if (useSuppliedCredential)
+            {
+                Assert.AreSame(suppliedCredential, signingCredential);
+            }
+
             CollectionAssert.AreEqual(payloadBytes, signedPayload);
             CollectionAssert.AreEqual(statementBytes, client.SubmittedData);
             Assert.AreEqual("test-account", client.AccountName);
@@ -185,8 +208,8 @@ public class AzureArtifactSigningSignMstRegisterCommandTests
         RecordingTransparencyClient client = new(
             new RequestFailedException(500, "Registration failed.", "InternalServerError", null));
         AzureArtifactSigningSignMstRegisterCommand command = new(
-            (_, _, _) => client,
-            (_, _, _, _, _, _, _, _) => Task.FromResult<ReadOnlyMemory<byte>>(statementBytes));
+            (_, _) => client,
+            (_, _, _, _, _, _, _, _, _) => Task.FromResult<ReadOnlyMemory<byte>>(statementBytes));
         IConfigurationRoot configuration = CreateConfiguration(payloadPath, signaturePath);
 
         try
@@ -216,8 +239,8 @@ public class AzureArtifactSigningSignMstRegisterCommandTests
         string signaturePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.cose");
         RecordingTransparencyClient client = new(Array.Empty<byte>());
         AzureArtifactSigningSignMstRegisterCommand command = new(
-            (_, _, _) => client,
-            (_, _, _, _, _, _, _, _) => throw new InvalidOperationException("Signing failed."));
+            (_, _) => client,
+            (_, _, _, _, _, _, _, _, _) => throw new InvalidOperationException("Signing failed."));
         IConfigurationRoot configuration = CreateConfiguration(payloadPath, signaturePath);
 
         try
@@ -246,8 +269,8 @@ public class AzureArtifactSigningSignMstRegisterCommandTests
         string payloadPath = Path.GetTempFileName();
         string signaturePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.cose");
         AzureArtifactSigningSignMstRegisterCommand command = new(
-            (_, _, _) => throw new InvalidOperationException("Client construction failed."),
-            (_, _, _, _, _, _, _, _) => throw new AssertFailedException("Signing should not start."));
+            (_, _) => throw new InvalidOperationException("Client construction failed."),
+            (_, _, _, _, _, _, _, _, _) => throw new AssertFailedException("Signing should not start."));
 
         try
         {
@@ -279,8 +302,8 @@ public class AzureArtifactSigningSignMstRegisterCommandTests
         string signaturePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.cose");
         RecordingTransparencyClient client = new(receiptBytes);
         AzureArtifactSigningSignMstRegisterCommand command = new(
-            (_, _, _) => client,
-            async (payload, _, _, _, _, _, _, cancellationToken) =>
+            (_, _) => client,
+            async (payload, _, _, _, _, _, _, _, cancellationToken) =>
             {
                 using MemoryStream buffer = new();
                 await payload.CopyToAsync(buffer, cancellationToken);
@@ -317,8 +340,8 @@ public class AzureArtifactSigningSignMstRegisterCommandTests
         string signaturePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.cose");
         RecordingTransparencyClient client = new(Array.Empty<byte>(), seekableReceipt);
         AzureArtifactSigningSignMstRegisterCommand command = new(
-            (_, _, _) => client,
-            (_, _, _, _, _, _, _, _) => Task.FromResult<ReadOnlyMemory<byte>>(Array.Empty<byte>()));
+            (_, _) => client,
+            (_, _, _, _, _, _, _, _, _) => Task.FromResult<ReadOnlyMemory<byte>>(Array.Empty<byte>()));
 
         try
         {
@@ -342,8 +365,8 @@ public class AzureArtifactSigningSignMstRegisterCommandTests
     {
         bool signingStarted = false;
         AzureArtifactSigningSignMstRegisterCommand command = new(
-            (_, _, _) => throw new AssertFailedException("Client should not be created."),
-            (_, _, _, _, _, _, _, _) =>
+            (_, _) => throw new AssertFailedException("Client should not be created."),
+            (_, _, _, _, _, _, _, _, _) =>
             {
                 signingStarted = true;
                 return Task.FromResult<ReadOnlyMemory<byte>>(Array.Empty<byte>());
@@ -477,8 +500,8 @@ public class AzureArtifactSigningSignMstRegisterCommandTests
     private static AzureArtifactSigningSignMstRegisterCommand CreateCommandThatMustNotRun()
     {
         return new AzureArtifactSigningSignMstRegisterCommand(
-            (_, _, _) => throw new AssertFailedException("Client should not be created."),
-            (_, _, _, _, _, _, _, _) => throw new AssertFailedException("Signing should not start."));
+            (_, _) => throw new AssertFailedException("Client should not be created."),
+            (_, _, _, _, _, _, _, _, _) => throw new AssertFailedException("Signing should not start."));
     }
 
     private static IConfigurationRoot CreateConfiguration(

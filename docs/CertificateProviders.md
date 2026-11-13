@@ -230,7 +230,7 @@ done
 | `--aas-cert-profile-name` | | Yes | Certificate profile name within the account |
 | `--aas-exclude-credentials` | | No | Comma-separated credentials to exclude from the `DefaultAzureCredential` chain (e.g., `ManagedIdentityCredential`). |
 
-#### Excluding credentials and reusing the credential cache
+#### Excluding credentials and reusing authentication
 
 `DefaultAzureCredential` probes each credential in its chain in order, and a credential that cannot
 succeed in the current environment still costs a timeout before the chain moves on. Excluding the
@@ -262,12 +262,28 @@ Credential names are case-insensitive and the trailing `Credential` is optional,
 `SharedTokenCacheCredential`, `VisualStudioCredential`, `VisualStudioCodeCredential`, and
 `WorkloadIdentityCredential`.
 
-Credentials are cached per distinct exclusion set for the lifetime of the process. Even for a single
-payload, `aas_sign_mst_register` shares one credential between its signing provider and MST proxy client,
-preserving the selected credential and token cache. Token reuse depends on the requested scope and
-token validity; the cache does not persist between CLI invocations. See
+`aas_sign_mst_register` uses one credential per invocation and passes that same instance to both
+its signing provider and MST proxy client. There is no process-wide credential cache. See
 [DefaultAzureCredential](https://learn.microsoft.com/en-us/dotnet/api/azure.identity.defaultazurecredential?view=azure-dotnet)
 for credential-chain behavior and instance-reuse guidance.
+
+Programmatic callers can supply an existing `Azure.Core.TokenCredential`, including a credential
+that maintains its own token cache, instead of creating a new authentication object for each operation:
+
+```csharp
+// credential is an existing TokenCredential owned by the caller.
+await command.ExecuteAsync(configuration, credential);
+
+// For signing without MST, pass the credential directly to the certificate provider.
+ICoseSigningKeyProvider signingProvider = providerPlugin.CreateProvider(configuration, logger: null, credential: credential);
+```
+
+These are separate entry points: the combined command creates its own signing provider, while
+`CreateProvider` alone does not construct an MST client. Credential exclusions apply only when no
+credential is supplied and the plugin creates a `DefaultAzureCredential`. SDK clients may still call
+`GetToken` or `GetTokenAsync`; the supplied credential controls token caching and refresh, and token
+reuse depends on the requested scope and validity. Authentication objects are passed in memory,
+not through command-line token or secret arguments.
 
 #### Signing and registering with MST through Azure Artifact Signing
 

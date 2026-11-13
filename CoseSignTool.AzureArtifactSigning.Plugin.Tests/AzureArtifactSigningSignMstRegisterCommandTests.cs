@@ -5,6 +5,7 @@ namespace CoseSignTool.AzureArtifactSigning.Plugin.Tests;
 
 using System.Security.Cryptography;
 using System.Security.Cryptography.Cose;
+using System.Text.Json;
 using Azure;
 using Azure.ArtifactSigning.MST;
 using CoseSign1.Abstractions.Interfaces;
@@ -36,6 +37,25 @@ public class AzureArtifactSigningSignMstRegisterCommandTests
 
         Assert.AreEqual("aas_sign_mst_register", command.Name);
         Assert.IsInstanceOfType<AzureArtifactSigningSignMstRegisterCommand>(command);
+    }
+
+    /// <summary>
+    /// Verifies command discovery and option inspection do not construct an MST client.
+    /// </summary>
+    [TestMethod]
+    public void ConstructorAndOptions_DoNotCreateTransparencyClient()
+    {
+        int clientCreationCount = 0;
+        AzureArtifactSigningSignMstRegisterCommand command = new(
+            (_, _, _) =>
+            {
+                clientCreationCount++;
+                return new RecordingTransparencyClient(Array.Empty<byte>());
+            });
+
+        _ = command.Options;
+
+        Assert.AreEqual(0, clientCreationCount);
     }
 
     /// <summary>
@@ -77,6 +97,7 @@ public class AzureArtifactSigningSignMstRegisterCommandTests
         byte[] receiptBytes = new byte[] { 0xD8, 0x63, 0x81, 0x01 };
         string payloadPath = Path.GetTempFileName();
         string signaturePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.cose");
+        string outputPath = Path.GetTempFileName();
         RecordingTransparencyClient client = new(receiptBytes, seekableReceipt);
         byte[] statementBuffer = new byte[statementBytes.Length + 2];
         statementBytes.CopyTo(statementBuffer, 1);
@@ -105,12 +126,14 @@ public class AzureArtifactSigningSignMstRegisterCommandTests
             contentType: "application/spdx+json",
             hashAlgorithm: "SHA384",
             rsaSignaturePadding: "PKCS1",
+            outputPath: outputPath,
             cborProtectedHeaders: "external-signatures=RAECAwQ=");
 
         try
         {
             byte[] payloadBytes = "payload"u8.ToArray();
             await File.WriteAllBytesAsync(payloadPath, payloadBytes);
+            await File.WriteAllTextAsync(outputPath, new string(' ', 4096));
 
             PluginExitCode result = await command.ExecuteAsync(configuration);
 
@@ -135,11 +158,16 @@ public class AzureArtifactSigningSignMstRegisterCommandTests
             Assert.IsTrue(transparentStatement.TryGetReceipts(out List<byte[]>? receipts));
             Assert.AreEqual(1, receipts!.Count);
             CollectionAssert.AreEqual(receiptBytes, receipts[0]);
+
+            using JsonDocument output = JsonDocument.Parse(await File.ReadAllTextAsync(outputPath));
+            Assert.AreEqual(signaturePath, output.RootElement.GetProperty("SignaturePath").GetString());
+            CollectionAssert.AreEqual(receiptBytes, output.RootElement.GetProperty("TransparencyReceipt").GetBytesFromBase64());
         }
         finally
         {
             File.Delete(payloadPath);
             File.Delete(signaturePath);
+            File.Delete(outputPath);
         }
     }
 

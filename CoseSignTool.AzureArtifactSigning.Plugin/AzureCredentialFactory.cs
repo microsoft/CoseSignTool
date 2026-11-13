@@ -74,8 +74,8 @@ public static class AzureCredentialFactory
     /// <summary>
     /// Gets the names that may be supplied to exclude a credential, in documentation order.
     /// </summary>
-    public static IReadOnlyList<string> SupportedExclusionNames =>
-        ExclusionSetters.Keys.Select(name => name + "Credential").OrderBy(name => name, StringComparer.Ordinal).ToList();
+    public static IReadOnlyList<string> SupportedExclusionNames { get; } = Array.AsReadOnly(
+        ExclusionSetters.Keys.Select(name => name + "Credential").OrderBy(name => name, StringComparer.Ordinal).ToArray());
 
     /// <summary>
     /// Reads the credential exclusions from configuration.
@@ -95,23 +95,23 @@ public static class AzureCredentialFactory
             throw new ArgumentNullException(nameof(configuration));
         }
 
-        List<string> exclusions = new();
-
+        IReadOnlyList<string> commandLineExclusions = Array.Empty<string>();
         string? commandLineValue = configuration[ExcludeCredentialsKey];
         if (!string.IsNullOrWhiteSpace(commandLineValue))
         {
-            exclusions.AddRange(commandLineValue.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+            commandLineExclusions = commandLineValue.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         }
 
+        List<string>? exclusions = null;
         foreach (IConfigurationSection child in configuration.GetSection(ExcludeCredentialsSection).GetChildren())
         {
             if (!string.IsNullOrWhiteSpace(child.Value))
             {
-                exclusions.Add(child.Value.Trim());
+                (exclusions ??= new(commandLineExclusions)).Add(child.Value.Trim());
             }
         }
 
-        return exclusions;
+        return exclusions is null ? commandLineExclusions : exclusions;
     }
 
     /// <summary>
@@ -131,7 +131,7 @@ public static class AzureCredentialFactory
     /// </example>
     public static TokenCredential GetCredential(IEnumerable<string>? excludeCredentials, IPluginLogger? logger = null)
     {
-        IReadOnlyList<string> normalized = NormalizeExclusions(excludeCredentials);
+        IReadOnlyCollection<string> normalized = NormalizeExclusions(excludeCredentials);
         string cacheKey = string.Join(",", normalized);
 
         if (CredentialCache.TryGetValue(cacheKey, out TokenCredential? cached))
@@ -140,7 +140,10 @@ public static class AzureCredentialFactory
             return cached;
         }
 
-        return CredentialCache.GetOrAdd(cacheKey, _ => CreateCredential(normalized, logger));
+        return CredentialCache.GetOrAdd(
+            cacheKey,
+            static (_, state) => CreateCredential(state.normalized, state.logger),
+            (normalized, logger));
     }
 
     /// <summary>
@@ -158,9 +161,9 @@ public static class AzureCredentialFactory
     /// <param name="excludeCredentials">The raw exclusion names.</param>
     /// <returns>The canonical names, sorted and de-duplicated so equivalent requests share a cache entry.</returns>
     /// <exception cref="ArgumentException">Thrown when a name is not recognized.</exception>
-    private static IReadOnlyList<string> NormalizeExclusions(IEnumerable<string>? excludeCredentials)
+    private static IReadOnlyCollection<string> NormalizeExclusions(IEnumerable<string>? excludeCredentials)
     {
-        if (excludeCredentials is null)
+        if (excludeCredentials is null || excludeCredentials is IReadOnlyCollection<string> { Count: 0 })
         {
             return Array.Empty<string>();
         }
@@ -188,10 +191,17 @@ public static class AzureCredentialFactory
             }
 
             // Store the canonical casing from the lookup so cache keys are stable across input casings.
-            normalized.Add(ExclusionSetters.Keys.First(key => string.Equals(key, candidate, StringComparison.OrdinalIgnoreCase)));
+            foreach (string key in ExclusionSetters.Keys)
+            {
+                if (string.Equals(key, candidate, StringComparison.OrdinalIgnoreCase))
+                {
+                    normalized.Add(key);
+                    break;
+                }
+            }
         }
 
-        return normalized.ToList();
+        return normalized;
     }
 
     /// <summary>
@@ -200,7 +210,7 @@ public static class AzureCredentialFactory
     /// <param name="normalizedExclusions">The canonical exclusion names.</param>
     /// <param name="logger">Optional logger for diagnostic output.</param>
     /// <returns>The new credential.</returns>
-    private static TokenCredential CreateCredential(IReadOnlyList<string> normalizedExclusions, IPluginLogger? logger)
+    private static TokenCredential CreateCredential(IReadOnlyCollection<string> normalizedExclusions, IPluginLogger? logger)
     {
         logger?.LogVerbose("Acquiring Azure credentials using DefaultAzureCredential...");
 

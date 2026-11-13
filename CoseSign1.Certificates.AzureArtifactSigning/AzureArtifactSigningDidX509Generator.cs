@@ -93,12 +93,9 @@ public class AzureArtifactSigningDidX509Generator : DidX509Generator
 
         // Azure Artifact Signing emits tenant-scoped EKUs first and profile-scoped EKUs last.
         // Selecting the tenant entry would produce an issuer broader than the ledger policy.
-        List<string> artifactSigningEkus = microsoftEkus
-            .Where(eku => eku.StartsWith(AzureArtifactSigningEkuPrefix, StringComparison.OrdinalIgnoreCase))
-            .ToList();
-        string selectedEku = artifactSigningEkus.Count > 0
-            ? artifactSigningEkus[artifactSigningEkus.Count - 1]
-            : SelectDeepestGreatestEku(microsoftEkus);
+        string selectedEku = microsoftEkus
+            .LastOrDefault(eku => eku.StartsWith(AzureArtifactSigningEkuPrefix, StringComparison.OrdinalIgnoreCase))
+            ?? SelectDeepestGreatestEku(microsoftEkus);
 
         // Replace the ::subject: portion with ::eku:{oid}
         // Per spec: policy-value for EKU is just the OID, not percent-encoded

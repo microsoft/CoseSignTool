@@ -28,6 +28,8 @@ using AuthenticationFailedException = IdentityAlias::Azure.Identity.Authenticati
 /// </summary>
 public sealed class AzureArtifactSigningSignMstRegisterCommand : PluginCommandBase
 {
+    private static readonly JsonSerializerOptions ResultJsonOptions = new() { WriteIndented = true };
+
     private readonly Func<Uri, IConfiguration, IPluginLogger, TransparencyClient> transparencyClientFactory;
     private readonly Func<Stream> openStandardInput;
     private readonly Func<
@@ -263,11 +265,16 @@ public sealed class AzureArtifactSigningSignMstRegisterCommand : PluginCommandBa
                     PayloadPath = payloadPath,
                     SignaturePath = signaturePath,
                     RegistrationTime = DateTime.UtcNow,
-                    TransparencyReceipt = Convert.ToBase64String(receipt),
+                    TransparencyReceipt = receipt,
                 };
 
-                string json = JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true });
-                await File.WriteAllTextAsync(outputPath, json, linkedCts.Token).ConfigureAwait(false);
+                await using (FileStream resultStream = new(
+                    outputPath,
+                    new FileStreamOptions { Mode = FileMode.Create, Access = FileAccess.Write, Options = FileOptions.Asynchronous }))
+                {
+                    await JsonSerializer.SerializeAsync(resultStream, result, ResultJsonOptions, linkedCts.Token).ConfigureAwait(false);
+                }
+
                 Logger.LogInformation($"Result written to: {outputPath}");
             }
 

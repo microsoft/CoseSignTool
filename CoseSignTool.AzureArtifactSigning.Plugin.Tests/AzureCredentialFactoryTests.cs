@@ -61,6 +61,25 @@ public class AzureCredentialFactoryTests
     }
 
     /// <summary>
+    /// Verifies the common cache-hit path does not allocate normalization collections or a closure.
+    /// </summary>
+    [DataTestMethod]
+    [DataRow(true)]
+    [DataRow(false)]
+    public void GetCredential_CachedWithoutExclusions_DoesNotAllocate(bool useNull)
+    {
+        string[]? exclusions = useNull ? null : Array.Empty<string>();
+        TokenCredential credential = AzureCredentialFactory.GetCredential(exclusions);
+
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        TokenCredential cached = AzureCredentialFactory.GetCredential(exclusions);
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+        Assert.AreSame(credential, cached);
+        Assert.AreEqual(0L, allocated);
+    }
+
+    /// <summary>
     /// Verifies that different exclusion sets get their own credential, since they configure
     /// different chains.
     /// </summary>

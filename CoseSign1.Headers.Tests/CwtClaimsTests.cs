@@ -13,27 +13,6 @@ namespace CoseSign1.Headers.Tests;
 public class CwtClaimsTests
 {
     [Test]
-    public void FromCborBytes_WithSlicedMemory_ParsesAndOwnsClaimBytes()
-    {
-        CborWriter writer = new();
-        writer.WriteStartMap(2);
-        writer.WriteInt32(CWTClaimsHeaderLabels.Issuer);
-        writer.WriteTextString("issuer");
-        writer.WriteInt32(CWTClaimsHeaderLabels.CWTID);
-        writer.WriteByteString(new byte[] { 1, 2, 3 });
-        writer.WriteEndMap();
-        byte[] encoded = writer.Encode();
-        byte[] buffer = new byte[encoded.Length + 2];
-        encoded.CopyTo(buffer, 1);
-
-        CwtClaims claims = CwtClaims.FromCborBytes(buffer.AsMemory(1, encoded.Length));
-        Array.Clear(buffer, 0, buffer.Length);
-
-        Assert.That(claims.Issuer, Is.EqualTo("issuer"));
-        Assert.That(claims.CwtId, Is.EqualTo(new byte[] { 1, 2, 3 }));
-    }
-
-    [Test]
     public void FromCborBytes_WithAllStandardClaims_ParsesCorrectly()
     {
         // Arrange

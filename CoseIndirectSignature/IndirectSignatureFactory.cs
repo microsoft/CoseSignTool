@@ -5,8 +5,6 @@
 
 namespace CoseIndirectSignature;
 
-using System.Runtime.InteropServices;
-
 /// <summary>
 /// Class used to construct <see cref="CoseSign1Message"/> objects which contain a indirect signature of a given payload.
 /// </summary>
@@ -334,20 +332,12 @@ public sealed partial class IndirectSignatureFactory : IDisposable
 
         // initialize and compute the hash
         using HashAlgorithm hashAlgorithmImpl = GetHashAlgorithmFromCoseHashAlgorithm(hashAlgorithm);
-        byte[] hash = stream != null ? hashAlgorithmImpl.ComputeHash(stream) : ComputeHash(hashAlgorithmImpl, data!.Value);
+        byte[] hash = stream != null ? hashAlgorithmImpl.ComputeHash(stream) : hashAlgorithmImpl.ComputeHash(data!.Value.ToArray());
 
         // handle the case where the algorithm we derived did not match the algorithm that was used to populate the CoseHashV instance.
         return hash.Length != hashValue.Length
             ? throw new CoseSign1Exception($@"The computed hash length of {hash.Length} for hash type {hashAlgorithm.GetType().FullName} created a hash different than the length of {hashValue.Length} which is unexpected.")
-            : hash.AsSpan().SequenceEqual(hashValue.Span);
-    }
-
-    internal static byte[] ComputeHash(HashAlgorithm algorithm, ReadOnlyMemory<byte> data)
-    {
-        // The netstandard2.0 hashing API needs an array; reuse its segment when available.
-        return MemoryMarshal.TryGetArray(data, out ArraySegment<byte> segment)
-            ? algorithm.ComputeHash(segment.Array!, segment.Offset, segment.Count)
-            : algorithm.ComputeHash(data.ToArray());
+            : hash.SequenceEqual(hashValue.ToArray());
     }
 
     /// <summary>

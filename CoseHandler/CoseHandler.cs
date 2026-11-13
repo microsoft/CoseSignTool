@@ -3,8 +3,6 @@
 
 namespace CoseX509;
 
-using System.Runtime.InteropServices;
-
 /// <summary>
 /// Contains static methods to generate and validate Cose X509 signatures.
 /// </summary>
@@ -307,7 +305,9 @@ public static class CoseHandler
             // Write to file if requested.
             if (signatureFile is not null)
             {
-                WriteSignatureFile(signatureFile.FullName, signedBytes);
+                // Use the static method here because signatureFile.OpenWrite().Write() was sometimes truncating the last byte from signedBytes.
+                //signatureFile.WriteAllBytesResilient(signedBytes.ToArray());
+                File.WriteAllBytes(signatureFile.FullName, signedBytes.ToArray());
             }
 
             return signedBytes;
@@ -378,7 +378,7 @@ public static class CoseHandler
             if (signatureFile is not null)
             {
                 // netstandard2.0 doesn't have File.WriteAllBytesAsync, so wrap synchronous call in Task.Run
-                await Task.Run(() => WriteSignatureFile(signatureFile.FullName, signedBytes), cancellationToken).ConfigureAwait(false);
+                await Task.Run(() => File.WriteAllBytes(signatureFile.FullName, signedBytes.ToArray()), cancellationToken).ConfigureAwait(false);
             }
 
             return signedBytes;
@@ -703,7 +703,7 @@ public static class CoseHandler
             CoseSign1Message? msg = null;
             try
             {
-                msg = CoseMessage.DecodeSign1(signatureBytes.Value.Span);
+                msg = CoseMessage.DecodeSign1(signatureBytes.Value.ToArray());
             }
             catch (CryptographicException)
             {
@@ -843,25 +843,9 @@ public static class CoseHandler
             return null;
         }
 
-        return MemoryMarshal.TryGetArray(payloadBytes.Value, out ArraySegment<byte> segment)
-            ? Encoding.UTF8.GetString(segment.Array!, segment.Offset, segment.Count)
-            : Encoding.UTF8.GetString(payloadBytes.Value.ToArray());
+        return Encoding.UTF8.GetString(payloadBytes.Value.ToArray());
     }
     #endregion
-
-    private static void WriteSignatureFile(string path, ReadOnlyMemory<byte> signature)
-    {
-        using FileStream output = File.Create(path);
-        if (MemoryMarshal.TryGetArray(signature, out ArraySegment<byte> segment))
-        {
-            output.Write(segment.Array!, segment.Offset, segment.Count);
-        }
-        else
-        {
-            byte[] bytes = signature.ToArray();
-            output.Write(bytes, 0, bytes.Length);
-        }
-    }
 
     /// <summary>
     /// Checks the local Certificate Store for a certificate matching the specified thumbprint.

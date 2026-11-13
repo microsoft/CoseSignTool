@@ -394,8 +394,8 @@ public class SignCommand : CoseCommand
             }
             else
             {
-                using FileStream signatureStream = File.Create(SignatureFile!.FullName);
-                signatureStream.Write(signedBytes.Span);
+                // SignatureFile?.WriteAllBytesResilient(signedBytes.ToArray());
+                File.WriteAllBytes(SignatureFile!.FullName, signedBytes.ToArray());
             }
 
             return ExitCode.Success;

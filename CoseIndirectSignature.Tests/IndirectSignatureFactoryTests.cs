@@ -3,9 +3,6 @@
 
 namespace CoseIndirectSignature.Tests;
 
-using System.Buffers;
-using System.Text;
-
 public class TestCoseHeaderExtender : ICoseHeaderExtender
 {
     public Func<CoseHeaderMap, CoseHeaderMap>? ExtendProtectedHeadersFunc { get; set; }
@@ -27,64 +24,6 @@ public class TestCoseHeaderExtender : ICoseHeaderExtender
 /// </summary>
 public class IndirectSignatureFactoryTests
 {
-    [Test]
-    public void ContentMatches_ArrayBackedPayload_DoesNotAllocatePayloadSizedCopy()
-    {
-        byte[] payload = new byte[1024 * 1024];
-        CoseHashV envelope = new(CoseHashAlgorithm.SHA256, readonlyData: payload);
-        envelope.ContentMatches(payload).Should().BeTrue();
-
-        long before = GC.GetAllocatedBytesForCurrentThread();
-        bool matches = envelope.ContentMatches(payload);
-        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
-
-        matches.Should().BeTrue();
-        allocated.Should().BeLessThan(payload.Length);
-    }
-
-#pragma warning disable CS0618 // Exercise the supported legacy formats as well as the current format.
-    [TestCase(IndirectSignatureFactory.IndirectSignatureVersion.Direct, true)]
-    [TestCase(IndirectSignatureFactory.IndirectSignatureVersion.Direct, false)]
-    [TestCase(IndirectSignatureFactory.IndirectSignatureVersion.CoseHashV, true)]
-    [TestCase(IndirectSignatureFactory.IndirectSignatureVersion.CoseHashV, false)]
-#pragma warning restore CS0618
-    [TestCase(IndirectSignatureFactory.IndirectSignatureVersion.CoseHashEnvelope, true)]
-    [TestCase(IndirectSignatureFactory.IndirectSignatureVersion.CoseHashEnvelope, false)]
-    public async Task CreateIndirectSignature_WithSlicedMemory_HashesOnlySlice(
-        IndirectSignatureFactory.IndirectSignatureVersion version, bool arrayBacked)
-    {
-        ICoseSigningKeyProvider keyProvider = TestUtils.SetupMockSigningKeyProvider();
-        using IndirectSignatureFactory factory = new();
-        byte[] buffer = Encoding.ASCII.GetBytes("prefixpayloadsuffix");
-        using NonArrayMemoryManager memoryManager = new(buffer);
-        ReadOnlyMemory<byte> payload = arrayBacked
-            ? buffer.AsMemory(6, 7)
-            : memoryManager.Memory.Slice(6, 7);
-
-        CoseSign1Message message = factory.CreateIndirectSignature(payload, keyProvider, "application/octet-stream", version);
-        CoseSign1Message asyncMessage = await factory.CreateIndirectSignatureAsync(payload, keyProvider, "application/octet-stream", version);
-
-        message.SignatureMatches(payload).Should().BeTrue();
-        message.SignatureMatches(buffer).Should().BeFalse();
-        asyncMessage.SignatureMatches(payload).Should().BeTrue();
-        asyncMessage.SignatureMatches(buffer).Should().BeFalse();
-    }
-
-    private sealed class NonArrayMemoryManager(byte[] buffer) : MemoryManager<byte>
-    {
-        public override Span<byte> GetSpan() => buffer;
-
-        public override MemoryHandle Pin(int elementIndex = 0) => throw new NotSupportedException();
-
-        public override void Unpin()
-        {
-        }
-
-        protected override void Dispose(bool disposing)
-        {
-        }
-    }
-
     [SetUp]
     public void Setup()
     {

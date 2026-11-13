@@ -20,26 +20,6 @@ public class CborProblemDetailsTests
     #region CborProblemDetails.TryParse
 
     [Test]
-    public void TryParse_WithSlicedMemory_ParsesOnlySlice()
-    {
-        CborWriter writer = new();
-        writer.WriteStartMap(1);
-        writer.WriteInt32(-2);
-        writer.WriteTextString("Bad Request");
-        writer.WriteEndMap();
-        byte[] encoded = writer.Encode();
-        byte[] buffer = new byte[encoded.Length + 2];
-        encoded.CopyTo(buffer, 1);
-
-        CborProblemDetails? details = CborProblemDetails.TryParse(buffer.AsMemory(1, encoded.Length));
-
-        Assert.That(details, Is.Not.Null);
-        Assert.That(details!.Title, Is.EqualTo("Bad Request"));
-        Assert.That(CborProblemDetails.TryParse(ReadOnlyMemory<byte>.Empty), Is.Null);
-        Assert.That(CborProblemDetails.TryParse(new ReadOnlyMemory<byte>(new byte[] { 0xFF })), Is.Null);
-    }
-
-    [Test]
     public void TryParse_ReturnsNull_ForNullInput()
     {
         Assert.That(CborProblemDetails.TryParse(null!), Is.Null);

@@ -110,17 +110,6 @@ public sealed class CwtClaims
             throw new ArgumentNullException(nameof(cborBytes));
         }
 
-        return FromCborBytes(cborBytes.AsMemory());
-    }
-
-    /// <summary>
-    /// Parses CWT claims from CBOR-encoded memory without copying the input buffer.
-    /// </summary>
-    /// <param name="cborBytes">The CBOR-encoded CWT claims map.</param>
-    /// <returns>The parsed claims.</returns>
-    /// <exception cref="CborContentException">Thrown when the CBOR data is malformed.</exception>
-    public static CwtClaims FromCborBytes(ReadOnlyMemory<byte> cborBytes)
-    {
         var reader = new CborReader(cborBytes);
         reader.ReadStartMap();
 

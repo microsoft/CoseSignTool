@@ -112,10 +112,7 @@ public abstract partial class CoseCommand
 
         // We have to copy 'options' to a StringDictionary here so we can reliably do case-insensitive comparison on user inputs.
         StringDictionary dict = [];
-        foreach (KeyValuePair<string, string> option in options)
-        {
-            dict[option.Key] = option.Value;
-        }
+        options.Keys.ToList().ForEach(k => dict[k] = options[k]);
 
         string[] fixedArgs = CleanArgs(args, dict);
         if (HasInvalidArgument(fixedArgs, dict, out badArg))
@@ -325,11 +322,10 @@ public abstract partial class CoseCommand
             throw new ArgumentException("Headers collection cannot be null");
         }
       
-        foreach (string header in inputs)
-        {
+        inputs.ToList().ForEach(header => {
             string[] labelValue = header.Split("=");
             headers.Add(new CoseHeader<TypeV>(labelValue[0], converter(labelValue), isProtected));
-        }
+        });
     }
 
     // One liner for file existence checks

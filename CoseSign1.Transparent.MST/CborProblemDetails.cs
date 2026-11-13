@@ -73,21 +73,6 @@ public class CborProblemDetails
             return null;
         }
 
-        return TryParse(cborBytes.AsMemory());
-    }
-
-    /// <summary>
-    /// Parses CBOR-encoded problem details without copying the input buffer.
-    /// </summary>
-    /// <param name="cborBytes">The CBOR-encoded problem details.</param>
-    /// <returns>The parsed problem details, or <c>null</c> if parsing fails.</returns>
-    public static CborProblemDetails? TryParse(ReadOnlyMemory<byte> cborBytes)
-    {
-        if (cborBytes.IsEmpty)
-        {
-            return null;
-        }
-
         try
         {
             var reader = new CborReader(cborBytes);

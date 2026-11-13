@@ -102,10 +102,11 @@ public class CertificateProviderPluginManager
         Assembly assembly = loadContext.LoadFromAssemblyPath(assemblyPath);
 
         // Find all types implementing ICertificateProviderPlugin
-        IEnumerable<Type> types = assembly.GetTypes()
+        Type[] types = assembly.GetTypes()
             .Where(t => typeof(ICertificateProviderPlugin).IsAssignableFrom(t)
                         && !t.IsInterface
-                        && !t.IsAbstract);
+                        && !t.IsAbstract)
+            .ToArray();
 
         foreach (Type type in types)
         {

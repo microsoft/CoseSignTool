@@ -168,7 +168,7 @@ public class X509ChainTrustValidator(
         // If we're here, chain build failed. We need to filter out the errors we're willing to ignore.
         // This is the result of building the certificate chain.
         CoseSign1ValidationResult baseResult = new (GetType(), false,
-            $"[{string.Join("][", ChainBuilder.ChainStatus.Select(cs => cs.StatusInformation))}]",
+            $"[{string.Join("][", ChainBuilder.ChainStatus.Select(cs => cs.StatusInformation).ToArray())}]",
             ChainBuilder.ChainStatus.Cast<object>().ToList());
 
         // Ignore failures from untrusted roots or expired certificates if the user tells us to.
@@ -181,9 +181,7 @@ public class X509ChainTrustValidator(
         flagsToIgnore |= trustUserRoot ? X509ChainStatusFlags.UntrustedRoot : 0;
 
         // If allowOutdated is set and none of the outdated certificates in the chain have a lifetime EKU, ignore NotTimeValid.
-        List<X509Certificate2>? outdatedCerts = allowOutdated
-            ? ChainBuilder.ChainElements?.Where(c => c.NotAfter < DateTime.Now).ToList()
-            : null;
+        List<X509Certificate2>? outdatedCerts = ChainBuilder.ChainElements?.Where(c => c.NotAfter < DateTime.Now).ToList();
         if (allowOutdated && outdatedCerts is not null && outdatedCerts.Count > 0)
         {
             bool chainHasLifetimeEku = outdatedCerts

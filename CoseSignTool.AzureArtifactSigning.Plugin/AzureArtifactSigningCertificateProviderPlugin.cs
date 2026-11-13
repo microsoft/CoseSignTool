@@ -7,12 +7,14 @@ extern alias IdentityAlias;
 
 namespace CoseSignTool.AzureArtifactSigning.Plugin;
 
+using System;
 using Azure.CodeSigning;
 using Azure.Core;
 using Azure.Developer.ArtifactSigning.CryptoProvider;
 using Azure.Developer.ArtifactSigning.CryptoProvider.Models;
 using CoseSign1.Certificates.AzureArtifactSigning;
-using System;
+using DefaultAzureCredential = IdentityAlias::Azure.Identity.DefaultAzureCredential;
+using DefaultAzureCredentialOptions = IdentityAlias::Azure.Identity.DefaultAzureCredentialOptions;
 
 /// <summary>
 /// Certificate provider plugin for Azure Artifact Signing service.
@@ -31,6 +33,27 @@ using System;
 /// </remarks>
 public class AzureArtifactSigningCertificateProviderPlugin : ICertificateProviderPlugin
 {
+    private const string ExcludeCredentialsKey = "aas-exclude-credentials";
+    private const string ExcludeCredentialsSection = "ExcludeCredentials";
+
+    private static readonly IReadOnlyDictionary<string, Action<DefaultAzureCredentialOptions>> ExclusionSetters =
+        new Dictionary<string, Action<DefaultAzureCredentialOptions>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Environment"] = options => options.ExcludeEnvironmentCredential = true,
+            ["WorkloadIdentity"] = options => options.ExcludeWorkloadIdentityCredential = true,
+            ["ManagedIdentity"] = options => options.ExcludeManagedIdentityCredential = true,
+            ["AzureDeveloperCli"] = options => options.ExcludeAzureDeveloperCliCredential = true,
+#pragma warning disable CS0618 // SharedTokenCacheCredential is deprecated but still a valid exclusion name.
+            ["SharedTokenCache"] = options => options.ExcludeSharedTokenCacheCredential = true,
+#pragma warning restore CS0618
+            ["InteractiveBrowser"] = options => options.ExcludeInteractiveBrowserCredential = true,
+            ["Broker"] = options => options.ExcludeBrokerCredential = true,
+            ["AzureCli"] = options => options.ExcludeAzureCliCredential = true,
+            ["VisualStudio"] = options => options.ExcludeVisualStudioCredential = true,
+            ["VisualStudioCode"] = options => options.ExcludeVisualStudioCodeCredential = true,
+            ["AzurePowerShell"] = options => options.ExcludeAzurePowerShellCredential = true,
+        };
+
     /// <inheritdoc/>
     public string ProviderName => "azure-artifact-signing";
 
@@ -45,7 +68,7 @@ public class AzureArtifactSigningCertificateProviderPlugin : ICertificateProvide
             ["--aas-endpoint"] = "aas-endpoint",
             ["--aas-account-name"] = "aas-account-name",
             ["--aas-cert-profile-name"] = "aas-cert-profile-name",
-            ["--aas-exclude-credentials"] = AzureCredentialFactory.ExcludeCredentialsKey,
+            ["--aas-exclude-credentials"] = ExcludeCredentialsKey,
         };
     }
 
@@ -112,9 +135,7 @@ public class AzureArtifactSigningCertificateProviderPlugin : ICertificateProvide
             logger?.LogVerbose($"  Certificate Profile: {certProfileName}");
 
             // Chain behavior: https://learn.microsoft.com/en-us/dotnet/api/azure.identity.defaultazurecredential?view=azure-dotnet
-            credential ??= AzureCredentialFactory.CreateCredential(
-                AzureCredentialFactory.GetExclusions(configuration),
-                logger);
+            credential ??= CreateDefaultCredential(configuration, logger);
 
             logger?.LogVerbose("Creating CertificateProfileClient...");
             // Create the Certificate Profile Client with fast-retry pipeline tuning so transient
@@ -169,6 +190,62 @@ public class AzureArtifactSigningCertificateProviderPlugin : ICertificateProvide
                 "and the specified endpoint, account name, and certificate profile are correct.",
                 ex);
         }
+    }
+
+    internal static TokenCredential CreateDefaultCredential(IConfiguration configuration, IPluginLogger? logger = null)
+    {
+        logger?.LogVerbose("Creating Azure credentials using DefaultAzureCredential...");
+        DefaultAzureCredentialOptions options = new()
+        {
+            // Exclude interactive browser auth to avoid unexpected prompts in CI/CD.
+            ExcludeInteractiveBrowserCredential = true
+        };
+
+        string? commandLineValue = configuration[ExcludeCredentialsKey];
+        if (!string.IsNullOrWhiteSpace(commandLineValue))
+        {
+            foreach (string name in commandLineValue.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                ApplyCredentialExclusion(name, options, logger);
+            }
+        }
+
+        foreach (IConfigurationSection child in configuration.GetSection(ExcludeCredentialsSection).GetChildren())
+        {
+            ApplyCredentialExclusion(child.Value, options, logger);
+        }
+
+        return new DefaultAzureCredential(options); // CodeQL [SM02196] DefaultAzureCredential is the recommended approach for client applications and libraries to authenticate to Azure services
+    }
+
+    private static void ApplyCredentialExclusion(
+        string? name,
+        DefaultAzureCredentialOptions options,
+        IPluginLogger? logger)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return;
+        }
+
+        string exclusion = name.Trim();
+        if (exclusion.EndsWith("Credential", StringComparison.OrdinalIgnoreCase))
+        {
+            exclusion = exclusion[..^"Credential".Length];
+        }
+
+        if (!ExclusionSetters.TryGetValue(exclusion, out Action<DefaultAzureCredentialOptions>? applyExclusion))
+        {
+            string supportedNames = string.Join(", ", ExclusionSetters.Keys
+                .Select(supportedName => supportedName + "Credential")
+                .OrderBy(supportedName => supportedName, StringComparer.Ordinal));
+            throw new ArgumentException(
+                $"'{name}' is not a recognized credential to exclude. Supported values are: {supportedNames}.",
+                nameof(name));
+        }
+
+        applyExclusion(options);
+        logger?.LogVerbose($"  Excluding {exclusion}Credential from the credential chain.");
     }
 
     /// <inheritdoc/>

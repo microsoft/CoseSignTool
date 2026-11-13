@@ -195,6 +195,57 @@ public class AzureArtifactSigningSignMstRegisterCommandTests
     }
 
     /// <summary>
+    /// Verifies supplied authentication bypasses default-chain settings without acquiring a token during provider creation.
+    /// </summary>
+    [TestMethod]
+    public void CreateProvider_WithSuppliedCredential_DoesNotCreateDefaultCredential()
+    {
+        IConfigurationRoot configuration = CreateConfiguration(
+            "payload.bin",
+            "statement.cose",
+            excludedCredentials: "NotARealCredential");
+        Mock<TokenCredential> credential = new(MockBehavior.Strict);
+        AzureArtifactSigningCertificateProviderPlugin plugin = new();
+
+        Assert.IsNotNull(plugin.CreateProvider(configuration, logger: null, credential: credential.Object));
+
+        credential.VerifyNoOtherCalls();
+    }
+
+    /// <summary>
+    /// Verifies CLI and JSON exclusions combine and honor all supported names, aliases, casing, blanks and duplicates.
+    /// </summary>
+    [TestMethod]
+    public void CreateProvider_WithAllCredentialsExcluded_RejectsEmptyCredentialChain()
+    {
+        IConfigurationRoot configuration = CreateConfiguration(
+            "payload.bin",
+            "statement.cose",
+            excludedCredentials: " environmentcredential , WorkloadIdentity, managedidentitycredential, AzureDeveloperCliCredential, SharedTokenCacheCredential, ,");
+        string[] jsonExclusions =
+        {
+            "InteractiveBrowserCredential",
+            "BrokerCredential",
+            "AzureCliCredential",
+            "VisualStudioCredential",
+            "VisualStudioCodeCredential",
+            "AzurePowerShellCredential",
+            " ",
+            " ManagedIdentityCredential "
+        };
+        for (int index = 0; index < jsonExclusions.Length; index++)
+        {
+            configuration[$"ExcludeCredentials:{index}"] = jsonExclusions[index];
+        }
+
+        AzureArtifactSigningCertificateProviderPlugin plugin = new();
+
+        ArgumentException exception = Assert.ThrowsException<ArgumentException>(() => plugin.CreateProvider(configuration));
+
+        StringAssert.Contains(exception.Message, "At least one credential type must be included");
+    }
+
+    /// <summary>
     /// Verifies that registration failure does not leave a non-transparent statement at the output path.
     /// </summary>
     [TestMethod]
@@ -443,8 +494,10 @@ public class AzureArtifactSigningSignMstRegisterCommandTests
     /// <summary>
     /// Verifies that the command uses the Artifact Signing credential exclusion validation.
     /// </summary>
-    [TestMethod]
-    public async Task ExecuteAsync_WithUnknownCredentialExclusion_ReturnsInvalidArgumentValue()
+    [DataTestMethod]
+    [DataRow(false)]
+    [DataRow(true)]
+    public async Task ExecuteAsync_WithUnknownCredentialExclusion_ReturnsInvalidArgumentValue(bool useJsonArray)
     {
         string payloadPath = Path.GetTempFileName();
         string signaturePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.cose");
@@ -452,7 +505,11 @@ public class AzureArtifactSigningSignMstRegisterCommandTests
         IConfigurationRoot configuration = CreateConfiguration(
             payloadPath,
             signaturePath,
-            excludedCredentials: "UnknownCredential");
+            excludedCredentials: useJsonArray ? null : "UnknownCredential");
+        if (useJsonArray)
+        {
+            configuration["ExcludeCredentials:0"] = "UnknownCredential";
+        }
 
         try
         {

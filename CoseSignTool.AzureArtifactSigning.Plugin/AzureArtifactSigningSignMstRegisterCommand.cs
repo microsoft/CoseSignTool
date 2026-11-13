@@ -188,9 +188,7 @@ public sealed class AzureArtifactSigningSignMstRegisterCommand : PluginCommandBa
 
             // Validate default-credential exclusions before signing; construction does not acquire a token.
             // Credential-chain behavior: https://learn.microsoft.com/en-us/dotnet/api/azure.identity.defaultazurecredential?view=azure-dotnet
-            credential ??= AzureCredentialFactory.CreateCredential(
-                AzureCredentialFactory.GetExclusions(configuration),
-                Logger);
+            credential ??= AzureArtifactSigningCertificateProviderPlugin.CreateDefaultCredential(configuration, Logger);
 
             HashAlgorithmName hashAlgorithm;
             RSASignaturePadding rsaSignaturePadding;

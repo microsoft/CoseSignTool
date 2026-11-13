@@ -3,6 +3,7 @@
 
 namespace CoseSign1;
 
+using System.Formats.Cbor;
 using System.Linq;
 using System.Threading;
 
@@ -100,7 +101,8 @@ public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactory
         ICoseSigningKeyProvider signingKeyProvider,
         string contentType = DEFAULT_CONTENT_TYPE,
         ICoseHeaderExtender? headerExtender = null,
-        CoseSign1MessageSigningOptions? signingOptions = null)
+        CoseSign1MessageSigningOptions? signingOptions = null,
+        RSA? rsaKeyOverride = null)
     {
         // Make sure we have something to sign with.
         if (signingKeyProvider == null)
@@ -108,14 +110,7 @@ public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactory
             throw new ArgumentNullException(null, "Signing key provider is not provided.");
         }
 
-        HashAlgorithmName signingHashAlgorithm =
-            signingOptions?.HashAlgorithm ?? this.hashAlgorithm ?? signingKeyProvider.HashAlgorithm;
-        if (signingKeyProvider is ISupportsHashAlgorithms supportedHashAlgorithms &&
-            !supportedHashAlgorithms.SupportedHashAlgorithms.Contains(signingHashAlgorithm))
-        {
-            throw new CoseSigningException(
-                $"The signing key provider does not support the requested hash algorithm '{signingHashAlgorithm.Name}'.");
-        }
+        HashAlgorithmName signingHashAlgorithm = GetSigningHashAlgorithm(signingKeyProvider, signingOptions);
 
         // Get the protected headers and unprotected headers provided by the signing key provider.
         CoseHeaderMap? protectedHeaders = signingKeyProvider.GetProtectedHeaders();
@@ -134,7 +129,7 @@ public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactory
         }
 
         // Get the RSA or ECDSA Signing Key.
-        AsymmetricAlgorithm? key = signingKeyProvider.GetRSAKey() as AsymmetricAlgorithm ?? signingKeyProvider.GetECDsaKey();
+        AsymmetricAlgorithm? key = rsaKeyOverride ?? signingKeyProvider.GetRSAKey() as AsymmetricAlgorithm ?? signingKeyProvider.GetECDsaKey();
 
         // Build the CoseSigner object.
         return key switch
@@ -148,6 +143,22 @@ public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactory
             ECDsa => new CoseSigner(key, signingHashAlgorithm, protectedHeaders, unProtectedHeaders),
             _ => throw new CoseSigningException("Unsupported certificate type for COSE signing.")
         };
+    }
+
+    private HashAlgorithmName GetSigningHashAlgorithm(
+        ICoseSigningKeyProvider signingKeyProvider,
+        CoseSign1MessageSigningOptions? signingOptions)
+    {
+        HashAlgorithmName signingHashAlgorithm =
+            signingOptions?.HashAlgorithm ?? this.hashAlgorithm ?? signingKeyProvider.HashAlgorithm;
+        if (signingKeyProvider is ISupportsHashAlgorithms supportedHashAlgorithms &&
+            !supportedHashAlgorithms.SupportedHashAlgorithms.Contains(signingHashAlgorithm))
+        {
+            throw new CoseSigningException(
+                $"The signing key provider does not support the requested hash algorithm '{signingHashAlgorithm.Name}'.");
+        }
+
+        return signingHashAlgorithm;
     }
 
     // Use only for embed signing -- will throw on streams over 2gb
@@ -236,6 +247,13 @@ public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactory
         CancellationToken cancellationToken = default,
         CoseSign1MessageSigningOptions? signingOptions = null)
     {
+        if (signingKeyProvider is IAsyncRsaSigningKeyProvider asyncKeyProvider)
+        {
+            return await CreateWithAsyncKeyAsync(
+                payload, asyncKeyProvider, embedPayload, contentType, headerExtender,
+                cancellationToken, signingOptions).ConfigureAwait(false);
+        }
+
         CoseSigner signer = GetSigner(signingKeyProvider, contentType, headerExtender, signingOptions);
         ThrowIfEmpty(payload);
 
@@ -243,5 +261,96 @@ public sealed class CoseSign1MessageFactory : ICoseSign1MessageFactory
         return embedPayload ?
             await Task.Run(() => CoseSign1Message.SignEmbedded(GetPayloadBytesFromStream(payload), signer), cancellationToken).ConfigureAwait(false) :
             await Task.Run(async () => await CoseSign1Message.SignDetachedAsync(payload, signer).ConfigureAwait(false), cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<ReadOnlyMemory<byte>> CreateWithAsyncKeyAsync(
+        Stream payload,
+        IAsyncRsaSigningKeyProvider signingKeyProvider,
+        bool embedPayload,
+        string contentType,
+        ICoseHeaderExtender? headerExtender,
+        CancellationToken cancellationToken,
+        CoseSign1MessageSigningOptions? signingOptions)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        _ = GetSigningHashAlgorithm(signingKeyProvider, signingOptions);
+        using RSA publicKey = await signingKeyProvider.GetPublicKeyAsync(cancellationToken).ConfigureAwait(false);
+        using SigningDigestCaptureRsa digestCapture = new(publicKey.KeySize);
+        CoseSigner signer = GetSigner(signingKeyProvider, contentType, headerExtender, signingOptions, digestCapture);
+        byte[] preparedMessage;
+
+        // Let .NET validate headers, encode the COSE message and hash its Sig_structure.
+        // The zero-filled signature is private preparation data and is replaced only after signing succeeds.
+        if (embedPayload)
+        {
+            using MemoryStream bufferedPayload = new();
+            await payload.CopyToAsync(bufferedPayload, 81920, cancellationToken).ConfigureAwait(false);
+            if (bufferedPayload.Length == 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(payload), "The payload to sign is empty.");
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            preparedMessage = CoseSign1Message.SignEmbedded(
+                bufferedPayload.GetBuffer().AsSpan(0, checked((int)bufferedPayload.Length)), signer);
+        }
+        else
+        {
+            if (payload.CanSeek && payload.Position == payload.Length)
+            {
+                throw new ArgumentOutOfRangeException(nameof(payload), "The payload to sign is empty.");
+            }
+
+            preparedMessage = await CoseSign1Message.SignDetachedAsync(
+                payload, signer, cancellationToken: cancellationToken).ConfigureAwait(false);
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        byte[] signature = await signingKeyProvider.SignHashAsync(
+            digestCapture.Digest ?? throw new CryptographicException("The COSE signing digest was not produced."),
+            signer.HashAlgorithm, signer.RSASignaturePadding, cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+        if (signature == null || signature.Length != publicKey.KeySize / 8)
+        {
+            throw new CryptographicException("The signing provider returned an invalid RSA signature length.");
+        }
+
+        CborReader reader = new(preparedMessage);
+        if (reader.PeekState() == CborReaderState.Tag)
+        {
+            _ = reader.ReadTag();
+        }
+
+        _ = reader.ReadStartArray();
+        reader.SkipValue(); // Protected headers.
+        reader.SkipValue(); // Unprotected headers.
+        reader.SkipValue(); // Embedded payload or null.
+        _ = reader.ReadEncodedValue();
+        signature.CopyTo(preparedMessage, preparedMessage.Length - reader.BytesRemaining - signature.Length);
+        return preparedMessage;
+    }
+
+    private sealed class SigningDigestCaptureRsa : RSA
+    {
+        internal byte[]? Digest { get; private set; }
+
+        internal SigningDigestCaptureRsa(int keySize)
+        {
+            KeySizeValue = keySize;
+        }
+
+        public override byte[] SignHash(byte[] hash, HashAlgorithmName hashAlgorithm, RSASignaturePadding padding)
+        {
+            Digest = hash.ToArray();
+            return new byte[KeySize / 8];
+        }
+
+        public override byte[] Decrypt(byte[] data, RSAEncryptionPadding padding) => throw new NotSupportedException();
+
+        public override byte[] Encrypt(byte[] data, RSAEncryptionPadding padding) => throw new NotSupportedException();
+
+        public override RSAParameters ExportParameters(bool includePrivateParameters) => throw new NotSupportedException();
+
+        public override void ImportParameters(RSAParameters parameters) => throw new NotSupportedException();
     }
 }

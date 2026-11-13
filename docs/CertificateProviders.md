@@ -297,6 +297,21 @@ a credential nor an access token is supplied and the plugin creates a `DefaultAz
 reuse depends on the requested scope and validity. A supplied `TokenCredential` takes precedence over
 the configured token; without either input, the existing default authentication behavior is unchanged.
 
+#### Asynchronous signing and hash selection
+
+The normal `sign` command and `aas_sign_mst_register` use the asynchronous factory path, which awaits
+Artifact Signing certificate retrieval and remote digest signing without blocking a worker on remote
+RSA operations. Certificate metadata is reused within a signing provider; concurrent signatures are
+not serialized behind metadata initialization. Local/PFX signing is unchanged.
+
+Programmatic load tests should await `CoseSign1MessageFactory.CreateCoseSign1MessageBytesAsync`
+or `CreateCoseSign1MessageAsync`. Synchronous factory methods remain synchronous.
+
+The generic `--HashAlgorithm SHA512` (or `--hash-algorithm SHA512`) selection is applied by the signing
+factory even when a certificate-provider plugin defaults to SHA256. With RSA, SHA512 produces PS512
+with PSS padding or RS512 with PKCS1 padding. A hash not advertised by a provider's
+`ISupportsHashAlgorithms` capability is rejected explicitly instead of silently using its default.
+
 #### Signing and registering with MST through Azure Artifact Signing
 
 The Azure Artifact Signing plugin also provides `aas_sign_mst_register`. This command signs the

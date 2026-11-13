@@ -457,6 +457,244 @@ public class AzureArtifactSigningCoseSigningKeyProviderTests
         });
     }
 
+    [TestCase("SHA256", false, true, -37)]
+    [TestCase("SHA384", false, false, -38)]
+    [TestCase("SHA512", false, true, -39)]
+    [TestCase("SHA256", true, false, -257)]
+    [TestCase("SHA384", true, true, -258)]
+    [TestCase("SHA512", true, false, -259)]
+    public async Task MessageFactoryAsync_AwaitsRemoteOperationsAndProducesVerifiableSignature(
+        string hashAlgorithmName, bool usePkcs1, bool embedPayload, int expectedAlgorithm)
+    {
+        using X509Certificate2 certificate = TestCertificateUtils.CreateCertificate(keySize: 3072);
+        using RSA privateKey = certificate.GetRSAPrivateKey()!;
+        HashAlgorithmName hashAlgorithm = new(hashAlgorithmName);
+        RSASignaturePadding padding = usePkcs1 ? RSASignaturePadding.Pkcs1 : RSASignaturePadding.Pss;
+        TaskCompletionSource<X509Certificate2> certificateReady = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource<IReadOnlyList<X509Certificate2>> chainReady = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource<byte[]> signatureReady = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource<bool> chainRequested = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource<byte[]> digestReady = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        using CancellationTokenSource cancellation = new();
+        Mock<ISignContext> context = CreateAsyncSignContext(certificate, (digest, actualPadding) =>
+        {
+            Assert.That(actualPadding, Is.EqualTo(padding));
+            digestReady.SetResult(digest);
+            return signatureReady.Task;
+        });
+        context.Setup(x => x.GetSigningCertificateAsync(cancellation.Token)).Returns(certificateReady.Task);
+        context.Setup(x => x.GetCertChainAsync(cancellation.Token)).Returns(() =>
+        {
+            chainRequested.SetResult(true);
+            return chainReady.Task;
+        });
+        byte[] encodedCbor = [0x44, 0x01, 0x02, 0x03, 0x04];
+        CoseHeaderLabel protectedLabel = new(4242);
+        CoseHeaderLabel unprotectedLabel = new("request-id");
+        CoseHeaderExtender extender = new(
+            headers =>
+            {
+                headers[protectedLabel] = CoseHeaderValue.FromEncodedValue(encodedCbor);
+                return headers;
+            },
+            headers =>
+            {
+                headers ??= new CoseHeaderMap();
+                headers[unprotectedLabel] = CoseHeaderValue.FromString("test-request");
+                return headers;
+            });
+        AzureArtifactSigningCoseSigningKeyProvider provider = new(context.Object);
+        CoseSign1MessageFactory factory = new();
+        byte[] payload = "async-artifact-signing-payload"u8.ToArray();
+        using MemoryStream payloadSource = new(payload);
+        Mock<Stream> asyncInput = new() { CallBase = true };
+        asyncInput.SetupGet(x => x.CanRead).Returns(true);
+        asyncInput.SetupGet(x => x.CanSeek).Returns(false);
+        asyncInput.Setup(x => x.Read(It.IsAny<byte[]>(), It.IsAny<int>(), It.IsAny<int>()))
+            .Throws(new AssertionException("Payload reads must be asynchronous."));
+        asyncInput.Setup(x => x.ReadAsync(It.IsAny<byte[]>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .Returns((byte[] buffer, int offset, int count, CancellationToken token) =>
+                payloadSource.ReadAsync(buffer, offset, count, token));
+        using Stream payloadStream = embedPayload ? asyncInput.Object : payloadSource;
+        Task<ReadOnlyMemory<byte>> operation = factory.CreateCoseSign1MessageBytesAsync(
+            payloadStream, provider, embedPayload, headerExtender: extender,
+            cancellationToken: cancellation.Token,
+            signingOptions: new() { HashAlgorithm = hashAlgorithm, RsaSignaturePadding = padding });
+
+        Assert.That(operation.IsCompleted, Is.False, "Certificate retrieval must yield to the caller.");
+        certificateReady.SetResult(certificate);
+        await chainRequested.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.That(operation.IsCompleted, Is.False, "Chain retrieval must yield to the caller.");
+        chainReady.SetResult(new[] { certificate });
+        byte[] digest = await digestReady.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.That(operation.IsCompleted, Is.False, "Remote signing must yield to the caller.");
+        signatureReady.SetResult(privateKey.SignHash(digest, hashAlgorithm, padding));
+
+        ReadOnlyMemory<byte> encoded = await operation.WaitAsync(TimeSpan.FromSeconds(10));
+        CoseSign1Message message = CoseMessage.DecodeSign1(encoded.Span);
+        using RSA publicKey = certificate.GetRSAPublicKey()!;
+        Assert.Multiple(() =>
+        {
+            Assert.That(message.ProtectedHeaders[CoseHeaderLabel.Algorithm].GetValueAsInt32(), Is.EqualTo(expectedAlgorithm));
+            Assert.That(message.ProtectedHeaders[protectedLabel].EncodedValue.ToArray(), Is.EqualTo(encodedCbor));
+            Assert.That(message.UnprotectedHeaders[unprotectedLabel].GetValueAsString(), Is.EqualTo("test-request"));
+            Assert.That(message.Content.HasValue, Is.EqualTo(embedPayload));
+            Assert.That(embedPayload ? message.VerifyEmbedded(publicKey) : message.VerifyDetached(publicKey, payload), Is.True);
+            if (embedPayload)
+            {
+                Assert.That(message.Content!.Value.ToArray(), Is.EqualTo(payload));
+            }
+        });
+        context.Verify(x => x.GetSigningCertificateAsync(cancellation.Token), Times.Once);
+        context.Verify(x => x.GetCertChainAsync(cancellation.Token), Times.Once);
+        context.Verify(x => x.SignDigestAsync(
+            digest, padding, certificate, null, null, cancellation.Token), Times.Once);
+        if (embedPayload)
+        {
+            asyncInput.Verify(x => x.ReadAsync(
+                It.IsAny<byte[]>(), It.IsAny<int>(), It.IsAny<int>(), cancellation.Token), Times.AtLeastOnce);
+        }
+    }
+
+    [TestCase(true, true)]
+    [TestCase(true, false)]
+    [TestCase(false, true)]
+    [TestCase(false, false)]
+    public async Task MessageFactoryAsync_PropagatesCancellationAndServiceErrors(bool duringMetadata, bool cancel)
+    {
+        using X509Certificate2 certificate = TestCertificateUtils.CreateCertificate();
+        TaskCompletionSource<X509Certificate2> certificateReady = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource<byte[]> signatureReady = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        using CancellationTokenSource cancellation = new();
+        Mock<ISignContext> context = CreateAsyncSignContext(
+            certificate, (_, _) => signatureReady.Task.WaitAsync(cancellation.Token));
+        if (duringMetadata)
+        {
+            context.Setup(x => x.GetSigningCertificateAsync(cancellation.Token))
+                .Returns(() => certificateReady.Task.WaitAsync(cancellation.Token));
+        }
+
+        AzureArtifactSigningCoseSigningKeyProvider provider = new(context.Object);
+        Task<ReadOnlyMemory<byte>> operation = new CoseSign1MessageFactory().CreateCoseSign1MessageBytesAsync(
+            "payload"u8.ToArray(), provider, embedPayload: true, cancellationToken: cancellation.Token);
+        Assert.That(operation.IsCompleted, Is.False);
+        if (cancel)
+        {
+            cancellation.Cancel();
+            Assert.That(
+                async () => await operation.WaitAsync(TimeSpan.FromSeconds(10)),
+                Throws.InstanceOf<OperationCanceledException>());
+        }
+        else
+        {
+            InvalidOperationException failure = new("SDK operation failed.", new IOException("Service error details."));
+            if (duringMetadata)
+            {
+                certificateReady.SetException(failure);
+            }
+            else
+            {
+                signatureReady.SetException(failure);
+            }
+
+            InvalidOperationException? actual = Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await operation.WaitAsync(TimeSpan.FromSeconds(10)));
+            Assert.That(actual, Is.SameAs(failure));
+        }
+
+        context.Setup(x => x.GetSigningCertificateAsync(It.IsAny<CancellationToken>())).ReturnsAsync(certificate);
+        using RSA publicKey = await provider.GetPublicKeyAsync(CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(10));
+        using RSA expectedPublicKey = certificate.GetRSAPublicKey()!;
+        Assert.That(publicKey.KeySize, Is.EqualTo(expectedPublicKey.KeySize));
+    }
+
+    [Test]
+    public async Task MessageFactoryAsync_ReusesMetadataWithoutSerializingConcurrentSigning()
+    {
+        using X509Certificate2 certificate = TestCertificateUtils.CreateCertificate();
+        using RSA privateKey = certificate.GetRSAPrivateKey()!;
+        TaskCompletionSource<X509Certificate2> certificateReady = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource<byte[]>[] digests =
+        [
+            new(TaskCreationOptions.RunContinuationsAsynchronously),
+            new(TaskCreationOptions.RunContinuationsAsynchronously)
+        ];
+        TaskCompletionSource<byte[]>[] signatures =
+        [
+            new(TaskCreationOptions.RunContinuationsAsynchronously),
+            new(TaskCreationOptions.RunContinuationsAsynchronously)
+        ];
+        int signingRequests = 0;
+        Mock<ISignContext> context = CreateAsyncSignContext(certificate, (digest, _) =>
+        {
+            int index = Interlocked.Increment(ref signingRequests) - 1;
+            digests[index].SetResult(digest);
+            return signatures[index].Task;
+        });
+        context.Setup(x => x.GetSigningCertificateAsync(It.IsAny<CancellationToken>())).Returns(certificateReady.Task);
+        AzureArtifactSigningCoseSigningKeyProvider provider = new(context.Object);
+        CoseSign1MessageFactory factory = new();
+        Task<ReadOnlyMemory<byte>> first = factory.CreateCoseSign1MessageBytesAsync("first"u8.ToArray(), provider, embedPayload: true);
+        Task<ReadOnlyMemory<byte>> second = factory.CreateCoseSign1MessageBytesAsync("second"u8.ToArray(), provider, embedPayload: true);
+        Assert.That(first.IsCompleted || second.IsCompleted, Is.False);
+        certificateReady.SetResult(certificate);
+        byte[][] capturedDigests = await Task.WhenAll(digests.Select(x => x.Task)).WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.That(first.IsCompleted || second.IsCompleted, Is.False);
+        for (int i = 0; i < capturedDigests.Length; i++)
+        {
+            signatures[i].SetResult(privateKey.SignHash(capturedDigests[i], HashAlgorithmName.SHA256, RSASignaturePadding.Pss));
+        }
+
+        ReadOnlyMemory<byte>[] encoded = await Task.WhenAll(first, second).WaitAsync(TimeSpan.FromSeconds(10));
+        using RSA publicKey = certificate.GetRSAPublicKey()!;
+        foreach (ReadOnlyMemory<byte> message in encoded)
+        {
+            Assert.That(CoseMessage.DecodeSign1(message.Span).VerifyEmbedded(publicKey), Is.True);
+        }
+
+        context.Verify(x => x.GetSigningCertificateAsync(It.IsAny<CancellationToken>()), Times.Once);
+        context.Verify(x => x.GetCertChainAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Test]
+    public void MessageFactoryAsync_RejectsUnsupportedHashBeforeCallingService()
+    {
+        Mock<ISignContext> context = new(MockBehavior.Strict);
+        AzureArtifactSigningCoseSigningKeyProvider provider = new(context.Object);
+        Assert.ThrowsAsync<CoseSign1.Abstractions.Exceptions.CoseSigningException>(async () =>
+            await new CoseSign1MessageFactory().CreateCoseSign1MessageBytesAsync(
+                "payload"u8.ToArray(), provider,
+                signingOptions: new() { HashAlgorithm = HashAlgorithmName.SHA1 }));
+        context.VerifyNoOtherCalls();
+    }
+
+    [Test]
+    public void MessageFactoryAsync_RejectsInvalidSignatureInsteadOfReturningPreparationBytes()
+    {
+        using X509Certificate2 certificate = TestCertificateUtils.CreateCertificate();
+        Mock<ISignContext> context = CreateAsyncSignContext(certificate, (_, _) => Task.FromResult(new byte[1]));
+        AzureArtifactSigningCoseSigningKeyProvider provider = new(context.Object);
+        Assert.ThrowsAsync<CryptographicException>(async () =>
+            await new CoseSign1MessageFactory().CreateCoseSign1MessageBytesAsync(
+                "payload"u8.ToArray(), provider, embedPayload: true));
+    }
+
+    private static Mock<ISignContext> CreateAsyncSignContext(
+        X509Certificate2 certificate,
+        Func<byte[], RSASignaturePadding, Task<byte[]>> signDigest)
+    {
+        Mock<ISignContext> context = new(MockBehavior.Strict);
+        context.Setup(x => x.GetSigningCertificateAsync(It.IsAny<CancellationToken>())).ReturnsAsync(certificate);
+        context.Setup(x => x.GetCertChainAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { certificate });
+        context.Setup(x => x.SignDigestAsync(
+            It.IsAny<byte[]>(), It.IsAny<RSASignaturePadding>(), certificate,
+            null, null, It.IsAny<CancellationToken>()))
+            .Returns((byte[] digest, RSASignaturePadding padding, X509Certificate2 _, byte[] _, byte[] _, CancellationToken _) =>
+                signDigest(digest, padding));
+        return context;
+    }
+
     /// <summary>
     /// Helper method to create a mock certificate chain.
     /// </summary>

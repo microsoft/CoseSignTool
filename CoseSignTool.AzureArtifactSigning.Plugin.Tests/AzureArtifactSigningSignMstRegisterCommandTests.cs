@@ -25,6 +25,7 @@ public class AzureArtifactSigningSignMstRegisterCommandTests
 {
     private const string AasEndpoint = "https://contoso.codesigning.azure.net/";
     private const string ProxyEndpoint = "https://api-canary.northcentralus.codesigning.azure.net/";
+    private const string CachedAccessToken = "cached-token.with_base64~characters+/=";
 
     /// <summary>
     /// Verifies that the Artifact Signing command plugin owns the combined sign-and-register command.
@@ -76,6 +77,7 @@ public class AzureArtifactSigningSignMstRegisterCommandTests
         Assert.IsTrue(command.Options.ContainsKey("signature"));
         Assert.IsTrue(command.Options.ContainsKey("correlation-id"));
         Assert.IsTrue(command.Options.ContainsKey("aas-exclude-credentials"));
+        Assert.IsTrue(command.Options.ContainsKey("aas-access-token"));
         Assert.IsTrue(command.Options.ContainsKey("ContentType"));
         Assert.IsTrue(command.Options.ContainsKey("cty"));
         Assert.IsTrue(command.Options.ContainsKey("hash-algorithm"));
@@ -88,13 +90,16 @@ public class AzureArtifactSigningSignMstRegisterCommandTests
     /// Verifies that the original statement is registered and the persisted statement contains the returned receipt.
     /// </summary>
     [DataTestMethod]
-    [DataRow(true, false)]
-    [DataRow(false, false)]
-    [DataRow(true, true)]
-    [DataRow(false, true)]
+    [DataRow(true, false, false)]
+    [DataRow(false, false, false)]
+    [DataRow(true, true, false)]
+    [DataRow(false, true, false)]
+    [DataRow(true, false, true)]
+    [DataRow(false, false, true)]
     public async Task ExecuteAsync_WithValidArguments_RegistersOriginalAndWritesTransparentStatement(
         bool seekableReceipt,
-        bool useSuppliedCredential)
+        bool useSuppliedCredential,
+        bool useCachedAccessToken)
     {
         using RSA rsa = RSA.Create(2048);
         CoseSigner signer = new(rsa, RSASignaturePadding.Pss, HashAlgorithmName.SHA256);
@@ -140,8 +145,12 @@ public class AzureArtifactSigningSignMstRegisterCommandTests
             hashAlgorithm: "SHA384",
             rsaSignaturePadding: "PKCS1",
             outputPath: outputPath,
-            excludedCredentials: useSuppliedCredential ? "NotARealCredential" : "ManagedIdentityCredential",
+            excludedCredentials: useSuppliedCredential || useCachedAccessToken ? "NotARealCredential" : "ManagedIdentityCredential",
             cborProtectedHeaders: "external-signatures=RAECAwQ=");
+        if (useCachedAccessToken)
+        {
+            configuration[AzureArtifactSigningCertificateProviderPlugin.AccessTokenKey] = CachedAccessToken;
+        }
 
         try
         {
@@ -149,9 +158,10 @@ public class AzureArtifactSigningSignMstRegisterCommandTests
             await File.WriteAllBytesAsync(payloadPath, payloadBytes);
             await File.WriteAllTextAsync(outputPath, new string(' ', 4096));
 
+            IPluginCommand entryPoint = command;
             PluginExitCode result = useSuppliedCredential
                 ? await command.ExecuteAsync(configuration, suppliedCredential)
-                : await command.ExecuteAsync(configuration);
+                : await entryPoint.ExecuteAsync(configuration);
 
             Assert.AreEqual(PluginExitCode.Success, result);
             Assert.IsNotNull(signingCredential);
@@ -159,6 +169,13 @@ public class AzureArtifactSigningSignMstRegisterCommandTests
             if (useSuppliedCredential)
             {
                 Assert.AreSame(suppliedCredential, signingCredential);
+            }
+
+            if (useCachedAccessToken)
+            {
+                TokenRequestContext context = new(new[] { "https://example.test/.default" });
+                Assert.AreEqual(CachedAccessToken, signingCredential.GetToken(context, CancellationToken.None).Token);
+                Assert.AreEqual(CachedAccessToken, (await signingCredential.GetTokenAsync(context, CancellationToken.None)).Token);
             }
 
             CollectionAssert.AreEqual(payloadBytes, signedPayload);
@@ -210,6 +227,41 @@ public class AzureArtifactSigningSignMstRegisterCommandTests
         Assert.IsNotNull(plugin.CreateProvider(configuration, logger: null, credential: credential.Object));
 
         credential.VerifyNoOtherCalls();
+    }
+
+    /// <summary>
+    /// Verifies the normal provider entry point accepts a cached token without consulting the default credential chain.
+    /// </summary>
+    [TestMethod]
+    public void CreateProvider_WithCachedAccessToken_DoesNotCreateDefaultCredential()
+    {
+        IConfigurationRoot configuration = CreateConfiguration(
+            "payload.bin",
+            "statement.cose",
+            excludedCredentials: "NotARealCredential");
+        configuration[AzureArtifactSigningCertificateProviderPlugin.AccessTokenKey] = CachedAccessToken;
+        ICertificateProviderPlugin plugin = new AzureArtifactSigningCertificateProviderPlugin();
+
+        Assert.IsNotNull(plugin.CreateProvider(configuration));
+    }
+
+    /// <summary>
+    /// Verifies explicitly invalid token inputs fail before client creation, without falling back to default authentication.
+    /// </summary>
+    [DataTestMethod]
+    [DataRow("")]
+    [DataRow(" ")]
+    [DataRow("Bearer token")]
+    [DataRow("token\r\nInjected: value")]
+    public async Task ExecuteAsync_WithInvalidAccessToken_ReturnsInvalidArgumentValue(string token)
+    {
+        IConfigurationRoot configuration = CreateConfiguration(null, "statement.cose");
+        configuration[AzureArtifactSigningCertificateProviderPlugin.AccessTokenKey] = token;
+        IPluginCommand command = CreateCommandThatMustNotRun();
+
+        PluginExitCode result = await command.ExecuteAsync(configuration);
+
+        Assert.AreEqual(PluginExitCode.InvalidArgumentValue, result);
     }
 
     /// <summary>

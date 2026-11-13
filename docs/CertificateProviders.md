@@ -262,6 +262,18 @@ Credential names are case-insensitive and the trailing `Credential` is optional,
 `SharedTokenCacheCredential`, `VisualStudioCredential`, `VisualStudioCodeCredential`, and
 `WorkloadIdentityCredential`.
 
+For CLI load tests, the optional `--aas-access-token <token>` argument accepts an already-acquired
+Artifact Signing access token, without the `Bearer` prefix. Both the normal signing provider and
+`aas_sign_mst_register` support it. For example, append `--aas-access-token "$CACHED_AAS_TOKEN"` to
+either command. The supplied token is used unchanged, without invoking `DefaultAzureCredential`,
+acquiring another token, or automatically refreshing it. The caller must supply a valid token for
+Artifact Signing and renew it before expiry; the service still enforces expiration and authorization.
+Default-credential exclusions do not apply to this path. An explicitly empty or invalid token argument
+fails instead of falling back to another authentication method.
+
+**Security:** Token values are never logged by the plugin, but command-line arguments can be visible
+in process listings and shell history. Use this option only in an appropriately protected environment.
+
 `aas_sign_mst_register` uses one credential per invocation and passes that same instance to both
 its signing provider and MST proxy client. There is no process-wide credential cache. See
 [DefaultAzureCredential](https://learn.microsoft.com/en-us/dotnet/api/azure.identity.defaultazurecredential?view=azure-dotnet)
@@ -279,11 +291,11 @@ ICoseSigningKeyProvider signingProvider = providerPlugin.CreateProvider(configur
 ```
 
 These are separate entry points: the combined command creates its own signing provider, while
-`CreateProvider` alone does not construct an MST client. Credential exclusions apply only when no
-credential is supplied and the plugin creates a `DefaultAzureCredential`. SDK clients may still call
+`CreateProvider` alone does not construct an MST client. Credential exclusions apply only when neither
+a credential nor an access token is supplied and the plugin creates a `DefaultAzureCredential`. SDK clients may still call
 `GetToken` or `GetTokenAsync`; the supplied credential controls token caching and refresh, and token
-reuse depends on the requested scope and validity. Authentication objects are passed in memory,
-not through command-line token or secret arguments.
+reuse depends on the requested scope and validity. A supplied `TokenCredential` takes precedence over
+the configured token; without either input, the existing default authentication behavior is unchanged.
 
 #### Signing and registering with MST through Azure Artifact Signing
 

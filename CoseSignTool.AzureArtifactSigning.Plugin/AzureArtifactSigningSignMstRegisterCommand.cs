@@ -88,7 +88,7 @@ public sealed class AzureArtifactSigningSignMstRegisterCommand : PluginCommandBa
         "[--ContentType <media-type>] " +
         "[--hash-algorithm <SHA256|SHA384|SHA512>] [--rsa-signature-padding <PSS|PKCS1>] " +
         "[--cbor-protected-headers <label=base64-cbor>] " +
-        "[--timeout <seconds>] [--correlation-id <id>] [--aas-exclude-credentials <names>]";
+        "[--timeout <seconds>] [--correlation-id <id>] [--aas-access-token <token>] [--aas-exclude-credentials <names>]";
 
     /// <inheritdoc/>
     public override IDictionary<string, string> Options
@@ -107,6 +107,7 @@ public sealed class AzureArtifactSigningSignMstRegisterCommand : PluginCommandBa
                 ["output"] = "Optional path for the JSON registration result",
                 ["timeout"] = "Combined signing and MST registration timeout in seconds (default: 60)",
                 ["correlation-id"] = "Optional correlation ID sent to Azure Artifact Signing",
+                [AzureArtifactSigningCertificateProviderPlugin.AccessTokenKey] = "Optional already-acquired Artifact Signing bearer token (caller manages renewal)",
                 ["aas-exclude-credentials"] = "Comma-separated DefaultAzureCredential implementations to exclude",
                 ["ContentType"] = "MIME type to set in the COSE protected header (default: application/cose)",
                 ["cty"] = "Alias for --ContentType",
@@ -133,8 +134,9 @@ public sealed class AzureArtifactSigningSignMstRegisterCommand : PluginCommandBa
     /// </summary>
     /// <param name="configuration">The signing and MST registration configuration.</param>
     /// <param name="credential">
-    /// An existing credential shared by the signing and MST clients. If null, creates one DefaultAzureCredential
-    /// using the configured exclusions. Exclusions do not apply to a supplied credential.
+    /// An existing credential shared by the signing and MST clients. If null, uses the configured access token
+    /// when supplied, otherwise creates one DefaultAzureCredential using the configured exclusions.
+    /// Exclusions apply only to the default credential.
     /// SDK clients may still request tokens; token caching and refresh remain the credential's responsibility.
     /// </param>
     /// <param name="cancellationToken">Token to cancel the operation.</param>
@@ -186,9 +188,9 @@ public sealed class AzureArtifactSigningSignMstRegisterCommand : PluginCommandBa
                 return PluginExitCode.UserSpecifiedFileNotFound;
             }
 
-            // Validate default-credential exclusions before signing; construction does not acquire a token.
+            // Validate authentication settings before signing; credential construction does not acquire a token.
             // Credential-chain behavior: https://learn.microsoft.com/en-us/dotnet/api/azure.identity.defaultazurecredential?view=azure-dotnet
-            credential ??= AzureArtifactSigningCertificateProviderPlugin.CreateDefaultCredential(configuration, Logger);
+            credential ??= AzureArtifactSigningCertificateProviderPlugin.CreateCredential(configuration, Logger);
 
             HashAlgorithmName hashAlgorithm;
             RSASignaturePadding rsaSignaturePadding;

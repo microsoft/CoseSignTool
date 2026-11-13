@@ -296,10 +296,11 @@ Microsoft's cloud-based signing service providing managed certificates, FIPS 140
 * **--aas-endpoint** - Azure Artifact Signing endpoint URL (e.g., `https://contoso.codesigning.azure.net`)
 * **--aas-account-name** - Azure Artifact Signing account name
 * **--aas-cert-profile-name** - Certificate profile name within the account
+* **--aas-access-token** - Optional already-acquired Artifact Signing bearer token, without the `Bearer` prefix. Reuses the exact token for signing and, with `aas_sign_mst_register`, MST proxy registration, without acquiring or refreshing tokens. The caller owns renewal. Token values are not logged, but CLI arguments may be visible in process listings and shell history.
 * **--aas-exclude-credentials** - Comma-separated credentials to exclude from the `DefaultAzureCredential` chain (e.g., `ManagedIdentityCredential`). May also be supplied as a JSON array under the `ExcludeCredentials` section. The combined sign-and-register command shares one credential per invocation without a global cache. Programmatic callers can pass an existing `TokenCredential` to the command or certificate provider; exclusions apply only when creating the default credential. See [DefaultAzureCredential](https://learn.microsoft.com/en-us/dotnet/api/azure.identity.defaultazurecredential?view=azure-dotnet) for credential-chain behavior and instance-reuse guidance.
 
 **Authentication:**
-Azure Artifact Signing uses Azure DefaultAzureCredential, which automatically tries:
+When neither an access token nor a programmatic credential is supplied, Azure Artifact Signing uses Azure DefaultAzureCredential, which automatically tries:
 1. Environment variables (`AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`)
 2. Managed Identity (for Azure VMs/containers)
 3. Azure CLI (`az login`)

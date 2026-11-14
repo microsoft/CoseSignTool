@@ -11,20 +11,16 @@ using Azure.Developer.ArtifactSigning.CryptoProvider;
 using Azure.Developer.ArtifactSigning.CryptoProvider.Interfaces;
 using CoseSign1.Certificates.Local;
 using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using CoseSign1.Abstractions.Interfaces;
 
 /// <summary>
 /// Provides an implementation of the <see cref="CertificateCoseSigningKeyProvider"/> class
 /// for Azure Artifact Signing. This class integrates with the Azure Artifact Signing service
 /// to provide signing certificates, certificate chains, and cryptographic keys.
 /// </summary>
-public class AzureArtifactSigningCoseSigningKeyProvider : CertificateCoseSigningKeyProvider, IAsyncRsaSigningKeyProvider
+public class AzureArtifactSigningCoseSigningKeyProvider : CertificateCoseSigningKeyProvider
 {
     private readonly ISignContext SignContext;
     private static readonly AzureArtifactSigningDidX509Generator AzureDidGenerator = new();
-    private readonly SemaphoreSlim CertificateInitializationLock = new(1, 1);
 
     /// <summary>
     /// Initializes a new instance of the <see cref="AzureArtifactSigningCoseSigningKeyProvider"/> class.
@@ -34,55 +30,6 @@ public class AzureArtifactSigningCoseSigningKeyProvider : CertificateCoseSigning
     public AzureArtifactSigningCoseSigningKeyProvider(ISignContext signContext)
     {
         SignContext = signContext ?? throw new ArgumentNullException(nameof(ISignContext));
-    }
-
-    /// <inheritdoc/>
-    public async Task<RSA> GetPublicKeyAsync(CancellationToken cancellationToken)
-    {
-        await CertificateInitializationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            SigningCertificate ??= await SignContext.GetSigningCertificateAsync(cancellationToken).ConfigureAwait(false)
-                ?? throw new InvalidOperationException("Signing certificate is not available. Please check the Azure Artifact Signing configuration.");
-            CertificateChain ??= await SignContext.GetCertChainAsync(cancellationToken).ConfigureAwait(false)
-                ?? throw new InvalidOperationException("Certificate chain is not available. Please check the Azure Artifact Signing configuration.");
-            if (CertificateChain.Count == 0)
-            {
-                throw new InvalidOperationException("Certificate chain is empty. Please check the Azure Artifact Signing configuration.");
-            }
-
-            return SigningCertificate.GetRSAPublicKey()
-                ?? throw new CryptographicException("The Artifact Signing certificate does not contain an RSA public key.");
-        }
-        finally
-        {
-            CertificateInitializationLock.Release();
-        }
-    }
-
-    /// <inheritdoc/>
-    public Task<byte[]> SignHashAsync(
-        byte[] digest,
-        HashAlgorithmName hashAlgorithm,
-        RSASignaturePadding padding,
-        CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        int expectedDigestLength = hashAlgorithm.Name switch
-        {
-            nameof(HashAlgorithmName.SHA256) => 32,
-            nameof(HashAlgorithmName.SHA384) => 48,
-            nameof(HashAlgorithmName.SHA512) => 64,
-            _ => throw new CryptographicException($"Unsupported signing hash algorithm '{hashAlgorithm.Name}'."),
-        };
-        if (digest == null || digest.Length != expectedDigestLength)
-        {
-            throw new ArgumentException("The digest length does not match the requested hash algorithm.", nameof(digest));
-        }
-
-        X509Certificate2 certificate = SigningCertificate
-            ?? throw new InvalidOperationException("The signing certificate must be prepared before signing.");
-        return SignContext.SignDigestAsync(digest, padding, certificate, null, null, cancellationToken);
     }
 
     /// <summary>

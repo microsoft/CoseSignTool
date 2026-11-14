@@ -737,7 +737,13 @@ public static class CoseHandler
             AsymmetricAlgorithm? publicKey = ((AsymmetricAlgorithm?)signingCertificate.GetRSAPublicKey()
                 ?? signingCertificate.GetECDsaPublicKey());
 
-            if (publicKey is null)
+            // ML-DSA keys are not AsymmetricAlgorithm instances, so they verify through a CoseKey instead.
+            using MLDsa? mlDsaPublicKey = publicKey is null ? signingCertificate.GetMLDsaPublicKeyIfSupported() : null;
+#pragma warning disable SYSLIB5006 // CoseKey(MLDsa) is marked experimental in .NET.
+            CoseKey? mlDsaKey = mlDsaPublicKey is null ? null : new CoseKey(mlDsaPublicKey);
+#pragma warning restore SYSLIB5006
+
+            if (publicKey is null && mlDsaKey is null)
             {
                 errorCodes.Add(ValidationFailureCode.NoPublicKey);
                 return new ValidationResult(false, errorCodes, certValidationResults, chain, validationType: ContentValidationType.ContentValidationNotPerformed);
@@ -763,22 +769,26 @@ public static class CoseHandler
                     // Indirect signature validation. Validate external payload hash against embedded hash + Embedded signature validation.
                     case ContentValidationType.Indirect:
                         messageVerified = hasBytes ?
-                            (msg.VerifyEmbedded(publicKey) && msg.SignatureMatches(payloadBytes)) :
+                            (VerifyEmbedded(msg, publicKey, mlDsaKey) && msg.SignatureMatches(payloadBytes)) :
                             hasStream ?
-                                (msg.VerifyEmbedded(publicKey) && msg.SignatureMatches(payloadStream!)) :
+                                (VerifyEmbedded(msg, publicKey, mlDsaKey) && msg.SignatureMatches(payloadStream!)) :
                                 throw new InvalidOperationException();
                         break;
 
                     // Detached signature validation. Validate external payload against the signature.
                     case ContentValidationType.Detached:
                         messageVerified = hasBytes ?
-                            msg.VerifyDetached(publicKey, new ReadOnlySpan<byte>(payloadBytes)) :
-                            Task.Run(() => msg.VerifyDetachedAsync(publicKey, payloadStream!)).GetAwaiter().GetResult();
+                            (mlDsaKey is not null
+                                ? msg.VerifyDetached(mlDsaKey, new ReadOnlySpan<byte>(payloadBytes))
+                                : msg.VerifyDetached(publicKey!, new ReadOnlySpan<byte>(payloadBytes))) :
+                            (mlDsaKey is not null
+                                ? msg.VerifyDetached(mlDsaKey, payloadStream!)
+                                : msg.VerifyDetached(publicKey!, payloadStream!));
                         break;
 
                     // Embedded signature validation. Validate the embedded content against the signature.
                     case ContentValidationType.Embedded:
-                        messageVerified = msg.VerifyEmbedded(publicKey);
+                        messageVerified = VerifyEmbedded(msg, publicKey, mlDsaKey);
                         break;
                 }
 
@@ -915,5 +925,9 @@ public static class CoseHandler
     }
 
     private static int CountOfDefined(params object?[] args) => args.Where(arg => arg is not null).Count();
+
+    // Verifies an embedded signature with the ML-DSA key when present, otherwise with the RSA or ECDsa key.
+    private static bool VerifyEmbedded(CoseSign1Message msg, AsymmetricAlgorithm? publicKey, CoseKey? mlDsaKey) =>
+        mlDsaKey is not null ? msg.VerifyEmbedded(mlDsaKey) : msg.VerifyEmbedded(publicKey!);
     #endregion
 }

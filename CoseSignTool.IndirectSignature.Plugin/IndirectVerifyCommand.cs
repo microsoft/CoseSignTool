@@ -270,7 +270,10 @@ public class IndirectVerifyCommand : IndirectSignatureCommandBase
         try
         {
             X509Certificate2Collection collection = new X509Certificate2Collection();
+            // Import reads any certificate format, including PKCS#7, which X509CertificateLoader does not support.
+#pragma warning disable SYSLIB0057
             collection.Import(rootCertsPath);
+#pragma warning restore SYSLIB0057
             return collection.Cast<X509Certificate2>().ToList();
         }
         catch (Exception ex)

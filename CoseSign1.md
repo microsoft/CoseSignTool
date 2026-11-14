@@ -3,7 +3,7 @@ The CoseSign1 library is a .NET Standard 2.0 library (for maximum compatibility)
 
 This library performs the basic creation (signing) of a [CoseSign1Message](https://learn.microsoft.com/en-us/dotnet/api/system.security.cryptography.cose.cosesign1message) object with no validation or constraints imposed. It should be used in conjunction with a concrete signing key provider implementation such as [**CoseSign1.Certificates**](./CoseSign1.Certificates.md) to be of most use. At its core it provides the following functionality above the .Net native object types:
 * Allows for consistent extension of the Protected and Unprotected headers at time of signing operation
-* Allows both RSA and ECdsa signing key abstractions to be provided
+* Allows RSA, ECdsa, and ML-DSA signing key abstractions to be provided
 * Enforces content type is present with a valid, non-empty payload before creating the object.
 
 ## Dependencies
@@ -25,6 +25,8 @@ CoseSign1MessageFactory sha512Factory = new(HashAlgorithmName.SHA512);
 ```
 
 Configuring the algorithm on the factory applies consistently to certificate, remote, and custom signing key providers. For RSA keys, SHA-256, SHA-384, and SHA-512 produce PS256, PS384, and PS512 signatures respectively. Unsupported selections fail before signing.
+
+When a signing key provider returns neither an RSA nor an ECDsa key, the factory signs with the ML-DSA key from providers that implement `ISupportsMLDsaKey`. COSE ML-DSA signs the full Sig_structure with pure ML-DSA, so the selected hash algorithm and RSA padding do not apply. ML-DSA requires platform support (see `MLDsa.IsSupported`); some of the .NET ML-DSA APIs used here are marked experimental (`SYSLIB5006`).
 
 #### [**CoseSign1MessageBuilder**](https://github.com/microsoft/CoseSignTool/blob/main/CoseSign1/CoseSign1MessageBuilder.cs)
 A builder pattern implementation operating over [**ICoseSign1MessageFactory**](https://github.com/microsoft/CoseSignTool/blob/main/CoseSign1/Interfaces/ICoseSign1MessageFactory.cs) and [**ICoseSigningKeyProvider**](https://github.com/microsoft/CoseSignTool/blob/main/CoseSign1.Abstractions/Interfaces/ICoseSigningKeyProvider.cs) abstractions.  It defaults to [**CoseSign1MessageFactory**](https://github.com/microsoft/CoseSignTool/blob/main/CoseSign1/CoseSign1MessageFactory.cs) if none is specified and requires a provided [**ICoseSign1MessageFactory**](https://github.com/microsoft/CoseSignTool/blob/main/CoseSign1/Interfaces/ICoseSign1MessageFactory.cs) and [**ICoseSigningKeyProvider**](https://github.com/microsoft/CoseSignTool/blob/main/CoseSign1.Abstractions/Interfaces/ICoseSigningKeyProvider.cs) to provide the signing keys used for signing operations.

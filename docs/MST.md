@@ -261,7 +261,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v3
       with:
-        dotnet-version: '8.0.x'
+        dotnet-version: '10.0.x'
     
     - name: Install CoseSignTool
       run: |
@@ -303,10 +303,10 @@ variables:
 
 steps:
 - task: UseDotNet@2
-  displayName: 'Use .NET 8.0'
+  displayName: 'Use .NET 10'
   inputs:
     packageType: 'sdk'
-    version: '8.0.x'
+    version: '10.0.x'
 
 - bash: |
     curl -L https://github.com/microsoft/CoseSignTool/releases/latest/download/CoseSignTool-Linux-release.zip -o CoseSignTool.zip

@@ -8,7 +8,7 @@ using CoseSign1.Certificates.Extensions;
 /// <summary>
 /// Abstract class which contains common logic needed for all certificate based <see cref="ICoseSigningKeyProvider"/> implementations.
 /// </summary>
-public abstract class CertificateCoseSigningKeyProvider : ICoseSigningKeyProvider, ISupportsHashAlgorithms, ISupportsScittCompliance
+public abstract class CertificateCoseSigningKeyProvider : ICoseSigningKeyProvider, ISupportsHashAlgorithms, ISupportsScittCompliance, ISupportsMLDsaKey
 {
     private static readonly DidX509Generator DefaultDidGenerator = new();
     private static readonly IReadOnlyCollection<HashAlgorithmName> DefaultSupportedHashAlgorithms = Array.AsReadOnly(
@@ -97,6 +97,13 @@ public abstract class CertificateCoseSigningKeyProvider : ICoseSigningKeyProvide
     /// <param name="publicKey">True if the public key is to be returned, false for the private key (default).</param>
     /// <returns>RSA Key</returns>
     protected abstract RSA? ProvideRSAKey(bool publicKey = false);
+
+    /// <summary>
+    /// Gets the ML-DSA key from the derived class instance. Returns null unless overridden.
+    /// </summary>
+    /// <param name="publicKey">True if the public key is to be returned, false for the private key (default).</param>
+    /// <returns>ML-DSA key, or null if this provider does not sign with ML-DSA.</returns>
+    protected virtual MLDsa? ProvideMLDsaKey(bool publicKey = false) => null;
 
     /// <summary>
     /// Virtual method to get the key chain representing the parents (in bottom-up order) of the signing key.
@@ -219,6 +226,9 @@ public abstract class CertificateCoseSigningKeyProvider : ICoseSigningKeyProvide
 
     /// <inheritdoc/>
     public ECDsa? GetECDsaKey(bool publicKey = false) => ProvideECDsaKey(publicKey);
+
+    /// <inheritdoc/>
+    public MLDsa? GetMLDsaKey(bool publicKey = false) => ProvideMLDsaKey(publicKey);
 
     /// <summary>
     /// Makes the supplied root and intermediate certificates available for the signing certificate to chain to.

@@ -8,7 +8,7 @@ All plugin interfaces and base classes are contained in the `CoseSignTool.Abstra
 
 ### Assembly Requirements
 
-- **Target Framework**: .NET 8.0
+- **Target Framework**: .NET 10
 - **Assembly Naming**: Must end with `.Plugin.dll` for automatic discovery
 - **Project Naming**: Must end with `.Plugin.csproj` for automatic CI/CD packaging
 - **Location**: Must be placed in the `plugins` subdirectory of CoseSignTool
@@ -587,7 +587,7 @@ public string Version =>
 
 ### Dependency Management
 
-- Target .NET 8.0
+- Target .NET 10
 - Use compatible versions of Microsoft.Extensions.* packages
 - Avoid conflicts with CoseSignTool dependencies
 - Package additional dependencies with your plugin
@@ -656,7 +656,7 @@ No deprecated APIs currently. Check this section for future deprecations.
 - Must be in `plugins` directory
 
 **Runtime errors:**
-- Check .NET 8.0 compatibility
+- Check .NET 10 compatibility
 - Verify all dependencies are available
 - Check console output for detailed error messages
 

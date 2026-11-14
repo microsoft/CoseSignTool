@@ -145,7 +145,23 @@ public static class TestCertificateUtils
     /// <returns>A certificate with only the public key.</returns>
     public static X509Certificate2 CreateCertificateWithoutPrivateKey(X509Certificate2 certificate)
     {
-        return new X509Certificate2(certificate.Export(X509ContentType.Cert));
+        return X509CertificateLoader.LoadCertificate(certificate.Export(X509ContentType.Cert));
+    }
+
+    /// <summary>
+    /// Creates a self-signed ML-DSA certificate with its private key.
+    /// Callers should check <see cref="MLDsa.IsSupported"/> first.
+    /// </summary>
+    /// <param name="subjectName">The subject name of the certificate.</param>
+    /// <param name="algorithm">(Optional) The ML-DSA parameter set. Defaults to ML-DSA-65.</param>
+    /// <returns>An <see cref="X509Certificate2"/> object with an ML-DSA key pair for use in testing.</returns>
+    public static X509Certificate2 CreateMLDsaCertificate([CallerMemberName] string subjectName = "none", MLDsaAlgorithm? algorithm = null)
+    {
+        using MLDsa key = MLDsa.GenerateKey(algorithm ?? MLDsaAlgorithm.MLDsa65);
+#pragma warning disable SYSLIB5006 // CertificateRequest(string, MLDsa) is marked experimental in .NET.
+        CertificateRequest request = new($"CN={subjectName}", key);
+#pragma warning restore SYSLIB5006
+        return request.CreateSelfSigned(DateTimeOffset.UtcNow.AddMinutes(-5), DateTimeOffset.UtcNow.AddYears(1));
     }
 
     /// <summary>

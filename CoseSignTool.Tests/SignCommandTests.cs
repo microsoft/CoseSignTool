@@ -1156,9 +1156,14 @@ public class SignCommandTests
         finally
         {
             if (File.Exists(payloadFile))
+            {
                 File.Delete(payloadFile);
+            }
+
             if (File.Exists(signatureFile))
+            {
                 File.Delete(signatureFile);
+            }
         }
     }
 
@@ -1200,9 +1205,14 @@ public class SignCommandTests
         finally
         {
             if (File.Exists(payloadFile))
+            {
                 File.Delete(payloadFile);
+            }
+
             if (File.Exists(signatureFile))
+            {
                 File.Delete(signatureFile);
+            }
         }
     }
 
@@ -1241,9 +1251,14 @@ public class SignCommandTests
         finally
         {
             if (File.Exists(payloadFile))
+            {
                 File.Delete(payloadFile);
+            }
+
             if (File.Exists(signatureFile))
+            {
                 File.Delete(signatureFile);
+            }
         }
     }
 
@@ -1283,9 +1298,14 @@ public class SignCommandTests
         finally
         {
             if (File.Exists(payloadFile))
+            {
                 File.Delete(payloadFile);
+            }
+
             if (File.Exists(signatureFile))
+            {
                 File.Delete(signatureFile);
+            }
         }
     }
 
@@ -1325,9 +1345,14 @@ public class SignCommandTests
         finally
         {
             if (File.Exists(payloadFile))
+            {
                 File.Delete(payloadFile);
+            }
+
             if (File.Exists(signatureFile))
+            {
                 File.Delete(signatureFile);
+            }
         }
     }
 
@@ -1367,9 +1392,14 @@ public class SignCommandTests
         finally
         {
             if (File.Exists(payloadFile))
+            {
                 File.Delete(payloadFile);
+            }
+
             if (File.Exists(signatureFile))
+            {
                 File.Delete(signatureFile);
+            }
         }
     }
 
@@ -1409,9 +1439,14 @@ public class SignCommandTests
         finally
         {
             if (File.Exists(payloadFile))
+            {
                 File.Delete(payloadFile);
+            }
+
             if (File.Exists(signatureFile))
+            {
                 File.Delete(signatureFile);
+            }
         }
     }
 
@@ -1451,9 +1486,14 @@ public class SignCommandTests
         finally
         {
             if (File.Exists(payloadFile))
+            {
                 File.Delete(payloadFile);
+            }
+
             if (File.Exists(signatureFile))
+            {
                 File.Delete(signatureFile);
+            }
         }
     }
 
@@ -1492,9 +1532,14 @@ public class SignCommandTests
         finally
         {
             if (File.Exists(payloadFile))
+            {
                 File.Delete(payloadFile);
+            }
+
             if (File.Exists(signatureFile))
+            {
                 File.Delete(signatureFile);
+            }
         }
     }
 
@@ -1534,9 +1579,14 @@ public class SignCommandTests
         finally
         {
             if (File.Exists(payloadFile))
+            {
                 File.Delete(payloadFile);
+            }
+
             if (File.Exists(signatureFile))
+            {
                 File.Delete(signatureFile);
+            }
         }
     }
 
@@ -1575,9 +1625,14 @@ public class SignCommandTests
         finally
         {
             if (File.Exists(payloadFile))
+            {
                 File.Delete(payloadFile);
+            }
+
             if (File.Exists(signatureFile))
+            {
                 File.Delete(signatureFile);
+            }
         }
     }
 
@@ -1620,9 +1675,14 @@ public class SignCommandTests
         finally
         {
             if (File.Exists(payloadFile))
+            {
                 File.Delete(payloadFile);
+            }
+
             if (File.Exists(signatureFile))
+            {
                 File.Delete(signatureFile);
+            }
         }
     }
 
@@ -1667,9 +1727,14 @@ public class SignCommandTests
         finally
         {
             if (File.Exists(payloadFile))
+            {
                 File.Delete(payloadFile);
+            }
+
             if (File.Exists(signatureFile))
+            {
                 File.Delete(signatureFile);
+            }
         }
     }
 
@@ -1713,9 +1778,14 @@ public class SignCommandTests
         finally
         {
             if (File.Exists(payloadFile))
+            {
                 File.Delete(payloadFile);
+            }
+
             if (File.Exists(signatureFile))
+            {
                 File.Delete(signatureFile);
+            }
         }
     }
 
@@ -1759,9 +1829,14 @@ public class SignCommandTests
         finally
         {
             if (File.Exists(payloadFile))
+            {
                 File.Delete(payloadFile);
+            }
+
             if (File.Exists(signatureFile))
+            {
                 File.Delete(signatureFile);
+            }
         }
     }
 

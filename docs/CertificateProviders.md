@@ -228,6 +228,130 @@ done
 | `--aas-endpoint` | | Yes | Azure Artifact Signing endpoint URL (e.g., `https://contoso.codesigning.azure.net`) |
 | `--aas-account-name` | | Yes | Azure Artifact Signing account name |
 | `--aas-cert-profile-name` | | Yes | Certificate profile name within the account |
+| `--aas-exclude-credentials` | | No | Comma-separated credentials to exclude from the `DefaultAzureCredential` chain (e.g., `ManagedIdentityCredential`). |
+
+#### Excluding credentials and reusing authentication
+
+`DefaultAzureCredential` probes each credential in its chain in order, and a credential that cannot
+succeed in the current environment still costs a timeout before the chain moves on. Excluding the
+ones you know will not apply removes that delay:
+
+```bash
+CoseSignTool sign \
+  --payload artifact.bin \
+  --signature artifact.cose \
+  --cert-provider azure-artifact-signing \
+  --aas-endpoint https://contoso.codesigning.azure.net \
+  --aas-account-name ContosoAccount \
+  --aas-cert-profile-name ContosoProfile \
+  --aas-exclude-credentials ManagedIdentityCredential,VisualStudioCredential
+```
+
+The same list may be supplied as a JSON array under the `ExcludeCredentials` section:
+
+```json
+{
+  "ExcludeCredentials": [ "ManagedIdentityCredential" ]
+}
+```
+
+Credential names are case-insensitive and the trailing `Credential` is optional, so
+`ManagedIdentityCredential` and `managedidentity` are equivalent. Supported names are
+`AzureCliCredential`, `AzureDeveloperCliCredential`, `AzurePowerShellCredential`, `BrokerCredential`,
+`EnvironmentCredential`, `InteractiveBrowserCredential`, `ManagedIdentityCredential`,
+`SharedTokenCacheCredential`, `VisualStudioCredential`, `VisualStudioCodeCredential`, and
+`WorkloadIdentityCredential`.
+
+For CLI load tests, the optional `--aas-access-token <token>` argument accepts an already-acquired
+Artifact Signing access token, without the `Bearer` prefix. Both the normal signing provider and
+`aas_sign_mst_register` support it. For example, append `--aas-access-token "$CACHED_AAS_TOKEN"` to
+either command. The supplied token is used unchanged, without invoking `DefaultAzureCredential`,
+acquiring another token, or automatically refreshing it. The caller must supply a valid token for
+Artifact Signing and renew it before expiry; the service still enforces expiration and authorization.
+Default-credential exclusions do not apply to this path. An explicitly empty or invalid token argument
+fails instead of falling back to another authentication method.
+
+**Security:** Token values are never logged by the plugin, but command-line arguments can be visible
+in process listings and shell history. Use this option only in an appropriately protected environment.
+
+`aas_sign_mst_register` uses one credential per invocation and passes that same instance to both
+its signing provider and MST proxy client. There is no process-wide credential cache. See
+[DefaultAzureCredential](https://learn.microsoft.com/en-us/dotnet/api/azure.identity.defaultazurecredential?view=azure-dotnet)
+for credential-chain behavior and instance-reuse guidance.
+
+Programmatic callers can supply an existing `Azure.Core.TokenCredential`, including a credential
+that maintains its own token cache, instead of creating a new authentication object for each operation:
+
+```csharp
+// credential is an existing TokenCredential owned by the caller.
+await command.ExecuteAsync(configuration, credential);
+
+// For signing without MST, pass the credential directly to the certificate provider.
+ICoseSigningKeyProvider signingProvider = providerPlugin.CreateProvider(configuration, logger: null, credential: credential);
+```
+
+These are separate entry points: the combined command creates its own signing provider, while
+`CreateProvider` alone does not construct an MST client. Credential exclusions apply only when neither
+a credential nor an access token is supplied and the plugin creates a `DefaultAzureCredential`. SDK clients may still call
+`GetToken` or `GetTokenAsync`; the supplied credential controls token caching and refresh, and token
+reuse depends on the requested scope and validity. A supplied `TokenCredential` takes precedence over
+the configured token; without either input, the existing default authentication behavior is unchanged.
+
+#### Hash selection
+
+The generic `--HashAlgorithm SHA512` (or `--hash-algorithm SHA512`) selection is applied by the signing
+factory even when a certificate-provider plugin defaults to SHA256. With RSA, SHA512 produces PS512
+with PSS padding or RS512 with PKCS1 padding. A hash not advertised by a provider's
+`ISupportsHashAlgorithms` capability is rejected explicitly instead of silently using its default.
+
+#### Signing and registering with MST through Azure Artifact Signing
+
+The Azure Artifact Signing plugin also provides `aas_sign_mst_register`. This command signs the
+payload with Azure Artifact Signing, sends the original embedded-payload COSE Sign1 statement to the
+Azure Artifact Signing MST proxy, embeds the returned receipt in unprotected header `394`, and writes
+the resulting transparent statement. If registration fails, no statement is written. The generic MST
+plugin and its `mst_register` command are unchanged.
+
+The plugin owns the complete sign-and-register workflow. It obtains the Artifact Signing key provider,
+creates the embedded COSE Sign1 statement through the shared CoseSign1 factory, and uses the same
+generic hash, RSA padding, and CBOR-header helpers as other signing commands.
+
+```bash
+CoseSignTool aas_sign_mst_register \
+  --mst-instance-name your-mst \
+  --proxy-endpoint https://api-canary.northcentralus.codesigning.azure.net/ \
+  --aas-endpoint https://contoso.codesigning.azure.net/ \
+  --aas-account-name ContosoAccount \
+  --aas-cert-profile-name ContosoProfile \
+  --aas-exclude-credentials ManagedIdentityCredential,VisualStudioCredential \
+  --payload artifact.bin \
+  --signature artifact.cose \
+  --hash-algorithm SHA384 \
+  --rsa-signature-padding PSS \
+  --cbor-protected-headers external-signatures=RAECAwQ= \
+  --output registration-result.json
+```
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `--mst-instance-name` | Yes | Microsoft Signing Transparency instance name passed to the proxy. |
+| `--proxy-endpoint` | Yes | Azure Artifact Signing proxy endpoint. |
+| `--aas-endpoint` | Yes | Azure Artifact Signing endpoint used to sign the payload. |
+| `--aas-account-name` | Yes | Azure Artifact Signing account name. |
+| `--aas-cert-profile-name` | Yes | Certificate profile used for signing and proxy authorization. |
+| `--payload` | No | Payload file to sign. Omit this option or use `-` to read binary payload bytes from standard input. |
+| `--signature` | Yes | Output path for the transparent COSE Sign1 statement containing the receipt. |
+| `--hash-algorithm` | No | Generic signing hash: SHA256, SHA384, or SHA512. |
+| `--rsa-signature-padding` | No | Generic RSA padding: PSS or PKCS1. |
+| `--cbor-protected-headers` | No | Generic protected headers whose values are base64-encoded complete CBOR data items. |
+| `--cbor-unprotected-headers` | No | Generic unprotected headers whose values are base64-encoded complete CBOR data items. |
+| `--output` | No | JSON output file containing the transparency receipt. |
+| `--timeout` | No | Combined signing and MST registration timeout in seconds; defaults to 60. |
+| `--correlation-id` | No | Correlation ID sent to Azure Artifact Signing. |
+| `--aas-exclude-credentials` | No | Credentials excluded from the shared Artifact Signing credential chain. |
+
+The tested MST profile accepts SHA-384 with PSS, producing PS384 (`-38`). SHA-384 with PKCS#1
+produces RS384 (`-258`), which the tested MST endpoint rejects as unsupported.
 
 ### Troubleshooting Azure Artifact Signing
 

@@ -7,13 +7,14 @@ extern alias IdentityAlias;
 
 namespace CoseSignTool.AzureArtifactSigning.Plugin;
 
+using System;
 using Azure.CodeSigning;
 using Azure.Core;
 using Azure.Developer.ArtifactSigning.CryptoProvider;
 using Azure.Developer.ArtifactSigning.CryptoProvider.Models;
-using Azure.Identity;
 using CoseSign1.Certificates.AzureArtifactSigning;
-using System;
+using DefaultAzureCredential = IdentityAlias::Azure.Identity.DefaultAzureCredential; // CodeQL [SM02196] DefaultAzureCredential is the recommended approach for client applications and libraries to authenticate to Azure services
+using DefaultAzureCredentialOptions = IdentityAlias::Azure.Identity.DefaultAzureCredentialOptions;
 
 /// <summary>
 /// Certificate provider plugin for Azure Artifact Signing service.
@@ -22,17 +23,39 @@ using System;
 /// <remarks>
 /// <para>
 /// This plugin integrates Azure Artifact Signing into CoseSignTool's Sign and indirect-sign commands.
-/// It uses DefaultAzureCredential for secure authentication, supporting managed identities,
+/// By default it uses DefaultAzureCredential for secure authentication, supporting managed identities,
 /// Azure CLI credentials, environment variables, and other Azure SDK authentication mechanisms.
 /// </para>
 /// <para>
-/// Security: This plugin NEVER accepts raw tokens on the command line. All authentication
-/// is handled through DefaultAzureCredential, which uses secure, industry-standard
-/// credential acquisition methods.
+/// Callers may supply an existing access token to bypass token acquisition and manage renewal themselves.
+/// Token values are never logged, but command-line arguments may be visible in process listings and shell history.
 /// </para>
 /// </remarks>
 public class AzureArtifactSigningCertificateProviderPlugin : ICertificateProviderPlugin
 {
+    internal const string AccessTokenKey = "aas-access-token";
+
+    private const string ExcludeCredentialsKey = "aas-exclude-credentials";
+    private const string ExcludeCredentialsSection = "ExcludeCredentials";
+
+    private static readonly IReadOnlyDictionary<string, Action<DefaultAzureCredentialOptions>> ExclusionSetters =
+        new Dictionary<string, Action<DefaultAzureCredentialOptions>>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Environment"] = options => options.ExcludeEnvironmentCredential = true,
+            ["WorkloadIdentity"] = options => options.ExcludeWorkloadIdentityCredential = true,
+            ["ManagedIdentity"] = options => options.ExcludeManagedIdentityCredential = true,
+            ["AzureDeveloperCli"] = options => options.ExcludeAzureDeveloperCliCredential = true,
+#pragma warning disable CS0618 // SharedTokenCacheCredential is deprecated but still a valid exclusion name.
+            ["SharedTokenCache"] = options => options.ExcludeSharedTokenCacheCredential = true,
+#pragma warning restore CS0618
+            ["InteractiveBrowser"] = options => options.ExcludeInteractiveBrowserCredential = true,
+            ["Broker"] = options => options.ExcludeBrokerCredential = true,
+            ["AzureCli"] = options => options.ExcludeAzureCliCredential = true,
+            ["VisualStudio"] = options => options.ExcludeVisualStudioCredential = true,
+            ["VisualStudioCode"] = options => options.ExcludeVisualStudioCodeCredential = true,
+            ["AzurePowerShell"] = options => options.ExcludeAzurePowerShellCredential = true,
+        };
+
     /// <inheritdoc/>
     public string ProviderName => "azure-artifact-signing";
 
@@ -47,6 +70,8 @@ public class AzureArtifactSigningCertificateProviderPlugin : ICertificateProvide
             ["--aas-endpoint"] = "aas-endpoint",
             ["--aas-account-name"] = "aas-account-name",
             ["--aas-cert-profile-name"] = "aas-cert-profile-name",
+            ["--aas-access-token"] = AccessTokenKey,
+            ["--aas-exclude-credentials"] = ExcludeCredentialsKey,
         };
     }
 
@@ -55,8 +80,8 @@ public class AzureArtifactSigningCertificateProviderPlugin : ICertificateProvide
     {
         // Check for required parameters
         string? endpoint = configuration["aas-endpoint"];
-        string? accountName = configuration["aas-account-name"];
-        string? certProfileName = configuration["aas-cert-profile-name"];
+        string? accountName = configuration["aas-account-name"] ?? configuration["account-name"];
+        string? certProfileName = configuration["aas-cert-profile-name"] ?? configuration["cert-profile-name"];
 
         return !string.IsNullOrWhiteSpace(endpoint) &&
                !string.IsNullOrWhiteSpace(accountName) &&
@@ -66,10 +91,29 @@ public class AzureArtifactSigningCertificateProviderPlugin : ICertificateProvide
     /// <inheritdoc/>
     public ICoseSigningKeyProvider CreateProvider(IConfiguration configuration, IPluginLogger? logger = null)
     {
+        return this.CreateProvider(configuration, logger, credential: null);
+    }
+
+    /// <summary>
+    /// Creates a signing provider using a caller-supplied credential when available.
+    /// </summary>
+    /// <param name="configuration">The Artifact Signing configuration.</param>
+    /// <param name="logger">Optional logger for diagnostic output.</param>
+    /// <param name="credential">
+    /// An existing credential to reuse. If null, uses the configured access token when supplied, otherwise
+    /// creates a DefaultAzureCredential using the configured exclusions. Exclusions apply only to the default credential.
+    /// Token caching and refresh remain the caller's responsibility when supplying authentication.
+    /// </param>
+    /// <returns>The Artifact Signing key provider.</returns>
+    public ICoseSigningKeyProvider CreateProvider(
+        IConfiguration configuration,
+        IPluginLogger? logger,
+        TokenCredential? credential)
+    {
         // Extract required parameters
         string? endpoint = configuration["aas-endpoint"];
-        string? accountName = configuration["aas-account-name"];
-        string? certProfileName = configuration["aas-cert-profile-name"];
+        string? accountName = configuration["aas-account-name"] ?? configuration["account-name"];
+        string? certProfileName = configuration["aas-cert-profile-name"] ?? configuration["cert-profile-name"];
 
         // Validate required parameters
         if (string.IsNullOrWhiteSpace(endpoint))
@@ -94,19 +138,8 @@ public class AzureArtifactSigningCertificateProviderPlugin : ICertificateProvide
             logger?.LogVerbose($"  Account: {accountName}");
             logger?.LogVerbose($"  Certificate Profile: {certProfileName}");
 
-            // Create Azure credential using DefaultAzureCredential
-            // This supports multiple authentication methods in order of precedence:
-            // 1. Environment variables (AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, etc.)
-            // 2. Managed Identity (for Azure VMs, App Service, etc.)
-            // 3. Visual Studio credential
-            // 4. Azure CLI credential
-            // 5. Azure PowerShell credential
-            logger?.LogVerbose("Acquiring Azure credentials using DefaultAzureCredential...");
-            TokenCredential credential = new IdentityAlias::Azure.Identity.DefaultAzureCredential(new IdentityAlias::Azure.Identity.DefaultAzureCredentialOptions // CodeQL [SM02196] DefaultAzureCredential is the recommended approach for client applications and libraries to authenticate to Azure services
-            {
-                // Exclude interactive browser auth to avoid unexpected prompts in CI/CD
-                ExcludeInteractiveBrowserCredential = true
-            });
+            // Chain behavior: https://learn.microsoft.com/en-us/dotnet/api/azure.identity.defaultazurecredential?view=azure-dotnet
+            credential ??= CreateCredential(configuration, logger);
 
             logger?.LogVerbose("Creating CertificateProfileClient...");
             // Create the Certificate Profile Client with fast-retry pipeline tuning so transient
@@ -136,7 +169,6 @@ public class AzureArtifactSigningCertificateProviderPlugin : ICertificateProvide
                 signContextOptions);
 
             logger?.LogVerbose("Creating AzureArtifactSigningCoseSigningKeyProvider...");
-            // Create and return the key provider
             AzureArtifactSigningCoseSigningKeyProvider provider = new AzureArtifactSigningCoseSigningKeyProvider(signContext);
 
             logger?.LogInformation("Azure Artifact Signing provider created successfully.");
@@ -164,6 +196,84 @@ public class AzureArtifactSigningCertificateProviderPlugin : ICertificateProvide
         }
     }
 
+    internal static TokenCredential CreateCredential(IConfiguration configuration, IPluginLogger? logger = null)
+    {
+        string? token = configuration[AccessTokenKey];
+        if (token is not null)
+        {
+            if (string.IsNullOrWhiteSpace(token) ||
+                !token.All(static character => char.IsAsciiLetterOrDigit(character) ||
+                    character is '-' or '.' or '_' or '~' or '+' or '/' or '='))
+            {
+                throw new ArgumentException(
+                    "The --aas-access-token value must be a non-empty bearer token without whitespace or invalid characters.",
+                    nameof(configuration));
+            }
+
+            logger?.LogVerbose("Using the supplied Azure Artifact Signing access token; token acquisition is disabled.");
+            // The caller owns renewal; the service still enforces the token's actual expiry.
+            AccessToken cachedToken = new(token, DateTimeOffset.MaxValue);
+            return DelegatedTokenCredential.Create((_, cancellationToken) =>
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                return cachedToken;
+            });
+        }
+
+        logger?.LogVerbose("Creating Azure credentials using DefaultAzureCredential...");
+        DefaultAzureCredentialOptions options = new()
+        {
+            // Exclude interactive browser auth to avoid unexpected prompts in CI/CD.
+            ExcludeInteractiveBrowserCredential = true
+        };
+
+        string? commandLineValue = configuration[ExcludeCredentialsKey];
+        if (!string.IsNullOrWhiteSpace(commandLineValue))
+        {
+            foreach (string name in commandLineValue.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                ApplyCredentialExclusion(name, options, logger);
+            }
+        }
+
+        foreach (IConfigurationSection child in configuration.GetSection(ExcludeCredentialsSection).GetChildren())
+        {
+            ApplyCredentialExclusion(child.Value, options, logger);
+        }
+
+        return new DefaultAzureCredential(options); // CodeQL [SM02196] DefaultAzureCredential is the recommended approach for client applications and libraries to authenticate to Azure services
+    }
+
+    private static void ApplyCredentialExclusion(
+        string? name,
+        DefaultAzureCredentialOptions options,
+        IPluginLogger? logger)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return;
+        }
+
+        string exclusion = name.Trim();
+        if (exclusion.EndsWith("Credential", StringComparison.OrdinalIgnoreCase))
+        {
+            exclusion = exclusion[..^"Credential".Length];
+        }
+
+        if (!ExclusionSetters.TryGetValue(exclusion, out Action<DefaultAzureCredentialOptions>? applyExclusion))
+        {
+            string supportedNames = string.Join(", ", ExclusionSetters.Keys
+                .Select(supportedName => supportedName + "Credential")
+                .OrderBy(supportedName => supportedName, StringComparer.Ordinal));
+            throw new ArgumentException(
+                $"'{name}' is not a recognized credential to exclude. Supported values are: {supportedNames}.",
+                nameof(name));
+        }
+
+        applyExclusion(options);
+        logger?.LogVerbose($"  Excluding {exclusion}Credential from the credential chain.");
+    }
+
     /// <inheritdoc/>
     public string GetUsageDocumentation()
     {
@@ -184,19 +294,35 @@ Required Parameters:
   --aas-cert-profile-name <name>    Certificate profile name within the account
                                      Example: MyCodeSigningProfile
 
+Optional Parameters:
+  --aas-access-token <token>       Optional already-acquired Artifact Signing bearer token, without the Bearer prefix.
+                                     Reuses this exact token without acquiring or refreshing it.
+                                     The caller must renew it before expiry.
+
+  --aas-exclude-credentials <list>  Comma-separated credentials to exclude from the DefaultAzureCredential chain.
+                                     Excluding a credential that cannot succeed in your environment removes the
+                                     probe delay it would otherwise add before the chain reaches a working credential.
+                                     Example: --aas-exclude-credentials ManagedIdentityCredential
+                                     May also be supplied as a JSON array under the ExcludeCredentials section:
+                                       ""ExcludeCredentials"": [""ManagedIdentityCredential""]
+
 Authentication:
-  This provider uses DefaultAzureCredential for authentication, which supports:
+  Without a supplied access token or credential, this provider uses DefaultAzureCredential, which supports:
   - Managed Identity (Azure VMs, App Service, Container Instances, etc.)
   - Environment variables (AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, etc.)
   - Azure CLI (az login)
   - Azure PowerShell (Connect-AzAccount)
   - Visual Studio credential
+
+  Programmatic callers can pass an existing TokenCredential to CreateProvider to reuse their
+  authentication object. Otherwise, --aas-access-token is used when supplied, or a DefaultAzureCredential is created.
+  Credential exclusions apply only when creating the default credential. There is no global cache.
   
   For CI/CD scenarios, configure environment variables or use managed identity.
   For local development, use 'az login' or Visual Studio authentication.
 
-  Security Note: This provider NEVER accepts raw tokens or secrets on the command line.
-  All authentication uses secure Azure SDK credential mechanisms.
+  Security Note: Access-token values are never logged. Command-line arguments may be visible in process
+  listings and shell history; use the optional token argument only in an appropriately protected environment.
 
 Examples:
   # Sign with Azure Artifact Signing (using Azure CLI credentials)

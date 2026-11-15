@@ -8,6 +8,9 @@ using System.Security.Cryptography.Cose;
 using CoseSign1.Certificates.Exceptions;
 using CoseSign1.Certificates.Extensions;
 using CoseSign1.Headers.Extensions;
+using CoseSign1.Abstractions.Interfaces;
+using CoseSignTool.Abstractions;
+using Microsoft.Extensions.Configuration;
 
 namespace CoseSignTool.Tests;
 
@@ -162,6 +165,79 @@ public class SignCommandTests
             CleanupFile(payloadFile);
             CleanupFile(signatureFile);
         }
+    }
+
+    [DataTestMethod]
+    [DataRow("--HashAlgorithm", false)]
+    [DataRow("--hash-algorithm", false)]
+    [DataRow("--HashAlgorithm", true)]
+    public void SignWithPluginAndExplicitSha512_HonorsSelectionOrRejectsUnsupportedHash(string hashOption, bool sha256Only)
+    {
+        string payloadFile = FileSystemUtils.GeneratePayloadFile();
+        string signatureFile = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.cose");
+        X509Certificate2CoseSigningKeyProvider keyProvider = sha256Only
+            ? new Sha256OnlySigningKeyProvider(SelfSignedCert)
+            : new X509Certificate2CoseSigningKeyProvider(SelfSignedCert);
+        HashSelectionCertificateProviderPlugin plugin = new(keyProvider);
+        CertificateProviderPluginManager manager = new();
+        manager.RegisterPlugin(plugin);
+        string[] args =
+        [
+            "sign", "--payload", payloadFile, "--sig", signatureFile,
+            "--cp", plugin.ProviderName, hashOption, "SHA512"
+        ];
+
+        try
+        {
+            Microsoft.Extensions.Configuration.CommandLine.CommandLineConfigurationProvider configuration =
+                CoseCommand.LoadCommandLineArgs(args, SignCommand.Options, out string? badArg)!;
+            badArg.Should().BeNull();
+            SignCommand command = new(configuration);
+            command.SetCertificateProviderPluginManager(manager);
+
+            ExitCode result = command.Run();
+
+            keyProvider.HashAlgorithm.Should().Be(HashAlgorithmName.SHA256);
+            if (sha256Only)
+            {
+                result.Should().Be(ExitCode.InvalidArgumentValue);
+                File.Exists(signatureFile).Should().BeFalse();
+            }
+            else
+            {
+                result.Should().Be(ExitCode.Success);
+                CoseSign1Message message = CoseMessage.DecodeSign1(File.ReadAllBytes(signatureFile));
+                message.ProtectedHeaders[CoseHeaderLabel.Algorithm].GetValueAsInt32().Should().Be(-39);
+                using RSA publicKey = SelfSignedCert.GetRSAPublicKey()!;
+                message.VerifyDetached(publicKey, File.ReadAllBytes(payloadFile)).Should().BeTrue();
+            }
+        }
+        finally
+        {
+            CleanupFile(payloadFile);
+            CleanupFile(signatureFile);
+        }
+    }
+
+    private sealed class HashSelectionCertificateProviderPlugin : ICertificateProviderPlugin
+    {
+        private readonly ICoseSigningKeyProvider provider;
+
+        internal HashSelectionCertificateProviderPlugin(ICoseSigningKeyProvider provider) => this.provider = provider;
+
+        public string ProviderName => "test-hash-provider";
+        public string Description => "Test provider that does not read the configured hash algorithm.";
+        public IDictionary<string, string> GetProviderOptions() => new Dictionary<string, string>();
+        public bool CanCreateProvider(IConfiguration configuration) => true;
+        public ICoseSigningKeyProvider CreateProvider(IConfiguration configuration, IPluginLogger? logger = null) => provider;
+        public string GetUsageDocumentation() => Description;
+    }
+
+    private sealed class Sha256OnlySigningKeyProvider : X509Certificate2CoseSigningKeyProvider
+    {
+        internal Sha256OnlySigningKeyProvider(X509Certificate2 certificate) : base(certificate) { }
+
+        public override IReadOnlyCollection<HashAlgorithmName> SupportedHashAlgorithms => new[] { HashAlgorithmName.SHA256 };
     }
 
     [TestMethod]

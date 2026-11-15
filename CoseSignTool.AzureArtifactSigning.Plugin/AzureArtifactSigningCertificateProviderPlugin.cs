@@ -13,7 +13,7 @@ using Azure.Core;
 using Azure.Developer.ArtifactSigning.CryptoProvider;
 using Azure.Developer.ArtifactSigning.CryptoProvider.Models;
 using CoseSign1.Certificates.AzureArtifactSigning;
-using DefaultAzureCredential = IdentityAlias::Azure.Identity.DefaultAzureCredential;
+using DefaultAzureCredential = IdentityAlias::Azure.Identity.DefaultAzureCredential; // CodeQL [SM02196] DefaultAzureCredential is the recommended approach for client applications and libraries to authenticate to Azure services
 using DefaultAzureCredentialOptions = IdentityAlias::Azure.Identity.DefaultAzureCredentialOptions;
 
 /// <summary>

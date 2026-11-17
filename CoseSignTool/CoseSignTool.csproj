@@ -177,4 +177,10 @@
         <Message Text="Building @(PluginProjects->Count()) plugin project(s)..." Importance="high" Condition="'@(PluginProjects)' != ''" />
         <MSBuild Projects="@(PluginProjects)" Properties="Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier)" Condition="'@(PluginProjects)' != ''" />
     </Target>
+
+    <!--Build only Artifact Signing for direct project builds, using the executable's runtime.-->
+    <Target Name="BuildAzureArtifactSigningPlugin" BeforeTargets="DeployAllPlugins" Condition="'$(DeployPlugins)' == 'true' AND '$(BuildingSolutionFile)' != 'true'">
+        <MSBuild Projects="..\CoseSignTool.AzureArtifactSigning.Plugin\CoseSignTool.AzureArtifactSigning.Plugin.csproj"
+                 Properties="Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier);SelfContained=false" />
+    </Target>
 </Project>

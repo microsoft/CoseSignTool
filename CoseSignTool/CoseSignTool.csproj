@@ -171,10 +171,11 @@
     </Target>
 
     <!--Build all plugins before main build when building the app project directly.
-        Solution builds already compile plugin projects, so rebuilding them here can race on shared outputs. -->
-    <Target Name="BuildPlugins" BeforeTargets="Build" Condition="'$(DeployPlugins)' == 'true' AND '$(SolutionPath)' == ''">
+        Solution builds already compile plugin projects, so rebuilding them here can race on shared outputs.
+        Plugins use the host runtime; private framework assemblies would split shared type identities. -->
+    <Target Name="BuildPlugins" BeforeTargets="Build" Condition="'$(DeployPlugins)' == 'true' AND '$(BuildingSolutionFile)' != 'true'">
         <!-- Build each plugin project using consolidated PluginProjects ItemGroup -->
         <Message Text="Building @(PluginProjects->Count()) plugin project(s)..." Importance="high" Condition="'@(PluginProjects)' != ''" />
-        <MSBuild Projects="@(PluginProjects)" Properties="Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier)" Condition="'@(PluginProjects)' != ''" />
+        <MSBuild Projects="@(PluginProjects)" Properties="Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier);SelfContained=false" Condition="'@(PluginProjects)' != ''" />
     </Target>
 </Project>

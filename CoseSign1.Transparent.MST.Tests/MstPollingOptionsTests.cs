@@ -159,7 +159,7 @@ public class MstPollingOptionsTests
         CodeTransparencyClient mockClient = Mock.Of<CodeTransparencyClient>();
         CodeTransparencyVerificationOptions verificationOptions = new()
         {
-            AuthorizedDomains = new List<string> { "example.com" }
+            AuthorizedDomains = { "example.com" }
         };
         MstPollingOptions pollingOptions = new()
         {
@@ -240,28 +240,21 @@ public class MstPollingOptionsTests
     #region MakeTransparentAsync with polling options
 
     /// <summary>
-    /// Verifies that MakeTransparentAsync uses PollingInterval when configured.
+    /// Verifies that MakeTransparentAsync waits for commit and still succeeds for every polling configuration,
+    /// since commit polling is now handled by the CodeTransparencyClient pipeline.
     /// </summary>
-    [Test]
-    public async Task MakeTransparentAsync_UsesPollingInterval_WhenConfigured()
+    [TestCase(false, false)]
+    [TestCase(true, false)]
+    [TestCase(false, true)]
+    [TestCase(true, true)]
+    public async Task MakeTransparentAsync_WaitsForCommit_RegardlessOfPollingOptions(bool setInterval, bool setStrategy)
     {
         // Arrange
-        Mock<CodeTransparencyClient> mockClient = new();
-        CoseSign1Message message = CreateMockCoseSign1Message();
-        message.AddReceipts(new List<byte[]> { new byte[] { 1, 2, 3 } });
-        BinaryData mockEntryStatement = BinaryData.FromBytes(message.Encode());
-
-        Mock<Operation<BinaryData>> mockOperation = CreateSuccessfulOperation();
-        mockClient
-            .Setup(c => c.CreateEntryAsync(It.IsAny<WaitUntil>(), It.IsAny<BinaryData>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(mockOperation.Object);
-        mockClient
-            .Setup(c => c.GetEntryStatementAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Response.FromValue(mockEntryStatement, Mock.Of<Response>()));
-
+        Mock<CodeTransparencyClient> mockClient = CreateSuccessfulClient(out CoseSign1Message message);
         MstPollingOptions pollingOptions = new()
         {
-            PollingInterval = TimeSpan.FromMilliseconds(100)
+            PollingInterval = setInterval ? TimeSpan.FromMilliseconds(100) : null,
+            DelayStrategy = setStrategy ? DelayStrategy.CreateFixedDelayStrategy(TimeSpan.FromMilliseconds(50)) : null
         };
         MstTransparencyService service = new(mockClient.Object, pollingOptions);
 
@@ -270,180 +263,19 @@ public class MstPollingOptionsTests
 
         // Assert
         Assert.That(result, Is.Not.Null);
-        // Verify WaitForCompletionAsync was called with the TimeSpan overload
-        mockOperation.Verify(
-            op => op.WaitForCompletionAsync(TimeSpan.FromMilliseconds(100), It.IsAny<CancellationToken>()),
+        mockClient.Verify(
+            c => c.CreateEntryAsync(It.IsAny<BinaryData>(), true, It.IsAny<CancellationToken>()),
             Times.Once);
     }
 
     /// <summary>
-    /// Verifies that MakeTransparentAsync uses DelayStrategy when configured.
+    /// Verifies that a verbose message explains that configured polling options are ignored.
     /// </summary>
     [Test]
-    public async Task MakeTransparentAsync_UsesDelayStrategy_WhenConfigured()
+    public async Task MakeTransparentAsync_LogsPollingOptionsIgnored_WhenOptionsSet()
     {
         // Arrange
-        Mock<CodeTransparencyClient> mockClient = new();
-        CoseSign1Message message = CreateMockCoseSign1Message();
-        message.AddReceipts(new List<byte[]> { new byte[] { 1, 2, 3 } });
-        BinaryData mockEntryStatement = BinaryData.FromBytes(message.Encode());
-
-        Mock<Operation<BinaryData>> mockOperation = CreateSuccessfulOperation();
-        mockClient
-            .Setup(c => c.CreateEntryAsync(It.IsAny<WaitUntil>(), It.IsAny<BinaryData>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(mockOperation.Object);
-        mockClient
-            .Setup(c => c.GetEntryStatementAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Response.FromValue(mockEntryStatement, Mock.Of<Response>()));
-
-        DelayStrategy fixedStrategy = DelayStrategy.CreateFixedDelayStrategy(TimeSpan.FromMilliseconds(50));
-        MstPollingOptions pollingOptions = new()
-        {
-            DelayStrategy = fixedStrategy
-        };
-        MstTransparencyService service = new(mockClient.Object, pollingOptions);
-
-        // Act
-        CoseSign1Message result = await service.MakeTransparentAsync(message);
-
-        // Assert
-        Assert.That(result, Is.Not.Null);
-        // Verify WaitForCompletionAsync was called with the DelayStrategy overload
-        mockOperation.Verify(
-            op => op.WaitForCompletionAsync(fixedStrategy, It.IsAny<CancellationToken>()),
-            Times.Once);
-    }
-
-    /// <summary>
-    /// Verifies that DelayStrategy takes precedence over PollingInterval when both are set.
-    /// </summary>
-    [Test]
-    public async Task MakeTransparentAsync_DelayStrategyTakesPrecedence_WhenBothSet()
-    {
-        // Arrange
-        Mock<CodeTransparencyClient> mockClient = new();
-        CoseSign1Message message = CreateMockCoseSign1Message();
-        message.AddReceipts(new List<byte[]> { new byte[] { 1, 2, 3 } });
-        BinaryData mockEntryStatement = BinaryData.FromBytes(message.Encode());
-
-        Mock<Operation<BinaryData>> mockOperation = CreateSuccessfulOperation();
-        mockClient
-            .Setup(c => c.CreateEntryAsync(It.IsAny<WaitUntil>(), It.IsAny<BinaryData>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(mockOperation.Object);
-        mockClient
-            .Setup(c => c.GetEntryStatementAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Response.FromValue(mockEntryStatement, Mock.Of<Response>()));
-
-        DelayStrategy fixedStrategy = DelayStrategy.CreateFixedDelayStrategy(TimeSpan.FromMilliseconds(50));
-        MstPollingOptions pollingOptions = new()
-        {
-            PollingInterval = TimeSpan.FromSeconds(5), // Should be ignored
-            DelayStrategy = fixedStrategy              // Should take precedence
-        };
-        MstTransparencyService service = new(mockClient.Object, pollingOptions);
-
-        // Act
-        CoseSign1Message result = await service.MakeTransparentAsync(message);
-
-        // Assert
-        Assert.That(result, Is.Not.Null);
-        // DelayStrategy overload should be called, NOT TimeSpan overload
-        mockOperation.Verify(
-            op => op.WaitForCompletionAsync(fixedStrategy, It.IsAny<CancellationToken>()),
-            Times.Once);
-        mockOperation.Verify(
-            op => op.WaitForCompletionAsync(It.IsAny<TimeSpan>(), It.IsAny<CancellationToken>()),
-            Times.Never);
-    }
-
-    /// <summary>
-    /// Verifies that the default (no-arg) WaitForCompletionAsync is called when no polling options are set.
-    /// </summary>
-    [Test]
-    public async Task MakeTransparentAsync_UsesDefaultPolling_WhenNoOptionsSet()
-    {
-        // Arrange
-        Mock<CodeTransparencyClient> mockClient = new();
-        CoseSign1Message message = CreateMockCoseSign1Message();
-        message.AddReceipts(new List<byte[]> { new byte[] { 1, 2, 3 } });
-        BinaryData mockEntryStatement = BinaryData.FromBytes(message.Encode());
-
-        Mock<Operation<BinaryData>> mockOperation = CreateSuccessfulOperation();
-        mockClient
-            .Setup(c => c.CreateEntryAsync(It.IsAny<WaitUntil>(), It.IsAny<BinaryData>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(mockOperation.Object);
-        mockClient
-            .Setup(c => c.GetEntryStatementAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Response.FromValue(mockEntryStatement, Mock.Of<Response>()));
-
-        // No polling options
-        MstTransparencyService service = new(mockClient.Object);
-
-        // Act
-        CoseSign1Message result = await service.MakeTransparentAsync(message);
-
-        // Assert
-        Assert.That(result, Is.Not.Null);
-        // Default overload (CancellationToken only) should be called
-        mockOperation.Verify(
-            op => op.WaitForCompletionAsync(It.IsAny<CancellationToken>()),
-            Times.Once);
-    }
-
-    /// <summary>
-    /// Verifies that the default is used when MstPollingOptions is provided but both fields are null.
-    /// </summary>
-    [Test]
-    public async Task MakeTransparentAsync_UsesDefaultPolling_WhenOptionsAllNull()
-    {
-        // Arrange
-        Mock<CodeTransparencyClient> mockClient = new();
-        CoseSign1Message message = CreateMockCoseSign1Message();
-        message.AddReceipts(new List<byte[]> { new byte[] { 1, 2, 3 } });
-        BinaryData mockEntryStatement = BinaryData.FromBytes(message.Encode());
-
-        Mock<Operation<BinaryData>> mockOperation = CreateSuccessfulOperation();
-        mockClient
-            .Setup(c => c.CreateEntryAsync(It.IsAny<WaitUntil>(), It.IsAny<BinaryData>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(mockOperation.Object);
-        mockClient
-            .Setup(c => c.GetEntryStatementAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Response.FromValue(mockEntryStatement, Mock.Of<Response>()));
-
-        // Empty polling options (both null)
-        MstPollingOptions pollingOptions = new();
-        MstTransparencyService service = new(mockClient.Object, pollingOptions);
-
-        // Act
-        CoseSign1Message result = await service.MakeTransparentAsync(message);
-
-        // Assert
-        Assert.That(result, Is.Not.Null);
-        mockOperation.Verify(
-            op => op.WaitForCompletionAsync(It.IsAny<CancellationToken>()),
-            Times.Once);
-    }
-
-    /// <summary>
-    /// Verifies that polling options are correctly logged when verbose logging is enabled.
-    /// </summary>
-    [Test]
-    public async Task MakeTransparentAsync_LogsPollingInterval_WhenVerboseEnabled()
-    {
-        // Arrange
-        Mock<CodeTransparencyClient> mockClient = new();
-        CoseSign1Message message = CreateMockCoseSign1Message();
-        message.AddReceipts(new List<byte[]> { new byte[] { 1, 2, 3 } });
-        BinaryData mockEntryStatement = BinaryData.FromBytes(message.Encode());
-
-        Mock<Operation<BinaryData>> mockOperation = CreateSuccessfulOperation();
-        mockClient
-            .Setup(c => c.CreateEntryAsync(It.IsAny<WaitUntil>(), It.IsAny<BinaryData>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(mockOperation.Object);
-        mockClient
-            .Setup(c => c.GetEntryStatementAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Response.FromValue(mockEntryStatement, Mock.Of<Response>()));
-
+        Mock<CodeTransparencyClient> mockClient = CreateSuccessfulClient(out CoseSign1Message message);
         List<string> logMessages = new();
         MstPollingOptions pollingOptions = new()
         {
@@ -457,44 +289,27 @@ public class MstPollingOptionsTests
         await service.MakeTransparentAsync(message);
 
         // Assert
-        Assert.That(logMessages, Has.Some.Contains("fixed polling interval"));
-        Assert.That(logMessages, Has.Some.Contains("250ms"));
+        Assert.That(logMessages, Has.Some.Contains("MstPollingOptions are ignored"));
     }
 
     /// <summary>
-    /// Verifies that logging includes the DelayStrategy type name when verbose logging is enabled.
+    /// Verifies that no polling message is logged when no polling options are configured.
     /// </summary>
     [Test]
-    public async Task MakeTransparentAsync_LogsDelayStrategy_WhenVerboseEnabled()
+    public async Task MakeTransparentAsync_DoesNotLogPollingOptions_WhenOptionsAllNull()
     {
         // Arrange
-        Mock<CodeTransparencyClient> mockClient = new();
-        CoseSign1Message message = CreateMockCoseSign1Message();
-        message.AddReceipts(new List<byte[]> { new byte[] { 1, 2, 3 } });
-        BinaryData mockEntryStatement = BinaryData.FromBytes(message.Encode());
-
-        Mock<Operation<BinaryData>> mockOperation = CreateSuccessfulOperation();
-        mockClient
-            .Setup(c => c.CreateEntryAsync(It.IsAny<WaitUntil>(), It.IsAny<BinaryData>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(mockOperation.Object);
-        mockClient
-            .Setup(c => c.GetEntryStatementAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Response.FromValue(mockEntryStatement, Mock.Of<Response>()));
-
+        Mock<CodeTransparencyClient> mockClient = CreateSuccessfulClient(out CoseSign1Message message);
         List<string> logMessages = new();
-        MstPollingOptions pollingOptions = new()
-        {
-            DelayStrategy = DelayStrategy.CreateFixedDelayStrategy(TimeSpan.FromMilliseconds(100))
-        };
         MstTransparencyService service = new(
-            mockClient.Object, null, null, pollingOptions,
+            mockClient.Object, null, null, new MstPollingOptions(),
             null, msg => logMessages.Add(msg), null, null);
 
         // Act
         await service.MakeTransparentAsync(message);
 
         // Assert
-        Assert.That(logMessages, Has.Some.Contains("custom DelayStrategy"));
+        Assert.That(logMessages, Has.None.Contains("MstPollingOptions"));
     }
 
     #endregion
@@ -598,22 +413,23 @@ public class MstPollingOptionsTests
     }
 
     /// <summary>
-    /// Creates a mock Operation that simulates a successful CreateEntryAsync response
-    /// with a valid CBOR-encoded EntryId.
+    /// Creates a client mock whose CreateEntryAsync commits successfully and whose
+    /// GetEntryStatementAsync returns the message with a receipt attached.
     /// </summary>
-    private static Mock<Operation<BinaryData>> CreateSuccessfulOperation()
+    private Mock<CodeTransparencyClient> CreateSuccessfulClient(out CoseSign1Message message)
     {
-        Mock<Operation<BinaryData>> mock = new();
-        mock.Setup(op => op.HasValue).Returns(true);
+        message = CreateMockCoseSign1Message();
+        message.AddReceipts(new List<byte[]> { new byte[] { 1, 2, 3 } });
+        BinaryData mockEntryStatement = BinaryData.FromBytes(message.Encode());
 
-        CborWriter cborWriter = new();
-        cborWriter.WriteStartMap(1);
-        cborWriter.WriteTextString("EntryId");
-        cborWriter.WriteTextString("test-entry-12345");
-        cborWriter.WriteEndMap();
-        mock.Setup(op => op.Value).Returns(BinaryData.FromBytes(cborWriter.Encode()));
-
-        return mock;
+        Mock<CodeTransparencyClient> mockClient = new();
+        mockClient
+            .Setup(c => c.CreateEntryAsync(It.IsAny<BinaryData>(), It.IsAny<bool?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(MstCreateEntryResponses.Committed("2.15"));
+        mockClient
+            .Setup(c => c.GetEntryStatementAsync("2.15", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Response.FromValue(mockEntryStatement, Mock.Of<Response>()));
+        return mockClient;
     }
 
     #endregion

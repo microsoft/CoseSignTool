@@ -52,7 +52,7 @@ public class MstTransparencyServiceLoggingTests
         Action<string> logError = msg => logMessages.Add($"ERROR: {msg}");
         
         mockClient
-            .Setup(client => client.CreateEntryAsync(It.IsAny<WaitUntil>(), It.IsAny<BinaryData>(), It.IsAny<CancellationToken>()))
+            .Setup(client => client.CreateEntryAsync(It.IsAny<BinaryData>(), It.IsAny<bool?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(MockSuccessfulOperation());
 
         mockClient
@@ -88,7 +88,7 @@ public class MstTransparencyServiceLoggingTests
         Action<string> logError = msg => errorMessages.Add($"ERROR: {msg}");
         
         mockClient
-            .Setup(client => client.CreateEntryAsync(It.IsAny<WaitUntil>(), It.IsAny<BinaryData>(), It.IsAny<CancellationToken>()))
+            .Setup(client => client.CreateEntryAsync(It.IsAny<BinaryData>(), It.IsAny<bool?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(MockFailedOperation());
 
         MstTransparencyService service = new MstTransparencyService(
@@ -113,7 +113,7 @@ public class MstTransparencyServiceLoggingTests
         Action<string> logError = msg => errorMessages.Add($"ERROR: {msg}");
         
         mockClient
-            .Setup(client => client.CreateEntryAsync(It.IsAny<WaitUntil>(), It.IsAny<BinaryData>(), It.IsAny<CancellationToken>()))
+            .Setup(client => client.CreateEntryAsync(It.IsAny<BinaryData>(), It.IsAny<bool?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(MockSuccessfulOperationWithInvalidResponse());
 
         MstTransparencyService service = new MstTransparencyService(
@@ -122,9 +122,9 @@ public class MstTransparencyServiceLoggingTests
         // Act & Assert
         Assert.That(
             async () => await service.MakeTransparentAsync(message),
-            Throws.TypeOf<InvalidOperationException>().With.Message.Contains("not a valid CBOR-encoded entryId"));
+            Throws.TypeOf<InvalidOperationException>().With.Message.Contains("failed to return an entry id"));
         
-        Assert.That(errorMessages, Has.Some.Matches<string>(m => m.Contains("not a valid CBOR-encoded entryId")));
+        Assert.That(errorMessages, Has.Some.Matches<string>(m => m.Contains("failed to return an entry id")));
     }
 
     [Test]
@@ -139,7 +139,7 @@ public class MstTransparencyServiceLoggingTests
         
         var verificationOptions = new CodeTransparencyVerificationOptions
         {
-            AuthorizedDomains = new List<string> { "example.com", "test.com" },
+            AuthorizedDomains = { "example.com", "test.com" },
             AuthorizedReceiptBehavior = AuthorizedReceiptBehavior.RequireAll,
             UnauthorizedReceiptBehavior = UnauthorizedReceiptBehavior.FailIfPresent
         };
@@ -312,42 +312,19 @@ public class MstTransparencyServiceLoggingTests
         return message;
     }
 
-    private static Operation<BinaryData> MockSuccessfulOperation()
+    private static NullableResponse<BinaryData> MockSuccessfulOperation()
     {
-        Mock<Operation<BinaryData>> mockOperation = new Mock<Operation<BinaryData>>();
-        mockOperation.Setup(op => op.HasValue).Returns(true);
-        
-        CborWriter cborWriter = new CborWriter();
-        cborWriter.WriteStartMap(1);
-        cborWriter.WriteTextString("EntryId");
-        cborWriter.WriteTextString("12345");
-        cborWriter.WriteEndMap();
-        
-        mockOperation.Setup(op => op.Value).Returns(BinaryData.FromBytes(cborWriter.Encode()));
-        return mockOperation.Object;
+        return MstCreateEntryResponses.Committed("2.15");
     }
 
-    private static Operation<BinaryData> MockFailedOperation()
+    private static NullableResponse<BinaryData> MockFailedOperation()
     {
-        Mock<Operation<BinaryData>> mockOperation = new Mock<Operation<BinaryData>>();
-        mockOperation.Setup(op => op.HasValue).Returns(false);
-        mockOperation.Setup(op => op.GetRawResponse()).Returns(Mock.Of<Response>());
-        return mockOperation.Object;
+        return MstCreateEntryResponses.NoValue();
     }
 
-    private static Operation<BinaryData> MockSuccessfulOperationWithInvalidResponse()
+    private static NullableResponse<BinaryData> MockSuccessfulOperationWithInvalidResponse()
     {
-        Mock<Operation<BinaryData>> mockOperation = new Mock<Operation<BinaryData>>();
-        mockOperation.Setup(op => op.HasValue).Returns(true);
-        
-        CborWriter cborWriter = new CborWriter();
-        cborWriter.WriteStartMap(1);
-        cborWriter.WriteTextString("InvalidKey");
-        cborWriter.WriteTextString("12345");
-        cborWriter.WriteEndMap();
-        
-        mockOperation.Setup(op => op.Value).Returns(BinaryData.FromBytes(cborWriter.Encode()));
-        return mockOperation.Object;
+        return MstCreateEntryResponses.WithoutEntryId();
     }
 }
 

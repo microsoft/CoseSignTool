@@ -528,8 +528,8 @@ did:x509:0:sha256:WE50Zg...::subject:CN=Microsoft%20Code%20Signing%20CA
            │
            ▼
 ┌─────────────────────────┐    ┌────────────────────┐
-│ CreateEntryAsync (LRO)  │───▶│ Azure Code         │
-│ (submit to ledger)      │    │ Transparency       │
+│ CreateEntryAsync        │───▶│ Azure Code         │
+│ (waitForCommit: true)   │    │ Transparency       │
 └─────────────────────────┘    │ Service            │
            │                    └────────────────────┘
            ▼
@@ -736,7 +736,7 @@ var message = await factory.CreateCoseSign1MessageAsync(
 | "Certificate chain validation failed" | Missing intermediate/root certs | Use `--Roots` option or install certs |
 | "Private key not found" | Certificate without private key | Export with private key or use HSM |
 | SCITT claims missing | `EnableScittCompliance = false` | Set to `true` or add extender manually |
-| MST registration slow (~3s) | SDK default polling | Apply `MstPollingOptions` tuning |
+| MST registration slow (~3s) | SDK commit wait/retry | Tune `CodeTransparencyClientOptions.Retry` |
 | Plugin not loading | Wrong folder structure | Use `plugins/{Name}/{Name}.dll` |
 
 ### Debugging Tips

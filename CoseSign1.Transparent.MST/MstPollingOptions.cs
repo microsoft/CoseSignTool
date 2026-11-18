@@ -10,15 +10,12 @@ using System;
 /// Azure Code Transparency Service for completed receipt registrations.
 /// </summary>
 /// <remarks>
-/// <para><b>These options do not affect request timing with the referenced
-/// Azure.Security.CodeTransparency 1.0.0-beta.12:</b> registration returns an already-completed
-/// operation, so <c>WaitForCompletionAsync</c> performs no long-running-operation polling. They are
-/// still passed to it and apply to any SDK version that returns a genuinely pending operation.</para>
+/// <para><b>These options no longer have any effect.</b> Starting with Azure.Security.CodeTransparency
+/// 1.0.0, registration uses <c>CreateEntryAsync(body, waitForCommit: true)</c>, which returns only once
+/// the entry is committed, so there is no long-running operation to poll. To tune how the SDK retries
+/// a not-yet-committed entry, configure <c>CodeTransparencyClientOptions.Retry</c> on the client.</para>
 ///
-/// <para>If neither <see cref="PollingInterval"/> nor <see cref="DelayStrategy"/> is set,
-/// the Azure SDK's default exponential back-off strategy is used.</para>
-///
-/// <para>If both are set, <see cref="DelayStrategy"/> takes precedence.</para>
+/// <para>The type is retained for source compatibility.</para>
 /// </remarks>
 public class MstPollingOptions
 {
@@ -26,11 +23,7 @@ public class MstPollingOptions
     /// Gets or sets the fixed interval between polling attempts.
     /// </summary>
     /// <remarks>
-    /// When set, <c>Operation&lt;T&gt;.WaitForCompletionAsync(TimeSpan, CancellationToken)</c>
-    /// is called with this value. Set to <c>null</c> (the default) to use the SDK's built-in
-    /// delay strategy instead.
-    ///
-    /// <para>Typical values range from 100 ms (aggressive, local dev) to 5 s (production).</para>
+    /// Has no effect; see the <see cref="MstPollingOptions"/> remarks.
     /// </remarks>
     /// <example>
     /// <code>
@@ -44,13 +37,7 @@ public class MstPollingOptions
     /// back-off pattern between polling attempts.
     /// </summary>
     /// <remarks>
-    /// When set, this strategy is passed to the
-    /// <c>Operation&lt;T&gt;.WaitForCompletionAsync(DelayStrategy, CancellationToken)</c> overload.
-    /// This takes precedence over <see cref="PollingInterval"/> if both are specified.
-    ///
-    /// <para>Use <see cref="Azure.Core.DelayStrategy.CreateFixedDelayStrategy(TimeSpan)"/>
-    /// for a constant interval, or implement a custom strategy for exponential back-off
-    /// with jitter.</para>
+    /// Has no effect; see the <see cref="MstPollingOptions"/> remarks.
     /// </remarks>
     /// <example>
     /// <code>

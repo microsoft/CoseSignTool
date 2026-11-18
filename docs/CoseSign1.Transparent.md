@@ -275,9 +275,10 @@ catch (InvalidOperationException ex)
 
 ### Polling Options
 
-`MstPollingOptions` remains available for source compatibility. With
-Azure.Security.CodeTransparency 1.0.0-beta.12, registration returns an already-completed
-operation, so these options do not affect request timing.
+`MstPollingOptions` remains available for source compatibility but has no effect. With
+Azure.Security.CodeTransparency 1.0.0 and later, registration uses
+`CreateEntryAsync(body, waitForCommit: true)`, which returns once the entry is committed. To tune
+how the SDK retries a not-yet-committed entry, configure `CodeTransparencyClientOptions.Retry`.
 
 ## Configuration  
 The project is configured to enforce strict code quality and static analysis rules. Ensure your development environment supports the following:  

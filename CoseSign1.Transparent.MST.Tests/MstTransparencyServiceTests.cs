@@ -67,7 +67,7 @@ public class MstTransparencyServiceTests
         CodeTransparencyClient mockClient = Mock.Of<CodeTransparencyClient>();
         var verificationOptions = new CodeTransparencyVerificationOptions
         {
-            AuthorizedDomains = new List<string> { "example.com" },
+            AuthorizedDomains = { "example.com" },
             AuthorizedReceiptBehavior = AuthorizedReceiptBehavior.RequireAll,
             UnauthorizedReceiptBehavior = UnauthorizedReceiptBehavior.FailIfPresent
         };
@@ -118,16 +118,16 @@ public class MstTransparencyServiceTests
     }
 
     /// <summary>
-    /// Tests the <see cref="MstTransparencyService.MakeTransparentAsync"/> method for a failed operation.
+    /// Tests the <see cref="MstTransparencyService.MakeTransparentAsync"/> method when the service returns no value (e.g. an unfollowed 303).
     /// </summary>
     [Test]
-    public void MakeTransparentAsync_ThrowsInvalidOperationException_WhenOperationFails()
+    public void MakeTransparentAsync_ThrowsInvalidOperationException_WhenResponseHasNoValue()
     {
         // Arrange
         Mock<CodeTransparencyClient> mockClient = new Mock<CodeTransparencyClient>();
         mockClient
-            .Setup(client => client.CreateEntryAsync(It.IsAny<WaitUntil>(), It.IsAny<BinaryData>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(MockFailedOperation());
+            .Setup(client => client.CreateEntryAsync(It.IsAny<BinaryData>(), It.IsAny<bool?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(MstCreateEntryResponses.NoValue());
 
         MstTransparencyService service = new MstTransparencyService(mockClient.Object);
         CoseSign1Message message = CreateMockCoseSign1Message();
@@ -135,20 +135,20 @@ public class MstTransparencyServiceTests
         // Act & Assert
         Assert.That(
             async () => await service.MakeTransparentAsync(message),
-            Throws.TypeOf<InvalidOperationException>().With.Message.Contains("CreateEntryAsync failed to return a response"));
+            Throws.TypeOf<InvalidOperationException>().With.Message.Contains("failed to return an entry id: 303 See Other"));
     }
 
     /// <summary>
-    /// Tests the <see cref="MstTransparencyService.MakeTransparentAsync"/> method for a failed operation with an invalid entry Id.
+    /// Tests the <see cref="MstTransparencyService.MakeTransparentAsync"/> method when neither the Location header nor the body yields an entry id.
     /// </summary>
     [Test]
-    public void MakeTransparentAsync_ThrowsInvalidOperationException_WhenOperationFails_WithInvalidEntryId()
+    public void MakeTransparentAsync_ThrowsInvalidOperationException_WhenEntryIdCannotBeDetermined()
     {
         // Arrange
         Mock<CodeTransparencyClient> mockClient = new Mock<CodeTransparencyClient>();
         mockClient
-            .Setup(client => client.CreateEntryAsync(It.IsAny<WaitUntil>(), It.IsAny<BinaryData>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(MockSuccessfulOperationWithInvalidResponse());
+            .Setup(client => client.CreateEntryAsync(It.IsAny<BinaryData>(), It.IsAny<bool?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(MstCreateEntryResponses.WithoutEntryId());
 
         MstTransparencyService service = new MstTransparencyService(mockClient.Object);
         CoseSign1Message message = CreateMockCoseSign1Message();
@@ -156,14 +156,17 @@ public class MstTransparencyServiceTests
         // Act & Assert
         Assert.That(
             async () => await service.MakeTransparentAsync(message),
-            Throws.TypeOf<InvalidOperationException>().With.Message.Contains("The transparency operation failed, content was not a valid CBOR-encoded entryId."));
+            Throws.TypeOf<InvalidOperationException>().With.Message.Contains("failed to return an entry id"));
+        mockClient.Verify(client => client.GetEntryStatementAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     /// <summary>
-    /// Tests the <see cref="MstTransparencyService.MakeTransparentAsync"/> method for a successful operation.
+    /// Tests the <see cref="MstTransparencyService.MakeTransparentAsync"/> method for a successful operation,
+    /// including that it waits for commit and uses the entry id from the Location header.
     /// </summary>
-    [Test]
-    public async Task MakeTransparentAsync_ReturnsExpectedResult_WhenOperationSucceeds()
+    [TestCase(null, TestName = "MakeTransparentAsync_ReturnsExpectedResult_WhenOperationSucceeds")]
+    [TestCase("api-version=2025-01-31-preview", TestName = "MakeTransparentAsync_ReturnsExpectedResult_WhenLocationHasQuery")]
+    public async Task MakeTransparentAsync_ReturnsExpectedResult_WhenOperationSucceeds(string? locationQuery)
     {
         // Arrange
         Mock<CodeTransparencyClient> mockClient = new Mock<CodeTransparencyClient>();
@@ -171,8 +174,8 @@ public class MstTransparencyServiceTests
         message.AddReceipts(new List<byte[]>() { new byte[] { 1, 2, 3 } });
         BinaryData mockEntryStatement = BinaryData.FromBytes(message.Encode());
         mockClient
-            .Setup(client => client.CreateEntryAsync(It.IsAny<WaitUntil>(), It.IsAny<BinaryData>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(MockSuccessfulOperation());
+            .Setup(client => client.CreateEntryAsync(It.IsAny<BinaryData>(), It.IsAny<bool?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(MstCreateEntryResponses.Committed("2.15", locationQuery));
         mockClient
             .Setup(client => client.GetEntryStatementAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Response.FromValue(mockEntryStatement, Mock.Of<Response>()));
@@ -184,6 +187,8 @@ public class MstTransparencyServiceTests
 
         // Assert
         Assert.That(result, Is.Not.Null);
+        mockClient.Verify(client => client.CreateEntryAsync(It.IsAny<BinaryData>(), true, It.IsAny<CancellationToken>()), Times.Once);
+        mockClient.Verify(client => client.GetEntryStatementAsync("2.15", It.IsAny<CancellationToken>()), Times.Once);
     }
 
     /// <summary>
@@ -285,7 +290,7 @@ public class MstTransparencyServiceTests
         // Arrange
         Mock<CodeTransparencyClient> mockClient = new Mock<CodeTransparencyClient>();
         mockClient
-            .Setup(client => client.CreateEntryAsync(It.IsAny<WaitUntil>(), It.IsAny<BinaryData>(), It.IsAny<CancellationToken>()))
+            .Setup(client => client.CreateEntryAsync(It.IsAny<BinaryData>(), It.IsAny<bool?>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new RequestFailedException(502, "Bad Gateway"));
 
         MstTransparencyService service = new MstTransparencyService(mockClient.Object);
@@ -297,52 +302,6 @@ public class MstTransparencyServiceTests
             Throws.TypeOf<MstServiceException>()
                 .With.Message.Contains("502")
                 .And.InnerException.TypeOf<RequestFailedException>());
-    }
-
-    /// <summary>
-    /// Helper method to create a mock failed operation.
-    /// </summary>
-    /// <returns>A mock failed operation.</returns>
-    private static Operation<BinaryData> MockFailedOperation()
-    {
-        Mock<Operation<BinaryData>> mockOperation = new Mock<Operation<BinaryData>>();
-        mockOperation.Setup(op => op.HasValue).Returns(false);
-        mockOperation.Setup(op => op.GetRawResponse()).Returns(Mock.Of<Response>());
-        return mockOperation.Object;
-    }
-
-    /// <summary>
-    /// Helper method to create a mock successful operation but with an invalid Operati9onId.
-    /// </summary>
-    /// <returns>A mock successful operation.</returns>
-    private static Operation<BinaryData> MockSuccessfulOperationWithInvalidResponse()
-    {
-        Mock<Operation<BinaryData>> mockOperation = new Mock<Operation<BinaryData>>();
-        mockOperation.Setup(op => op.HasValue).Returns(true);
-        CborWriter cborWriter = new CborWriter();
-        cborWriter.WriteStartMap(1);
-        cborWriter.WriteTextString("fooBar");
-        cborWriter.WriteTextString("12345");
-        cborWriter.WriteEndMap();
-        mockOperation.Setup(op => op.Value).Returns(BinaryData.FromBytes(cborWriter.Encode()));
-        return mockOperation.Object;
-    }
-
-    /// <summary>
-    /// Helper method to create a mock successful operation.
-    /// </summary>
-    /// <returns>A mock successful operation.</returns>
-    private static Operation<BinaryData> MockSuccessfulOperation()
-    {
-        Mock<Operation<BinaryData>> mockOperation = new Mock<Operation<BinaryData>>();
-        mockOperation.Setup(op => op.HasValue).Returns(true);
-        CborWriter cborWriter = new CborWriter();
-        cborWriter.WriteStartMap(1);
-        cborWriter.WriteTextString("EntryId");
-        cborWriter.WriteTextString("12345");
-        cborWriter.WriteEndMap();
-        mockOperation.Setup(op => op.Value).Returns(BinaryData.FromBytes(cborWriter.Encode()));
-        return mockOperation.Object;
     }
 
     /// <summary>

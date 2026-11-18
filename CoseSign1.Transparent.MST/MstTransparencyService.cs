@@ -175,6 +175,60 @@ public class MstTransparencyService : TransparencyService
     }
 
     /// <summary>
+    /// Extracts the registration entry id from a <c>CreateEntry</c> response, preferring the
+    /// <c>Location</c> header (<c>.../entries/{entryId}</c>) and falling back to the receipt
+    /// returned in the response body.
+    /// </summary>
+    /// <param name="response">The response returned by <c>CreateEntryAsync</c>.</param>
+    /// <returns>The entry id, or <c>null</c> if it could not be determined.</returns>
+    private static string? TryGetEntryId(NullableResponse<BinaryData> response)
+    {
+        Response rawResponse = response.GetRawResponse();
+        if (rawResponse.Headers.TryGetValue("Location", out string? location) && !string.IsNullOrEmpty(location))
+        {
+            const string EntriesSegment = "/entries/";
+            int index = location.LastIndexOf(EntriesSegment, StringComparison.OrdinalIgnoreCase);
+            if (index >= 0)
+            {
+                string entryId = location.Substring(index + EntriesSegment.Length);
+                int queryIndex = entryId.IndexOf('?');
+                if (queryIndex >= 0)
+                {
+                    entryId = entryId.Substring(0, queryIndex);
+                }
+
+                entryId = entryId.Trim('/');
+                if (entryId.Length > 0)
+                {
+                    return entryId;
+                }
+            }
+        }
+
+        if (!response.HasValue || response.Value is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            return CcfReceipt.GetRegistrationTransactionId(response.Value.ToArray());
+        }
+        catch (CborContentException)
+        {
+            return null;
+        }
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
+        catch (OverflowException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
     /// Creates a new transparent COSE Sign1 message by embedding additional metadata or headers
     /// into the provided COSE Sign1 message using Azure CTS.
     /// </summary>
@@ -197,37 +251,18 @@ public class MstTransparencyService : TransparencyService
         BinaryData content = BinaryData.FromBytes(message.Encode());
         LogVerbose?.Invoke($"Encoded message size: {content.ToArray().Length} bytes");
 
-        Operation<BinaryData> operation;
+        if (PollingOptions?.DelayStrategy != null || PollingOptions?.PollingInterval != null)
+        {
+            LogVerbose?.Invoke("MstPollingOptions are ignored; configure CodeTransparencyClientOptions.Retry to tune commit polling.");
+        }
+
+        NullableResponse<BinaryData> response;
         try
         {
-            // Request the entry be created in the transparency service
+            // waitForCommit: true makes the service (and the SDK pipeline's redirect/retry handling)
+            // return only once the entry is committed, so there is no long-running operation to poll.
             LogVerbose?.Invoke("Calling CreateEntryAsync...");
-            // CS0618: obsolete since beta.10. Kept because with the referenced beta.12 it delegates to
-            // CreateEntryAsync(content, waitForCommit: true, ...) and returns an already-completed
-            // Operation, so the wait below never polls and PollingOptions does not affect timing.
-            // Migration is tracked separately; it is not a straight swap, as the code below parses the
-            // entry-id-shaped Operation.Value that this wrapper synthesises.
-#pragma warning disable CS0618 // Type or member is obsolete
-            operation = await TransparencyClient.CreateEntryAsync(WaitUntil.Started, content, cancellationToken).ConfigureAwait(false);
-#pragma warning restore CS0618
-
-            // No-op with beta.12; honoured only when the SDK returns a genuinely pending operation.
-            // DelayStrategy takes precedence over PollingInterval if both are set.
-            LogVerbose?.Invoke("Waiting for CreateEntryAsync operation to complete...");
-            if (PollingOptions?.DelayStrategy != null)
-            {
-                LogVerbose?.Invoke($"Using custom DelayStrategy: {PollingOptions.DelayStrategy.GetType().Name}");
-                await operation.WaitForCompletionAsync(PollingOptions.DelayStrategy, cancellationToken).ConfigureAwait(false);
-            }
-            else if (PollingOptions?.PollingInterval != null)
-            {
-                LogVerbose?.Invoke($"Using fixed polling interval: {PollingOptions.PollingInterval.Value.TotalMilliseconds}ms");
-                await operation.WaitForCompletionAsync(PollingOptions.PollingInterval.Value, cancellationToken).ConfigureAwait(false);
-            }
-            else
-            {
-                await operation.WaitForCompletionAsync(cancellationToken).ConfigureAwait(false);
-            }
+            response = await TransparencyClient.CreateEntryAsync(content, waitForCommit: true, cancellationToken).ConfigureAwait(false);
         }
         catch (Azure.RequestFailedException rfEx)
         {
@@ -241,20 +276,12 @@ public class MstTransparencyService : TransparencyService
             throw mstEx;
         }
 
-        // Check if the operation was successful
-        if (!operation.HasValue)
-        {
-            string error = $"The transparency operation CreateEntryAsync failed to return a response: {operation.GetRawResponse().ReasonPhrase}";
-            LogError?.Invoke(error);
-            throw new InvalidOperationException(error);
-        }
-
         LogVerbose?.Invoke("CreateEntryAsync completed successfully");
 
-        // Get the entryId from the operation result
-        if (!operation.Value.TryGetMstEntryId(out string entryId))
+        string? entryId = TryGetEntryId(response);
+        if (string.IsNullOrEmpty(entryId))
         {
-            string error = "The transparency operation failed, content was not a valid CBOR-encoded entryId.";
+            string error = $"The transparency operation CreateEntryAsync failed to return an entry id: {response.GetRawResponse().Status} {response.GetRawResponse().ReasonPhrase}";
             LogError?.Invoke(error);
             throw new InvalidOperationException(error);
         }

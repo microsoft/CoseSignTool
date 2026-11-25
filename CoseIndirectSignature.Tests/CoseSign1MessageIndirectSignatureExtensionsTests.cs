@@ -189,6 +189,82 @@ public class CoseSign1MessageIndirectSignatureExtensionsTests
     }
 
     [Test]
+    public void TestContentDigestMatchesStreamSuccess()
+    {
+        ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider();
+        IndirectSignatureFactory factory = new();
+        byte[] randomBytes = new byte[50];
+        new Random().NextBytes(randomBytes);
+        using MemoryStream stream = new(randomBytes);
+
+        CoseSign1Message IndirectSignature = factory.CreateIndirectSignature(randomBytes, coseSigningKeyProvider, "application/test.payload");
+
+        // ContentDigestMatches is the intent-revealing alias for SignatureMatches and must agree with it.
+        // Reset the stream between calls because each call consumes it while hashing.
+        stream.Seek(0, SeekOrigin.Begin);
+        bool aliasResult = IndirectSignature.ContentDigestMatches(stream);
+        stream.Seek(0, SeekOrigin.Begin);
+        bool legacyResult = IndirectSignature.SignatureMatches(stream);
+
+        aliasResult.Should().BeTrue();
+        aliasResult.Should().Be(legacyResult);
+    }
+
+    [Test]
+    public void TestContentDigestMatchesStreamFailure()
+    {
+        ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider();
+        IndirectSignatureFactory factory = new();
+        byte[] randomBytes = new byte[50];
+        byte[] randomBytes2 = new byte[50];
+        new Random().NextBytes(randomBytes);
+        new Random().NextBytes(randomBytes2);
+        using MemoryStream stream = new(randomBytes2);
+
+        // test mismatched digest
+        CoseSign1Message? IndirectSignature = factory.CreateIndirectSignature(randomBytes, coseSigningKeyProvider, "application/test.payload");
+        IndirectSignature.ContentDigestMatches(stream).Should().BeFalse();
+
+        // test null object case
+        IndirectSignature = null;
+        CoseSign1MessageIndirectSignatureExtensions.ContentDigestMatches(IndirectSignature, stream).Should().BeFalse();
+    }
+
+    [Test]
+    public void TestContentDigestMatchesBytesSuccess()
+    {
+        ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider();
+        IndirectSignatureFactory factory = new();
+        byte[] randomBytes = new byte[50];
+        new Random().NextBytes(randomBytes);
+
+        CoseSign1Message IndirectSignature = factory.CreateIndirectSignature(randomBytes, coseSigningKeyProvider, "application/test.payload");
+
+        // ContentDigestMatches is the intent-revealing alias for SignatureMatches and must agree with it.
+        IndirectSignature.ContentDigestMatches(randomBytes).Should().BeTrue();
+        IndirectSignature.ContentDigestMatches(randomBytes).Should().Be(IndirectSignature.SignatureMatches(randomBytes));
+    }
+
+    [Test]
+    public void TestContentDigestMatchesBytesFailure()
+    {
+        ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider();
+        IndirectSignatureFactory factory = new();
+        byte[] randomBytes = new byte[50];
+        byte[] randomBytes2 = new byte[50];
+        new Random().NextBytes(randomBytes);
+        new Random().NextBytes(randomBytes2);
+
+        // test mismatched digest
+        CoseSign1Message? IndirectSignature = factory.CreateIndirectSignature(randomBytes, coseSigningKeyProvider, "application/test.payload");
+        IndirectSignature.ContentDigestMatches(randomBytes2).Should().BeFalse();
+
+        // test null object case
+        IndirectSignature = null;
+        CoseSign1MessageIndirectSignatureExtensions.ContentDigestMatches(IndirectSignature, randomBytes).Should().BeFalse();
+    }
+
+    [Test]
     public void TestTryGetHashAlgorithmSuccess()
     {
         ICoseSigningKeyProvider coseSigningKeyProvider = SetupMockSigningKeyProvider();
